@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { compareVariantValues } from "@/lib/variantSort";
 import { computeDeliveryBalances } from "@/lib/deliveryBalances";
 import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
 import jsPDF from "jspdf";
@@ -353,6 +354,28 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  /** Agrupado por PRODUCTO (padre) con sus variantes adentro */
+  const parentGroups = useMemo(() => {
+    const map: Record<string, {
+      producto: string;
+      unidades: number;
+      clientes: number;
+      itemIds: string[];
+      variants: { key: string; variante: string | null; unidades: number; clientes: number; itemIds: string[] }[];
+    }> = {};
+    productGroups.forEach(([key, g]) => {
+      if (!map[g.producto]) map[g.producto] = { producto: g.producto, unidades: 0, clientes: 0, itemIds: [], variants: [] };
+      const p = map[g.producto];
+      p.unidades += g.unidades;
+      p.clientes += g.items.length;
+      p.itemIds.push(...g.itemIds);
+      p.variants.push({ key, variante: g.variante, unidades: g.unidades, clientes: g.items.length, itemIds: g.itemIds });
+    });
+    return Object.values(map)
+      .map((p) => ({ ...p, variants: p.variants.sort((a, b) => compareVariantValues(a.variante ?? "", b.variante ?? "")) }))
+      .sort((a, b) => a.producto.localeCompare(b.producto, "es"));
+  }, [productGroups]);
+
   const [productSaveState, setProductSaveState] = useState<Record<string, "saving" | "saved" | undefined>>({});
   const saveProductGroup = async (key: string, itemIds: string[]) => {
     const edit = productEdits[key];
@@ -377,21 +400,102 @@ const AdminEntregaDetail = () => {
     load();
   };
 
-  const linkAndPullFromStore = (key: string, storeProductId: string) => {
+  /** Estado de edición a nivel PRODUCTO (se propaga a todas sus variantes) */
+  const [parentEdits, setParentEdits] = useState<Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }>>({});
+
+  useEffect(() => {
+    const next: Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }> = {};
+    parentGroups.forEach((p) => {
+      const first = p.variants[0] ? productEdits[p.variants[0].key] : undefined;
+      const allSame = (field: "costo" | "precio" | "moneda" | "store_product_id") =>
+        p.variants.every((v) => (productEdits[v.key]?.[field] ?? "") === (first?.[field] ?? ""));
+      next[p.producto] = {
+        costo: allSame("costo") ? first?.costo ?? "" : "",
+        precio: allSame("precio") ? first?.precio ?? "" : "",
+        moneda: allSame("moneda") ? first?.moneda ?? "ARS" : first?.moneda ?? "ARS",
+        store_product_id: allSame("store_product_id") ? first?.store_product_id ?? "" : "",
+      };
+    });
+    setParentEdits(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items]);
+
+  const linkParentFromStore = (producto: string, storeProductId: string) => {
     const sp = storeProducts.find((s) => s.id === storeProductId);
-    const current = productEdits[key];
+    const current = parentEdits[producto];
     if (!sp || !current) return;
-    setProductEdits({
-      ...productEdits,
-      [key]: {
+    setParentEdits((prev) => ({
+      ...prev,
+      [producto]: {
         ...current,
         store_product_id: storeProductId,
         costo: sp.costo != null ? String(sp.costo) : current.costo,
         precio: sp.price != null ? String(sp.price) : current.precio,
         moneda: sp.costo_moneda || sp.currency || current.moneda,
       },
-    });
+    }));
   };
+
+  const saveParentGroup = async (producto: string, itemIds: string[]) => {
+    const edit = parentEdits[producto];
+    if (!edit) return;
+    const patch: any = {
+      costo_unitario: edit.costo === "" ? null : Number(edit.costo),
+      precio_venta: edit.precio === "" ? null : Number(edit.precio),
+      moneda: edit.moneda || "ARS",
+      store_product_id: edit.store_product_id || null,
+    };
+    setProductSaveState((s) => ({ ...s, [producto]: "saving" }));
+    const { error } = await supabase.from("delivery_list_items").update(patch).in("id", itemIds);
+    if (error) {
+      setProductSaveState((s) => ({ ...s, [producto]: undefined }));
+      return toast.error(error.message);
+    }
+    toast.success(`${producto}: ${itemIds.length} ítem(s) actualizados (todas las variantes)`);
+    setProductSaveState((s) => ({ ...s, [producto]: "saved" }));
+    setTimeout(() => setProductSaveState((s) => ({ ...s, [producto]: undefined })), 2500);
+    load();
+  };
+
+  /** Vinculación automática por nombre para todos los productos sin vincular */
+  const [autoLinking, setAutoLinking] = useState(false);
+  const norm = (s: string) => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+  const autoLinkAll = async () => {
+    setAutoLinking(true);
+    let matched = 0;
+    const updates: { ids: string[]; patch: any }[] = [];
+    parentGroups.forEach((p) => {
+      const already = parentEdits[p.producto]?.store_product_id;
+      if (already) return;
+      const target = norm(p.producto);
+      const sp =
+        storeProducts.find((s) => norm(s.name) === target) ||
+        storeProducts.find((s) => norm(s.name).includes(target) || target.includes(norm(s.name)));
+      if (!sp) return;
+      matched++;
+      updates.push({
+        ids: p.itemIds,
+        patch: {
+          store_product_id: sp.id,
+          costo_unitario: sp.costo ?? null,
+          precio_venta: sp.price ?? null,
+          moneda: sp.costo_moneda || sp.currency || "ARS",
+        },
+      });
+    });
+    for (const u of updates) {
+      const { error } = await supabase.from("delivery_list_items").update(u.patch).in("id", u.ids);
+      if (error) {
+        setAutoLinking(false);
+        return toast.error(error.message);
+      }
+    }
+    setAutoLinking(false);
+    if (matched === 0) toast.info("No encontré coincidencias nuevas por nombre");
+    else toast.success(`${matched} producto(s) vinculados y actualizados`);
+    if (matched) load();
+  };
+
 
   const toggleEntregado = async (item: Item, checked: boolean) => {
     setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, preparado: checked } : i)));
@@ -609,33 +713,37 @@ const AdminEntregaDetail = () => {
           })()}
         </TabsContent>
 
-        {/* PRODUCTOS (fuente única de costo/precio por producto+variante) */}
+        {/* PRODUCTOS (costo/precio a nivel producto, con override por variante) */}
         <TabsContent value="productos" className="space-y-3 pt-4">
-          <p className="text-xs text-muted-foreground">
-            Cargá costo y precio a nivel <strong>producto + variante</strong>: se aplica a todos los clientes que llevaron ese ítem. Vinculá a un producto de la tienda para heredar los valores.
-          </p>
-          {productGroups.length === 0 ? (
+          <div className="flex items-start justify-between gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground max-w-2xl">
+              Cargá costo y precio <strong>una vez por producto</strong>: se aplica a todas sus variantes y a todos los clientes.
+              Si alguna variante tiene otro precio, abrí "Variantes" y ajustala.
+            </p>
+            <Button size="sm" variant="outline" onClick={autoLinkAll} disabled={autoLinking}>
+              {autoLinking ? "Vinculando…" : "Vincular todo con la tienda"}
+            </Button>
+          </div>
+          {parentGroups.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">Sin productos.</p>
           ) : (
             <div className="space-y-2">
-              {productGroups.map(([key, g]) => {
-                const edit = productEdits[key] || { costo: "", precio: "", moneda: "ARS", store_product_id: "" };
+              {parentGroups.map((p) => {
+                const edit = parentEdits[p.producto] || { costo: "", precio: "", moneda: "ARS", store_product_id: "" };
                 const linked = storeProducts.find((s) => s.id === edit.store_product_id);
+                const st = productSaveState[p.producto];
                 return (
-                  <Card key={key}>
+                  <Card key={p.producto}>
                     <CardContent className="p-3 space-y-2">
                       <div className="flex items-center justify-between gap-2 flex-wrap">
                         <div className="min-w-0">
-                          <div className="text-sm font-medium truncate">
-                            {g.producto}
-                            {g.variante ? <span className="text-muted-foreground text-xs"> · {g.variante}</span> : null}
-                          </div>
+                          <div className="text-sm font-medium truncate">{p.producto}</div>
                           <div className="text-[10px] text-muted-foreground">
-                            {g.unidades} unidad(es) · {g.items.length} cliente(s)
+                            {p.unidades} unidad(es) · {p.variants.length} variante(s) · {p.clientes} línea(s)
                           </div>
                         </div>
                         <div className="flex items-center gap-1">
-                          {productSaveState[key] === "saved" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">✓ Guardado</Badge>}
+                          {st === "saved" && <Badge className="text-[10px] bg-emerald-600 hover:bg-emerald-600">✓ Guardado</Badge>}
                           {linked && <Badge variant="secondary" className="text-[10px]">🔗 tienda</Badge>}
                         </div>
                       </div>
@@ -645,11 +753,8 @@ const AdminEntregaDetail = () => {
                           <Select
                             value={edit.store_product_id || "none"}
                             onValueChange={(v) => {
-                              if (v === "none") {
-                                setProductEdits({ ...productEdits, [key]: { ...edit, store_product_id: "" } });
-                              } else {
-                                linkAndPullFromStore(key, v);
-                              }
+                              if (v === "none") setParentEdits((prev) => ({ ...prev, [p.producto]: { ...edit, store_product_id: "" } }));
+                              else linkParentFromStore(p.producto, v);
                             }}
                           >
                             <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="Sin vincular" /></SelectTrigger>
@@ -666,7 +771,7 @@ const AdminEntregaDetail = () => {
                           <Input
                             type="number"
                             value={edit.costo}
-                            onChange={(e) => setProductEdits({ ...productEdits, [key]: { ...edit, costo: e.target.value } })}
+                            onChange={(e) => setParentEdits((prev) => ({ ...prev, [p.producto]: { ...edit, costo: e.target.value } }))}
                             placeholder="0"
                             className="h-8 text-sm"
                           />
@@ -676,13 +781,13 @@ const AdminEntregaDetail = () => {
                           <Input
                             type="number"
                             value={edit.precio}
-                            onChange={(e) => setProductEdits({ ...productEdits, [key]: { ...edit, precio: e.target.value } })}
+                            onChange={(e) => setParentEdits((prev) => ({ ...prev, [p.producto]: { ...edit, precio: e.target.value } }))}
                             placeholder="0"
                             className="h-8 text-sm"
                           />
                         </div>
                         <div className="flex gap-1">
-                          <Select value={edit.moneda} onValueChange={(v) => setProductEdits({ ...productEdits, [key]: { ...edit, moneda: v } })}>
+                          <Select value={edit.moneda} onValueChange={(v) => setParentEdits((prev) => ({ ...prev, [p.producto]: { ...edit, moneda: v } }))}>
                             <SelectTrigger className="h-8 text-sm w-20"><SelectValue /></SelectTrigger>
                             <SelectContent>
                               <SelectItem value="ARS">ARS</SelectItem>
@@ -692,14 +797,68 @@ const AdminEntregaDetail = () => {
                           </Select>
                           <Button
                             size="sm"
-                            onClick={() => saveProductGroup(key, g.itemIds)}
-                            disabled={productSaveState[key] === "saving"}
-                            className={productSaveState[key] === "saved" ? "bg-emerald-600 hover:bg-emerald-600" : ""}
+                            onClick={() => saveParentGroup(p.producto, p.itemIds)}
+                            disabled={st === "saving"}
+                            className={st === "saved" ? "bg-emerald-600 hover:bg-emerald-600" : ""}
                           >
-                            {productSaveState[key] === "saving" ? "Guardando…" : productSaveState[key] === "saved" ? "✓ Guardado" : "Aplicar"}
+                            {st === "saving" ? "Guardando…" : st === "saved" ? "✓ Guardado" : "Aplicar a todas"}
                           </Button>
                         </div>
                       </div>
+
+                      {p.variants.length > 1 && (
+                        <Collapsible>
+                          <CollapsibleTrigger className="flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground">
+                            <ChevronDown className="w-3 h-3" />
+                            Variantes ({p.variants.length}) · ajustar individualmente
+                          </CollapsibleTrigger>
+                          <CollapsibleContent className="pt-2 space-y-1.5">
+                            {p.variants.map((v) => {
+                              const ve = productEdits[v.key] || { costo: "", precio: "", moneda: edit.moneda, store_product_id: edit.store_product_id };
+                              const vst = productSaveState[v.key];
+                              return (
+                                <div key={v.key} className="grid grid-cols-2 md:grid-cols-5 gap-2 items-center border-t border-border/50 pt-1.5">
+                                  <div className="text-xs">
+                                    <span className="font-medium">{v.variante || "sin variante"}</span>
+                                    <span className="text-[10px] text-muted-foreground"> · {v.unidades}u</span>
+                                  </div>
+                                  <Input
+                                    type="number"
+                                    value={ve.costo}
+                                    onChange={(e) => setProductEdits({ ...productEdits, [v.key]: { ...ve, costo: e.target.value } })}
+                                    placeholder="Costo"
+                                    className="h-7 text-xs"
+                                  />
+                                  <Input
+                                    type="number"
+                                    value={ve.precio}
+                                    onChange={(e) => setProductEdits({ ...productEdits, [v.key]: { ...ve, precio: e.target.value } })}
+                                    placeholder="Precio"
+                                    className="h-7 text-xs"
+                                  />
+                                  <Select value={ve.moneda} onValueChange={(val) => setProductEdits({ ...productEdits, [v.key]: { ...ve, moneda: val } })}>
+                                    <SelectTrigger className="h-7 text-xs w-20"><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                      <SelectItem value="ARS">ARS</SelectItem>
+                                      <SelectItem value="USD">USD</SelectItem>
+                                      <SelectItem value="EUR">EUR</SelectItem>
+                                    </SelectContent>
+                                  </Select>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-xs"
+                                    onClick={() => saveProductGroup(v.key, v.itemIds)}
+                                    disabled={vst === "saving"}
+                                  >
+                                    {vst === "saving" ? "…" : vst === "saved" ? "✓" : "Guardar"}
+                                  </Button>
+                                </div>
+                              );
+                            })}
+                          </CollapsibleContent>
+                        </Collapsible>
+                      )}
                     </CardContent>
                   </Card>
                 );
@@ -707,6 +866,7 @@ const AdminEntregaDetail = () => {
             </div>
           )}
         </TabsContent>
+
 
         {/* ÍTEMS Y CLIENTES (solo entrega + resumen de plata read-only) */}
         <TabsContent value="items" className="space-y-3 pt-4">
