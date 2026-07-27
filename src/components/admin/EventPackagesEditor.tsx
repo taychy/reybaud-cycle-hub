@@ -62,7 +62,7 @@ const emptyDraft = (currency: string) => ({
 type GenderCounts = { mujeres: number; varones: number; mixto: number };
 type RoomCapacity = { mujeres: number; varones: number; mixto: number; total: number; roomCount: number };
 
-export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
+export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Props) => {
   const [items, setItems] = useState<PackageRow[]>([]);
   const [counts, setCounts] = useState<Record<string, GenderCounts>>({});
   const [roomCapacity, setRoomCapacity] = useState<Record<string, RoomCapacity>>({});
@@ -72,6 +72,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency }: Props) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState(emptyDraft(eventCurrency));
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [showLodging, setShowLodging] = useState(false);
 
   const toggleExpand = (id: string) =>
     setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
