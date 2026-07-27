@@ -455,9 +455,15 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                               Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones vinculadas a este paquete.
                             </div>
                           )}
-                          <p className="text-muted-foreground/70 italic">
-                            Cargá o editá habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento.
-                          </p>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-[11px]"
+                            onClick={() => setShowLodging(true)}
+                          >
+                            <BedDouble className="w-3 h-3 mr-1" /> Ver/editar en Alojamiento
+                          </Button>
                         </>
                       )}
                     </div>
