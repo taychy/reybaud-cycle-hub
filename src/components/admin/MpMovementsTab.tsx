@@ -72,6 +72,8 @@ export default function MpMovementsTab() {
 
   const [assignDialog, setAssignDialog] = useState<Movement | null>(null);
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [suggested, setSuggested] = useState<Alumno[]>([]);
+
   const [selectedAlumno, setSelectedAlumno] = useState<string | null>(null);
   const [assignNotes, setAssignNotes] = useState("");
   const [assigning, setAssigning] = useState(false);
