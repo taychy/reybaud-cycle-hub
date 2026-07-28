@@ -1093,6 +1093,7 @@ export type Database = {
           failed_count: number
           id: string
           preheader: string | null
+          promo_product_ids: string[]
           reply_to: string | null
           segment_filters: Json
           sender_email: string
@@ -1112,6 +1113,7 @@ export type Database = {
           failed_count?: number
           id?: string
           preheader?: string | null
+          promo_product_ids?: string[]
           reply_to?: string | null
           segment_filters?: Json
           sender_email: string
@@ -1131,6 +1133,7 @@ export type Database = {
           failed_count?: number
           id?: string
           preheader?: string | null
+          promo_product_ids?: string[]
           reply_to?: string | null
           segment_filters?: Json
           sender_email?: string
@@ -9317,7 +9320,10 @@ export type Database = {
           currency: string
           delivery_methods: Json
           description: string | null
+          descuento_pct: number | null
           discount: number | null
+          entrega_estimada_dias: number | null
+          es_externo: boolean
           external_url: string | null
           featured: boolean
           featured_order: number | null
@@ -9330,6 +9336,7 @@ export type Database = {
           no_admite_cambio: boolean
           old_price: number | null
           pickup_sede_ids: string[]
+          precio_oficial: number | null
           preorder_deadline: string | null
           preorder_deposit_amount: number | null
           preorder_deposit_percent: number | null
@@ -9339,9 +9346,12 @@ export type Database = {
           preorder_total_units: number | null
           preorder_variants: Json
           price: number
+          promo_activa: boolean
+          proveedor: string | null
           sena_mode: string | null
           sena_valor: number | null
           sku_base: string | null
+          source_url: string | null
           status: string
           stock: number
           tag: string | null
@@ -9361,7 +9371,10 @@ export type Database = {
           currency?: string
           delivery_methods?: Json
           description?: string | null
+          descuento_pct?: number | null
           discount?: number | null
+          entrega_estimada_dias?: number | null
+          es_externo?: boolean
           external_url?: string | null
           featured?: boolean
           featured_order?: number | null
@@ -9374,6 +9387,7 @@ export type Database = {
           no_admite_cambio?: boolean
           old_price?: number | null
           pickup_sede_ids?: string[]
+          precio_oficial?: number | null
           preorder_deadline?: string | null
           preorder_deposit_amount?: number | null
           preorder_deposit_percent?: number | null
@@ -9383,9 +9397,12 @@ export type Database = {
           preorder_total_units?: number | null
           preorder_variants?: Json
           price: number
+          promo_activa?: boolean
+          proveedor?: string | null
           sena_mode?: string | null
           sena_valor?: number | null
           sku_base?: string | null
+          source_url?: string | null
           status?: string
           stock?: number
           tag?: string | null
@@ -9405,7 +9422,10 @@ export type Database = {
           currency?: string
           delivery_methods?: Json
           description?: string | null
+          descuento_pct?: number | null
           discount?: number | null
+          entrega_estimada_dias?: number | null
+          es_externo?: boolean
           external_url?: string | null
           featured?: boolean
           featured_order?: number | null
@@ -9418,6 +9438,7 @@ export type Database = {
           no_admite_cambio?: boolean
           old_price?: number | null
           pickup_sede_ids?: string[]
+          precio_oficial?: number | null
           preorder_deadline?: string | null
           preorder_deposit_amount?: number | null
           preorder_deposit_percent?: number | null
@@ -9427,9 +9448,12 @@ export type Database = {
           preorder_total_units?: number | null
           preorder_variants?: Json
           price?: number
+          promo_activa?: boolean
+          proveedor?: string | null
           sena_mode?: string | null
           sena_valor?: number | null
           sku_base?: string | null
+          source_url?: string | null
           status?: string
           stock?: number
           tag?: string | null
