@@ -120,10 +120,29 @@ const Login = () => {
         return;
       }
       if (alumno.estado === "inactivo") {
-        setCheckingSession(false);
-        setLoginError(t("login.accountInactive"));
+        // Reingreso autogestionado: si no tiene deuda pendiente, va directo a elegir plan.
+        clearPendingOtpState();
+        const { data: reingreso, error: reingresoError } = await supabase.rpc(
+          "get_reingreso_status",
+          { p_alumno_id: alumno.id }
+        );
+        const info = reingreso as any;
+        if (reingresoError || !info?.found) {
+          setCheckingSession(false);
+          setLoginError(t("login.accountInactive"));
+          return;
+        }
+        if (info.puede_reingresar) {
+          localStorage.setItem("registro_alumno_id", alumno.id);
+          localStorage.setItem("alumno_renewal", "1");
+          navigate("/planes", { replace: true });
+          return;
+        }
+        localStorage.setItem("reingreso_alumno_id", alumno.id);
+        navigate("/reingreso", { replace: true });
         return;
       }
+
       if (alumno.estado === "pendiente") {
         if (alumno.grupo === "Sin grupo") {
           setCheckingSession(false);

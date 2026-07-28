@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PlanSelection from "./pages/PlanSelection";
+import Reingreso from "./pages/Reingreso";
+
 import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDashboard from "./pages/StudentDashboard";
@@ -152,6 +154,8 @@ const App = () => (
           <Route path="/completar-registro" element={<CompleteRegistration />} />
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
           <Route path="/planes" element={<PlanSelection />} />
+          <Route path="/reingreso" element={<Reingreso />} />
+
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/interes/:eventId" element={<EventInterest />} />
           <Route path="/encuesta/:token" element={<EventSurvey />} />
