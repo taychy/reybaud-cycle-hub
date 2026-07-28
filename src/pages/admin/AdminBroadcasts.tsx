@@ -316,6 +316,7 @@ export default function AdminBroadcasts() {
           segment_filters: segmentFilters,
           cta_url: composer.cta_url || undefined,
           cta_label: composer.cta_label || undefined,
+          promo_product_ids: composer.promo_product_ids,
           excluded_emails: Array.from(excludedEmails),
         },
       });
