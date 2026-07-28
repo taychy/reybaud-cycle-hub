@@ -418,10 +418,12 @@ Deno.serve(async (req) => {
         });
       }
       const testRecipient = { email: body.test_email, display_name: "Test Reybaud" };
+      const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
       const html = htmlWrap(
         personalize(body.content_html, testRecipient) || "",
         body.preheader,
         { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
+        promoHtml,
       );
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
