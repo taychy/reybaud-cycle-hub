@@ -51,6 +51,7 @@ export interface SubStatusInput {
   estado: string;
   fecha_fin: string | null;
   cancelada_at?: string | null;
+  cancelada_motivo?: string | null;
   mp_status?: string | null;
   origen_registro?: string | null;
 }
@@ -87,9 +88,21 @@ export function isAdminPayableSubscription(sub: SubStatusInput): boolean {
 export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
   // Si está cancelada pero la fecha_fin todavía no llegó, conserva el acceso
   // (política: sin reembolso, acceso hasta fin de período).
-  // Recién cuando expire la fecha_fin la marcamos como "cancelada".
+  // OJO: la gracia SOLO aplica si el período estaba efectivamente pagado.
+  // Una renovación pendiente / impaga que se cancela (o que se cierra por baja
+  // del alumno) NO debe seguir figurando como "activa".
   if (sub.cancelada_at) {
     if (!sub.fecha_fin) return "cancelada";
+    const motivo = (sub.cancelada_motivo || "").toLowerCase();
+    const cierreForzado =
+      motivo.includes("baja") ||
+      motivo.includes("cleanup") ||
+      motivo.includes("huerfana") ||
+      motivo.includes("removido");
+    if (cierreForzado) return "cancelada";
+    const periodoPagado =
+      isSubPaid(sub) || sub.estado === "activa" || sub.estado === "finalizada";
+    if (!periodoPagado) return "cancelada";
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const finParts = sub.fecha_fin.substring(0, 10).split("-");
@@ -103,6 +116,7 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
     // Sigue vigente hasta fecha_fin: tratar como "activa" para acceso completo
     return "activa";
   }
+
 
   // If the subscription isn't "activa" in the DB, check for "vencida pero paga"
   if (sub.estado !== "activa") {
