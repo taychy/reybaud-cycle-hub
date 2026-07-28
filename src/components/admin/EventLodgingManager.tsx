@@ -231,7 +231,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       };
     });
 
-    setPackages(((pkgR.data || []) as unknown) as Pkg[]);
+    setPackages((pkgR.data || []) as unknown as Pkg[]);
     setReservations(built);
     setRooms(((roomR as any).data || []) as Room[]);
     setAssignments(((asgR as any).data || []) as Assignment[]);
@@ -260,11 +260,23 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   }, [open, eventId]);
 
   const assignedReservationIds = useMemo(() => new Set(assignments.map((a) => a.reservation_id)), [assignments]);
+  const packageById = useMemo(() => {
+    const m: Record<string, Pkg> = {};
+    packages.forEach((p) => {
+      m[p.id] = p;
+    });
+    return m;
+  }, [packages]);
 
+  const lodgingGroupKey = (pkgId: string | null): string => {
+    if (!pkgId) return "sin";
+    const g = packageById[pkgId]?.lodging_group_key?.trim().toLowerCase();
+    return g ? `grupo:${g}` : pkgId;
+  };
   const roomsByPackage = useMemo(() => {
     const m: Record<string, Room[]> = {};
     rooms.forEach((r) => {
-      const k = r.package_id || "sin";
+      const k = lodgingGroupKey(r.package_id);
       m[k] ??= [];
       m[k].push(r);
     });
@@ -276,7 +288,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     reservations
       .filter((r) => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
       .forEach((r) => {
-        const k = r.package_id || "sin";
+        const k = lodgingGroupKey(r.package_id);
         m[k] ??= [];
         m[k].push(r);
       });
@@ -611,482 +623,491 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
             )}
 
             {/* Por paquete */}
-            {packageBuckets.map(({ id: pkgId, label, pkg }) => {
-              const pkgKey = pkgId || "sin";
-              const pkgRooms = roomsByPackage[pkgKey] || [];
-              const pkgReservations = reservationsByPackage[pkgKey] || [];
-              const pkgUnassigned = pkgReservations.filter((r) => !assignedReservationIds.has(r.id));
-              const pkgCapacity = pkgRooms.reduce((s, r) => s + r.capacidad, 0);
-              // Ocupación real de camas (incluye ocupantes con reserva cancelada, que siguen bloqueando la plaza)
-              let pkgBedsUsed = 0;
-              let pkgBedsCancel = 0;
-              const freeByGenero: Record<string, number> = {};
-              pkgRooms.forEach((room) => {
-                const occ = occupantsByRoom[room.id] || [];
-                pkgBedsUsed += occ.length;
-                pkgBedsCancel += occ.filter(
-                  (o) => o.reservation_status === "cancelada" || o.reservation_status === "rechazada",
-                ).length;
-                const free = Math.max(0, room.capacidad - occ.length);
-                if (free > 0) {
-                  const g = (room as any).genero || "mixto";
-                  freeByGenero[g] = (freeByGenero[g] || 0) + free;
-                }
-              });
-              const pkgFree = Math.max(0, pkgCapacity - pkgBedsUsed);
-              const freeDetail = Object.entries(freeByGenero)
-                .map(([g, n]) => `${n} ${g}`)
-                .join(" · ");
+            {(() => {
+              const seenGroups = new Set<string>();
+              return packageBuckets.map(({ id: pkgId, label, pkg }) => {
+                const pkgKey = lodgingGroupKey(pkgId);
+                if (pkgKey !== "sin" && seenGroups.has(pkgKey)) return null;
+                seenGroups.add(pkgKey);
+                const groupLabels = packages.filter((p) => lodgingGroupKey(p.id) === pkgKey).map((p) => p.nombre);
+                const displayLabel = groupLabels.length > 1 ? groupLabels.join(" + ") : label;
 
-              const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
-              // Los paquetes que no requieren habitación (ej. "camp de un día") no
-              // necesitan tarjeta de alojamiento si aún no tienen ni reservas ni habitaciones.
-              if (sinAlojamiento && pkgReservations.length === 0 && pkgRooms.length === 0) return null;
-              if (sinAlojamiento && pkgRooms.length === 0) {
+                const pkgRooms = roomsByPackage[pkgKey] || [];
+                const pkgReservations = reservationsByPackage[pkgKey] || [];
+                const pkgUnassigned = pkgReservations.filter((r) => !assignedReservationIds.has(r.id));
+                const pkgCapacity = pkgRooms.reduce((s, r) => s + r.capacidad, 0);
+                // Ocupación real de camas (incluye ocupantes con reserva cancelada, que siguen bloqueando la plaza)
+                let pkgBedsUsed = 0;
+                let pkgBedsCancel = 0;
+                const freeByGenero: Record<string, number> = {};
+                pkgRooms.forEach((room) => {
+                  const occ = occupantsByRoom[room.id] || [];
+                  pkgBedsUsed += occ.length;
+                  pkgBedsCancel += occ.filter(
+                    (o) => o.reservation_status === "cancelada" || o.reservation_status === "rechazada",
+                  ).length;
+                  const free = Math.max(0, room.capacidad - occ.length);
+                  if (free > 0) {
+                    const g = (room as any).genero || "mixto";
+                    freeByGenero[g] = (freeByGenero[g] || 0) + free;
+                  }
+                });
+                const pkgFree = Math.max(0, pkgCapacity - pkgBedsUsed);
+                const freeDetail = Object.entries(freeByGenero)
+                  .map(([g, n]) => `${n} ${g}`)
+                  .join(" · ");
+
+                const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
+                // Los paquetes que no requieren habitación (ej. "camp de un día") no
+                // necesitan tarjeta de alojamiento si aún no tienen ni reservas ni habitaciones.
+                if (sinAlojamiento && pkgReservations.length === 0 && pkgRooms.length === 0) return null;
+                if (sinAlojamiento && pkgRooms.length === 0) {
+                  return (
+                    <div key={pkgKey} className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
+                      <div className="flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                          <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
+                            {label}
+                          </h3>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {pkgReservations.length} reserva(s) · sin alojamiento a asignar
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                          No requiere habitación
+                        </Badge>
+                      </div>
+                    </div>
+                  );
+                }
+
                 return (
-                  <div key={pkgKey} className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
+                  <div key={pkgKey} className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div>
-                        <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
+                        <h3 className="font-heading font-bold text-sm uppercase tracking-wide flex items-center gap-2">
                           {label}
                         </h3>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          {pkgReservations.length} reserva(s) · sin alojamiento a asignar
+                          {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgBedsUsed} ocupada(s)
+                          {pkgBedsCancel > 0 && ` (${pkgBedsCancel} con reserva cancelada)`}
+                          {` · ${pkgFree} libre(s)`}
+                          {freeDetail && ` → ${freeDetail}`}
+                          {pkg?.cupo != null && ` · cupo paquete: ${pkg.cupo}`}
+                          {pkg?.personas_por_habitacion != null && ` · ${pkg.personas_por_habitacion}p/hab`}
                         </p>
                       </div>
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                        No requiere habitación
-                      </Badge>
-                    </div>
-                  </div>
-                );
-              }
-
-              return (
-                <div key={pkgKey} className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
-                  <div className="flex items-center justify-between flex-wrap gap-2">
-                    <div>
-                      <h3 className="font-heading font-bold text-sm uppercase tracking-wide flex items-center gap-2">
-                        {label}
-                      </h3>
-                      <p className="text-[11px] text-muted-foreground mt-0.5">
-                        {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgBedsUsed} ocupada(s)
-                        {pkgBedsCancel > 0 && ` (${pkgBedsCancel} con reserva cancelada)`}
-                        {` · ${pkgFree} libre(s)`}
-                        {freeDetail && ` → ${freeDetail}`}
-                        {pkg?.cupo != null && ` · cupo paquete: ${pkg.cupo}`}
-                        {pkg?.personas_por_habitacion != null && ` · ${pkg.personas_por_habitacion}p/hab`}
-                      </p>
-                    </div>
-                    <div className="flex gap-2">
-                      {pkg?.personas_por_habitacion === 1 && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => autoGenerateIndividual(pkgId, pkgReservations)}
-                          disabled={pkgUnassigned.length === 0}
-                        >
-                          <UserPlus className="w-3.5 h-3.5 mr-1" /> Auto-generar individuales
-                        </Button>
-                      )}
-                      {pkg && (pkg.personas_por_habitacion || 0) > 1 && (
-                        <Button size="sm" variant="secondary" onClick={() => autoGenerateRooms(pkg)}>
-                          <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-generar habitaciones
-                        </Button>
-                      )}
-                      <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Nueva habitación inline */}
-                  {newRoomOpen === pkgKey && (
-                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
-                      <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-                        <div>
-                          <Label className="text-[10px]">Nombre</Label>
-                          <Input
-                            value={nrNombre}
-                            onChange={(e) => setNrNombre(e.target.value)}
-                            placeholder="Cabaña 1"
-                            className="h-8"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Tipo</Label>
-                          <Select
-                            value={nrTipo || "auto"}
-                            onValueChange={(v) => setNrTipo(v === "auto" ? "" : (v as RoomTipo))}
+                      <div className="flex gap-2">
+                        {pkg?.personas_por_habitacion === 1 && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={() => autoGenerateIndividual(pkgId, pkgReservations)}
+                            disabled={pkgUnassigned.length === 0}
                           >
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Auto" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="auto">Auto (según capacidad)</SelectItem>
-                              {TIPO_OPTIONS.map((o) => (
-                                <SelectItem key={o.value} value={o.value}>
-                                  {o.label}
-                                </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Capacidad</Label>
-                          <Input
-                            type="number"
-                            min={1}
-                            value={nrCapacidad}
-                            onChange={(e) => setNrCapacidad(parseInt(e.target.value) || 1)}
-                            className="h-8"
-                          />
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Género</Label>
-                          <Select value={nrGenero || "any"} onValueChange={(v) => setNrGenero(v === "any" ? "" : v)}>
-                            <SelectTrigger className="h-8">
-                              <SelectValue placeholder="Sin definir" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="any">Sin definir</SelectItem>
-                              <SelectItem value="mujeres">Mujeres</SelectItem>
-                              <SelectItem value="varones">Varones</SelectItem>
-                              <SelectItem value="mixto">Mixto</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </div>
-                        <div>
-                          <Label className="text-[10px]">Notas</Label>
-                          <Input
-                            value={nrNotas}
-                            onChange={(e) => setNrNotas(e.target.value)}
-                            placeholder="opcional"
-                            className="h-8"
-                          />
-                        </div>
-                      </div>
-
-                      <div className="flex gap-2 justify-end">
-                        <Button size="sm" variant="ghost" onClick={() => setNewRoomOpen(null)}>
-                          Cancelar
-                        </Button>
-                        <Button size="sm" onClick={() => createRoom(pkgId)}>
-                          Crear
+                            <UserPlus className="w-3.5 h-3.5 mr-1" /> Auto-generar individuales
+                          </Button>
+                        )}
+                        {pkg && (pkg.personas_por_habitacion || 0) > 1 && (
+                          <Button size="sm" variant="secondary" onClick={() => autoGenerateRooms(pkg)}>
+                            <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-generar habitaciones
+                          </Button>
+                        )}
+                        <Button size="sm" variant="outline" onClick={() => setNewRoomOpen(pkgKey)}>
+                          <Plus className="w-3.5 h-3.5 mr-1" /> Nueva habitación
                         </Button>
                       </div>
                     </div>
-                  )}
 
-                  <div className="grid md:grid-cols-2 gap-3">
-                    {/* Habitaciones */}
-                    <div className="space-y-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        Habitaciones ({pkgRooms.length})
-                      </div>
-                      {pkgRooms.length === 0 && (
-                        <div className="text-xs text-muted-foreground italic p-3 rounded border border-dashed border-border">
-                          Sin habitaciones creadas.
-                        </div>
-                      )}
-                      {pkgRooms.map((room) => {
-                        const occ = occupantsByRoom[room.id] || [];
-                        const free = room.capacidad - occ.length;
-                        const full = free <= 0;
-                        return (
-                          <div
-                            key={room.id}
-                            className={`rounded-lg border p-2.5 ${full ? "border-emerald-500/40 bg-emerald-500/5" : "border-border bg-background"}`}
-                          >
-                            {editingRoom === room.id ? (
-                              <div className="space-y-2">
-                                <div className="grid grid-cols-3 gap-2">
-                                  <Input
-                                    value={erNombre}
-                                    onChange={(e) => setErNombre(e.target.value)}
-                                    className="h-8 col-span-2"
-                                  />
-                                  <Input
-                                    type="number"
-                                    min={1}
-                                    value={erCapacidad}
-                                    onChange={(e) => setErCapacidad(parseInt(e.target.value) || 1)}
-                                    className="h-8"
-                                  />
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  <Select
-                                    value={erTipo || "auto"}
-                                    onValueChange={(v) => setErTipo(v === "auto" ? "" : (v as RoomTipo))}
-                                  >
-                                    <SelectTrigger className="h-8">
-                                      <SelectValue placeholder="Tipo" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="auto">Tipo — Auto</SelectItem>
-                                      {TIPO_OPTIONS.map((o) => (
-                                        <SelectItem key={o.value} value={o.value}>
-                                          {o.label}
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                  <Select
-                                    value={erGenero || "any"}
-                                    onValueChange={(v) => setErGenero(v === "any" ? "" : v)}
-                                  >
-                                    <SelectTrigger className="h-8">
-                                      <SelectValue placeholder="Género" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      <SelectItem value="any">Sin definir</SelectItem>
-                                      <SelectItem value="mujeres">Mujeres</SelectItem>
-                                      <SelectItem value="varones">Varones</SelectItem>
-                                      <SelectItem value="mixto">Mixto</SelectItem>
-                                    </SelectContent>
-                                  </Select>
-                                </div>
-                                <Input
-                                  value={erNotas}
-                                  onChange={(e) => setErNotas(e.target.value)}
-                                  placeholder="Notas"
-                                  className="h-8"
-                                />
-
-                                <div className="flex gap-2 justify-end">
-                                  <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>
-                                    Cancelar
-                                  </Button>
-                                  <Button size="sm" onClick={saveEditRoom}>
-                                    <Save className="w-3 h-3 mr-1" />
-                                    Guardar
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <div className="flex items-start justify-between gap-2 mb-1.5">
-                                  <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                      <span className="font-semibold text-sm">{room.nombre}</span>
-                                      {tipoBadge(room)}
-
-                                      {generoBadge(room.genero)}
-                                      <Badge variant="outline" className="text-[10px]">
-                                        {occ.length}/{room.capacidad}
-                                      </Badge>
-                                      {full && (
-                                        <Badge className="bg-emerald-500 text-white text-[10px]">Completa</Badge>
-                                      )}
-                                    </div>
-                                    {room.notas && (
-                                      <p className="text-[10px] text-muted-foreground mt-0.5">{room.notas}</p>
-                                    )}
-                                  </div>
-                                  <div className="flex gap-1 shrink-0">
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6"
-                                      onClick={() => startEditRoom(room)}
-                                    >
-                                      <Edit2 className="w-3 h-3" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6"
-                                      title="Duplicar habitación"
-                                      onClick={() => duplicateRoom(room)}
-                                    >
-                                      <Copy className="w-3 h-3" />
-                                    </Button>
-                                    <Button
-                                      size="icon"
-                                      variant="ghost"
-                                      className="h-6 w-6 text-destructive"
-                                      onClick={() => deleteRoom(room.id)}
-                                    >
-                                      <Trash2 className="w-3 h-3" />
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  {occ.map((r) => {
-                                    const cancelada =
-                                      r.reservation_status === "cancelada" || r.reservation_status === "rechazada";
-                                    return (
-                                      <div
-                                        key={r.id}
-                                        className={`flex items-center justify-between text-xs rounded px-2 py-1 ${cancelada ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}
-                                      >
-                                        <span className="truncate flex items-center gap-1 flex-wrap">
-                                          {cancelada && <AlertCircle className="w-3 h-3 text-destructive shrink-0" />}
-                                          <span className={cancelada ? "text-destructive line-through" : ""}>
-                                            {r.nombre} {r.apellido}
-                                          </span>
-                                          {cancelada && (
-                                            <Badge
-                                              variant="outline"
-                                              className="text-[9px] bg-destructive/10 text-destructive border-destructive/30"
-                                            >
-                                              Reserva cancelada — liberar cama
-                                            </Badge>
-                                          )}
-                                          {r.prefiere_asignacion ? (
-                                            <Badge
-                                              variant="outline"
-                                              className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30"
-                                            >
-                                              Asígnenme
-                                            </Badge>
-                                          ) : r.habitacion_data?.companero_solicitado || r.tipo_vinculo ? (
-                                            <Badge
-                                              variant="outline"
-                                              className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                                            >
-                                              Comparte conocido
-                                            </Badge>
-                                          ) : null}
-                                          {r.habitacion_data?.companero_solicitado && (
-                                            <span className="text-[10px] text-muted-foreground ml-1">
-                                              → {r.habitacion_data.companero_solicitado}
-                                            </span>
-                                          )}
-                                        </span>
-                                        <Button
-                                          size="icon"
-                                          variant="ghost"
-                                          className="h-5 w-5 shrink-0"
-                                          onClick={() => unassign(r.id)}
-                                        >
-                                          <X className="w-3 h-3" />
-                                        </Button>
-                                      </div>
-                                    );
-                                  })}
-                                  {free > 0 && (
-                                    <div className="text-[10px] text-primary italic">{free} plaza(s) libre(s)</div>
-                                  )}
-                                </div>
-                              </>
-                            )}
+                    {/* Nueva habitación inline */}
+                    {newRoomOpen === pkgKey && (
+                      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                          <div>
+                            <Label className="text-[10px]">Nombre</Label>
+                            <Input
+                              value={nrNombre}
+                              onChange={(e) => setNrNombre(e.target.value)}
+                              placeholder="Cabaña 1"
+                              className="h-8"
+                            />
                           </div>
-                        );
-                      })}
-                    </div>
-
-                    {/* Sin asignar */}
-                    <div className="space-y-2">
-                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        Sin asignar ({pkgUnassigned.length})
-                      </div>
-                      {pkgUnassigned.length === 0 && (
-                        <div className="text-xs text-emerald-500 italic p-3 rounded border border-dashed border-emerald-500/30 bg-emerald-500/5">
-                          Todas las reservas asignadas ✓
-                        </div>
-                      )}
-                      {pkgUnassigned.map((r) => {
-                        const mates = roommateGroups[r.id] || [];
-                        return (
-                          <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-medium text-xs">
-                                {r.nombre} {r.apellido}
-                              </span>
-                              {r.prefiere_asignacion ? (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30"
-                                >
-                                  Asígnenme
-                                </Badge>
-                              ) : r.habitacion_data?.companero_solicitado || r.tipo_vinculo || mates.length > 0 ? (
-                                <Badge
-                                  variant="outline"
-                                  className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
-                                >
-                                  Comparte con conocido
-                                </Badge>
-                              ) : (
-                                <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
-                                  Sin preferencia
-                                </Badge>
-                              )}
-                              {r.tipo_vinculo && (
-                                <Badge variant="outline" className="text-[10px] capitalize">
-                                  {r.tipo_vinculo}
-                                </Badge>
-                              )}
-                              {r.habitacion_data?.genero_habitacion && generoBadge(r.habitacion_data.genero_habitacion)}
-                              {r.habitacion_data?.tipo_habitacion && (
-                                <Badge variant="outline" className="text-[10px] capitalize">
-                                  {String(r.habitacion_data.tipo_habitacion).replace(/_/g, " ")}
-                                </Badge>
-                              )}
-                              {mates.length > 0 && (
-                                <Badge
-                                  className="text-[10px] bg-primary/15 text-primary border-primary/30"
-                                  variant="outline"
-                                >
-                                  👥 Grupo ({mates.length + 1})
-                                </Badge>
-                              )}
-                            </div>
-                            {mates.length > 0 && (
-                              <p className="text-[10px] text-primary/80">
-                                Comparte con: <strong>{mates.join(", ")}</strong>
-                              </p>
-                            )}
-                            {r.habitacion_data?.companero_solicitado && (
-                              <p className="text-[10px] text-muted-foreground">
-                                Pide compartir con: <strong>{r.habitacion_data.companero_solicitado}</strong>
-                              </p>
-                            )}
-                            {r.habitacion_data?.notas_habitacion && (
-                              <p className="text-[10px] text-muted-foreground italic">
-                                "{r.habitacion_data.notas_habitacion}"
-                              </p>
-                            )}
-
-                            <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
-                              <SelectTrigger className="h-7 text-xs">
-                                <SelectValue placeholder="Asignar a habitación..." />
+                          <div>
+                            <Label className="text-[10px]">Tipo</Label>
+                            <Select
+                              value={nrTipo || "auto"}
+                              onValueChange={(v) => setNrTipo(v === "auto" ? "" : (v as RoomTipo))}
+                            >
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Auto" />
                               </SelectTrigger>
                               <SelectContent>
-                                {(() => {
-                                  const availableRooms = rooms.filter(
-                                    (room) => (occupantsByRoom[room.id] || []).length < room.capacidad,
-                                  );
-                                  if (availableRooms.length === 0) {
-                                    return (
-                                      <SelectItem value="_none" disabled>
-                                        {rooms.length === 0
-                                          ? "Sin habitaciones creadas"
-                                          : "No hay habitaciones disponibles"}
-                                      </SelectItem>
-                                    );
-                                  }
-                                  return availableRooms.map((room) => {
-                                    const occ = (occupantsByRoom[room.id] || []).length;
-                                    return (
-                                      <SelectItem key={room.id} value={room.id}>
-                                        {room.nombre} ({occ}/{room.capacidad})
-                                        {room.genero ? ` · ${GENERO_LABEL[room.genero]}` : ""}
-                                      </SelectItem>
-                                    );
-                                  });
-                                })()}
+                                <SelectItem value="auto">Auto (según capacidad)</SelectItem>
+                                {TIPO_OPTIONS.map((o) => (
+                                  <SelectItem key={o.value} value={o.value}>
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
                               </SelectContent>
                             </Select>
                           </div>
-                        );
-                      })}
+                          <div>
+                            <Label className="text-[10px]">Capacidad</Label>
+                            <Input
+                              type="number"
+                              min={1}
+                              value={nrCapacidad}
+                              onChange={(e) => setNrCapacidad(parseInt(e.target.value) || 1)}
+                              className="h-8"
+                            />
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Género</Label>
+                            <Select value={nrGenero || "any"} onValueChange={(v) => setNrGenero(v === "any" ? "" : v)}>
+                              <SelectTrigger className="h-8">
+                                <SelectValue placeholder="Sin definir" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="any">Sin definir</SelectItem>
+                                <SelectItem value="mujeres">Mujeres</SelectItem>
+                                <SelectItem value="varones">Varones</SelectItem>
+                                <SelectItem value="mixto">Mixto</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div>
+                            <Label className="text-[10px]">Notas</Label>
+                            <Input
+                              value={nrNotas}
+                              onChange={(e) => setNrNotas(e.target.value)}
+                              placeholder="opcional"
+                              className="h-8"
+                            />
+                          </div>
+                        </div>
+
+                        <div className="flex gap-2 justify-end">
+                          <Button size="sm" variant="ghost" onClick={() => setNewRoomOpen(null)}>
+                            Cancelar
+                          </Button>
+                          <Button size="sm" onClick={() => createRoom(pkgId)}>
+                            Crear
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid md:grid-cols-2 gap-3">
+                      {/* Habitaciones */}
+                      <div className="space-y-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          Habitaciones ({pkgRooms.length})
+                        </div>
+                        {pkgRooms.length === 0 && (
+                          <div className="text-xs text-muted-foreground italic p-3 rounded border border-dashed border-border">
+                            Sin habitaciones creadas.
+                          </div>
+                        )}
+                        {pkgRooms.map((room) => {
+                          const occ = occupantsByRoom[room.id] || [];
+                          const free = room.capacidad - occ.length;
+                          const full = free <= 0;
+                          return (
+                            <div
+                              key={room.id}
+                              className={`rounded-lg border p-2.5 ${full ? "border-emerald-500/40 bg-emerald-500/5" : "border-border bg-background"}`}
+                            >
+                              {editingRoom === room.id ? (
+                                <div className="space-y-2">
+                                  <div className="grid grid-cols-3 gap-2">
+                                    <Input
+                                      value={erNombre}
+                                      onChange={(e) => setErNombre(e.target.value)}
+                                      className="h-8 col-span-2"
+                                    />
+                                    <Input
+                                      type="number"
+                                      min={1}
+                                      value={erCapacidad}
+                                      onChange={(e) => setErCapacidad(parseInt(e.target.value) || 1)}
+                                      className="h-8"
+                                    />
+                                  </div>
+                                  <div className="grid grid-cols-2 gap-2">
+                                    <Select
+                                      value={erTipo || "auto"}
+                                      onValueChange={(v) => setErTipo(v === "auto" ? "" : (v as RoomTipo))}
+                                    >
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue placeholder="Tipo" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="auto">Tipo — Auto</SelectItem>
+                                        {TIPO_OPTIONS.map((o) => (
+                                          <SelectItem key={o.value} value={o.value}>
+                                            {o.label}
+                                          </SelectItem>
+                                        ))}
+                                      </SelectContent>
+                                    </Select>
+                                    <Select
+                                      value={erGenero || "any"}
+                                      onValueChange={(v) => setErGenero(v === "any" ? "" : v)}
+                                    >
+                                      <SelectTrigger className="h-8">
+                                        <SelectValue placeholder="Género" />
+                                      </SelectTrigger>
+                                      <SelectContent>
+                                        <SelectItem value="any">Sin definir</SelectItem>
+                                        <SelectItem value="mujeres">Mujeres</SelectItem>
+                                        <SelectItem value="varones">Varones</SelectItem>
+                                        <SelectItem value="mixto">Mixto</SelectItem>
+                                      </SelectContent>
+                                    </Select>
+                                  </div>
+                                  <Input
+                                    value={erNotas}
+                                    onChange={(e) => setErNotas(e.target.value)}
+                                    placeholder="Notas"
+                                    className="h-8"
+                                  />
+
+                                  <div className="flex gap-2 justify-end">
+                                    <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>
+                                      Cancelar
+                                    </Button>
+                                    <Button size="sm" onClick={saveEditRoom}>
+                                      <Save className="w-3 h-3 mr-1" />
+                                      Guardar
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-start justify-between gap-2 mb-1.5">
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className="font-semibold text-sm">{room.nombre}</span>
+                                        {tipoBadge(room)}
+
+                                        {generoBadge(room.genero)}
+                                        <Badge variant="outline" className="text-[10px]">
+                                          {occ.length}/{room.capacidad}
+                                        </Badge>
+                                        {full && (
+                                          <Badge className="bg-emerald-500 text-white text-[10px]">Completa</Badge>
+                                        )}
+                                      </div>
+                                      {room.notas && (
+                                        <p className="text-[10px] text-muted-foreground mt-0.5">{room.notas}</p>
+                                      )}
+                                    </div>
+                                    <div className="flex gap-1 shrink-0">
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        onClick={() => startEditRoom(room)}
+                                      >
+                                        <Edit2 className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6"
+                                        title="Duplicar habitación"
+                                        onClick={() => duplicateRoom(room)}
+                                      >
+                                        <Copy className="w-3 h-3" />
+                                      </Button>
+                                      <Button
+                                        size="icon"
+                                        variant="ghost"
+                                        className="h-6 w-6 text-destructive"
+                                        onClick={() => deleteRoom(room.id)}
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </Button>
+                                    </div>
+                                  </div>
+                                  <div className="space-y-1">
+                                    {occ.map((r) => {
+                                      const cancelada =
+                                        r.reservation_status === "cancelada" || r.reservation_status === "rechazada";
+                                      return (
+                                        <div
+                                          key={r.id}
+                                          className={`flex items-center justify-between text-xs rounded px-2 py-1 ${cancelada ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}
+                                        >
+                                          <span className="truncate flex items-center gap-1 flex-wrap">
+                                            {cancelada && <AlertCircle className="w-3 h-3 text-destructive shrink-0" />}
+                                            <span className={cancelada ? "text-destructive line-through" : ""}>
+                                              {r.nombre} {r.apellido}
+                                            </span>
+                                            {cancelada && (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[9px] bg-destructive/10 text-destructive border-destructive/30"
+                                              >
+                                                Reserva cancelada — liberar cama
+                                              </Badge>
+                                            )}
+                                            {r.prefiere_asignacion ? (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                              >
+                                                Asígnenme
+                                              </Badge>
+                                            ) : r.habitacion_data?.companero_solicitado || r.tipo_vinculo ? (
+                                              <Badge
+                                                variant="outline"
+                                                className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                              >
+                                                Comparte conocido
+                                              </Badge>
+                                            ) : null}
+                                            {r.habitacion_data?.companero_solicitado && (
+                                              <span className="text-[10px] text-muted-foreground ml-1">
+                                                → {r.habitacion_data.companero_solicitado}
+                                              </span>
+                                            )}
+                                          </span>
+                                          <Button
+                                            size="icon"
+                                            variant="ghost"
+                                            className="h-5 w-5 shrink-0"
+                                            onClick={() => unassign(r.id)}
+                                          >
+                                            <X className="w-3 h-3" />
+                                          </Button>
+                                        </div>
+                                      );
+                                    })}
+                                    {free > 0 && (
+                                      <div className="text-[10px] text-primary italic">{free} plaza(s) libre(s)</div>
+                                    )}
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Sin asignar */}
+                      <div className="space-y-2">
+                        <div className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                          Sin asignar ({pkgUnassigned.length})
+                        </div>
+                        {pkgUnassigned.length === 0 && (
+                          <div className="text-xs text-emerald-500 italic p-3 rounded border border-dashed border-emerald-500/30 bg-emerald-500/5">
+                            Todas las reservas asignadas ✓
+                          </div>
+                        )}
+                        {pkgUnassigned.map((r) => {
+                          const mates = roommateGroups[r.id] || [];
+                          return (
+                            <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-medium text-xs">
+                                  {r.nombre} {r.apellido}
+                                </span>
+                                {r.prefiere_asignacion ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                  >
+                                    Asígnenme
+                                  </Badge>
+                                ) : r.habitacion_data?.companero_solicitado || r.tipo_vinculo || mates.length > 0 ? (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                  >
+                                    Comparte con conocido
+                                  </Badge>
+                                ) : (
+                                  <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
+                                    Sin preferencia
+                                  </Badge>
+                                )}
+                                {r.tipo_vinculo && (
+                                  <Badge variant="outline" className="text-[10px] capitalize">
+                                    {r.tipo_vinculo}
+                                  </Badge>
+                                )}
+                                {r.habitacion_data?.genero_habitacion &&
+                                  generoBadge(r.habitacion_data.genero_habitacion)}
+                                {r.habitacion_data?.tipo_habitacion && (
+                                  <Badge variant="outline" className="text-[10px] capitalize">
+                                    {String(r.habitacion_data.tipo_habitacion).replace(/_/g, " ")}
+                                  </Badge>
+                                )}
+                                {mates.length > 0 && (
+                                  <Badge
+                                    className="text-[10px] bg-primary/15 text-primary border-primary/30"
+                                    variant="outline"
+                                  >
+                                    👥 Grupo ({mates.length + 1})
+                                  </Badge>
+                                )}
+                              </div>
+                              {mates.length > 0 && (
+                                <p className="text-[10px] text-primary/80">
+                                  Comparte con: <strong>{mates.join(", ")}</strong>
+                                </p>
+                              )}
+                              {r.habitacion_data?.companero_solicitado && (
+                                <p className="text-[10px] text-muted-foreground">
+                                  Pide compartir con: <strong>{r.habitacion_data.companero_solicitado}</strong>
+                                </p>
+                              )}
+                              {r.habitacion_data?.notas_habitacion && (
+                                <p className="text-[10px] text-muted-foreground italic">
+                                  "{r.habitacion_data.notas_habitacion}"
+                                </p>
+                              )}
+
+                              <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
+                                <SelectTrigger className="h-7 text-xs">
+                                  <SelectValue placeholder="Asignar a habitación..." />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {(() => {
+                                    const availableRooms = rooms.filter(
+                                      (room) => (occupantsByRoom[room.id] || []).length < room.capacidad,
+                                    );
+                                    if (availableRooms.length === 0) {
+                                      return (
+                                        <SelectItem value="_none" disabled>
+                                          {rooms.length === 0
+                                            ? "Sin habitaciones creadas"
+                                            : "No hay habitaciones disponibles"}
+                                        </SelectItem>
+                                      );
+                                    }
+                                    return availableRooms.map((room) => {
+                                      const occ = (occupantsByRoom[room.id] || []).length;
+                                      return (
+                                        <SelectItem key={room.id} value={room.id}>
+                                          {room.nombre} ({occ}/{room.capacidad})
+                                          {room.genero ? ` · ${GENERO_LABEL[room.genero]}` : ""}
+                                        </SelectItem>
+                                      );
+                                    });
+                                  })()}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         )}
         <DialogFooter className="pt-2">
