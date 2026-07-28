@@ -50,41 +50,44 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
   const btn = (href: string, label: string, color: string) => `
     <a href="${href}" style="display:inline-block;background:${color};color:#ffffff;padding:14px 22px;border-radius:10px;text-decoration:none;font-weight:700;font-family:Arial,sans-serif;font-size:14px;margin:6px 4px;">${label}</a>`;
 
-  const payLabel = hasDebt ? "💳 Pagar mensualidad pendiente" : "💳 Pagar próxima mensualidad";
+  const payLabel = hasDebt ? "💳 Ver mi mensualidad pendiente" : "💳 Pagar próxima mensualidad";
   const payColor = hasDebt ? "#d97706" : "#16a34a";
   const debtNotice = hasDebt
     ? `<div style="background:#fff7ed;border:1px solid #fdba74;border-radius:10px;padding:12px 14px;margin:14px 0;color:#9a3412;font-size:14px;line-height:1.55;">
-         <strong>⚠️ Tenés una mensualidad pendiente de pago.</strong> Al tocar el botón vas a regularizar el período adeudado, no el próximo.
+         Además, nos figura una mensualidad pendiente de pago. Si ya la abonaste, ignorá este aviso y avisanos así lo revisamos.
        </div>`
     : "";
 
   return `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"/></head>
 <body style="background:#ffffff;font-family:Arial,sans-serif;color:#1a1a1a;margin:0;padding:0;">
   <div style="max-width:560px;margin:0 auto;padding:28px 22px;">
-    <h1 style="font-family:'Oswald',Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;color:#1a1a1a;font-size:22px;margin:0 0 6px;">📢 Cambios de plan, pausas y bajas</h1>
-    <p style="color:#666;font-size:13px;margin:0 0 22px;">${nextMonth}</p>
+    <h1 style="font-family:'Oswald',Arial,sans-serif;text-transform:uppercase;letter-spacing:1px;color:#1a1a1a;font-size:22px;margin:0 0 6px;">Recordatorio mensual 🗓️</h1>
+    <p style="color:#666;font-size:13px;margin:0 0 22px;">Cambios de plan, pausas y bajas · ${nextMonth}</p>
 
-    <p style="font-size:15px;line-height:1.6;margin:0 0 14px;">Hola <strong>${nombre}</strong>,</p>
+    <p style="font-size:15px;line-height:1.6;margin:0 0 14px;">Hola <strong>${nombre}</strong>, ¿cómo estás?</p>
 
     <p style="font-size:15px;line-height:1.6;margin:0 0 14px;">
-      Te recordamos que si querés hacer alguna modificación en tu plan
-      (<strong>cambio de plan, pausa o baja</strong>), tenés tiempo hasta el
-      <strong>${deadline}</strong>. Esto nos ayuda a organizar todo y asegurar
-      que tu facturación se realice correctamente.
+      Este es un aviso general que enviamos todos los meses a la comunidad: <strong>no requiere que hagas nada</strong>
+      y no significa que tengas algo pendiente por resolver.
+    </p>
+
+    <p style="font-size:15px;line-height:1.6;margin:0 0 14px;">
+      Si en algún momento querés <strong>cambiar de plan, tomarte una pausa o dar de baja</strong>, te pedimos avisarnos
+      antes del <strong>${deadline}</strong>. Así llegamos a organizar los grupos y tu facturación sale correcta.
+      Si querés seguir todo igual, no hace falta que respondas: tu plan continúa normalmente.
     </p>
 
     ${debtNotice}
 
     <div style="background:#f6f7f9;border-radius:10px;padding:14px 16px;margin:18px 0;">
-      <p style="margin:0 0 6px;font-weight:700;font-size:14px;">📱 Sobre los pagos</p>
+      <p style="margin:0 0 6px;font-weight:700;font-size:14px;">💡 Un tip sobre los pagos</p>
       <p style="margin:0;font-size:14px;line-height:1.55;color:#444;">
-        Si ya pagaste con la App, te pedimos que vuelvas a realizar el pago mensual por ese mismo medio.
-        Además, para tu comodidad, podés dejar activada la <strong>renovación automática</strong>
-        y olvidarte del trámite mes a mes.
+        Si pagás tu mensualidad desde la App, podés dejar activada la <strong>renovación automática</strong>
+        y despreocuparte del trámite mes a mes. Es opcional, por supuesto.
       </p>
     </div>
 
-    <p style="font-size:14px;font-weight:700;margin:24px 0 8px;">Elegí qué querés hacer:</p>
+    <p style="font-size:14px;font-weight:700;margin:24px 0 8px;">Si necesitás hacer algún cambio:</p>
     <div style="text-align:center;margin:6px 0 18px;">
       ${btn(`${appUrl}/alumno/pagos?action=cambiar-plan`, "🔁 Cambiar mi plan", "#E8832A")}
       ${btn(`${appUrl}/alumno/pagos?action=baja`, "✖️ Dar de baja", "#444444")}
@@ -94,14 +97,14 @@ function buildHtml(opts: { nombre: string; deadline: string; nextMonth: string; 
       ${btn(`${appUrl}/alumno/pagos`, payLabel, payColor)}
     </div>
 
-    <p style="font-size:12px;color:#999;margin:26px 0 0;text-align:center;border-top:1px solid #eee;padding-top:14px;">
-      ${hasDebt
-        ? "Este recordatorio también está disponible por si necesitás gestionar algún cambio, pausa o baja.<br/><br/>Para continuar con normalidad, podés ponerte al día con la mensualidad pendiente desde el botón de arriba."
-        : "Este recordatorio es solo para gestionar cambios, pausas o bajas. Si querés seguir igual, no necesitás hacer nada acá — tu pago mensual sigue su curso normal (recordá abonarlo cuando venza)."}
+    <p style="font-size:13px;color:#777;line-height:1.55;margin:24px 0 0;text-align:center;border-top:1px solid #eee;padding-top:14px;">
+      Este correo es informativo y automático, se envía una vez por mes a todos los alumnos con plan mensual.
+      Si tenés cualquier duda, respondé este mail o escribinos por WhatsApp y te ayudamos. 🙌
     </p>
   </div>
 </body></html>`;
 }
+
 
 async function sendOne(payload: any) {
   const resp = await fetch(`${GATEWAY_URL}/smtp/email`, {
