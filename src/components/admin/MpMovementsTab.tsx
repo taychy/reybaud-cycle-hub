@@ -466,10 +466,29 @@ export default function MpMovementsTab() {
           </div>
 
           <div className="space-y-3">
+            {suggested.length > 0 && (
+              <div className="rounded-md border border-green-500/30 bg-green-500/5 p-3 space-y-2">
+                <div className="text-xs text-green-300 font-medium">
+                  Coincidencia por email del pagador ({assignDialog?.payer_email})
+                </div>
+                {suggested.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setSelectedAlumno(a.id)}
+                    className={`w-full text-left rounded px-2 py-1.5 text-sm ${selectedAlumno === a.id ? "bg-accent" : "hover:bg-muted"}`}
+                  >
+                    <div>{a.nombre} {a.apellido ?? ""}</div>
+                    <div className="text-xs text-muted-foreground">{a.email}</div>
+                  </button>
+                ))}
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium">Alumno</label>
               <Command className="border rounded-md" shouldFilter={false}>
-                <CommandInput placeholder="Buscar por nombre, email o DNI..." onValueChange={loadAlumnosQuery} />
+                <CommandInput placeholder="Buscar por nombre, email (incl. adicionales) o DNI..." onValueChange={loadAlumnosQuery} />
+
                 <CommandList>
                   <CommandEmpty>Escribí al menos 2 caracteres...</CommandEmpty>
                   <CommandGroup>
