@@ -8,7 +8,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +22,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
-  BedDouble, Plus, Trash2, Users, Loader2, Home, UserPlus, X, AlertCircle, Edit2, Save, Wand2,
+  BedDouble,
+  Plus,
+  Trash2,
+  Users,
+  Loader2,
+  Home,
+  UserPlus,
+  X,
+  AlertCircle,
+  Edit2,
+  Save,
+  Wand2,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -106,8 +122,8 @@ const generoBadge = (g: string | null) => {
     g === "mujeres"
       ? "bg-pink-500/10 text-pink-500 border-pink-500/30"
       : g === "varones"
-      ? "bg-blue-500/10 text-blue-500 border-blue-500/30"
-      : "bg-purple-500/10 text-purple-500 border-purple-500/30";
+        ? "bg-blue-500/10 text-blue-500 border-blue-500/30"
+        : "bg-purple-500/10 text-purple-500 border-purple-500/30";
   return (
     <Badge variant="outline" className={`text-[10px] ${cls}`}>
       {GENERO_LABEL[g]}
@@ -124,7 +140,6 @@ const tipoBadge = (room: Pick<Room, "tipo" | "capacidad">) => {
   );
 };
 
-
 const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -132,7 +147,6 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [roommateGroups, setRoommateGroups] = useState<Record<string, string[]>>({}); // reservation_id -> [names of confirmed mates]
-
 
   // form nueva habitación
   const [newRoomOpen, setNewRoomOpen] = useState<string | null>(null); // package_id o "sin"
@@ -149,12 +163,20 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [erTipo, setErTipo] = useState<RoomTipo | "">("");
   const [erNotas, setErNotas] = useState("");
 
-
   const loadAll = async () => {
     setLoading(true);
     const [pkgR, resR, roomR, alumnosPreR] = await Promise.all([
-      supabase.from("event_packages").select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto").eq("event_id", eventId).order("sort_order"),
-      supabase.from("event_reservations").select("id, package_id, reservation_status, alumno_id, external_participant_id, prefiere_asignacion, tipo_vinculo").eq("event_id", eventId),
+      supabase
+        .from("event_packages")
+        .select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto")
+        .eq("event_id", eventId)
+        .order("sort_order"),
+      supabase
+        .from("event_reservations")
+        .select(
+          "id, package_id, reservation_status, alumno_id, external_participant_id, prefiere_asignacion, tipo_vinculo",
+        )
+        .eq("event_id", eventId),
       (supabase as any).from("event_rooms").select("*").eq("event_id", eventId).order("sort_order").order("nombre"),
       Promise.resolve(null),
     ]);
@@ -172,10 +194,17 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         ? supabase.from("event_external_participants").select("id, nombre, apellido, telefono").in("id", extIds)
         : Promise.resolve({ data: [] as any[] }),
       resIds.length
-        ? supabase.from("reservation_checklist_data").select("reservation_id, step_key, data").in("reservation_id", resIds).eq("step_key", "habitacion")
+        ? supabase
+            .from("reservation_checklist_data")
+            .select("reservation_id, step_key, data")
+            .in("reservation_id", resIds)
+            .eq("step_key", "habitacion")
         : Promise.resolve({ data: [] as any[] }),
       resIds.length
-        ? (supabase as any).from("event_room_assignments").select("id, room_id, reservation_id").in("reservation_id", resIds)
+        ? (supabase as any)
+            .from("event_room_assignments")
+            .select("id, room_id, reservation_id")
+            .in("reservation_id", resIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
 
@@ -224,15 +253,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setLoading(false);
   };
 
-
   useEffect(() => {
     if (open) loadAll();
   }, [open, eventId]);
 
-  const assignedReservationIds = useMemo(
-    () => new Set(assignments.map((a) => a.reservation_id)),
-    [assignments]
-  );
+  const assignedReservationIds = useMemo(() => new Set(assignments.map((a) => a.reservation_id)), [assignments]);
 
   const roomsByPackage = useMemo(() => {
     const m: Record<string, Room[]> = {};
@@ -288,7 +313,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     }
     toast.success("Habitación creada");
     setNewRoomOpen(null);
-    setNrNombre(""); setNrCapacidad(2); setNrGenero(""); setNrTipo(""); setNrNotas("");
+    setNrNombre("");
+    setNrCapacidad(2);
+    setNrGenero("");
+    setNrTipo("");
+    setNrNotas("");
     loadAll();
   };
 
@@ -311,28 +340,35 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
 
   const saveEditRoom = async () => {
     if (!editingRoom) return;
-    const { error } = await (supabase as any).from("event_rooms").update({
-      nombre: erNombre.trim(),
-      capacidad: erCapacidad,
-      genero: erGenero || null,
-      tipo: erTipo || inferTipoFromCapacidad(erCapacidad),
-      notas: erNotas.trim() || null,
-    }).eq("id", editingRoom);
+    const { error } = await (supabase as any)
+      .from("event_rooms")
+      .update({
+        nombre: erNombre.trim(),
+        capacidad: erCapacidad,
+        genero: erGenero || null,
+        tipo: erTipo || inferTipoFromCapacidad(erCapacidad),
+        notas: erNotas.trim() || null,
+      })
+      .eq("id", editingRoom);
     if (error) return toast.error(error.message);
     toast.success("Actualizada");
     setEditingRoom(null);
     loadAll();
   };
 
-
   const assignReservation = async (reservationId: string, roomId: string) => {
     // upsert manual
     const existing = assignments.find((a) => a.reservation_id === reservationId);
     if (existing) {
-      const { error } = await (supabase as any).from("event_room_assignments").update({ room_id: roomId }).eq("id", existing.id);
+      const { error } = await (supabase as any)
+        .from("event_room_assignments")
+        .update({ room_id: roomId })
+        .eq("id", existing.id);
       if (error) return toast.error(error.message);
     } else {
-      const { error } = await (supabase as any).from("event_room_assignments").insert({ room_id: roomId, reservation_id: reservationId });
+      const { error } = await (supabase as any)
+        .from("event_room_assignments")
+        .insert({ room_id: roomId, reservation_id: reservationId });
       if (error) return toast.error(error.message);
     }
     loadAll();
@@ -352,7 +388,12 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       toast.info("No hay reservas sin asignar en este paquete");
       return;
     }
-    if (!confirm(`Se crearán ${unassigned.length} habitación(es) individuales y se asignará cada participante automáticamente. ¿Continuar?`)) return;
+    if (
+      !confirm(
+        `Se crearán ${unassigned.length} habitación(es) individuales y se asignará cada participante automáticamente. ¿Continuar?`,
+      )
+    )
+      return;
 
     const baseOrder = rooms.filter((r) => (r.package_id || null) === pkgId).length;
     const roomsPayload = unassigned.map((r, idx) => ({
@@ -366,11 +407,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       sort_order: baseOrder + idx,
     }));
 
-
-    const { data: created, error } = await (supabase as any)
-      .from("event_rooms")
-      .insert(roomsPayload)
-      .select("id");
+    const { data: created, error } = await (supabase as any).from("event_rooms").insert(roomsPayload).select("id");
     if (error) {
       toast.error("No se pudieron crear: " + error.message);
       return;
@@ -404,15 +441,17 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
 
     // Buckets objetivo por género
     const buckets: { genero: "mujeres" | "varones" | "mixto" | null; label: string; plazas: number }[] = hasGenero
-      ? ([
+      ? [
           { genero: "mujeres" as const, label: "Mujeres", plazas: cm },
           { genero: "varones" as const, label: "Varones", plazas: cv },
           { genero: "mixto" as const, label: "Mixto", plazas: cx },
-        ].filter((b) => b.plazas > 0))
+        ].filter((b) => b.plazas > 0)
       : [{ genero: null, label: "", plazas: totalCupo }];
 
     if (buckets.every((b) => b.plazas <= 0)) {
-      toast.error("El paquete no tiene cupos configurados. Definí 'personas por habitación' y cupos (total o por género).");
+      toast.error(
+        "El paquete no tiene cupos configurados. Definí 'personas por habitación' y cupos (total o por género).",
+      );
       return;
     }
 
@@ -477,7 +516,6 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       };
     });
 
-
     const { error } = await (supabase as any).from("event_rooms").insert(payload);
     if (error) {
       toast.error("No se pudieron crear: " + error.message);
@@ -486,9 +524,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     toast.success(`${toCreate.length} habitación(es) creada(s)`);
     loadAll();
   };
-  const noLodgingPkgIds = new Set(
-    packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id)
-  );
+  const noLodgingPkgIds = new Set(packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id));
   const lodgingReservations = reservations.filter((r) => !r.package_id || !noLodgingPkgIds.has(r.package_id));
   const totalPlazas = rooms.reduce((s, r) => s + r.capacidad, 0);
   const totalOcupadas = assignments.length;
@@ -524,16 +560,24 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
               <MetricCard label="Reservas" value={totalReservas} icon={<Users className="w-4 h-4" />} />
               <MetricCard label="Plazas totales" value={totalPlazas} icon={<Home className="w-4 h-4" />} />
               <MetricCard label="Ocupadas" value={totalOcupadas} color="text-emerald-500" />
-              <MetricCard label="Libres" value={totalLibres} color={totalLibres > 0 ? "text-primary" : "text-muted-foreground"} />
-              <MetricCard label="Sin asignar" value={sinAsignar} color={sinAsignar > 0 ? "text-amber-500" : "text-emerald-500"} />
+              <MetricCard
+                label="Libres"
+                value={totalLibres}
+                color={totalLibres > 0 ? "text-primary" : "text-muted-foreground"}
+              />
+              <MetricCard
+                label="Sin asignar"
+                value={sinAsignar}
+                color={sinAsignar > 0 ? "text-amber-500" : "text-emerald-500"}
+              />
             </div>
 
             {sinAsignar > 0 && totalLibres < sinAsignar && (
               <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <span>
-                  Hay {sinAsignar} reserva(s) sin asignar y solo {totalLibres} plaza(s) libre(s).
-                  Considerá crear habitaciones/cabañas adicionales.
+                  Hay {sinAsignar} reserva(s) sin asignar y solo {totalLibres} plaza(s) libre(s). Considerá crear
+                  habitaciones/cabañas adicionales.
                 </span>
               </div>
             )}
@@ -553,7 +597,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                 const occ = occupantsByRoom[room.id] || [];
                 pkgBedsUsed += occ.length;
                 pkgBedsCancel += occ.filter(
-                  (o) => o.reservation_status === "cancelada" || o.reservation_status === "rechazada"
+                  (o) => o.reservation_status === "cancelada" || o.reservation_status === "rechazada",
                 ).length;
                 const free = Math.max(0, room.capacidad - occ.length);
                 if (free > 0) {
@@ -566,9 +610,10 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                 .map(([g, n]) => `${n} ${g}`)
                 .join(" · ");
 
-
-              if (pkgReservations.length === 0 && pkgRooms.length === 0) return null;
               const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
+              // Los paquetes que no requieren habitación (ej. "camp de un día") no
+              // necesitan tarjeta de alojamiento si aún no tienen ni reservas ni habitaciones.
+              if (sinAlojamiento && pkgReservations.length === 0 && pkgRooms.length === 0) return null;
               if (sinAlojamiento && pkgRooms.length === 0) {
                 return (
                   <div key={pkgKey} className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
@@ -581,7 +626,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           {pkgReservations.length} reserva(s) · sin alojamiento a asignar
                         </p>
                       </div>
-                      <Badge variant="outline" className="text-[10px] text-muted-foreground">No requiere habitación</Badge>
+                      <Badge variant="outline" className="text-[10px] text-muted-foreground">
+                        No requiere habitación
+                      </Badge>
                     </div>
                   </div>
                 );
@@ -615,11 +662,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         </Button>
                       )}
                       {pkg && (pkg.personas_por_habitacion || 0) > 1 && (
-                        <Button
-                          size="sm"
-                          variant="secondary"
-                          onClick={() => autoGenerateRooms(pkg)}
-                        >
+                        <Button size="sm" variant="secondary" onClick={() => autoGenerateRooms(pkg)}>
                           <Wand2 className="w-3.5 h-3.5 mr-1" /> Auto-generar habitaciones
                         </Button>
                       )}
@@ -635,28 +678,48 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                       <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
                         <div>
                           <Label className="text-[10px]">Nombre</Label>
-                          <Input value={nrNombre} onChange={(e) => setNrNombre(e.target.value)} placeholder="Cabaña 1" className="h-8" />
+                          <Input
+                            value={nrNombre}
+                            onChange={(e) => setNrNombre(e.target.value)}
+                            placeholder="Cabaña 1"
+                            className="h-8"
+                          />
                         </div>
                         <div>
                           <Label className="text-[10px]">Tipo</Label>
-                          <Select value={nrTipo || "auto"} onValueChange={(v) => setNrTipo(v === "auto" ? "" : (v as RoomTipo))}>
-                            <SelectTrigger className="h-8"><SelectValue placeholder="Auto" /></SelectTrigger>
+                          <Select
+                            value={nrTipo || "auto"}
+                            onValueChange={(v) => setNrTipo(v === "auto" ? "" : (v as RoomTipo))}
+                          >
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Auto" />
+                            </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="auto">Auto (según capacidad)</SelectItem>
                               {TIPO_OPTIONS.map((o) => (
-                                <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                <SelectItem key={o.value} value={o.value}>
+                                  {o.label}
+                                </SelectItem>
                               ))}
                             </SelectContent>
                           </Select>
                         </div>
                         <div>
                           <Label className="text-[10px]">Capacidad</Label>
-                          <Input type="number" min={1} value={nrCapacidad} onChange={(e) => setNrCapacidad(parseInt(e.target.value) || 1)} className="h-8" />
+                          <Input
+                            type="number"
+                            min={1}
+                            value={nrCapacidad}
+                            onChange={(e) => setNrCapacidad(parseInt(e.target.value) || 1)}
+                            className="h-8"
+                          />
                         </div>
                         <div>
                           <Label className="text-[10px]">Género</Label>
                           <Select value={nrGenero || "any"} onValueChange={(v) => setNrGenero(v === "any" ? "" : v)}>
-                            <SelectTrigger className="h-8"><SelectValue placeholder="Sin definir" /></SelectTrigger>
+                            <SelectTrigger className="h-8">
+                              <SelectValue placeholder="Sin definir" />
+                            </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="any">Sin definir</SelectItem>
                               <SelectItem value="mujeres">Mujeres</SelectItem>
@@ -667,13 +730,22 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                         </div>
                         <div>
                           <Label className="text-[10px]">Notas</Label>
-                          <Input value={nrNotas} onChange={(e) => setNrNotas(e.target.value)} placeholder="opcional" className="h-8" />
+                          <Input
+                            value={nrNotas}
+                            onChange={(e) => setNrNotas(e.target.value)}
+                            placeholder="opcional"
+                            className="h-8"
+                          />
                         </div>
                       </div>
 
                       <div className="flex gap-2 justify-end">
-                        <Button size="sm" variant="ghost" onClick={() => setNewRoomOpen(null)}>Cancelar</Button>
-                        <Button size="sm" onClick={() => createRoom(pkgId)}>Crear</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setNewRoomOpen(null)}>
+                          Cancelar
+                        </Button>
+                        <Button size="sm" onClick={() => createRoom(pkgId)}>
+                          Crear
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -701,21 +773,43 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                             {editingRoom === room.id ? (
                               <div className="space-y-2">
                                 <div className="grid grid-cols-3 gap-2">
-                                  <Input value={erNombre} onChange={(e) => setErNombre(e.target.value)} className="h-8 col-span-2" />
-                                  <Input type="number" min={1} value={erCapacidad} onChange={(e) => setErCapacidad(parseInt(e.target.value) || 1)} className="h-8" />
+                                  <Input
+                                    value={erNombre}
+                                    onChange={(e) => setErNombre(e.target.value)}
+                                    className="h-8 col-span-2"
+                                  />
+                                  <Input
+                                    type="number"
+                                    min={1}
+                                    value={erCapacidad}
+                                    onChange={(e) => setErCapacidad(parseInt(e.target.value) || 1)}
+                                    className="h-8"
+                                  />
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                  <Select value={erTipo || "auto"} onValueChange={(v) => setErTipo(v === "auto" ? "" : (v as RoomTipo))}>
-                                    <SelectTrigger className="h-8"><SelectValue placeholder="Tipo" /></SelectTrigger>
+                                  <Select
+                                    value={erTipo || "auto"}
+                                    onValueChange={(v) => setErTipo(v === "auto" ? "" : (v as RoomTipo))}
+                                  >
+                                    <SelectTrigger className="h-8">
+                                      <SelectValue placeholder="Tipo" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="auto">Tipo — Auto</SelectItem>
                                       {TIPO_OPTIONS.map((o) => (
-                                        <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>
+                                        <SelectItem key={o.value} value={o.value}>
+                                          {o.label}
+                                        </SelectItem>
                                       ))}
                                     </SelectContent>
                                   </Select>
-                                  <Select value={erGenero || "any"} onValueChange={(v) => setErGenero(v === "any" ? "" : v)}>
-                                    <SelectTrigger className="h-8"><SelectValue placeholder="Género" /></SelectTrigger>
+                                  <Select
+                                    value={erGenero || "any"}
+                                    onValueChange={(v) => setErGenero(v === "any" ? "" : v)}
+                                  >
+                                    <SelectTrigger className="h-8">
+                                      <SelectValue placeholder="Género" />
+                                    </SelectTrigger>
                                     <SelectContent>
                                       <SelectItem value="any">Sin definir</SelectItem>
                                       <SelectItem value="mujeres">Mujeres</SelectItem>
@@ -724,11 +818,21 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                     </SelectContent>
                                   </Select>
                                 </div>
-                                <Input value={erNotas} onChange={(e) => setErNotas(e.target.value)} placeholder="Notas" className="h-8" />
+                                <Input
+                                  value={erNotas}
+                                  onChange={(e) => setErNotas(e.target.value)}
+                                  placeholder="Notas"
+                                  className="h-8"
+                                />
 
                                 <div className="flex gap-2 justify-end">
-                                  <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>Cancelar</Button>
-                                  <Button size="sm" onClick={saveEditRoom}><Save className="w-3 h-3 mr-1" />Guardar</Button>
+                                  <Button size="sm" variant="ghost" onClick={() => setEditingRoom(null)}>
+                                    Cancelar
+                                  </Button>
+                                  <Button size="sm" onClick={saveEditRoom}>
+                                    <Save className="w-3 h-3 mr-1" />
+                                    Guardar
+                                  </Button>
                                 </div>
                               </div>
                             ) : (
@@ -743,54 +847,89 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                       <Badge variant="outline" className="text-[10px]">
                                         {occ.length}/{room.capacidad}
                                       </Badge>
-                                      {full && <Badge className="bg-emerald-500 text-white text-[10px]">Completa</Badge>}
+                                      {full && (
+                                        <Badge className="bg-emerald-500 text-white text-[10px]">Completa</Badge>
+                                      )}
                                     </div>
-                                    {room.notas && <p className="text-[10px] text-muted-foreground mt-0.5">{room.notas}</p>}
+                                    {room.notas && (
+                                      <p className="text-[10px] text-muted-foreground mt-0.5">{room.notas}</p>
+                                    )}
                                   </div>
                                   <div className="flex gap-1 shrink-0">
-                                    <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => startEditRoom(room)}>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6"
+                                      onClick={() => startEditRoom(room)}
+                                    >
                                       <Edit2 className="w-3 h-3" />
                                     </Button>
-                                    <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => deleteRoom(room.id)}>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6 text-destructive"
+                                      onClick={() => deleteRoom(room.id)}
+                                    >
                                       <Trash2 className="w-3 h-3" />
                                     </Button>
                                   </div>
                                 </div>
                                 <div className="space-y-1">
                                   {occ.map((r) => {
-                                    const cancelada = r.reservation_status === "cancelada" || r.reservation_status === "rechazada";
+                                    const cancelada =
+                                      r.reservation_status === "cancelada" || r.reservation_status === "rechazada";
                                     return (
-                                    <div
-                                      key={r.id}
-                                      className={`flex items-center justify-between text-xs rounded px-2 py-1 ${cancelada ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}
-                                    >
-                                      <span className="truncate flex items-center gap-1 flex-wrap">
-                                        {cancelada && <AlertCircle className="w-3 h-3 text-destructive shrink-0" />}
-                                        <span className={cancelada ? "text-destructive line-through" : ""}>{r.nombre} {r.apellido}</span>
-                                        {cancelada && (
-                                          <Badge variant="outline" className="text-[9px] bg-destructive/10 text-destructive border-destructive/30">
-                                            Reserva cancelada — liberar cama
-                                          </Badge>
-                                        )}
-                                        {r.prefiere_asignacion ? (
-                                          <Badge variant="outline" className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
-                                        ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo) ? (
-                                          <Badge variant="outline" className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Comparte conocido</Badge>
-                                        ) : null}
-                                        {r.habitacion_data?.companero_solicitado && (
-                                          <span className="text-[10px] text-muted-foreground ml-1">→ {r.habitacion_data.companero_solicitado}</span>
-                                        )}
-                                      </span>
-                                      <Button size="icon" variant="ghost" className="h-5 w-5 shrink-0" onClick={() => unassign(r.id)}>
-                                        <X className="w-3 h-3" />
-                                      </Button>
-                                    </div>
+                                      <div
+                                        key={r.id}
+                                        className={`flex items-center justify-between text-xs rounded px-2 py-1 ${cancelada ? "bg-destructive/10 border border-destructive/30" : "bg-muted/30"}`}
+                                      >
+                                        <span className="truncate flex items-center gap-1 flex-wrap">
+                                          {cancelada && <AlertCircle className="w-3 h-3 text-destructive shrink-0" />}
+                                          <span className={cancelada ? "text-destructive line-through" : ""}>
+                                            {r.nombre} {r.apellido}
+                                          </span>
+                                          {cancelada && (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[9px] bg-destructive/10 text-destructive border-destructive/30"
+                                            >
+                                              Reserva cancelada — liberar cama
+                                            </Badge>
+                                          )}
+                                          {r.prefiere_asignacion ? (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[9px] bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                            >
+                                              Asígnenme
+                                            </Badge>
+                                          ) : r.habitacion_data?.companero_solicitado || r.tipo_vinculo ? (
+                                            <Badge
+                                              variant="outline"
+                                              className="text-[9px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                            >
+                                              Comparte conocido
+                                            </Badge>
+                                          ) : null}
+                                          {r.habitacion_data?.companero_solicitado && (
+                                            <span className="text-[10px] text-muted-foreground ml-1">
+                                              → {r.habitacion_data.companero_solicitado}
+                                            </span>
+                                          )}
+                                        </span>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-5 w-5 shrink-0"
+                                          onClick={() => unassign(r.id)}
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </Button>
+                                      </div>
                                     );
                                   })}
                                   {free > 0 && (
-                                    <div className="text-[10px] text-primary italic">
-                                      {free} plaza(s) libre(s)
-                                    </div>
+                                    <div className="text-[10px] text-primary italic">{free} plaza(s) libre(s)</div>
                                   )}
                                 </div>
                               </>
@@ -813,73 +952,101 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                       {pkgUnassigned.map((r) => {
                         const mates = roommateGroups[r.id] || [];
                         return (
-                        <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
-                          <div className="flex items-center gap-1.5 flex-wrap">
-                            <span className="font-medium text-xs">{r.nombre} {r.apellido}</span>
-                            {r.prefiere_asignacion ? (
-                              <Badge variant="outline" className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30">Asígnenme</Badge>
-                            ) : (r.habitacion_data?.companero_solicitado || r.tipo_vinculo || mates.length > 0) ? (
-                              <Badge variant="outline" className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30">Comparte con conocido</Badge>
-                            ) : (
-                              <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">Sin preferencia</Badge>
-                            )}
-                            {r.tipo_vinculo && (
-                              <Badge variant="outline" className="text-[10px] capitalize">{r.tipo_vinculo}</Badge>
-                            )}
-                            {r.habitacion_data?.genero_habitacion && generoBadge(r.habitacion_data.genero_habitacion)}
-                            {r.habitacion_data?.tipo_habitacion && (
-                              <Badge variant="outline" className="text-[10px] capitalize">
-                                {String(r.habitacion_data.tipo_habitacion).replace(/_/g, " ")}
-                              </Badge>
-                            )}
+                          <div key={r.id} className="rounded-lg border border-border p-2.5 bg-background space-y-1.5">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-medium text-xs">
+                                {r.nombre} {r.apellido}
+                              </span>
+                              {r.prefiere_asignacion ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                >
+                                  Asígnenme
+                                </Badge>
+                              ) : r.habitacion_data?.companero_solicitado || r.tipo_vinculo || mates.length > 0 ? (
+                                <Badge
+                                  variant="outline"
+                                  className="text-[10px] bg-emerald-500/10 text-emerald-600 border-emerald-500/30"
+                                >
+                                  Comparte con conocido
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[10px] bg-muted text-muted-foreground">
+                                  Sin preferencia
+                                </Badge>
+                              )}
+                              {r.tipo_vinculo && (
+                                <Badge variant="outline" className="text-[10px] capitalize">
+                                  {r.tipo_vinculo}
+                                </Badge>
+                              )}
+                              {r.habitacion_data?.genero_habitacion && generoBadge(r.habitacion_data.genero_habitacion)}
+                              {r.habitacion_data?.tipo_habitacion && (
+                                <Badge variant="outline" className="text-[10px] capitalize">
+                                  {String(r.habitacion_data.tipo_habitacion).replace(/_/g, " ")}
+                                </Badge>
+                              )}
+                              {mates.length > 0 && (
+                                <Badge
+                                  className="text-[10px] bg-primary/15 text-primary border-primary/30"
+                                  variant="outline"
+                                >
+                                  👥 Grupo ({mates.length + 1})
+                                </Badge>
+                              )}
+                            </div>
                             {mates.length > 0 && (
-                              <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30" variant="outline">
-                                👥 Grupo ({mates.length + 1})
-                              </Badge>
+                              <p className="text-[10px] text-primary/80">
+                                Comparte con: <strong>{mates.join(", ")}</strong>
+                              </p>
                             )}
-                          </div>
-                          {mates.length > 0 && (
-                            <p className="text-[10px] text-primary/80">
-                              Comparte con: <strong>{mates.join(", ")}</strong>
-                            </p>
-                          )}
-                          {r.habitacion_data?.companero_solicitado && (
-                            <p className="text-[10px] text-muted-foreground">
-                              Pide compartir con: <strong>{r.habitacion_data.companero_solicitado}</strong>
-                            </p>
-                          )}
-                          {r.habitacion_data?.notas_habitacion && (
-                            <p className="text-[10px] text-muted-foreground italic">"{r.habitacion_data.notas_habitacion}"</p>
-                          )}
+                            {r.habitacion_data?.companero_solicitado && (
+                              <p className="text-[10px] text-muted-foreground">
+                                Pide compartir con: <strong>{r.habitacion_data.companero_solicitado}</strong>
+                              </p>
+                            )}
+                            {r.habitacion_data?.notas_habitacion && (
+                              <p className="text-[10px] text-muted-foreground italic">
+                                "{r.habitacion_data.notas_habitacion}"
+                              </p>
+                            )}
 
-                          <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
-                            <SelectTrigger className="h-7 text-xs">
-                              <SelectValue placeholder="Asignar a habitación..." />
-                            </SelectTrigger>
-                            <SelectContent>
-                              {(() => {
-                                const availableRooms = rooms.filter((room) => (occupantsByRoom[room.id] || []).length < room.capacidad);
-                                if (availableRooms.length === 0) {
-                                  return <SelectItem value="_none" disabled>{rooms.length === 0 ? "Sin habitaciones creadas" : "No hay habitaciones disponibles"}</SelectItem>;
-                                }
-                                return availableRooms.map((room) => {
-                                  const occ = (occupantsByRoom[room.id] || []).length;
-                                  return (
-                                    <SelectItem key={room.id} value={room.id}>
-                                      {room.nombre} ({occ}/{room.capacidad})
-                                      {room.genero ? ` · ${GENERO_LABEL[room.genero]}` : ""}
-                                    </SelectItem>
+                            <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
+                              <SelectTrigger className="h-7 text-xs">
+                                <SelectValue placeholder="Asignar a habitación..." />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {(() => {
+                                  const availableRooms = rooms.filter(
+                                    (room) => (occupantsByRoom[room.id] || []).length < room.capacidad,
                                   );
-                                });
-                              })()}
-                            </SelectContent>
-                          </Select>
-                        </div>
+                                  if (availableRooms.length === 0) {
+                                    return (
+                                      <SelectItem value="_none" disabled>
+                                        {rooms.length === 0
+                                          ? "Sin habitaciones creadas"
+                                          : "No hay habitaciones disponibles"}
+                                      </SelectItem>
+                                    );
+                                  }
+                                  return availableRooms.map((room) => {
+                                    const occ = (occupantsByRoom[room.id] || []).length;
+                                    return (
+                                      <SelectItem key={room.id} value={room.id}>
+                                        {room.nombre} ({occ}/{room.capacidad})
+                                        {room.genero ? ` · ${GENERO_LABEL[room.genero]}` : ""}
+                                      </SelectItem>
+                                    );
+                                  });
+                                })()}
+                              </SelectContent>
+                            </Select>
+                          </div>
                         );
                       })}
                     </div>
                   </div>
-
                 </div>
               );
             })}
@@ -895,7 +1062,17 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   );
 };
 
-const MetricCard = ({ label, value, color, icon }: { label: string; value: number; color?: string; icon?: React.ReactNode }) => (
+const MetricCard = ({
+  label,
+  value,
+  color,
+  icon,
+}: {
+  label: string;
+  value: number;
+  color?: string;
+  icon?: React.ReactNode;
+}) => (
   <div className="rounded-lg border border-border bg-card p-2.5 text-center">
     <div className={`flex items-center justify-center gap-1 ${color || "text-foreground"}`}>
       {icon}
