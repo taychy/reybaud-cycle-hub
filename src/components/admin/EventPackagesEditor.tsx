@@ -318,6 +318,35 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
     );
   };
 
+  // Agrupación por lodging_group_key: los paquetes con la misma clave comparten habitaciones y cupo.
+  const groupKeyOf = (p: PackageRow) => {
+    const g = (p as any).lodging_group_key?.trim().toLowerCase();
+    return g ? `grupo:${g}` : p.id;
+  };
+  const groupedRoomCapacity: Record<string, RoomCapacity> = {};
+  const groupedCounts: Record<string, GenderCounts> = {};
+  const groupNames: Record<string, string[]> = {};
+  items.forEach((p) => {
+    const k = groupKeyOf(p);
+    (groupNames[k] ??= []).push(p.nombre);
+    const cap = roomCapacity[p.id];
+    if (cap) {
+      const acc = (groupedRoomCapacity[k] ??= { mujeres: 0, varones: 0, mixto: 0, total: 0, roomCount: 0 });
+      acc.mujeres += cap.mujeres;
+      acc.varones += cap.varones;
+      acc.mixto += cap.mixto;
+      acc.total += cap.total;
+      acc.roomCount += cap.roomCount;
+    }
+    const cnt = counts[p.id];
+    if (cnt) {
+      const accC = (groupedCounts[k] ??= { mujeres: 0, varones: 0, mixto: 0 });
+      accC.mujeres += cnt.mujeres;
+      accC.varones += cnt.varones;
+      accC.mixto += cnt.mixto;
+    }
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
