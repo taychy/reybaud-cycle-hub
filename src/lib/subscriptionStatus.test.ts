@@ -115,13 +115,35 @@ describe("getEffectiveSubStatus — activa vencida en gracia (día 1-5)", () => 
 });
 
 describe("getEffectiveSubStatus — cancelada respeta fecha_fin", () => {
-  it("cancelada pero fecha_fin futura → activa (acceso hasta fin de período)", () => {
+  it("cancelada PAGA con fecha_fin futura → activa (acceso hasta fin de período)", () => {
     const s = sub({
       estado: "cancelada",
       cancelada_at: "2026-07-01",
       fecha_fin: "2026-07-31",
+      mp_status: "approved",
     });
     expect(getEffectiveSubStatus(s)).toBe("activa");
+  });
+
+  it("cancelada IMPAGA con fecha_fin futura → cancelada (sin gracia)", () => {
+    const s = sub({
+      estado: "cancelada",
+      cancelada_at: "2026-07-22",
+      fecha_fin: "2026-07-31",
+      origen_registro: "renovacion_pendiente",
+    });
+    expect(getEffectiveSubStatus(s)).toBe("cancelada");
+  });
+
+  it("cancelada por baja del alumno → cancelada aunque el período siga vigente", () => {
+    const s = sub({
+      estado: "cancelada",
+      cancelada_at: "2026-07-22",
+      cancelada_motivo: "baja_alumno_auto",
+      fecha_fin: "2026-07-31",
+      mp_status: "approved",
+    });
+    expect(getEffectiveSubStatus(s)).toBe("cancelada");
   });
 
   it("cancelada + fecha_fin pasada → cancelada", () => {
