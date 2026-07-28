@@ -11216,6 +11216,7 @@ export type Database = {
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
       get_public_program: { Args: { _cohort_slug: string }; Returns: Json }
+      get_reingreso_status: { Args: { p_alumno_id: string }; Returns: Json }
       get_reserva_turnera_by_token: {
         Args: { _id: string; _token: string }
         Returns: {
