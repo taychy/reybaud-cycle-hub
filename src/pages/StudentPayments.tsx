@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download, ChevronDown, Pause } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
@@ -538,12 +539,9 @@ const StudentPayments = () => {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {isImpersonating && (
-        <div className="fixed top-0 left-0 right-0 z-[100] bg-amber-500 text-amber-950 px-4 py-2 flex items-center justify-center gap-2 text-sm font-semibold shadow-lg">
-          <span>Vista de solo lectura — {targetAlumno?.nombre}</span>
-        </div>
-      )}
-      <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-10" : ""}`}>
+      <ImpersonationBanner />
+
+      <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-12" : ""}`}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-muted-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Button>
