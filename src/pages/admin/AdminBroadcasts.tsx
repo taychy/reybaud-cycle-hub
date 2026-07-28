@@ -376,6 +376,7 @@ export default function AdminBroadcasts() {
       marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
       waitlist_event_ids: seg.waitlist_event_ids || [],
       waitlist_estados: seg.waitlist_estados || ["nuevo", "contactado"],
+      promo_product_ids: (b as any).promo_product_ids || [],
     });
     setPreviewCount(null);
     setPreviewSample([]);
