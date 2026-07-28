@@ -231,7 +231,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       };
     });
 
-    setPackages((pkgR.data || []) as Pkg[]);
+    setPackages(((pkgR.data || []) as unknown) as Pkg[]);
     setReservations(built);
     setRooms(((roomR as any).data || []) as Room[]);
     setAssignments(((asgR as any).data || []) as Assignment[]);
