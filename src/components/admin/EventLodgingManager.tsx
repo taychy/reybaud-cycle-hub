@@ -34,6 +34,7 @@ import {
   Edit2,
   Save,
   Wand2,
+  Copy,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -320,7 +321,33 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     setNrNotas("");
     loadAll();
   };
-
+  const duplicateRoom = async (r: Room) => {
+    const baseMatch = r.nombre.match(/^(.*?)(\d+)?$/);
+    const baseLabel = (baseMatch?.[1] || r.nombre).trim();
+    const existingNombres = new Set(rooms.map((x) => x.nombre));
+    let newNombre = `${r.nombre} (copia)`;
+    let n = 1;
+    while (existingNombres.has(newNombre)) {
+      n += 1;
+      newNombre = baseLabel ? `${baseLabel} ${n}` : `${r.nombre} (copia ${n})`;
+    }
+    const { error } = await (supabase as any).from("event_rooms").insert({
+      event_id: eventId,
+      package_id: r.package_id,
+      nombre: newNombre,
+      capacidad: r.capacidad,
+      genero: r.genero || null,
+      tipo: r.tipo || inferTipoFromCapacidad(r.capacidad),
+      notas: r.notas || null,
+      sort_order: rooms.filter((x) => (x.package_id || null) === (r.package_id || null)).length,
+    });
+    if (error) {
+      toast.error("No se pudo duplicar: " + error.message);
+      return;
+    }
+    toast.success("Habitación duplicada");
+    loadAll();
+  };
   const deleteRoom = async (roomId: string) => {
     if (!confirm("¿Eliminar habitación y liberar sus ocupantes?")) return;
     const { error } = await (supabase as any).from("event_rooms").delete().eq("id", roomId);
@@ -863,6 +890,15 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                       onClick={() => startEditRoom(room)}
                                     >
                                       <Edit2 className="w-3 h-3" />
+                                    </Button>
+                                    <Button
+                                      size="icon"
+                                      variant="ghost"
+                                      className="h-6 w-6"
+                                      title="Duplicar habitación"
+                                      onClick={() => duplicateRoom(room)}
+                                    >
+                                      <Copy className="w-3 h-3" />
                                     </Button>
                                     <Button
                                       size="icon"
