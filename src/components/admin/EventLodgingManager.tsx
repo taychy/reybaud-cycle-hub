@@ -281,7 +281,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
       m[k].push(r);
     });
     return m;
-  }, [rooms]);
+  }, [rooms, packageById]);
 
   const reservationsByPackage = useMemo(() => {
     const m: Record<string, Reservation[]> = {};
@@ -293,7 +293,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         m[k].push(r);
       });
     return m;
-  }, [reservations]);
+  }, [reservations, packageById]);
 
   const occupantsByRoom = useMemo(() => {
     const m: Record<string, Reservation[]> = {};
@@ -657,7 +657,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                   .map(([g, n]) => `${n} ${g}`)
                   .join(" · ");
 
-                const sinAlojamiento = /sin alojamiento|sin aloj/i.test(label);
+                const sinAlojamiento = groupLabels.every((n) => /sin alojamiento|sin aloj/i.test(n)) && /sin alojamiento|sin aloj/i.test(label);
                 // Los paquetes que no requieren habitación (ej. "camp de un día") no
                 // necesitan tarjeta de alojamiento si aún no tienen ni reservas ni habitaciones.
                 if (sinAlojamiento && pkgReservations.length === 0 && pkgRooms.length === 0) return null;
@@ -667,7 +667,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                       <div className="flex items-center justify-between flex-wrap gap-2">
                         <div>
                           <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
-                            {label}
+                            {displayLabel}
                           </h3>
                           <p className="text-[11px] text-muted-foreground mt-0.5">
                             {pkgReservations.length} reserva(s) · sin alojamiento a asignar
@@ -686,7 +686,12 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <div>
                         <h3 className="font-heading font-bold text-sm uppercase tracking-wide flex items-center gap-2">
-                          {label}
+                          {displayLabel}
+                          {groupLabels.length > 1 && (
+                            <Badge variant="outline" className="text-[10px] text-primary border-primary/40">
+                              Alojamiento compartido
+                            </Badge>
+                          )}
                         </h3>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           {pkgReservations.length} reserva(s) · {pkgCapacity} plaza(s) · {pkgBedsUsed} ocupada(s)

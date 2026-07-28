@@ -318,6 +318,35 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
     );
   };
 
+  // Agrupación por lodging_group_key: los paquetes con la misma clave comparten habitaciones y cupo.
+  const groupKeyOf = (p: PackageRow) => {
+    const g = (p as any).lodging_group_key?.trim().toLowerCase();
+    return g ? `grupo:${g}` : p.id;
+  };
+  const groupedRoomCapacity: Record<string, RoomCapacity> = {};
+  const groupedCounts: Record<string, GenderCounts> = {};
+  const groupNames: Record<string, string[]> = {};
+  items.forEach((p) => {
+    const k = groupKeyOf(p);
+    (groupNames[k] ??= []).push(p.nombre);
+    const cap = roomCapacity[p.id];
+    if (cap) {
+      const acc = (groupedRoomCapacity[k] ??= { mujeres: 0, varones: 0, mixto: 0, total: 0, roomCount: 0 });
+      acc.mujeres += cap.mujeres;
+      acc.varones += cap.varones;
+      acc.mixto += cap.mixto;
+      acc.total += cap.total;
+      acc.roomCount += cap.roomCount;
+    }
+    const cnt = counts[p.id];
+    if (cnt) {
+      const accC = (groupedCounts[k] ??= { mujeres: 0, varones: 0, mixto: 0 });
+      accC.mujeres += cnt.mujeres;
+      accC.varones += cnt.varones;
+      accC.mixto += cnt.mixto;
+    }
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -338,8 +367,10 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
       ) : (
         <div className="space-y-2">
           {items.map((p) => {
-            const c = counts[p.id] || { mujeres: 0, varones: 0, mixto: 0 };
-            const cap = roomCapacity[p.id];
+            const gk = groupKeyOf(p);
+            const isShared = (groupNames[gk]?.length || 0) > 1;
+            const c = groupedCounts[gk] || { mujeres: 0, varones: 0, mixto: 0 };
+            const cap = groupedRoomCapacity[gk];
             const hasRooms = !!cap && cap.total > 0;
             const totalUsed = c.mujeres + c.varones + c.mixto;
             if (editingId === p.id) {
@@ -493,6 +524,14 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                       ) : (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground">
                           {p.personas_por_habitacion} {p.personas_por_habitacion === 1 ? "persona" : "personas"}/hab
+                        </span>
+                      )}
+                      {isShared && (
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30"
+                          title={`Comparte habitaciones con: ${groupNames[gk].filter((n) => n !== p.nombre).join(", ")}`}
+                        >
+                          Alojamiento compartido
                         </span>
                       )}
                     </div>
