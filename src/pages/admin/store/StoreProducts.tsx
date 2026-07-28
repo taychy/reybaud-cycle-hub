@@ -329,11 +329,27 @@ const StoreProducts = () => {
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleFeatured(p)} title="Destacado"><Star className={`w-4 h-4 ${p.featured ? "text-gold fill-gold" : "text-muted-foreground"}`} /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleVisibility(p)} title="Visibilidad">{p.status === "active" ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}</Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(p)}><Copy className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(p.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    <IconAction label={p.featured ? "Quitar de destacados" : "Marcar como destacado"} onClick={() => toggleFeatured(p)}>
+                      <Star className={`w-4 h-4 ${p.featured ? "text-gold fill-gold" : "text-muted-foreground"}`} />
+                    </IconAction>
+                    <IconAction label={p.status === "active" ? "Ocultar de la tienda" : "Publicar en la tienda"} onClick={() => toggleVisibility(p)}>
+                      {p.status === "active" ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}
+                    </IconAction>
+                    <IconAction label="Copiar link público del producto" onClick={() => copyProductLink(p)}>
+                      <Link2 className="w-4 h-4 text-muted-foreground" />
+                    </IconAction>
+                    <IconAction label="Abrir link público en otra pestaña" onClick={() => window.open(productPublicUrl(p.id), "_blank")}>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </IconAction>
+                    <IconAction label="Editar producto" onClick={() => openEdit(p)}>
+                      <Pencil className="w-4 h-4" />
+                    </IconAction>
+                    <IconAction label="Duplicar producto" onClick={() => handleDuplicate(p)}>
+                      <Copy className="w-4 h-4" />
+                    </IconAction>
+                    <IconAction label="Eliminar producto" onClick={() => setDeleteId(p.id)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </IconAction>
                   </div>
                 </td>
               </tr>
