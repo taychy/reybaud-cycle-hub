@@ -3,6 +3,7 @@ import { formatPrice } from "@/lib/currency";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useImpersonation } from "@/contexts/ImpersonationContext";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 import { ArrowLeft, CreditCard, Clock, CheckCircle2, XCircle, ExternalLink, RefreshCw, ArrowRightLeft, Ban, AlertTriangle, Plus, FileText, Download, ChevronDown, Pause } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import ChangePlanDrawer from "@/components/ChangePlanDrawer";
