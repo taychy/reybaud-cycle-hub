@@ -112,6 +112,20 @@ export default function AdminBroadcasts() {
   const [showSenderDialog, setShowSenderDialog] = useState(false);
   const [showDetail, setShowDetail] = useState<Broadcast | null>(null);
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
+  const [promoProducts, setPromoProducts] = useState<Array<{ id: string; name: string; price: number; old_price: number | null; currency: string | null; image_url: string | null; promo_activa?: boolean | null; es_externo?: boolean | null }>>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("store_products" as any)
+        .select("id, name, price, old_price, currency, image_url, promo_activa, es_externo")
+        .eq("status", "active")
+        .order("promo_activa", { ascending: false })
+        .order("name")
+        .limit(200);
+      setPromoProducts((data as any) || []);
+    })();
+  }, []);
 
   const loadAll = async () => {
     const [bres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
