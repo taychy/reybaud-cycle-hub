@@ -437,7 +437,7 @@ export default function MpMovementsTab() {
                         {assigned ? (
                           <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
                         ) : (
-                          <Button size="sm" variant="outline" onClick={() => { setAssignDialog(m); setSelectedAlumno(null); setAssignNotes(""); setAlumnos([]); }}>
+                          <Button size="sm" variant="outline" onClick={() => { setAssignDialog(m); setSelectedAlumno(null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
                             <UserPlus className="h-3 w-3 mr-1" /> Asignar alumno
                           </Button>
                         )}
