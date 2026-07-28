@@ -165,11 +165,26 @@ export default function MpMovementsTab() {
     }
     const { data } = await supabase
       .from("alumnos")
-      .select("id, nombre, apellido, email")
-      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%,documento.ilike.%${q}%`)
+      .select("id, nombre, apellido, email, emails_adicionales")
+      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%,documento.ilike.%${q}%,emails_adicionales.cs.{${q.toLowerCase()}}`)
       .limit(20);
     setAlumnos((data as any) ?? []);
   }
+
+  async function suggestByPayerEmail(email: string | null) {
+    setSuggested([]);
+    if (!email) return;
+    const e = email.toLowerCase().trim();
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, nombre, apellido, email, emails_adicionales")
+      .or(`email.eq.${e},emails_adicionales.cs.{${e}}`)
+      .limit(5);
+    const found = (data as any as Alumno[]) ?? [];
+    setSuggested(found);
+    if (found.length === 1) setSelectedAlumno(found[0].id);
+  }
+
 
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
