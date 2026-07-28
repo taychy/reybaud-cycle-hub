@@ -97,6 +97,8 @@ import AdminControlMercaderia from "./pages/admin/AdminControlMercaderia";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
+import PublicStore from "./pages/PublicStore";
+import PublicProduct from "./pages/PublicProduct";
 import EventInterest from "./pages/EventInterest";
 import EventSurvey from "./pages/EventSurvey";
 import PublicRoadbookTeaser from "./pages/PublicRoadbookTeaser";
