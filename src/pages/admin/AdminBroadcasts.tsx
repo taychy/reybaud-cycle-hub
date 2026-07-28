@@ -604,6 +604,58 @@ export default function AdminBroadcasts() {
           </Card>
 
           <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2"><b>Promos de tienda</b></div>
+              <span className="text-[11px] text-muted-foreground">
+                {composer.promo_product_ids.length}/4 seleccionados
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Se agrega un bloque discreto al pie del mail con estos productos y su precio.
+            </p>
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              {promoProducts.map((p) => {
+                const checked = composer.promo_product_ids.includes(p.id);
+                const disabled = !checked && composer.promo_product_ids.length >= 4;
+                return (
+                  <label
+                    key={p.id}
+                    className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer ${disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/40"}`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={disabled}
+                      onCheckedChange={() =>
+                        setComposer({
+                          ...composer,
+                          promo_product_ids: checked
+                            ? composer.promo_product_ids.filter((id) => id !== p.id)
+                            : [...composer.promo_product_ids, p.id],
+                        })
+                      }
+                    />
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-8 h-8 rounded object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 rounded bg-muted" />
+                    )}
+                    <span className="flex-1 truncate">{p.name}</span>
+                    {p.es_externo && <span className="text-[10px] uppercase text-muted-foreground">externo</span>}
+                    <span className="text-xs text-muted-foreground">
+                      {formatPrice(Number(p.price) || 0, p.currency || "ARS")}
+                    </span>
+                  </label>
+                );
+              })}
+              {promoProducts.length === 0 && (
+                <p className="px-3 py-4 text-xs text-muted-foreground">No hay productos activos en la tienda.</p>
+              )}
+            </div>
+          </Card>
+
+
+
+          <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2"><Users className="w-4 h-4" /><b>Segmentación</b></div>
             <div className="flex flex-wrap gap-4 text-sm">
               <label className="flex items-center gap-2 cursor-pointer">
