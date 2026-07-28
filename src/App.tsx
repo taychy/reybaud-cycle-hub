@@ -116,6 +116,10 @@ import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
 import AdminBajas from "./pages/admin/AdminBajas";
+import FacturasPorDiaPage from "./pages/admin/dia/FacturasPorDiaPage";
+import PagosPorDiaPage from "./pages/admin/dia/PagosPorDiaPage";
+import BajasPorDiaPage from "./pages/admin/dia/BajasPorDiaPage";
+import NuevosUsuariosPorDiaPage from "./pages/admin/dia/NuevosUsuariosPorDiaPage";
 
 import AdminAsesoria from "./pages/admin/AdminAsesoria";
 import BookingFlow from "./pages/booking/BookingFlow";
@@ -256,6 +260,10 @@ const App = () => (
             <Route path="liquidaciones" element={<AdminLiquidaciones />} />
             <Route path="turnera" element={<AdminTurnera />} />
             <Route path="bajas" element={<AdminBajas />} />
+            <Route path="facturacion/por-dia" element={<FacturasPorDiaPage />} />
+            <Route path="pagos/por-dia" element={<PagosPorDiaPage />} />
+            <Route path="bajas/por-dia" element={<BajasPorDiaPage />} />
+            <Route path="alumnos/nuevos-por-dia" element={<NuevosUsuariosPorDiaPage />} />
             <Route path="tienda" element={<StoreDashboard />} />
 
             <Route path="tienda/productos" element={<StoreProducts />} />

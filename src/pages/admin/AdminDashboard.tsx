@@ -127,12 +127,14 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
-      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasRes, cuotasRes] = await Promise.all([
+      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasPendientesRes, cuotasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)").in("estado", ["activa", "conciliado"]),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)"),
         supabase.from("alumnos").select("id, estado, grupo, created_at"),
-        supabase.from("facturas").select("referencia_id, referencia_tipo").eq("referencia_tipo", "suscripcion"),
+        // Fuente única de verdad: misma tabla que usa la página real de Facturación (evita
+        // el desfasaje que había contando directamente sobre `suscripciones`).
+        supabase.from("facturacion_cola" as any).select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
         // Paso B: cuotas de eventos por cobrar (saldo > 0)
         supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date").eq("source", "cuota_evento"),
       ]);
@@ -327,14 +329,10 @@ const AdminDashboard = () => {
       setAlerts(alertsList);
 
       // Chequeo alerts (Facturas / Pagos / Bajas)
-      const facturas = facturasRes.data || [];
-      const factSet = new Set(facturas.map((f: any) => f.referencia_id));
       const pagosACheckar = allSubs.filter((s: any) =>
         (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
       ).length;
-      const facturasPendientes = allSubs.filter((s: any) =>
-        (s.estado === "activa" || s.estado === "conciliado") && !factSet.has(s.id)
-      ).length;
+      const facturasPendientes = facturasPendientesRes.count || 0;
       const d = new Date();
       const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       const [y, m] = periodo.split("-").map(Number);
@@ -483,10 +481,10 @@ const AdminDashboard = () => {
       {/* Alertas de chequeo (Facturas / Pagos / Bajas) */}
       <div className="space-y-2">
         {[
-          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion", hint: "Subs cobradas sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
-          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos?chequeo=pendientes", hint: "Conciliar contra MP / transferencia / efectivo", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
-          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas", hint: "Alumnos sin renovar este mes", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
-          { label: "Nuevos usuarios", count: chequeoAlerts.nuevos, icon: UserPlus, to: "/admin/alumnos?filter=nuevos", hint: "Registrados en los últimos 30 días", tone: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500" },
+          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion/por-dia", hint: "Subs cobradas sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
+          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos/por-dia", hint: "Conciliar contra MP / transferencia / efectivo", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
+          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas/por-dia", hint: "Alumnos sin renovar este mes", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
+          { label: "Nuevos usuarios", count: chequeoAlerts.nuevos, icon: UserPlus, to: "/admin/alumnos/nuevos-por-dia", hint: "Registrados en los últimos 30 días", tone: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500" },
         ].map((a) => (
           <Link key={a.label} to={a.to} className={`group flex items-center justify-between gap-3 border rounded-lg px-4 py-3 transition-colors ${a.tone}`}>
             <div className="flex items-center gap-3 min-w-0">
