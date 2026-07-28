@@ -257,6 +257,19 @@ const StoreProducts = () => {
 
   const getCategoryName = (id: string | null) => categories.find((c) => c.id === id)?.name || "—";
 
+  const copyProductLink = async (p: Product) => {
+    await navigator.clipboard.writeText(productPublicUrl(p.id));
+    toast({
+      title: "Link copiado",
+      description: p.status === "active" ? p.name : `${p.name} está oculto: el link no será visible hasta publicarlo.`,
+    });
+  };
+
+  const copyStoreLink = async () => {
+    await navigator.clipboard.writeText(storePublicUrl());
+    toast({ title: "Link de la tienda copiado", description: storePublicUrl() });
+  };
+
   const tagColor = (tag: string) => {
     switch (tag) {
       case "OFERTA": return "bg-primary/20 text-primary";
