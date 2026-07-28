@@ -265,7 +265,7 @@ const ManageStudents = () => {
   const getActiveSub = (alumnoId: string) => {
     return suscripciones.find(s => {
       if (s.alumno_id !== alumnoId) return false;
-      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at });
+      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at , cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
       return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
     });
   };
@@ -284,15 +284,15 @@ const ManageStudents = () => {
     // 3) cualquiera (la más reciente por fecha_fin).
     const active = getActiveSub(alumnoId);
     if (active) {
-      return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin, cancelada_at: active.cancelada_at });
+      return getEffectiveSubStatus({ estado: active.estado, fecha_fin: active.fecha_fin, cancelada_at: active.cancelada_at , cancelada_motivo: ((active as any).cancelada_motivo), mp_status: ((active as any).mp_status), origen_registro: ((active as any).origen_registro) });
     }
     const payable = getPayableSub(alumnoId);
     if (payable) {
-      return getEffectiveSubStatus({ estado: payable.estado, fecha_fin: payable.fecha_fin, cancelada_at: payable.cancelada_at });
+      return getEffectiveSubStatus({ estado: payable.estado, fecha_fin: payable.fecha_fin, cancelada_at: payable.cancelada_at , cancelada_motivo: ((payable as any).cancelada_motivo), mp_status: ((payable as any).mp_status), origen_registro: ((payable as any).origen_registro) });
     }
     const any = getAnySub(alumnoId);
     if (any) {
-      return getEffectiveSubStatus({ estado: any.estado, fecha_fin: any.fecha_fin, cancelada_at: any.cancelada_at });
+      return getEffectiveSubStatus({ estado: any.estado, fecha_fin: any.fecha_fin, cancelada_at: any.cancelada_at , cancelada_motivo: ((any as any).cancelada_motivo), mp_status: ((any as any).mp_status), origen_registro: ((any as any).origen_registro) });
     }
     return "sin_suscripcion";
   };
