@@ -6,6 +6,8 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PlanSelection from "./pages/PlanSelection";
+import Reingreso from "./pages/Reingreso";
+
 import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
 import StudentDashboard from "./pages/StudentDashboard";
