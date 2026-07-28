@@ -462,8 +462,11 @@ Deno.serve(async (req) => {
         status: "sending",
         total_recipients: recipients.length,
         created_by: user.id,
+        promo_product_ids: body.promo_product_ids || [],
       }).select().single();
       if (bcErr) throw bcErr;
+
+      const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
 
       await admin.from("broadcast_recipients").insert(
         recipients.map((r: any) => ({
@@ -488,6 +491,7 @@ Deno.serve(async (req) => {
               personalize(body.content_html, r) || "",
               body.preheader,
               { url: personalize(body.cta_url, r), label: body.cta_label },
+              promoHtml,
             );
             const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
