@@ -350,30 +350,12 @@ Deno.serve(async (req) => {
       suscripcionId = nuevaSub.id;
     }
 
-    // 5) Registrar deuda cuota 2 (idempotente vía referencia_externa).
-    if (esCuotas && deudaCuota2 > 0 && vencimientoCuota2) {
-      const refExterna = `FORMACION_CUOTA2:${suscripcionId}`;
-      const { data: existAjuste } = await admin
-        .from("cuenta_ajustes")
-        .select("id")
-        .eq("referencia_externa", refExterna)
-        .maybeSingle();
-      if (!existAjuste) {
-        const { error: ajErr } = await admin.from("cuenta_ajustes").insert({
-          alumno_id: alumnoId,
-          tipo: "deuda",
-          concepto: `Cuota 2 · ${plan.nombre}`,
-          monto: deudaCuota2,
-          moneda: plan.moneda || "ARS",
-          fecha: vencimientoCuota2,
-          notas: `Vence el ${vencimientoCuota2}. Segunda cuota del programa (inscripción landing).`,
-          referencia_externa: refExterna,
-          aplicado_a_fuente_tabla: "suscripciones",
-          aplicado_a_fuente_id: suscripcionId,
-        });
-        if (ajErr) console.error("[enroll-programa] insert cuenta_ajustes cuota 2", ajErr);
-      }
-    }
+    // 5) Deuda de la cuota 2.
+    // NO se crea un ajuste en cuenta_ajustes: la deuda del programa ya se calcula
+    // como (suscripciones.precio_final − pagos imputados a la suscripción), y
+    // precio_final ya incluye TODAS las cuotas. Un cargo extra duplicaría la deuda.
+    // El vencimiento de la cuota 2 queda registrado en las notas de la suscripción.
+
 
     // ─────────── FLUJO TRANSFERENCIA ───────────
     if (metodo_pago_inicial === "transferencia") {
