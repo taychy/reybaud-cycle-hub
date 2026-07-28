@@ -801,6 +801,7 @@ const StoreProducts = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
 };
 
