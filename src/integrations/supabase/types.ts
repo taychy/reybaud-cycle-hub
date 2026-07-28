@@ -11389,6 +11389,15 @@ export type Database = {
         }
         Returns: number
       }
+      mp_egreso_to_ejecucion: {
+        Args: {
+          _ejecucion_id: string
+          _es_excedente?: boolean
+          _movement_id: string
+          _notas?: string
+        }
+        Returns: string
+      }
       mp_egreso_to_gasto: {
         Args: {
           _categoria: string
