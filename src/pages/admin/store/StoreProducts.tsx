@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2, ExternalLink } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2, ExternalLink, PackageSearch } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,6 +11,7 @@ import ImageUpload from "@/components/ImageUpload";
 import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
 import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
+import ExternalProductDialog from "@/components/store/ExternalProductDialog";
 import { effectiveStock, hasStockMismatch } from "@/lib/stock";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
