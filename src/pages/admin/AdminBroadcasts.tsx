@@ -290,6 +290,7 @@ export default function AdminBroadcasts() {
           preheader: composer.preheader,
           cta_url: composer.cta_url || undefined,
           cta_label: composer.cta_label || undefined,
+          promo_product_ids: composer.promo_product_ids,
         },
       });
       if (error) throw error;
