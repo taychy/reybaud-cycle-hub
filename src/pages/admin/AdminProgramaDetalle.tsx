@@ -200,11 +200,15 @@ const AdminProgramaDetalle = () => {
     const activos = inscriptos.filter((i) => i.estado === "activa").length;
     const pendVer = inscriptos.filter((i) => i.estado === "pendiente_verificacion").length;
     const pendPago = inscriptos.filter((i) => i.estado === "pendiente_pago").length;
-    const recaudado = inscriptos
-      .filter((i) => i.estado === "activa" || i.estado === "finalizada")
-      .reduce((s, i) => s + (Number(i.precio_final) || 0), 0);
-    return { total, activos, pendVer, pendPago, recaudado };
-  }, [inscriptos]);
+    // Recaudado = dinero realmente cobrado e imputado a estas suscripciones.
+    const recaudado = Object.values(cobrado).reduce((s, v) => s + v, 0);
+    // Por cobrar = comprometido (precio_final de subs vigentes) − cobrado.
+    const porCobrar = inscriptos
+      .filter((i) => i.estado !== "cancelada")
+      .reduce((s, i) => s + Math.max(0, (Number(i.precio_final) || 0) - (cobrado[i.id] || 0)), 0);
+    return { total, activos, pendVer, pendPago, recaudado, porCobrar };
+  }, [inscriptos, cobrado]);
+
 
   const filtered = inscriptos.filter((i) => {
     if (!search.trim()) return true;
