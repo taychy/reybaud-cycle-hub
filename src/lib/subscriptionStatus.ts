@@ -51,6 +51,7 @@ export interface SubStatusInput {
   estado: string;
   fecha_fin: string | null;
   cancelada_at?: string | null;
+  cancelada_motivo?: string | null;
   mp_status?: string | null;
   origen_registro?: string | null;
 }
