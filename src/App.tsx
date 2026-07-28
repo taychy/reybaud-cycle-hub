@@ -156,6 +156,8 @@ const App = () => (
           <Route path="/interes/:eventId" element={<EventInterest />} />
           <Route path="/encuesta/:token" element={<EventSurvey />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />
+          <Route path="/tienda" element={<PublicStore />} />
+          <Route path="/tienda/producto/:id" element={<PublicProduct />} />
           <Route path="/alumno" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/dashboard" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
           <Route path="/alumno/inicio" element={<ProtectedRoute allowedRoles={["alumno", "admin"]} loginPath="/"><StudentDashboard /></ProtectedRoute>} />
