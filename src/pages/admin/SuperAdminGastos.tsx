@@ -28,12 +28,13 @@ type EstadoEjec = "pendiente" | "pagado" | "vencido" | "omitido" | "parcial";
 
 // Unidad de negocio para poder ver el global y también Escuela/Tienda/Viajes por separado.
 // "compartido" es el default: cae en el prorrateo automático en vez de asignarse mal por accidente.
-type UnidadNegocio = "escuela" | "tienda" | "viajes" | "compartido";
+type UnidadNegocio = "escuela" | "tienda" | "viajes" | "compartido" | "personal";
 const UNIDADES_NEGOCIO: { value: UnidadNegocio; label: string }[] = [
   { value: "compartido", label: "Compartido (se prorratea)" },
   { value: "escuela", label: "Escuela" },
   { value: "tienda", label: "Tienda" },
   { value: "viajes", label: "Viajes / Eventos" },
+  { value: "personal", label: "Personal" },
 ];
 
 type ModalidadPago = "anticipado" | "vencido";
