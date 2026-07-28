@@ -94,6 +94,7 @@ const AdminProgramaDetalle = () => {
   const [plan, setPlan] = useState<PlanRow | null>(null);
   const [inscriptos, setInscriptos] = useState<Inscripto[]>([]);
   const [emails, setEmails] = useState<any[]>([]);
+  const [cobrado, setCobrado] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [playbook, setPlaybook] = useState<{ id: string; nombre: string; stages: number } | null>(null);
@@ -127,6 +128,23 @@ const AdminProgramaDetalle = () => {
         });
       }
       setInscriptos(list);
+
+      // Cobrado real por suscripción (movimientos con haber > 0)
+      if (list.length > 0) {
+        const { data: movs } = await sb
+          .from("vw_cuenta_corriente_movimientos")
+          .select("fuente_id, haber")
+          .eq("fuente_tabla", "suscripciones")
+          .in("fuente_id", list.map((s) => s.id));
+        const map: Record<string, number> = {};
+        (movs || []).forEach((m: any) => {
+          const h = Number(m.haber) || 0;
+          if (h > 0) map[m.fuente_id] = (map[m.fuente_id] || 0) + h;
+        });
+        setCobrado(map);
+      } else {
+        setCobrado({});
+      }
 
       // Load emails linked to these inscriptos by recipient email (best-effort)
       const emailsList = Array.from(new Set(list.map((s) => s.alumno?.email).filter(Boolean))) as string[];
@@ -200,11 +218,15 @@ const AdminProgramaDetalle = () => {
     const activos = inscriptos.filter((i) => i.estado === "activa").length;
     const pendVer = inscriptos.filter((i) => i.estado === "pendiente_verificacion").length;
     const pendPago = inscriptos.filter((i) => i.estado === "pendiente_pago").length;
-    const recaudado = inscriptos
-      .filter((i) => i.estado === "activa" || i.estado === "finalizada")
-      .reduce((s, i) => s + (Number(i.precio_final) || 0), 0);
-    return { total, activos, pendVer, pendPago, recaudado };
-  }, [inscriptos]);
+    // Recaudado = dinero realmente cobrado e imputado a estas suscripciones.
+    const recaudado = Object.values(cobrado).reduce((s: number, v: number) => s + v, 0);
+    // Por cobrar = comprometido (precio_final de subs vigentes) − cobrado.
+    const porCobrar = inscriptos
+      .filter((i) => i.estado !== "cancelada")
+      .reduce((s, i) => s + Math.max(0, (Number(i.precio_final) || 0) - (cobrado[i.id] || 0)), 0);
+    return { total, activos, pendVer, pendPago, recaudado, porCobrar };
+  }, [inscriptos, cobrado]);
+
 
   const filtered = inscriptos.filter((i) => {
     if (!search.trim()) return true;
@@ -295,13 +317,15 @@ const AdminProgramaDetalle = () => {
 
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <KpiCard icon={Users} label="Inscriptos" value={`${curr}${cap ? ` / ${cap}` : ""}`} accent="primary" />
         <KpiCard icon={Users} label="Activos" value={kpis.activos} />
         <KpiCard icon={AlertCircle} label="A verificar" value={kpis.pendVer} accent={kpis.pendVer > 0 ? "warn" : undefined} />
         <KpiCard icon={AlertCircle} label="Pendientes" value={kpis.pendPago} />
         <KpiCard icon={DollarSign} label="Recaudado" value={formatPrice(kpis.recaudado, plan.moneda)} />
+        <KpiCard icon={DollarSign} label="Por cobrar" value={formatPrice(kpis.porCobrar, plan.moneda)} accent={kpis.porCobrar > 0 ? "warn" : undefined} />
       </div>
+
 
       {/* Dates strip */}
       <Card>
@@ -330,7 +354,7 @@ const AdminProgramaDetalle = () => {
           )}
           <div className="flex items-center gap-2 ml-auto">
             <DollarSign className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Precio:</span>
+            <span className="text-muted-foreground">Precio de lista:</span>
             <span className="font-heading font-bold">{formatPrice(plan.precio, plan.moneda)}</span>
             {plan.cuotas_cantidad && plan.cuotas_cantidad > 1 && plan.cuota_valor && (
               <span className="text-xs text-muted-foreground">
@@ -396,7 +420,20 @@ const AdminProgramaDetalle = () => {
                             </TableCell>
                             <TableCell className="text-xs font-medium">
                               {i.precio_final != null ? formatPrice(Number(i.precio_final), plan.moneda) : "—"}
+                              {(() => {
+                                const pagado = cobrado[i.id] || 0;
+                                const saldo = Math.max(0, (Number(i.precio_final) || 0) - pagado);
+                                return (
+                                  <div className="font-normal text-muted-foreground">
+                                    Pagó {formatPrice(pagado, plan.moneda)}
+                                    {saldo > 0 && (
+                                      <span className="text-warning"> · debe {formatPrice(saldo, plan.moneda)}</span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
+
                             <TableCell className="text-xs text-muted-foreground">{fmtDateTime(i.created_at)}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex gap-1 justify-end">

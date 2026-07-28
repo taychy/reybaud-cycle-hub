@@ -890,14 +890,33 @@ Deno.serve(async (req) => {
       // nuevas si la sub NO tiene período cargado (caso raro: alta directa vía webhook).
       const { data: currentSub } = await supabaseAdmin
         .from("suscripciones")
-        .select("fecha_inicio, fecha_fin")
+        .select("fecha_inicio, fecha_fin, plan_id")
         .eq("id", suscripcionId)
         .maybeSingle();
 
       const existingInicio = currentSub?.fecha_inicio as string | null | undefined;
       const existingFin = currentSub?.fecha_fin as string | null | undefined;
 
-      if (existingInicio && existingFin) {
+      // Programas cerrados (cohortes con fecha de inicio/fin propias): el período
+      // de la suscripción debe ser el del programa, NO el mes calendario.
+      let progInicio: string | null = null;
+      let progFin: string | null = null;
+      if (currentSub?.plan_id) {
+        const { data: planRow } = await supabaseAdmin
+          .from("planes")
+          .select("es_programa_cerrado, fecha_inicio_programa, fecha_fin_programa")
+          .eq("id", currentSub.plan_id)
+          .maybeSingle();
+        if (planRow?.es_programa_cerrado && planRow.fecha_inicio_programa && planRow.fecha_fin_programa) {
+          progInicio = planRow.fecha_inicio_programa as string;
+          progFin = planRow.fecha_fin_programa as string;
+        }
+      }
+
+      if (progInicio && progFin) {
+        updateData.fecha_inicio = progInicio;
+        updateData.fecha_fin = progFin;
+      } else if (existingInicio && existingFin) {
         // Respetar el período ya definido (01→último día del mes que le corresponda)
         updateData.fecha_inicio = existingInicio;
         updateData.fecha_fin = existingFin;
@@ -905,6 +924,7 @@ Deno.serve(async (req) => {
         updateData.fecha_inicio = today;
         updateData.fecha_fin = fechaFin;
       }
+
     }
 
 

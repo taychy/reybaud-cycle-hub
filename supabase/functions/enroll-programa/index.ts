@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
     // 1) Plan
     const { data: plan, error: planErr } = await admin
       .from("planes")
-      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, fecha_inicio_programa")
+      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, es_programa_cerrado, fecha_inicio_programa, fecha_fin_programa")
       .eq("cohort_slug", cohort_slug)
       .maybeSingle();
 
@@ -311,8 +311,12 @@ Deno.serve(async (req) => {
     const modalidadNota = esCuotas
       ? ` (${cuotasCantidad} cuotas de $${precioCuota}; hoy cuota 1, cuota 2 vence ${vencimientoCuota2})`
       : "";
-    const metodoLabel = metodo_pago_inicial === "transferencia" ? "transferencia" : "mercado_pago";
+    const metodoLabel = metodo_pago_inicial === "transferencia" ? "transferencia" : "mercadopago";
     const notasSub = `Inscripción landing pública. Tramo: ${currentStage.stage_nombre}. Modo: ${modo_pago}${modalidadNota}. Método: ${metodoLabel}.`;
+
+    // Período de la suscripción: para programas cerrados usamos las fechas del programa.
+    const progInicio = plan.es_programa_cerrado && plan.fecha_inicio_programa ? plan.fecha_inicio_programa : null;
+    const progFin = plan.es_programa_cerrado && plan.fecha_fin_programa ? plan.fecha_fin_programa : null;
 
     let suscripcionId: string;
     if (existSub) {
@@ -326,6 +330,7 @@ Deno.serve(async (req) => {
           metodo_pago: metodoLabel,
           origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
           notas: notasSub,
+          ...(progInicio && progFin ? { fecha_inicio: progInicio, fecha_fin: progFin } : {}),
         })
         .eq("id", suscripcionId);
     } else {
@@ -340,6 +345,7 @@ Deno.serve(async (req) => {
           metodo_pago: metodoLabel,
           origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
           notas: notasSub,
+          ...(progInicio && progFin ? { fecha_inicio: progInicio, fecha_fin: progFin } : {}),
         })
         .select("id")
         .single();
@@ -350,30 +356,12 @@ Deno.serve(async (req) => {
       suscripcionId = nuevaSub.id;
     }
 
-    // 5) Registrar deuda cuota 2 (idempotente vía referencia_externa).
-    if (esCuotas && deudaCuota2 > 0 && vencimientoCuota2) {
-      const refExterna = `FORMACION_CUOTA2:${suscripcionId}`;
-      const { data: existAjuste } = await admin
-        .from("cuenta_ajustes")
-        .select("id")
-        .eq("referencia_externa", refExterna)
-        .maybeSingle();
-      if (!existAjuste) {
-        const { error: ajErr } = await admin.from("cuenta_ajustes").insert({
-          alumno_id: alumnoId,
-          tipo: "deuda",
-          concepto: `Cuota 2 · ${plan.nombre}`,
-          monto: deudaCuota2,
-          moneda: plan.moneda || "ARS",
-          fecha: vencimientoCuota2,
-          notas: `Vence el ${vencimientoCuota2}. Segunda cuota del programa (inscripción landing).`,
-          referencia_externa: refExterna,
-          aplicado_a_fuente_tabla: "suscripciones",
-          aplicado_a_fuente_id: suscripcionId,
-        });
-        if (ajErr) console.error("[enroll-programa] insert cuenta_ajustes cuota 2", ajErr);
-      }
-    }
+    // 5) Deuda de la cuota 2.
+    // NO se crea un ajuste en cuenta_ajustes: la deuda del programa ya se calcula
+    // como (suscripciones.precio_final − pagos imputados a la suscripción), y
+    // precio_final ya incluye TODAS las cuotas. Un cargo extra duplicaría la deuda.
+    // El vencimiento de la cuota 2 queda registrado en las notas de la suscripción.
+
 
     // ─────────── FLUJO TRANSFERENCIA ───────────
     if (metodo_pago_inicial === "transferencia") {
