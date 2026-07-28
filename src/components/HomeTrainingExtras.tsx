@@ -54,10 +54,8 @@ const HomeTrainingExtras = ({ alumnoId, onGoToTienda }: Props) => {
 
       if (fbData && fbData.length > 0) {
         const coachIds = [...new Set(fbData.map((f) => f.coach_id))];
-        const { data: coaches } = await supabase
-          .from("coaches")
-          .select("id, nombre")
-          .in("id", coachIds);
+        const { data: allCoaches } = await supabase.rpc("get_coaches_public" as any);
+        const coaches = ((allCoaches as any[]) || []).filter((c) => coachIds.includes(c.id));
 
         setFeedback(
           fbData.map((f) => ({

@@ -108,10 +108,8 @@ export const StudentProgressContent = () => {
 
     if (feedbackData && feedbackData.length > 0) {
       const coachIds = [...new Set(feedbackData.map(f => f.coach_id))];
-      const { data: coaches } = await supabase
-        .from("coaches")
-        .select("id, nombre")
-        .in("id", coachIds);
+      const { data: allCoaches } = await supabase.rpc("get_coaches_public" as any);
+      const coaches = ((allCoaches as any[]) || []).filter((c: any) => coachIds.includes(c.id));
 
       setFeedback(feedbackData.map(f => ({
         id: f.id,

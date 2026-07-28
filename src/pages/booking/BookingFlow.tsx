@@ -143,10 +143,10 @@ const BookingFlow = () => {
       const sedeIds = Array.from(new Set(list.map(d => d.sede_id).filter(Boolean)));
 
       if (coachIds.length) {
-        const { data: cs } = await supabase
-          .from("coaches_public" as any).select("id, nombre, sede_id, estado")
-          .in("id", coachIds).eq("estado", "activo");
-        const activos = (cs as any[]) || [];
+        const { data: cs } = await supabase.rpc("get_coaches_public" as any);
+        const activos = ((cs as any[]) || []).filter(
+          (c) => coachIds.includes(c.id) && c.estado === "activo"
+        );
         setCoaches(activos);
         // Re-filtramos disponibilidades para excluir coaches inactivos
         const activosIds = new Set(activos.map(c => c.id));
