@@ -213,7 +213,7 @@ Deno.serve(async (req) => {
     // 1) Plan
     const { data: plan, error: planErr } = await admin
       .from("planes")
-      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, fecha_inicio_programa")
+      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, es_programa_cerrado, fecha_inicio_programa, fecha_fin_programa")
       .eq("cohort_slug", cohort_slug)
       .maybeSingle();
 
@@ -311,8 +311,12 @@ Deno.serve(async (req) => {
     const modalidadNota = esCuotas
       ? ` (${cuotasCantidad} cuotas de $${precioCuota}; hoy cuota 1, cuota 2 vence ${vencimientoCuota2})`
       : "";
-    const metodoLabel = metodo_pago_inicial === "transferencia" ? "transferencia" : "mercado_pago";
+    const metodoLabel = metodo_pago_inicial === "transferencia" ? "transferencia" : "mercadopago";
     const notasSub = `Inscripción landing pública. Tramo: ${currentStage.stage_nombre}. Modo: ${modo_pago}${modalidadNota}. Método: ${metodoLabel}.`;
+
+    // Período de la suscripción: para programas cerrados usamos las fechas del programa.
+    const progInicio = plan.es_programa_cerrado && plan.fecha_inicio_programa ? plan.fecha_inicio_programa : null;
+    const progFin = plan.es_programa_cerrado && plan.fecha_fin_programa ? plan.fecha_fin_programa : null;
 
     let suscripcionId: string;
     if (existSub) {
@@ -326,6 +330,7 @@ Deno.serve(async (req) => {
           metodo_pago: metodoLabel,
           origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
           notas: notasSub,
+          ...(progInicio && progFin ? { fecha_inicio: progInicio, fecha_fin: progFin } : {}),
         })
         .eq("id", suscripcionId);
     } else {
@@ -340,6 +345,7 @@ Deno.serve(async (req) => {
           metodo_pago: metodoLabel,
           origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
           notas: notasSub,
+          ...(progInicio && progFin ? { fecha_inicio: progInicio, fecha_fin: progFin } : {}),
         })
         .select("id")
         .single();
