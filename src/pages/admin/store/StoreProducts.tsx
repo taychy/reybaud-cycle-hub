@@ -365,7 +365,19 @@ const StoreProducts = () => {
                   {p.old_price && <span className="text-xs text-muted-foreground line-through ml-1">${p.old_price.toLocaleString("es-AR")}</span>}
                 </td>
                 <td className="px-4 py-2 text-center hidden md:table-cell">
-                  <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>{p.stock}</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={`inline-flex items-center gap-1 ${effectiveStock(p) <= (p.min_stock ?? 0) ? "text-destructive font-bold" : ""}`}>
+                        {effectiveStock(p)}
+                        {hasStockMismatch(p) && <span className="text-[10px] text-gold">•</span>}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {hasStockMismatch(p)
+                        ? `Stock real por variantes: ${effectiveStock(p)} (el total guardado dice ${p.stock}). Se muestra el de variantes.`
+                        : "Stock disponible"}
+                    </TooltipContent>
+                  </Tooltip>
                 </td>
                 <td className="px-4 py-2 text-center hidden lg:table-cell">
                   {p.tag ? <span className={`text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(p.tag)}`}>{p.tag}</span> : "—"}
