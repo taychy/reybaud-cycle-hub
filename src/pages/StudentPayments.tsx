@@ -541,7 +541,7 @@ const StudentPayments = () => {
     <div className="min-h-screen bg-background flex flex-col">
       <ImpersonationBanner />
 
-      <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-10" : ""}`}>
+      <header className={`flex items-center gap-3 px-5 pt-5 pb-2 ${isImpersonating ? "mt-12" : ""}`}>
         <Button variant="ghost" size="icon" onClick={() => navigate(-1)} className="text-muted-foreground">
           <ArrowLeft className="w-5 h-5" />
         </Button>
