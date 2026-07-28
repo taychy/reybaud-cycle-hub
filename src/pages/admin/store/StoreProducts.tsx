@@ -283,11 +283,29 @@ const StoreProducts = () => {
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando productos...</div>;
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-heading font-bold">Productos</h1>
-        <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={copyStoreLink}><Share2 className="w-4 h-4 mr-1" /> Link público de la tienda</Button>
+            </TooltipTrigger>
+            <TooltipContent>Copia {storePublicUrl()} para compartir el catálogo</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={() => window.open(storePublicUrl(), "_blank")} aria-label="Abrir tienda pública">
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Abrir la tienda pública</TooltipContent>
+          </Tooltip>
+          <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
+        </div>
       </div>
+
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
