@@ -186,6 +186,24 @@ Deno.serve(async (req) => {
         recipients = recipients.filter(r => !suppSet.has(r.email));
       }
     }
+
+    // Excluir alumnos de programas cerrados (ej. Programa Iniciación): su cursada tiene
+    // fecha fija y cuotas propias, no aplica cambio de plan / pausa / baja mensual.
+    if (recipients.length > 0) {
+      const ids = recipients.map(r => r.alumno_id).filter(Boolean) as string[];
+      const { data: progSubs } = await admin
+        .from("suscripciones")
+        .select("alumno_id, estado, planes!inner(es_programa_cerrado)")
+        .in("alumno_id", ids)
+        .in("estado", ["activa", "pendiente", "vencida"]);
+      const progSet = new Set<string>();
+      for (const s of (progSubs || []) as any[]) {
+        if (s.planes?.es_programa_cerrado) progSet.add(s.alumno_id);
+      }
+      if (progSet.size > 0) {
+        recipients = recipients.filter(r => !(r.alumno_id && progSet.has(r.alumno_id)));
+      }
+    }
   }
 
   // Mapa de alumnos con deuda: sub 'vencida' o 'activa' con fecha_fin < hoy
@@ -207,7 +225,8 @@ Deno.serve(async (req) => {
   }
 
 
-  const subject = `📢 Cambios de plan, pausas y bajas — vencen el ${deadlineText}`;
+  const subject = `Recordatorio mensual: si querés cambiar de plan, pausar o dar de baja (hasta el ${deadlineText})`;
+
 
   if (dryRun) {
     return new Response(JSON.stringify({
