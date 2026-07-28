@@ -3,13 +3,15 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2 } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2, ExternalLink } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import ImageUpload from "@/components/ImageUpload";
 import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
 import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
+import { effectiveStock, hasStockMismatch } from "@/lib/stock";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 interface Product {
@@ -58,6 +60,23 @@ interface Category {
 }
 
 const TAGS = ["NUEVO", "OFERTA", "OUTLET", "ÚLTIMA UNIDAD", "COMBO", "TOP"];
+
+// Siempre el dominio de producción: evita links rotos copiados desde el preview.
+const PUBLIC_ORIGIN = "https://reybaud-app.com";
+export const storePublicUrl = () => `${PUBLIC_ORIGIN}/tienda`;
+export const productPublicUrl = (id: string) => `${PUBLIC_ORIGIN}/tienda/producto/${id}`;
+
+const IconAction = ({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClick} aria-label={label}>
+        {children}
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>{label}</TooltipContent>
+  </Tooltip>
+);
+
 const StoreProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -238,6 +257,19 @@ const StoreProducts = () => {
 
   const getCategoryName = (id: string | null) => categories.find((c) => c.id === id)?.name || "—";
 
+  const copyProductLink = async (p: Product) => {
+    await navigator.clipboard.writeText(productPublicUrl(p.id));
+    toast({
+      title: "Link copiado",
+      description: p.status === "active" ? p.name : `${p.name} está oculto: el link no será visible hasta publicarlo.`,
+    });
+  };
+
+  const copyStoreLink = async () => {
+    await navigator.clipboard.writeText(storePublicUrl());
+    toast({ title: "Link de la tienda copiado", description: storePublicUrl() });
+  };
+
   const tagColor = (tag: string) => {
     switch (tag) {
       case "OFERTA": return "bg-primary/20 text-primary";
@@ -251,11 +283,29 @@ const StoreProducts = () => {
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando productos...</div>;
 
   return (
+    <TooltipProvider delayDuration={200}>
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <h1 className="text-2xl font-heading font-bold">Productos</h1>
-        <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
+        <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={copyStoreLink}><Share2 className="w-4 h-4 mr-1" /> Link público de la tienda</Button>
+            </TooltipTrigger>
+            <TooltipContent>Copia {storePublicUrl()} para compartir el catálogo</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" size="icon" onClick={() => window.open(storePublicUrl(), "_blank")} aria-label="Abrir tienda pública">
+                <ExternalLink className="w-4 h-4" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Abrir la tienda pública</TooltipContent>
+          </Tooltip>
+          <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
+        </div>
       </div>
+
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
@@ -315,7 +365,19 @@ const StoreProducts = () => {
                   {p.old_price && <span className="text-xs text-muted-foreground line-through ml-1">${p.old_price.toLocaleString("es-AR")}</span>}
                 </td>
                 <td className="px-4 py-2 text-center hidden md:table-cell">
-                  <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>{p.stock}</span>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <span className={`inline-flex items-center gap-1 ${effectiveStock(p) <= (p.min_stock ?? 0) ? "text-destructive font-bold" : ""}`}>
+                        {effectiveStock(p)}
+                        {hasStockMismatch(p) && <span className="text-[10px] text-gold">•</span>}
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      {hasStockMismatch(p)
+                        ? `Stock real por variantes: ${effectiveStock(p)} (el total guardado dice ${p.stock}). Se muestra el de variantes.`
+                        : "Stock disponible"}
+                    </TooltipContent>
+                  </Tooltip>
                 </td>
                 <td className="px-4 py-2 text-center hidden lg:table-cell">
                   {p.tag ? <span className={`text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(p.tag)}`}>{p.tag}</span> : "—"}
@@ -327,11 +389,27 @@ const StoreProducts = () => {
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center justify-end gap-1">
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleFeatured(p)} title="Destacado"><Star className={`w-4 h-4 ${p.featured ? "text-gold fill-gold" : "text-muted-foreground"}`} /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => toggleVisibility(p)} title="Visibilidad">{p.status === "active" ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}</Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(p)}><Pencil className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleDuplicate(p)}><Copy className="w-4 h-4" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setDeleteId(p.id)}><Trash2 className="w-4 h-4 text-destructive" /></Button>
+                    <IconAction label={p.featured ? "Quitar de destacados" : "Marcar como destacado"} onClick={() => toggleFeatured(p)}>
+                      <Star className={`w-4 h-4 ${p.featured ? "text-gold fill-gold" : "text-muted-foreground"}`} />
+                    </IconAction>
+                    <IconAction label={p.status === "active" ? "Ocultar de la tienda" : "Publicar en la tienda"} onClick={() => toggleVisibility(p)}>
+                      {p.status === "active" ? <EyeOff className="w-4 h-4 text-muted-foreground" /> : <Eye className="w-4 h-4 text-muted-foreground" />}
+                    </IconAction>
+                    <IconAction label="Copiar link público del producto" onClick={() => copyProductLink(p)}>
+                      <Link2 className="w-4 h-4 text-muted-foreground" />
+                    </IconAction>
+                    <IconAction label="Abrir link público en otra pestaña" onClick={() => window.open(productPublicUrl(p.id), "_blank")}>
+                      <ExternalLink className="w-4 h-4 text-muted-foreground" />
+                    </IconAction>
+                    <IconAction label="Editar producto" onClick={() => openEdit(p)}>
+                      <Pencil className="w-4 h-4" />
+                    </IconAction>
+                    <IconAction label="Duplicar producto" onClick={() => handleDuplicate(p)}>
+                      <Copy className="w-4 h-4" />
+                    </IconAction>
+                    <IconAction label="Eliminar producto" onClick={() => setDeleteId(p.id)}>
+                      <Trash2 className="w-4 h-4 text-destructive" />
+                    </IconAction>
                   </div>
                 </td>
               </tr>
@@ -735,6 +813,7 @@ const StoreProducts = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </TooltipProvider>
   );
 };
 

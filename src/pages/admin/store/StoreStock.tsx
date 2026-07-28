@@ -4,6 +4,7 @@ import { AlertTriangle, Package } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { effectiveStock, hasStockMismatch } from "@/lib/stock";
 
 interface StockProduct {
   id: string;
@@ -12,6 +13,7 @@ interface StockProduct {
   stock: number;
   min_stock: number;
   status: string;
+  variant_stock: Record<string, number> | null;
 }
 
 const StoreStock = () => {
@@ -23,7 +25,10 @@ const StoreStock = () => {
   const { toast } = useToast();
 
   const load = async () => {
-    const { data } = await supabase.from("store_products").select("id, name, image_url, stock, min_stock, status").order("stock", { ascending: true });
+    const { data } = await supabase
+      .from("store_products")
+      .select("id, name, image_url, stock, min_stock, status, variant_stock")
+      .order("stock", { ascending: true });
     setProducts((data as any[]) || []);
     setLoading(false);
   };
@@ -37,14 +42,20 @@ const StoreStock = () => {
     load();
   };
 
+  const hasVariants = (p: StockProduct) => hasStockMismatch(p) || (p.variant_stock && Object.keys(p.variant_stock).length > 0);
+
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando stock...</div>;
 
-  const lowStock = products.filter((p) => p.stock <= p.min_stock);
-  const okStock = products.filter((p) => p.stock > p.min_stock);
+  const lowStock = products.filter((p) => effectiveStock(p) <= p.min_stock);
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-heading font-bold">Control de Stock</h1>
+      <div>
+        <h1 className="text-2xl font-heading font-bold">Control de Stock</h1>
+        <p className="text-sm text-muted-foreground">
+          Cuando el producto tiene variantes, el stock real es la suma por talle/color (lo que actualiza Depósito). Ese es el número que se muestra acá y en Productos.
+        </p>
+      </div>
 
       {/* Alerts */}
       {lowStock.length > 0 && (
@@ -57,20 +68,20 @@ const StoreStock = () => {
             {lowStock.map((p) => (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="w-10 h-10 rounded bg-secondary overflow-hidden shrink-0">
-                  {p.image_url ? <img src={p.image_url} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-muted-foreground m-auto mt-2.5" />}
+                  {p.image_url ? <img src={p.image_url} alt={p.name} className="w-full h-full object-cover" /> : <Package className="w-5 h-5 text-muted-foreground m-auto mt-2.5" />}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-medium text-foreground truncate">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">{p.stock === 0 ? "Sin stock" : `${p.stock} unidades (mín: ${p.min_stock})`}</p>
+                  <p className="text-xs text-muted-foreground">{effectiveStock(p) === 0 ? "Sin stock" : `${effectiveStock(p)} unidades (mín: ${p.min_stock})`}</p>
                 </div>
                 {editingId === p.id ? (
                   <div className="flex items-center gap-2">
-                    <Input type="number" value={editStock} onChange={(e) => setEditStock(Number(e.target.value))} className="w-20 h-8" />
+                    <Input type="number" value={editStock} onChange={(e) => setEditStock(Number(e.target.value))} className="w-20 h-8" disabled={!!hasVariants(p)} />
                     <Input type="number" value={editMinStock} onChange={(e) => setEditMinStock(Number(e.target.value))} className="w-20 h-8" />
                     <Button size="sm" onClick={() => saveStock(p.id)}>OK</Button>
                   </div>
                 ) : (
-                  <Button variant="outline" size="sm" onClick={() => { setEditingId(p.id); setEditStock(p.stock); setEditMinStock(p.min_stock); }}>Editar</Button>
+                  <Button variant="outline" size="sm" onClick={() => { setEditingId(p.id); setEditStock(effectiveStock(p)); setEditMinStock(p.min_stock); }}>Editar</Button>
                 )}
               </div>
             ))}
@@ -91,44 +102,50 @@ const StoreStock = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {products.map((p) => (
-              <tr key={p.id} className="hover:bg-muted/30">
-                <td className="px-4 py-2 font-medium text-foreground">{p.name}</td>
-                <td className="px-4 py-2 text-center">
-                  {editingId === p.id ? (
-                    <Input type="number" value={editStock} onChange={(e) => setEditStock(Number(e.target.value))} className="w-20 h-8 mx-auto" />
-                  ) : (
-                    <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>{p.stock}</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-center">
-                  {editingId === p.id ? (
-                    <Input type="number" value={editMinStock} onChange={(e) => setEditMinStock(Number(e.target.value))} className="w-20 h-8 mx-auto" />
-                  ) : (
-                    <span>{p.min_stock}</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-center">
-                  {p.stock === 0 ? (
-                    <span className="text-[10px] font-heading font-bold bg-destructive/20 text-destructive px-2 py-0.5 rounded uppercase">Sin stock</span>
-                  ) : p.stock <= p.min_stock ? (
-                    <span className="text-[10px] font-heading font-bold bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded uppercase">Bajo</span>
-                  ) : (
-                    <span className="text-[10px] font-heading font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase">OK</span>
-                  )}
-                </td>
-                <td className="px-4 py-2 text-right">
-                  {editingId === p.id ? (
-                    <div className="flex gap-1 justify-end">
-                      <Button size="sm" onClick={() => saveStock(p.id)}>Guardar</Button>
-                      <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
-                    </div>
-                  ) : (
-                    <Button variant="ghost" size="sm" onClick={() => { setEditingId(p.id); setEditStock(p.stock); setEditMinStock(p.min_stock); }}>Editar</Button>
-                  )}
-                </td>
-              </tr>
-            ))}
+            {products.map((p) => {
+              const st = effectiveStock(p);
+              return (
+                <tr key={p.id} className="hover:bg-muted/30">
+                  <td className="px-4 py-2 font-medium text-foreground">
+                    {p.name}
+                    {hasVariants(p) && <span className="ml-2 text-[10px] uppercase text-muted-foreground">por variantes</span>}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {editingId === p.id && !hasVariants(p) ? (
+                      <Input type="number" value={editStock} onChange={(e) => setEditStock(Number(e.target.value))} className="w-20 h-8 mx-auto" />
+                    ) : (
+                      <span className={st <= p.min_stock ? "text-destructive font-bold" : ""}>{st}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {editingId === p.id ? (
+                      <Input type="number" value={editMinStock} onChange={(e) => setEditMinStock(Number(e.target.value))} className="w-20 h-8 mx-auto" />
+                    ) : (
+                      <span>{p.min_stock}</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-center">
+                    {st === 0 ? (
+                      <span className="text-[10px] font-heading font-bold bg-destructive/20 text-destructive px-2 py-0.5 rounded uppercase">Sin stock</span>
+                    ) : st <= p.min_stock ? (
+                      <span className="text-[10px] font-heading font-bold bg-yellow-500/20 text-yellow-400 px-2 py-0.5 rounded uppercase">Bajo</span>
+                    ) : (
+                      <span className="text-[10px] font-heading font-bold bg-green-500/20 text-green-400 px-2 py-0.5 rounded uppercase">OK</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-2 text-right">
+                    {editingId === p.id ? (
+                      <div className="flex gap-1 justify-end">
+                        <Button size="sm" onClick={() => saveStock(p.id)}>Guardar</Button>
+                        <Button size="sm" variant="outline" onClick={() => setEditingId(null)}>Cancelar</Button>
+                      </div>
+                    ) : (
+                      <Button variant="ghost" size="sm" onClick={() => { setEditingId(p.id); setEditStock(st); setEditMinStock(p.min_stock); }}>Editar</Button>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
         {products.length === 0 && <div className="p-8 text-center text-muted-foreground">No hay productos</div>}
