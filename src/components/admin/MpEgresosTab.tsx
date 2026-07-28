@@ -61,6 +61,10 @@ export default function MpEgresosTab() {
     notas: "",
   });
   const [saving, setSaving] = useState(false);
+  const [mode, setMode] = useState<"nuevo" | "agenda">("nuevo");
+  const [ejecuciones, setEjecuciones] = useState<any[]>([]);
+  const [loadingEjecs, setLoadingEjecs] = useState(false);
+  const [ejecId, setEjecId] = useState<string | null>(null);
 
   useEffect(() => { load(); }, []);
 
@@ -81,8 +85,26 @@ export default function MpEgresosTab() {
     setLoading(false);
   }
 
+  async function loadEjecuciones() {
+    setLoadingEjecs(true);
+    const { data, error } = await supabase
+      .from("gastos_ejecuciones")
+      .select(`
+        id, mes, fecha_vencimiento, monto_previsto, monto_pagado, estado, moneda,
+        gastos_recurrentes:gastos_recurrentes!recurrente_id ( concepto, categoria, proveedor, ambito )
+      `)
+      .in("estado", ["pendiente", "parcial", "vencido"])
+      .order("fecha_vencimiento", { ascending: true })
+      .limit(200);
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else setEjecuciones((data as any) ?? []);
+    setLoadingEjecs(false);
+  }
+
   function openDialog(m: MpEgreso) {
     setDialog(m);
+    setMode("nuevo");
+    setEjecId(null);
     setForm({
       categoria: "MP - Egresos",
       subcategoria: "",
@@ -91,11 +113,32 @@ export default function MpEgresosTab() {
       unidad_negocio: "compartido",
       notas: "",
     });
+    if (ejecuciones.length === 0) loadEjecuciones();
   }
 
   async function handleSave() {
     if (!dialog) return;
     setSaving(true);
+
+    if (mode === "agenda") {
+      if (!ejecId) { setSaving(false); return; }
+      const { error } = await supabase.rpc("mp_egreso_to_ejecucion", {
+        _movement_id: dialog.id,
+        _ejecucion_id: ejecId,
+        _notas: form.notas || null,
+      });
+      setSaving(false);
+      if (error) {
+        toast({ title: "No se pudo vincular", description: error.message, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Pago vinculado", description: "La agenda de gastos se actualizó." });
+      setDialog(null);
+      loadEjecuciones();
+      load();
+      return;
+    }
+
     const { data, error } = await supabase.rpc("mp_egreso_to_gasto", {
       _movement_id: dialog.id,
       _categoria: form.categoria,
@@ -113,6 +156,7 @@ export default function MpEgresosTab() {
     toast({ title: "Egreso categorizado", description: `Gasto creado: ${data}` });
     setDialog(null);
     load();
+
   }
 
   const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id);
