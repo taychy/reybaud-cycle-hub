@@ -60,6 +60,23 @@ interface Category {
 }
 
 const TAGS = ["NUEVO", "OFERTA", "OUTLET", "ÚLTIMA UNIDAD", "COMBO", "TOP"];
+
+// Siempre el dominio de producción: evita links rotos copiados desde el preview.
+const PUBLIC_ORIGIN = "https://reybaud-app.com";
+export const storePublicUrl = () => `${PUBLIC_ORIGIN}/tienda`;
+export const productPublicUrl = (id: string) => `${PUBLIC_ORIGIN}/tienda/producto/${id}`;
+
+const IconAction = ({ label, onClick, children }: { label: string; onClick: () => void; children: React.ReactNode }) => (
+  <Tooltip>
+    <TooltipTrigger asChild>
+      <Button variant="ghost" size="icon" className="h-8 w-8" onClick={onClick} aria-label={label}>
+        {children}
+      </Button>
+    </TooltipTrigger>
+    <TooltipContent>{label}</TooltipContent>
+  </Tooltip>
+);
+
 const StoreProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
