@@ -5,7 +5,7 @@ import { ArrowLeft, MessageCircle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { effectiveStock, variantStockSum } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
-import { sortVariantValues } from "@/lib/variantSort";
+import { compareVariantsBySize } from "@/lib/variantSort";
 
 interface PubProduct {
   id: string;
@@ -64,7 +64,7 @@ const PublicProduct = () => {
   const total = effectiveStock(p);
   const hasVariants = variantStockSum(p.variant_stock) !== null;
   const variantEntries = hasVariants
-    ? sortVariantValues(Object.keys(p.variant_stock as Record<string, number>)).map((k) => [k, Number((p.variant_stock as any)[k]) || 0] as [string, number])
+    ? Object.keys(p.variant_stock as Record<string, number>).sort(compareVariantsBySize).map((k) => [k, Number((p.variant_stock as any)[k]) || 0] as [string, number])
     : [];
 
   const url = typeof window !== "undefined" ? window.location.href : "";
