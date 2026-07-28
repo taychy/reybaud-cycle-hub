@@ -72,6 +72,8 @@ export default function MpMovementsTab() {
 
   const [assignDialog, setAssignDialog] = useState<Movement | null>(null);
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
+  const [suggested, setSuggested] = useState<Alumno[]>([]);
+
   const [selectedAlumno, setSelectedAlumno] = useState<string | null>(null);
   const [assignNotes, setAssignNotes] = useState("");
   const [assigning, setAssigning] = useState(false);
@@ -165,11 +167,26 @@ export default function MpMovementsTab() {
     }
     const { data } = await supabase
       .from("alumnos")
-      .select("id, nombre, apellido, email")
-      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%,documento.ilike.%${q}%`)
+      .select("id, nombre, apellido, email, emails_adicionales")
+      .or(`nombre.ilike.%${q}%,apellido.ilike.%${q}%,email.ilike.%${q}%,documento.ilike.%${q}%,emails_adicionales.cs.{${q.toLowerCase()}}`)
       .limit(20);
     setAlumnos((data as any) ?? []);
   }
+
+  async function suggestByPayerEmail(email: string | null) {
+    setSuggested([]);
+    if (!email) return;
+    const e = email.toLowerCase().trim();
+    const { data } = await supabase
+      .from("alumnos")
+      .select("id, nombre, apellido, email, emails_adicionales")
+      .or(`email.eq.${e},emails_adicionales.cs.{${e}}`)
+      .limit(5);
+    const found = (data as any as Alumno[]) ?? [];
+    setSuggested(found);
+    if (found.length === 1) setSelectedAlumno(found[0].id);
+  }
+
 
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
@@ -420,7 +437,7 @@ export default function MpMovementsTab() {
                         {assigned ? (
                           <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
                         ) : (
-                          <Button size="sm" variant="outline" onClick={() => { setAssignDialog(m); setSelectedAlumno(null); setAssignNotes(""); setAlumnos([]); }}>
+                          <Button size="sm" variant="outline" onClick={() => { setAssignDialog(m); setSelectedAlumno(null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
                             <UserPlus className="h-3 w-3 mr-1" /> Asignar alumno
                           </Button>
                         )}
@@ -449,10 +466,29 @@ export default function MpMovementsTab() {
           </div>
 
           <div className="space-y-3">
+            {suggested.length > 0 && (
+              <div className="rounded-md border border-green-500/30 bg-green-500/5 p-3 space-y-2">
+                <div className="text-xs text-green-300 font-medium">
+                  Coincidencia por email del pagador ({assignDialog?.payer_email})
+                </div>
+                {suggested.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setSelectedAlumno(a.id)}
+                    className={`w-full text-left rounded px-2 py-1.5 text-sm ${selectedAlumno === a.id ? "bg-accent" : "hover:bg-muted"}`}
+                  >
+                    <div>{a.nombre} {a.apellido ?? ""}</div>
+                    <div className="text-xs text-muted-foreground">{a.email}</div>
+                  </button>
+                ))}
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium">Alumno</label>
               <Command className="border rounded-md" shouldFilter={false}>
-                <CommandInput placeholder="Buscar por nombre, email o DNI..." onValueChange={loadAlumnosQuery} />
+                <CommandInput placeholder="Buscar por nombre, email (incl. adicionales) o DNI..." onValueChange={loadAlumnosQuery} />
+
                 <CommandList>
                   <CommandEmpty>Escribí al menos 2 caracteres...</CommandEmpty>
                   <CommandGroup>
