@@ -420,7 +420,20 @@ const AdminProgramaDetalle = () => {
                             </TableCell>
                             <TableCell className="text-xs font-medium">
                               {i.precio_final != null ? formatPrice(Number(i.precio_final), plan.moneda) : "—"}
+                              {(() => {
+                                const pagado = cobrado[i.id] || 0;
+                                const saldo = Math.max(0, (Number(i.precio_final) || 0) - pagado);
+                                return (
+                                  <div className="font-normal text-muted-foreground">
+                                    Pagó {formatPrice(pagado, plan.moneda)}
+                                    {saldo > 0 && (
+                                      <span className="text-warning"> · debe {formatPrice(saldo, plan.moneda)}</span>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </TableCell>
+
                             <TableCell className="text-xs text-muted-foreground">{fmtDateTime(i.created_at)}</TableCell>
                             <TableCell className="text-right">
                               <div className="flex gap-1 justify-end">
