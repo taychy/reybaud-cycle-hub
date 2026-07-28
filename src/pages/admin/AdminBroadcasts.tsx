@@ -70,6 +70,7 @@ const emptyComposer = {
   marketing_ignore_frequency: false,
   waitlist_event_ids: [] as string[],
   waitlist_estados: ["nuevo", "contactado"] as string[],
+  promo_product_ids: [] as string[],
 };
 
 const WAITLIST_ESTADOS = ["nuevo", "contactado", "convertido", "descartado"];
