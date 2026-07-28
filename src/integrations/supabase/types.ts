@@ -11034,6 +11034,16 @@ export type Database = {
           saldo_total: number
         }[]
       }
+      get_coaches_public: {
+        Args: never
+        Returns: {
+          estado: string
+          grupos: string[]
+          id: string
+          nombre: string
+          sede_id: string
+        }[]
+      }
       get_combo_available_stock: {
         Args: { p_combo_id: string; p_selection?: Json }
         Returns: number

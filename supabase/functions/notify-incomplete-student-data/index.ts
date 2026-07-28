@@ -28,18 +28,45 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     );
 
+    // --- Auth: only authenticated admins may run this report ---
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const isCron = req.headers.get("x-cron-secret") &&
+      req.headers.get("x-cron-secret") === Deno.env.get("CRON_SECRET");
+
+    if (!isCron) {
+      if (!authHeader.startsWith("Bearer ")) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const token = authHeader.replace("Bearer ", "");
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const { data: isAdmin } = await supabase.rpc("has_role", {
+        _user_id: userData.user.id,
+        _role: "admin",
+      });
+      if (!isAdmin) {
+        return new Response(JSON.stringify({ error: "Forbidden" }), {
+          status: 403,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Optional flags
     let dryRun = false;
-    let overrideRecipients: string[] | null = null;
     try {
       const body = await req.json();
       dryRun = !!body?.dry_run;
-      if (Array.isArray(body?.override_recipients) && body.override_recipients.length > 0) {
-        overrideRecipients = body.override_recipients.filter((x: any) => typeof x === "string");
-      } else if (typeof body?.override_recipients === "string") {
-        overrideRecipients = [body.override_recipients];
-      }
     } catch { /* no body */ }
+
 
     // 1) Alumnos activos con datos incompletos (creados hace >30 días)
     const { data: alumnos, error: aErr } = await supabase
@@ -79,7 +106,7 @@ Deno.serve(async (req) => {
       .eq("status", "active");
     if (adErr) throw adErr;
 
-    const recipients = overrideRecipients ?? (admins || []).map((x: any) => x.email).filter(Boolean);
+    const recipients = (admins || []).map((x: any) => x.email).filter(Boolean);
     if (recipients.length === 0) {
       return new Response(JSON.stringify({ ok: true, count: incompletos.length, sent: 0, message: "Sin admins activos" }), {
         status: 200,
