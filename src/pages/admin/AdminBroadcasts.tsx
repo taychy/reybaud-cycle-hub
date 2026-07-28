@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { formatPrice } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -70,6 +71,7 @@ const emptyComposer = {
   marketing_ignore_frequency: false,
   waitlist_event_ids: [] as string[],
   waitlist_estados: ["nuevo", "contactado"] as string[],
+  promo_product_ids: [] as string[],
 };
 
 const WAITLIST_ESTADOS = ["nuevo", "contactado", "convertido", "descartado"];
@@ -111,6 +113,20 @@ export default function AdminBroadcasts() {
   const [showSenderDialog, setShowSenderDialog] = useState(false);
   const [showDetail, setShowDetail] = useState<Broadcast | null>(null);
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
+  const [promoProducts, setPromoProducts] = useState<Array<{ id: string; name: string; price: number; old_price: number | null; currency: string | null; image_url: string | null; promo_activa?: boolean | null; es_externo?: boolean | null }>>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("store_products" as any)
+        .select("id, name, price, old_price, currency, image_url, promo_activa, es_externo")
+        .eq("status", "active")
+        .order("promo_activa", { ascending: false })
+        .order("name")
+        .limit(200);
+      setPromoProducts((data as any) || []);
+    })();
+  }, []);
 
   const loadAll = async () => {
     const [bres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
@@ -274,6 +290,7 @@ export default function AdminBroadcasts() {
           preheader: composer.preheader,
           cta_url: composer.cta_url || undefined,
           cta_label: composer.cta_label || undefined,
+          promo_product_ids: composer.promo_product_ids,
         },
       });
       if (error) throw error;
@@ -299,6 +316,7 @@ export default function AdminBroadcasts() {
           segment_filters: segmentFilters,
           cta_url: composer.cta_url || undefined,
           cta_label: composer.cta_label || undefined,
+          promo_product_ids: composer.promo_product_ids,
           excluded_emails: Array.from(excludedEmails),
         },
       });
@@ -358,6 +376,7 @@ export default function AdminBroadcasts() {
       marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
       waitlist_event_ids: seg.waitlist_event_ids || [],
       waitlist_estados: seg.waitlist_estados || ["nuevo", "contactado"],
+      promo_product_ids: (b as any).promo_product_ids || [],
     });
     setPreviewCount(null);
     setPreviewSample([]);
@@ -587,6 +606,58 @@ export default function AdminBroadcasts() {
             </div>
 
           </Card>
+
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2"><b>Promos de tienda</b></div>
+              <span className="text-[11px] text-muted-foreground">
+                {composer.promo_product_ids.length}/4 seleccionados
+              </span>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Se agrega un bloque discreto al pie del mail con estos productos y su precio.
+            </p>
+            <div className="max-h-56 overflow-y-auto rounded-lg border border-border divide-y divide-border">
+              {promoProducts.map((p) => {
+                const checked = composer.promo_product_ids.includes(p.id);
+                const disabled = !checked && composer.promo_product_ids.length >= 4;
+                return (
+                  <label
+                    key={p.id}
+                    className={`flex items-center gap-3 px-3 py-2 text-sm cursor-pointer ${disabled ? "opacity-40 cursor-not-allowed" : "hover:bg-muted/40"}`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      disabled={disabled}
+                      onCheckedChange={() =>
+                        setComposer({
+                          ...composer,
+                          promo_product_ids: checked
+                            ? composer.promo_product_ids.filter((id) => id !== p.id)
+                            : [...composer.promo_product_ids, p.id],
+                        })
+                      }
+                    />
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} className="w-8 h-8 rounded object-cover" />
+                    ) : (
+                      <div className="w-8 h-8 rounded bg-muted" />
+                    )}
+                    <span className="flex-1 truncate">{p.name}</span>
+                    {p.es_externo && <span className="text-[10px] uppercase text-muted-foreground">externo</span>}
+                    <span className="text-xs text-muted-foreground">
+                      {formatPrice(Number(p.price) || 0, p.currency || "ARS")}
+                    </span>
+                  </label>
+                );
+              })}
+              {promoProducts.length === 0 && (
+                <p className="px-3 py-4 text-xs text-muted-foreground">No hay productos activos en la tienda.</p>
+              )}
+            </div>
+          </Card>
+
+
 
           <Card className="p-4 space-y-3">
             <div className="flex items-center gap-2"><Users className="w-4 h-4" /><b>Segmentación</b></div>

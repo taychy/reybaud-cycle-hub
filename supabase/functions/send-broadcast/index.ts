@@ -47,6 +47,7 @@ interface SendBody {
   cta_label?: string;
   excluded_emails?: string[];
   include_full_list?: boolean;
+  promo_product_ids?: string[];
 }
 
 function escapeHtml(s: string) {
@@ -72,7 +73,54 @@ function linkifyPlain(escaped: string) {
   return out;
 }
 
-function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }) {
+const PUBLIC_ORIGIN = "https://reybaud-app.com";
+
+function fmtMoney(n: number, currency = "ARS") {
+  try {
+    return new Intl.NumberFormat("es-AR", { style: "currency", currency, minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  } catch {
+    return `$${Math.round(n).toLocaleString("es-AR")}`;
+  }
+}
+
+// Bloque discreto de productos en promoción al pie del mail.
+function buildPromoBlock(products: any[]) {
+  if (!products?.length) return "";
+  const cards = products.slice(0, 4).map((p) => {
+    const url = `${PUBLIC_ORIGIN}/tienda/producto/${p.id}`;
+    const img = p.image_url
+      ? `<img src="${p.image_url}" width="64" height="64" alt="${escapeHtml(p.name)}" style="display:block;width:64px;height:64px;object-fit:cover;border-radius:8px"/>`
+      : "";
+    const old = p.old_price
+      ? `<span style="color:#777;text-decoration:line-through;font-size:12px;margin-right:6px">${fmtMoney(Number(p.old_price), p.currency || "ARS")}</span>`
+      : "";
+    return `<tr>
+      <td width="64" style="padding:8px 12px 8px 0;vertical-align:top">${img}</td>
+      <td style="padding:8px 0;vertical-align:top">
+        <a href="${url}" style="color:#e8e8e8;text-decoration:none;font-size:13px;font-weight:600">${escapeHtml(p.name)}</a>
+        <div style="margin-top:2px">${old}<span style="color:#F08A2A;font-size:13px;font-weight:700">${fmtMoney(Number(p.price), p.currency || "ARS")}</span></div>
+      </td>
+    </tr>`;
+  }).join("");
+  return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:28px;border-top:1px solid #262626">
+    <tr><td style="padding:16px 0 4px;color:#777;font-size:11px;letter-spacing:2px;text-transform:uppercase">También en la tienda</td></tr>
+    <tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${cards}</table></td></tr>
+    <tr><td style="padding:10px 0 0"><a href="${PUBLIC_ORIGIN}/tienda" style="color:#F08A2A;font-size:12px;text-decoration:underline">Ver toda la tienda</a></td></tr>
+  </table>`;
+}
+
+async function loadPromoProducts(admin: any, ids?: string[] | null) {
+  if (!ids?.length) return [];
+  const { data } = await admin
+    .from("store_products")
+    .select("id, name, price, old_price, currency, image_url")
+    .in("id", ids)
+    .eq("status", "active");
+  const order = new Map(ids.map((id, i) => [id, i]));
+  return (data || []).sort((a: any, b: any) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
+}
+
+function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "") {
   const safe = content.includes("<") && content.includes(">")
     ? content
     : linkifyPlain(escapeHtml(content)).replace(/\n/g, "<br/>");
@@ -92,7 +140,7 @@ ${pre}
       <tr><td style="padding:28px 32px 20px;text-align:left;border-bottom:1px solid #262626">
         <div style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:24px;letter-spacing:4px;color:#F08A2A;font-weight:800">REYBAUD</div>
       </td></tr>
-      <tr><td style="padding:28px 32px 12px">${bodyHtml}${ctaBlock}</td></tr>
+      <tr><td style="padding:28px 32px 12px">${bodyHtml}${ctaBlock}${promoHtml}</td></tr>
       <tr><td style="padding:20px 32px;border-top:1px solid #262626;color:#666;font-size:11px;text-align:center;line-height:1.6">
         Recibís este email porque sos parte de Reybaud.<br/>
         Para dejar de recibir comunicaciones, respondé "BAJA" a este email.
@@ -370,10 +418,12 @@ Deno.serve(async (req) => {
         });
       }
       const testRecipient = { email: body.test_email, display_name: "Test Reybaud" };
+      const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
       const html = htmlWrap(
         personalize(body.content_html, testRecipient) || "",
         body.preheader,
         { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
+        promoHtml,
       );
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
@@ -412,8 +462,11 @@ Deno.serve(async (req) => {
         status: "sending",
         total_recipients: recipients.length,
         created_by: user.id,
+        promo_product_ids: body.promo_product_ids || [],
       }).select().single();
       if (bcErr) throw bcErr;
+
+      const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
 
       await admin.from("broadcast_recipients").insert(
         recipients.map((r: any) => ({
@@ -438,6 +491,7 @@ Deno.serve(async (req) => {
               personalize(body.content_html, r) || "",
               body.preheader,
               { url: personalize(body.cta_url, r), label: body.cta_label },
+              promoHtml,
             );
             const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
@@ -536,6 +590,8 @@ Deno.serve(async (req) => {
         .eq("broadcast_id", bc.id).eq("status", "failed");
       await admin.from("broadcasts").update({ status: "sending" }).eq("id", bc.id);
 
+      const retryPromoHtml = buildPromoBlock(await loadPromoProducts(admin, (bc as any).promo_product_ids));
+
       const retryProcess = async () => {
         let sent = 0, failed = 0;
         const BATCH_SIZE = 8;
@@ -547,6 +603,7 @@ Deno.serve(async (req) => {
               personalize(bc.content_html, recipient) || "",
               bc.preheader,
               { url: personalize((bc.segment_filters as any)?.cta_url, recipient), label: (bc.segment_filters as any)?.cta_label },
+              retryPromoHtml,
             );
             const r1 = await sendWithRetries({
               sender: { name: bc.sender_name, email: bc.sender_email },

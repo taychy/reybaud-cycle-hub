@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2, ExternalLink } from "lucide-react";
+import { Plus, Search, Pencil, Trash2, Copy, Star, Eye, EyeOff, Link2, Share2, ExternalLink, PackageSearch } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -11,6 +11,7 @@ import ImageUpload from "@/components/ImageUpload";
 import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
 import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
+import ExternalProductDialog from "@/components/store/ExternalProductDialog";
 import { effectiveStock, hasStockMismatch } from "@/lib/stock";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -87,6 +88,7 @@ const StoreProducts = () => {
   const [loading, setLoading] = useState(true);
   const [editProduct, setEditProduct] = useState<Partial<Product> | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [externalOpen, setExternalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [comboDraft, setComboDraft] = useState<ComboItem[]>([]);
@@ -302,9 +304,19 @@ const StoreProducts = () => {
             </TooltipTrigger>
             <TooltipContent>Abrir la tienda pública</TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={() => setExternalOpen(true)}>
+                <PackageSearch className="w-4 h-4 mr-1" /> Producto externo
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Pegá el link de la tienda oficial (Santini) y se carga solo, con el descuento aplicado</TooltipContent>
+          </Tooltip>
           <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
         </div>
       </div>
+
+      <ExternalProductDialog open={externalOpen} onOpenChange={setExternalOpen} categories={categories} onSaved={load} />
 
 
       {/* Filters */}
@@ -354,9 +366,19 @@ const StoreProducts = () => {
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-foreground">{p.name}</span>
                     {p.featured && <Star className="w-3.5 h-3.5 text-gold fill-gold" />}
+                    {(p as any).es_externo && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-accent/20 text-accent">
+                            {(p as any).proveedor || "Externo"}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>A pedido: se vende primero y se retira en el depósito del proveedor</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-2 hidden md:table-cell text-muted-foreground">{getCategoryName(p.category_id)}</td>
