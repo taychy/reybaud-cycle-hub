@@ -112,7 +112,7 @@ const ExternalProductDialog = ({ open, onOpenChange, categories, onSaved }: Prop
       descuento_pct: descuento,
       entrega_estimada_dias: dias,
       promo_activa: promo,
-      checkout_mode: "interno",
+      checkout_mode: "in_app",
       delivery_methods: ["retiro_sede"],
     };
 
