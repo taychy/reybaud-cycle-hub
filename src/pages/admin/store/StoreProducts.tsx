@@ -88,6 +88,7 @@ const StoreProducts = () => {
   const [loading, setLoading] = useState(true);
   const [editProduct, setEditProduct] = useState<Partial<Product> | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [externalOpen, setExternalOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [comboDraft, setComboDraft] = useState<ComboItem[]>([]);
