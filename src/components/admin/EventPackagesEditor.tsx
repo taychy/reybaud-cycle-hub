@@ -526,6 +526,14 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                           {p.personas_por_habitacion} {p.personas_por_habitacion === 1 ? "persona" : "personas"}/hab
                         </span>
                       )}
+                      {isShared && (
+                        <span
+                          className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/30"
+                          title={`Comparte habitaciones con: ${groupNames[gk].filter((n) => n !== p.nombre).join(", ")}`}
+                        >
+                          Alojamiento compartido
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-1.5 flex-wrap pl-5">
                       {isDayOnly ? (
