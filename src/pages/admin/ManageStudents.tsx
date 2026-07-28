@@ -251,7 +251,7 @@ const ManageStudents = () => {
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
 
   useEffect(() => {
-    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, created_at, planes(id, nombre, precio, moneda, categoria)").order("created_at", { ascending: false }).then(({ data }) => {
+    supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, origen_registro, created_at, planes(id, nombre, precio, moneda, categoria)").order("created_at", { ascending: false }).then(({ data }) => {
       setSuscripciones((data as any) || []);
     });
     supabase.from("planes").select("*").eq("activo", true).order("nombre").then(({ data }) => {
