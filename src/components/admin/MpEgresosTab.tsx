@@ -33,6 +33,7 @@ const CATEGORIAS = [
   "Insumos",
   "Marketing",
   "Comisiones",
+  "Personal",
   "Otros",
 ];
 
@@ -41,7 +42,9 @@ const UNIDADES = [
   { value: "escuela", label: "Escuela" },
   { value: "tienda", label: "Tienda" },
   { value: "viajes", label: "Viajes" },
+  { value: "personal", label: "Personal" },
 ];
+
 
 export default function MpEgresosTab() {
   const { toast } = useToast();
