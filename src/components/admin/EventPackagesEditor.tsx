@@ -6,15 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, BedDouble, Pencil, X, Check, ChevronDown, AlertTriangle, Info } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { PackagePaymentPlanEditor } from "./PackagePaymentPlanEditor";
 import { PackagePriceStagesEditor } from "./PackagePriceStagesEditor";
 import EventLodgingManager from "./EventLodgingManager";
-
 
 interface PackageRow {
   id: string;
@@ -33,6 +30,7 @@ interface PackageRow {
   cupo_mixto: number | null;
   permite_mixto: boolean;
   sin_alojamiento: boolean;
+  lodging_group_key: string | null;
 }
 
 interface RoomRow {
@@ -57,6 +55,7 @@ const emptyDraft = (currency: string) => ({
   personas_por_habitacion: "2",
   permite_mixto: false,
   sin_alojamiento: false,
+  lodging_group_key: "",
   cupo: "",
 });
 
@@ -75,8 +74,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [showLodging, setShowLodging] = useState(false);
 
-  const toggleExpand = (id: string) =>
-    setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleExpand = (id: string) => setExpanded((prev) => ({ ...prev, [id]: !prev[id] }));
 
   const startEdit = (p: PackageRow) => {
     setEditingId(p.id);
@@ -89,42 +87,67 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
       personas_por_habitacion: String(p.personas_por_habitacion ?? 2),
       permite_mixto: !!p.permite_mixto,
       sin_alojamiento: !!p.sin_alojamiento,
+      lodging_group_key: p.lodging_group_key || "",
       cupo: p.cupo != null ? String(p.cupo) : "",
     });
   };
 
-  const cancelEdit = () => { setEditingId(null); };
+  const cancelEdit = () => {
+    setEditingId(null);
+  };
 
   const saveEdit = async (p: PackageRow) => {
-    if (!editDraft.nombre.trim()) { toast.error("Nombre obligatorio"); return; }
+    if (!editDraft.nombre.trim()) {
+      toast.error("Nombre obligatorio");
+      return;
+    }
     const precio = parseFloat(editDraft.precio || "0");
-    if (isNaN(precio) || precio < 0) { toast.error("Precio inválido"); return; }
+    if (isNaN(precio) || precio < 0) {
+      toast.error("Precio inválido");
+      return;
+    }
     const sena = editDraft.sena ? parseFloat(editDraft.sena) : null;
-    if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
+    if (sena != null && (isNaN(sena) || sena < 0)) {
+      toast.error("Seña inválida");
+      return;
+    }
     const sinAloj = editDraft.sin_alojamiento;
     const personas = sinAloj ? 1 : parseInt(editDraft.personas_por_habitacion || "2", 10);
-    if (!sinAloj && (isNaN(personas) || personas < 1)) { toast.error("Personas por habitación inválido"); return; }
+    if (!sinAloj && (isNaN(personas) || personas < 1)) {
+      toast.error("Personas por habitación inválido");
+      return;
+    }
     const cupoManual = sinAloj ? parseInt(editDraft.cupo || "0", 10) : null;
-    if (sinAloj && (isNaN(cupoManual!) || cupoManual! < 1)) { toast.error("Cupo total obligatorio para paquetes sin alojamiento"); return; }
+    if (sinAloj && (isNaN(cupoManual!) || cupoManual! < 1)) {
+      toast.error("Cupo total obligatorio para paquetes sin alojamiento");
+      return;
+    }
 
     setSaving(true);
-    const { error } = await supabase.from("event_packages" as any).update({
-      nombre: editDraft.nombre.trim(),
-      descripcion: editDraft.descripcion.trim() || null,
-      precio,
-      sena,
-      currency: editDraft.currency,
-      // cupo manual sólo si es sin alojamiento; sino se calcula desde event_rooms
-      cupo: cupoManual,
-      cupo_mujeres: null,
-      cupo_varones: null,
-      cupo_mixto: null,
-      personas_por_habitacion: personas,
-      permite_mixto: sinAloj ? false : editDraft.permite_mixto,
-      sin_alojamiento: sinAloj,
-    }).eq("id", p.id);
+    const { error } = await supabase
+      .from("event_packages" as any)
+      .update({
+        nombre: editDraft.nombre.trim(),
+        descripcion: editDraft.descripcion.trim() || null,
+        precio,
+        sena,
+        currency: editDraft.currency,
+        // cupo manual sólo si es sin alojamiento; sino se calcula desde event_rooms
+        cupo: cupoManual,
+        cupo_mujeres: null,
+        cupo_varones: null,
+        cupo_mixto: null,
+        personas_por_habitacion: personas,
+        permite_mixto: sinAloj ? false : editDraft.permite_mixto,
+        sin_alojamiento: sinAloj,
+        lodging_group_key: sinAloj ? null : editDraft.lodging_group_key.trim() || null,
+      })
+      .eq("id", p.id);
     setSaving(false);
-    if (error) { toast.error("Error: " + error.message); return; }
+    if (error) {
+      toast.error("Error: " + error.message);
+      return;
+    }
     toast.success("Paquete actualizado");
     setEditingId(null);
     load();
@@ -150,7 +173,8 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
     const roomsMap: Record<string, RoomCapacity> = {};
     ((roomsData as unknown as RoomRow[]) || []).forEach((r) => {
       if (!r.package_id) return;
-      if (!roomsMap[r.package_id]) roomsMap[r.package_id] = { mujeres: 0, varones: 0, mixto: 0, total: 0, roomCount: 0 };
+      if (!roomsMap[r.package_id])
+        roomsMap[r.package_id] = { mujeres: 0, varones: 0, mixto: 0, total: 0, roomCount: 0 };
       const cap = r.capacidad || 0;
       roomsMap[r.package_id].total += cap;
       roomsMap[r.package_id].roomCount += 1;
@@ -182,19 +206,36 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
     setLoading(false);
   }, [eventId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const addPackage = async () => {
-    if (!draft.nombre.trim()) { toast.error("Nombre obligatorio"); return; }
+    if (!draft.nombre.trim()) {
+      toast.error("Nombre obligatorio");
+      return;
+    }
     const precio = parseFloat(draft.precio || "0");
-    if (isNaN(precio) || precio < 0) { toast.error("Precio inválido"); return; }
+    if (isNaN(precio) || precio < 0) {
+      toast.error("Precio inválido");
+      return;
+    }
     const sena = draft.sena ? parseFloat(draft.sena) : null;
-    if (sena != null && (isNaN(sena) || sena < 0)) { toast.error("Seña inválida"); return; }
+    if (sena != null && (isNaN(sena) || sena < 0)) {
+      toast.error("Seña inválida");
+      return;
+    }
     const sinAloj = draft.sin_alojamiento;
     const personas = sinAloj ? 1 : parseInt(draft.personas_por_habitacion || "2", 10);
-    if (!sinAloj && (isNaN(personas) || personas < 1)) { toast.error("Personas por habitación inválido"); return; }
+    if (!sinAloj && (isNaN(personas) || personas < 1)) {
+      toast.error("Personas por habitación inválido");
+      return;
+    }
     const cupoManual = sinAloj ? parseInt(draft.cupo || "0", 10) : null;
-    if (sinAloj && (isNaN(cupoManual!) || cupoManual! < 1)) { toast.error("Cupo total obligatorio para paquetes sin alojamiento"); return; }
+    if (sinAloj && (isNaN(cupoManual!) || cupoManual! < 1)) {
+      toast.error("Cupo total obligatorio para paquetes sin alojamiento");
+      return;
+    }
 
     setSaving(true);
     const { error } = await supabase.from("event_packages" as any).insert({
@@ -213,20 +254,31 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
       personas_por_habitacion: personas,
       permite_mixto: sinAloj ? false : draft.permite_mixto,
       sin_alojamiento: sinAloj,
+      lodging_group_key: sinAloj ? null : draft.lodging_group_key.trim() || null,
     });
     setSaving(false);
-    if (error) { toast.error("Error: " + error.message); return; }
-    toast.success(sinAloj
-      ? "Paquete agregado. Se vende con el cupo manual definido."
-      : "Paquete agregado. Ahora cargá sus habitaciones desde el módulo Alojamiento.");
+    if (error) {
+      toast.error("Error: " + error.message);
+      return;
+    }
+    toast.success(
+      sinAloj
+        ? "Paquete agregado. Se vende con el cupo manual definido."
+        : "Paquete agregado. Ahora cargá sus habitaciones desde el módulo Alojamiento.",
+    );
     setDraft(emptyDraft(eventCurrency));
     load();
   };
 
   const toggleActive = async (p: PackageRow) => {
-    const { error } = await supabase.from("event_packages" as any)
-      .update({ activo: !p.activo }).eq("id", p.id);
-    if (error) { toast.error("Error: " + error.message); return; }
+    const { error } = await supabase
+      .from("event_packages" as any)
+      .update({ activo: !p.activo })
+      .eq("id", p.id);
+    if (error) {
+      toast.error("Error: " + error.message);
+      return;
+    }
     load();
   };
 
@@ -237,18 +289,19 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
       return;
     }
     if (!confirm(`¿Eliminar "${p.nombre}"?`)) return;
-    const { error } = await supabase.from("event_packages" as any).delete().eq("id", p.id);
-    if (error) { toast.error("No se puede eliminar: " + error.message); return; }
+    const { error } = await supabase
+      .from("event_packages" as any)
+      .delete()
+      .eq("id", p.id);
+    if (error) {
+      toast.error("No se puede eliminar: " + error.message);
+      return;
+    }
     toast.success("Paquete eliminado");
     load();
   };
 
-  const renderCapacityLine = (
-    label: string,
-    used: number,
-    cap: number,
-    tone: "rose" | "sky" | "violet",
-  ) => {
+  const renderCapacityLine = (label: string, used: number, cap: number, tone: "rose" | "sky" | "violet") => {
     if (cap <= 0) return null;
     const full = used >= cap;
     const tones = {
@@ -257,7 +310,9 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
       violet: "bg-violet-500/15 text-violet-300 border-violet-500/30",
     };
     return (
-      <span className={`text-[10px] px-1.5 py-0.5 rounded border ${full ? "bg-destructive/15 text-destructive border-destructive/30" : tones[tone]}`}>
+      <span
+        className={`text-[10px] px-1.5 py-0.5 rounded border ${full ? "bg-destructive/15 text-destructive border-destructive/30" : tones[tone]}`}
+      >
         {label}: {used}/{cap}
       </span>
     );
@@ -270,12 +325,14 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
         <h4 className="text-sm font-heading uppercase tracking-wider">Paquetes / Tipos de habitación</h4>
       </div>
       <p className="text-xs text-muted-foreground">
-        Configurá tipos de habitación con su precio. El <strong>cupo se calcula automáticamente</strong> a
-        partir de las habitaciones cargadas en el módulo <strong>Alojamiento</strong> del panel de reservas.
+        Configurá tipos de habitación con su precio. El <strong>cupo se calcula automáticamente</strong> a partir de las
+        habitaciones cargadas en el módulo <strong>Alojamiento</strong> del panel de reservas.
       </p>
 
       {loading ? (
-        <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin" /></div>
+        <div className="flex justify-center py-4">
+          <Loader2 className="w-4 h-4 animate-spin" />
+        </div>
       ) : items.length === 0 ? (
         <p className="text-xs text-muted-foreground italic py-2">Sin paquetes configurados.</p>
       ) : (
@@ -292,24 +349,44 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1 col-span-2">
                       <Label className="text-xs">Nombre *</Label>
-                      <Input value={editDraft.nombre} onChange={(e) => setEditDraft({ ...editDraft, nombre: e.target.value })} />
+                      <Input
+                        value={editDraft.nombre}
+                        onChange={(e) => setEditDraft({ ...editDraft, nombre: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1 col-span-2">
                       <Label className="text-xs">Descripción</Label>
-                      <Textarea rows={2} value={editDraft.descripcion} onChange={(e) => setEditDraft({ ...editDraft, descripcion: e.target.value })} />
+                      <Textarea
+                        rows={2}
+                        value={editDraft.descripcion}
+                        onChange={(e) => setEditDraft({ ...editDraft, descripcion: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Precio *</Label>
-                      <Input type="number" value={editDraft.precio} onChange={(e) => setEditDraft({ ...editDraft, precio: e.target.value })} />
+                      <Input
+                        type="number"
+                        value={editDraft.precio}
+                        onChange={(e) => setEditDraft({ ...editDraft, precio: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Seña</Label>
-                      <Input type="number" value={editDraft.sena} onChange={(e) => setEditDraft({ ...editDraft, sena: e.target.value })} />
+                      <Input
+                        type="number"
+                        value={editDraft.sena}
+                        onChange={(e) => setEditDraft({ ...editDraft, sena: e.target.value })}
+                      />
                     </div>
                     <div className="space-y-1">
                       <Label className="text-xs">Moneda</Label>
-                      <Select value={editDraft.currency} onValueChange={(v) => setEditDraft({ ...editDraft, currency: v })}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
+                      <Select
+                        value={editDraft.currency}
+                        onValueChange={(v) => setEditDraft({ ...editDraft, currency: v })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="ARS">ARS</SelectItem>
                           <SelectItem value="USD">USD</SelectItem>
@@ -318,23 +395,54 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                       </Select>
                     </div>
                     <div className="col-span-2 flex items-center gap-2 pt-1 rounded-md border border-primary/30 bg-primary/5 p-2">
-                      <Switch checked={editDraft.sin_alojamiento} onCheckedChange={(v) => setEditDraft({ ...editDraft, sin_alojamiento: v })} />
-                      <Label className="text-xs">Sin alojamiento (ej. día ciclista) — cupo manual, no requiere habitaciones</Label>
+                      <Switch
+                        checked={editDraft.sin_alojamiento}
+                        onCheckedChange={(v) => setEditDraft({ ...editDraft, sin_alojamiento: v })}
+                      />
+                      <Label className="text-xs">
+                        Sin alojamiento (ej. día ciclista) — cupo manual, no requiere habitaciones
+                      </Label>
                     </div>
                     {editDraft.sin_alojamiento ? (
                       <div className="space-y-1 col-span-2">
                         <Label className="text-xs">Cupo total *</Label>
-                        <Input type="number" min="1" value={editDraft.cupo} onChange={(e) => setEditDraft({ ...editDraft, cupo: e.target.value })} placeholder="Cantidad de lugares disponibles" />
+                        <Input
+                          type="number"
+                          min="1"
+                          value={editDraft.cupo}
+                          onChange={(e) => setEditDraft({ ...editDraft, cupo: e.target.value })}
+                          placeholder="Cantidad de lugares disponibles"
+                        />
                       </div>
                     ) : (
                       <>
                         <div className="space-y-1">
                           <Label className="text-xs">Personas / habitación</Label>
-                          <Input type="number" min="1" value={editDraft.personas_por_habitacion} onChange={(e) => setEditDraft({ ...editDraft, personas_por_habitacion: e.target.value })} />
+                          <Input
+                            type="number"
+                            min="1"
+                            value={editDraft.personas_por_habitacion}
+                            onChange={(e) => setEditDraft({ ...editDraft, personas_por_habitacion: e.target.value })}
+                          />
                         </div>
                         <div className="col-span-2 flex items-center gap-2 pt-1">
-                          <Switch checked={editDraft.permite_mixto} onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })} />
+                          <Switch
+                            checked={editDraft.permite_mixto}
+                            onCheckedChange={(v) => setEditDraft({ ...editDraft, permite_mixto: v })}
+                          />
                           <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
+                        </div>
+                        <div className="space-y-1 col-span-2">
+                          <Label className="text-xs">Grupo de alojamiento compartido (opcional)</Label>
+                          <Input
+                            value={editDraft.lodging_group_key}
+                            onChange={(e) => setEditDraft({ ...editDraft, lodging_group_key: e.target.value })}
+                            placeholder="Ej: completo-manantial"
+                          />
+                          <p className="text-[10px] text-muted-foreground">
+                            Los paquetes que tengan escrito el mismo texto acá comparten las mismas habitaciones. Dejalo
+                            vacío si este paquete no comparte con otro.
+                          </p>
                         </div>
                       </>
                     )}
@@ -356,7 +464,10 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
             const dayCap = isDayOnly ? (p.cupo ?? 0) : 0;
             const canSell = isDayOnly ? dayCap > 0 : hasRooms;
             return (
-              <div key={p.id} className={`rounded-lg border ${canSell ? "border-border/50" : "border-amber-500/40"} ${p.activo ? "" : "opacity-50"}`}>
+              <div
+                key={p.id}
+                className={`rounded-lg border ${canSell ? "border-border/50" : "border-amber-500/40"} ${p.activo ? "" : "opacity-50"}`}
+              >
                 <div className="flex items-start gap-2 p-2">
                   <button
                     type="button"
@@ -365,11 +476,15 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                     aria-expanded={isOpen}
                   >
                     <div className="flex items-center gap-2 flex-wrap">
-                      <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : "-rotate-90"}`} />
+                      <ChevronDown
+                        className={`w-3.5 h-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : "-rotate-90"}`}
+                      />
                       <span className="text-sm font-medium">{p.nombre}</span>
                       <span className="text-xs text-muted-foreground">{formatPrice(p.precio, p.currency as any)}</span>
                       {p.sena != null && (
-                        <span className="text-[10px] text-muted-foreground">seña: {formatPrice(p.sena, p.currency as any)}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          seña: {formatPrice(p.sena, p.currency as any)}
+                        </span>
                       )}
                       {isDayOnly ? (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-500/30">
@@ -397,8 +512,16 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                           <span
                             role="button"
                             tabIndex={0}
-                            onClick={(e) => { e.stopPropagation(); setShowLodging(true); }}
-                            onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setShowLodging(true); } }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowLodging(true);
+                            }}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                e.stopPropagation();
+                                setShowLodging(true);
+                              }
+                            }}
                             className="text-[10px] px-1.5 py-0.5 rounded border bg-primary/10 text-primary border-primary/30 inline-flex items-center gap-1 hover:bg-primary/20 cursor-pointer"
                           >
                             <BedDouble className="w-3 h-3" />
@@ -434,8 +557,13 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                           <div className="flex items-center gap-1.5 font-medium text-muted-foreground">
                             <Info className="w-3 h-3" /> Paquete sin alojamiento — cupo manual
                           </div>
-                          <div>Cupo total: <strong>{dayCap}</strong> · Reservado: <strong>{totalUsed}</strong> · Disponible: <strong>{Math.max(dayCap - totalUsed, 0)}</strong></div>
-                          <p className="text-muted-foreground/70 italic">Editá el cupo desde el botón de edición del paquete.</p>
+                          <div>
+                            Cupo total: <strong>{dayCap}</strong> · Reservado: <strong>{totalUsed}</strong> ·
+                            Disponible: <strong>{Math.max(dayCap - totalUsed, 0)}</strong>
+                          </div>
+                          <p className="text-muted-foreground/70 italic">
+                            Editá el cupo desde el botón de edición del paquete.
+                          </p>
                         </>
                       ) : (
                         <>
@@ -444,16 +572,32 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                           </div>
                           {hasRooms ? (
                             <>
-                              <div>Capacidad total: <strong>{cap!.total}</strong> plazas en {cap!.roomCount} {cap!.roomCount === 1 ? "habitación" : "habitaciones"}.</div>
+                              <div>
+                                Capacidad total: <strong>{cap!.total}</strong> plazas en {cap!.roomCount}{" "}
+                                {cap!.roomCount === 1 ? "habitación" : "habitaciones"}.
+                              </div>
                               <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
-                                {cap!.mujeres > 0 && <span>Mujeres: <strong className="text-rose-300">{cap!.mujeres}</strong></span>}
-                                {cap!.varones > 0 && <span>Varones: <strong className="text-sky-300">{cap!.varones}</strong></span>}
-                                {cap!.mixto > 0 && <span>Mixta: <strong className="text-violet-300">{cap!.mixto}</strong></span>}
+                                {cap!.mujeres > 0 && (
+                                  <span>
+                                    Mujeres: <strong className="text-rose-300">{cap!.mujeres}</strong>
+                                  </span>
+                                )}
+                                {cap!.varones > 0 && (
+                                  <span>
+                                    Varones: <strong className="text-sky-300">{cap!.varones}</strong>
+                                  </span>
+                                )}
+                                {cap!.mixto > 0 && (
+                                  <span>
+                                    Mixta: <strong className="text-violet-300">{cap!.mixto}</strong>
+                                  </span>
+                                )}
                               </div>
                             </>
                           ) : (
                             <div className="text-amber-300">
-                              Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones vinculadas a este paquete.
+                              Este paquete no tiene alojamiento cargado. No se podrá vender hasta cargar habitaciones
+                              vinculadas a este paquete.
                             </div>
                           )}
                           <Button
@@ -468,20 +612,11 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                         </>
                       )}
                     </div>
-                    <PackagePriceStagesEditor
-                      packageId={p.id}
-                      packageBasePrice={p.precio}
-                      baseCurrency={p.currency}
-                    />
-                    <PackagePaymentPlanEditor
-                      packageId={p.id}
-                      packagePrice={p.precio}
-                      currency={p.currency}
-                    />
+                    <PackagePriceStagesEditor packageId={p.id} packageBasePrice={p.precio} baseCurrency={p.currency} />
+                    <PackagePaymentPlanEditor packageId={p.id} packagePrice={p.precio} currency={p.currency} />
                   </div>
                 )}
               </div>
-
             );
           })}
         </div>
@@ -489,39 +624,61 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
 
       <EventLodgingManager
         open={showLodging}
-        onOpenChange={(o) => { setShowLodging(o); if (!o) load(); }}
+        onOpenChange={(o) => {
+          setShowLodging(o);
+          if (!o) load();
+        }}
         eventId={eventId}
         eventTitle={eventTitle || "Evento"}
       />
-
-
 
       <div className="rounded-lg border border-border/50 p-3 space-y-2 bg-muted/20">
         <p className="text-xs font-medium">Agregar paquete</p>
         <div className="grid grid-cols-2 gap-2">
           <div className="space-y-1 col-span-2">
             <Label className="text-xs">Nombre *</Label>
-            <Input value={draft.nombre} onChange={(e) => setDraft({ ...draft, nombre: e.target.value })} placeholder="Ej: Habitación doble" />
+            <Input
+              value={draft.nombre}
+              onChange={(e) => setDraft({ ...draft, nombre: e.target.value })}
+              placeholder="Ej: Habitación doble"
+            />
           </div>
           <div className="space-y-1 col-span-2">
             <Label className="text-xs">Descripción</Label>
-            <Textarea rows={2} value={draft.descripcion} onChange={(e) => setDraft({ ...draft, descripcion: e.target.value })} placeholder="Qué incluye este paquete" />
+            <Textarea
+              rows={2}
+              value={draft.descripcion}
+              onChange={(e) => setDraft({ ...draft, descripcion: e.target.value })}
+              placeholder="Qué incluye este paquete"
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Precio *</Label>
-            <Input type="number" value={draft.precio} onChange={(e) => setDraft({ ...draft, precio: e.target.value })} />
+            <Input
+              type="number"
+              value={draft.precio}
+              onChange={(e) => setDraft({ ...draft, precio: e.target.value })}
+            />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Seña</Label>
-            <Input type="number" value={draft.sena} onChange={(e) => setDraft({ ...draft, sena: e.target.value })} placeholder="Opcional" />
+            <Input
+              type="number"
+              value={draft.sena}
+              onChange={(e) => setDraft({ ...draft, sena: e.target.value })}
+              placeholder="Opcional"
+            />
             <p className="text-[10px] text-muted-foreground/80 italic">
-              Si el evento tiene cuotas configuradas, la <strong>1ª cuota actúa como seña</strong> al pagar por Mercado Pago — este campo queda como referencia informativa.
+              Si el evento tiene cuotas configuradas, la <strong>1ª cuota actúa como seña</strong> al pagar por Mercado
+              Pago — este campo queda como referencia informativa.
             </p>
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Moneda</Label>
             <Select value={draft.currency} onValueChange={(v) => setDraft({ ...draft, currency: v })}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="ARS">ARS</SelectItem>
                 <SelectItem value="USD">USD</SelectItem>
@@ -530,23 +687,54 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
             </Select>
           </div>
           <div className="col-span-2 flex items-center gap-2 pt-1 rounded-md border border-primary/30 bg-primary/5 p-2">
-            <Switch checked={draft.sin_alojamiento} onCheckedChange={(v) => setDraft({ ...draft, sin_alojamiento: v })} />
-            <Label className="text-xs">Sin alojamiento (ej. día ciclista) — cupo manual, no requiere habitaciones</Label>
+            <Switch
+              checked={draft.sin_alojamiento}
+              onCheckedChange={(v) => setDraft({ ...draft, sin_alojamiento: v })}
+            />
+            <Label className="text-xs">
+              Sin alojamiento (ej. día ciclista) — cupo manual, no requiere habitaciones
+            </Label>
           </div>
           {draft.sin_alojamiento ? (
             <div className="space-y-1 col-span-2">
               <Label className="text-xs">Cupo total *</Label>
-              <Input type="number" min="1" value={draft.cupo} onChange={(e) => setDraft({ ...draft, cupo: e.target.value })} placeholder="Cantidad de lugares disponibles" />
+              <Input
+                type="number"
+                min="1"
+                value={draft.cupo}
+                onChange={(e) => setDraft({ ...draft, cupo: e.target.value })}
+                placeholder="Cantidad de lugares disponibles"
+              />
             </div>
           ) : (
             <>
               <div className="space-y-1">
                 <Label className="text-xs">Personas / habitación</Label>
-                <Input type="number" min="1" value={draft.personas_por_habitacion} onChange={(e) => setDraft({ ...draft, personas_por_habitacion: e.target.value })} />
+                <Input
+                  type="number"
+                  min="1"
+                  value={draft.personas_por_habitacion}
+                  onChange={(e) => setDraft({ ...draft, personas_por_habitacion: e.target.value })}
+                />
               </div>
               <div className="col-span-2 flex items-center gap-2 pt-1">
-                <Switch checked={draft.permite_mixto} onCheckedChange={(v) => setDraft({ ...draft, permite_mixto: v })} />
+                <Switch
+                  checked={draft.permite_mixto}
+                  onCheckedChange={(v) => setDraft({ ...draft, permite_mixto: v })}
+                />
                 <Label className="text-xs text-violet-300">Permitir habitación mixta</Label>
+              </div>
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Grupo de alojamiento compartido (opcional)</Label>
+                <Input
+                  value={draft.lodging_group_key}
+                  onChange={(e) => setDraft({ ...draft, lodging_group_key: e.target.value })}
+                  placeholder="Ej: completo-manantial"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Los paquetes que tengan escrito el mismo texto acá comparten las mismas habitaciones. Dejalo vacío si
+                  este paquete no comparte con otro.
+                </p>
               </div>
               {draft.permite_mixto && (
                 <p className="col-span-2 text-[10px] text-muted-foreground">
@@ -560,9 +748,16 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
         <div className="rounded-md border border-primary/30 bg-primary/5 p-2 text-[11px] text-muted-foreground flex gap-1.5">
           <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
           <span>
-            {draft.sin_alojamiento
-              ? <>El paquete se venderá con el <strong>cupo total</strong> que definiste. No requiere cargar habitaciones.</>
-              : <>El cupo de cada paquete se define cargando habitaciones desde el módulo <strong>Alojamiento</strong> del panel de reservas del evento y vinculándolas a este paquete.</>}
+            {draft.sin_alojamiento ? (
+              <>
+                El paquete se venderá con el <strong>cupo total</strong> que definiste. No requiere cargar habitaciones.
+              </>
+            ) : (
+              <>
+                El cupo de cada paquete se define cargando habitaciones desde el módulo <strong>Alojamiento</strong> del
+                panel de reservas del evento y vinculándolas a este paquete.
+              </>
+            )}
           </span>
         </div>
 

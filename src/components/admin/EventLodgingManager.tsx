@@ -53,6 +53,7 @@ interface Pkg {
   cupo_mujeres: number | null;
   cupo_varones: number | null;
   cupo_mixto: number | null;
+  lodging_group_key?: string | null;
 }
 
 interface Reservation {
@@ -169,7 +170,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     const [pkgR, resR, roomR, alumnosPreR] = await Promise.all([
       supabase
         .from("event_packages")
-        .select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto")
+        .select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto, lodging_group_key")
         .eq("event_id", eventId)
         .order("sort_order"),
       supabase
