@@ -94,6 +94,7 @@ const AdminProgramaDetalle = () => {
   const [plan, setPlan] = useState<PlanRow | null>(null);
   const [inscriptos, setInscriptos] = useState<Inscripto[]>([]);
   const [emails, setEmails] = useState<any[]>([]);
+  const [cobrado, setCobrado] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [playbook, setPlaybook] = useState<{ id: string; nombre: string; stages: number } | null>(null);
@@ -127,6 +128,23 @@ const AdminProgramaDetalle = () => {
         });
       }
       setInscriptos(list);
+
+      // Cobrado real por suscripción (movimientos con haber > 0)
+      if (list.length > 0) {
+        const { data: movs } = await sb
+          .from("vw_cuenta_corriente_movimientos")
+          .select("fuente_id, haber")
+          .eq("fuente_tabla", "suscripciones")
+          .in("fuente_id", list.map((s) => s.id));
+        const map: Record<string, number> = {};
+        (movs || []).forEach((m: any) => {
+          const h = Number(m.haber) || 0;
+          if (h > 0) map[m.fuente_id] = (map[m.fuente_id] || 0) + h;
+        });
+        setCobrado(map);
+      } else {
+        setCobrado({});
+      }
 
       // Load emails linked to these inscriptos by recipient email (best-effort)
       const emailsList = Array.from(new Set(list.map((s) => s.alumno?.email).filter(Boolean))) as string[];
@@ -201,7 +219,7 @@ const AdminProgramaDetalle = () => {
     const pendVer = inscriptos.filter((i) => i.estado === "pendiente_verificacion").length;
     const pendPago = inscriptos.filter((i) => i.estado === "pendiente_pago").length;
     // Recaudado = dinero realmente cobrado e imputado a estas suscripciones.
-    const recaudado = Object.values(cobrado).reduce((s, v) => s + v, 0);
+    const recaudado = Object.values(cobrado).reduce((s: number, v: number) => s + v, 0);
     // Por cobrar = comprometido (precio_final de subs vigentes) − cobrado.
     const porCobrar = inscriptos
       .filter((i) => i.estado !== "cancelada")
