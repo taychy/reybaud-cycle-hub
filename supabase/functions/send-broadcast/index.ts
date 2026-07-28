@@ -590,6 +590,8 @@ Deno.serve(async (req) => {
         .eq("broadcast_id", bc.id).eq("status", "failed");
       await admin.from("broadcasts").update({ status: "sending" }).eq("id", bc.id);
 
+      const retryPromoHtml = buildPromoBlock(await loadPromoProducts(admin, (bc as any).promo_product_ids));
+
       const retryProcess = async () => {
         let sent = 0, failed = 0;
         const BATCH_SIZE = 8;
@@ -601,6 +603,7 @@ Deno.serve(async (req) => {
               personalize(bc.content_html, recipient) || "",
               bc.preheader,
               { url: personalize((bc.segment_filters as any)?.cta_url, recipient), label: (bc.segment_filters as any)?.cta_label },
+              retryPromoHtml,
             );
             const r1 = await sendWithRetries({
               sender: { name: bc.sender_name, email: bc.sender_email },
