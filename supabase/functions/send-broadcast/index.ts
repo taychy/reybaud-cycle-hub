@@ -47,6 +47,7 @@ interface SendBody {
   cta_label?: string;
   excluded_emails?: string[];
   include_full_list?: boolean;
+  promo_product_ids?: string[];
 }
 
 function escapeHtml(s: string) {
