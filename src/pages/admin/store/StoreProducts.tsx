@@ -366,9 +366,19 @@ const StoreProducts = () => {
                   </div>
                 </td>
                 <td className="px-4 py-2">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-foreground">{p.name}</span>
                     {p.featured && <Star className="w-3.5 h-3.5 text-gold fill-gold" />}
+                    {(p as any).es_externo && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-accent/20 text-accent">
+                            {(p as any).proveedor || "Externo"}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent>A pedido: se vende primero y se retira en el depósito del proveedor</TooltipContent>
+                      </Tooltip>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-2 hidden md:table-cell text-muted-foreground">{getCategoryName(p.category_id)}</td>
