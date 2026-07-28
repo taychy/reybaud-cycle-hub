@@ -304,9 +304,19 @@ const StoreProducts = () => {
             </TooltipTrigger>
             <TooltipContent>Abrir la tienda pública</TooltipContent>
           </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button variant="outline" onClick={() => setExternalOpen(true)}>
+                <PackageSearch className="w-4 h-4 mr-1" /> Producto externo
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>Pegá el link de la tienda oficial (Santini) y se carga solo, con el descuento aplicado</TooltipContent>
+          </Tooltip>
           <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
         </div>
       </div>
+
+      <ExternalProductDialog open={externalOpen} onOpenChange={setExternalOpen} categories={categories} onSaved={load} />
 
 
       {/* Filters */}
