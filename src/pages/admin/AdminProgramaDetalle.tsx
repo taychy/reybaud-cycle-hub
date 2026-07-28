@@ -317,13 +317,15 @@ const AdminProgramaDetalle = () => {
 
 
       {/* KPI strip */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <KpiCard icon={Users} label="Inscriptos" value={`${curr}${cap ? ` / ${cap}` : ""}`} accent="primary" />
         <KpiCard icon={Users} label="Activos" value={kpis.activos} />
         <KpiCard icon={AlertCircle} label="A verificar" value={kpis.pendVer} accent={kpis.pendVer > 0 ? "warn" : undefined} />
         <KpiCard icon={AlertCircle} label="Pendientes" value={kpis.pendPago} />
         <KpiCard icon={DollarSign} label="Recaudado" value={formatPrice(kpis.recaudado, plan.moneda)} />
+        <KpiCard icon={DollarSign} label="Por cobrar" value={formatPrice(kpis.porCobrar, plan.moneda)} accent={kpis.porCobrar > 0 ? "warn" : undefined} />
       </div>
+
 
       {/* Dates strip */}
       <Card>
