@@ -367,8 +367,10 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
       ) : (
         <div className="space-y-2">
           {items.map((p) => {
-            const c = counts[p.id] || { mujeres: 0, varones: 0, mixto: 0 };
-            const cap = roomCapacity[p.id];
+            const gk = groupKeyOf(p);
+            const isShared = (groupNames[gk]?.length || 0) > 1;
+            const c = groupedCounts[gk] || { mujeres: 0, varones: 0, mixto: 0 };
+            const cap = groupedRoomCapacity[gk];
             const hasRooms = !!cap && cap.total > 0;
             const totalUsed = c.mujeres + c.varones + c.mixto;
             if (editingId === p.id) {
