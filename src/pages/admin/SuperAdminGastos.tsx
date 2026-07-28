@@ -96,7 +96,7 @@ interface GastoRow {
   unidad_negocio?: UnidadNegocio | null;
 }
 
-const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Otros"];
+const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Personal","Otros"];
 import { GASTO_PAYMENT_METHODS, GASTO_PAYMENT_LABELS } from "@/lib/gastoPaymentMethods";
 const FORMA_PAGO_OPTS = GASTO_PAYMENT_METHODS.map(m => ({ v: m.value, l: m.label }));
 
