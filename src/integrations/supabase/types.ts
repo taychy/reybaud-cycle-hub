@@ -3850,6 +3850,7 @@ export type Database = {
           descripcion: string | null
           event_id: string
           id: string
+          lodging_group_key: string | null
           nombre: string
           permite_mixto: boolean
           personas_por_habitacion: number
@@ -3870,6 +3871,7 @@ export type Database = {
           descripcion?: string | null
           event_id: string
           id?: string
+          lodging_group_key?: string | null
           nombre: string
           permite_mixto?: boolean
           personas_por_habitacion?: number
@@ -3890,6 +3892,7 @@ export type Database = {
           descripcion?: string | null
           event_id?: string
           id?: string
+          lodging_group_key?: string | null
           nombre?: string
           permite_mixto?: boolean
           personas_por_habitacion?: number
