@@ -1178,10 +1178,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-xs">Fecha de inicio</Label>
+                <Label className="text-xs">{dialogMode === "change" && changeScope === "renovar" ? "Inicio del nuevo período" : "Fecha de inicio"}</Label>
                 <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
               </div>
-              {(dialogMode === "change" || payStatus === "pagado") && (
+              {(payStatus === "pagado" || (dialogMode === "change" && changeScope === "actual")) && (
                 <div className="space-y-2">
                   <Label className="text-xs">Fecha de pago</Label>
                   <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
@@ -1189,7 +1189,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               )}
             </div>
 
-            {(dialogMode === "change" || payStatus === "pagado") && (
+            {(payStatus === "pagado" || (dialogMode === "change" && changeScope === "actual")) && (
               <div className="space-y-2">
                 <Label className="text-xs">Método de pago</Label>
                 <Select value={payMetodo} onValueChange={setPayMetodo}>
@@ -1205,8 +1205,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </div>
             )}
 
-            {/* Use current (updated) price toggle — only when changing an existing plan */}
-            {dialogMode === "change" && newPlanId && (() => {
+            {/* Use current (updated) price toggle — only when correcting the current period */}
+            {dialogMode === "change" && changeScope === "actual" && newPlanId && (() => {
               const sub = subs.find(s => s.id === dialogSubId);
               const selectedPlan = planes.find(p => p.id === newPlanId);
               if (!sub || !selectedPlan) return null;
