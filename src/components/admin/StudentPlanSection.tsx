@@ -1278,7 +1278,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPlanDialog(false)}>Cancelar</Button>
             <Button variant="gold" disabled={!newPlanId || saving} onClick={handleSavePlan}>
-              {saving ? "Guardando..." : dialogMode === "add" ? "Agregar" : "Confirmar cambio"}
+              {saving ? "Guardando..." : dialogMode === "add" ? "Agregar" : changeScope === "renovar" ? "Crear próximo período" : "Confirmar corrección"}
             </Button>
           </DialogFooter>
         </DialogContent>
