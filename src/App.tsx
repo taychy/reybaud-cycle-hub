@@ -98,6 +98,7 @@ import SupplierOrders from "./pages/SupplierOrders";
 import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
 import AdminControlMercaderia from "./pages/admin/AdminControlMercaderia";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import EventTerms from "./pages/EventTerms";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
 import PublicStore from "./pages/PublicStore";
@@ -177,6 +178,7 @@ const App = () => (
           <Route path="/asesoria" element={<Asesoria />} />
           <Route path="/politica-privacidad" element={<PrivacyPolicy />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+          <Route path="/terminos-eventos" element={<EventTerms />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/unsubscribe" element={<Unsubscribe />} />
           <Route path="/formacion-inicial" element={<FormacionInicial />} />

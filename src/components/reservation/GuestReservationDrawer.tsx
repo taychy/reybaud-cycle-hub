@@ -220,7 +220,19 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
               )}
               <label className="flex items-start gap-2 text-sm">
                 <Checkbox checked={terms} onCheckedChange={(v) => setTerms(!!v)} className="mt-1" />
-                <span>Acepto los términos y condiciones del evento, política de cancelación y uso de datos personales.</span>
+                <span>
+                  Acepto los{" "}
+                  <a
+                    href="/terminos-eventos"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-primary underline underline-offset-2"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    términos y condiciones del evento, política de cancelación y uso de datos personales
+                  </a>
+                  .
+                </span>
               </label>
             </div>
           )}
