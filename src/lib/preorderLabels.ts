@@ -1,6 +1,7 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 import { formatPrice } from "@/lib/currency";
+import { downloadFileBlob, printPdfBlob } from "@/lib/printBlob";
 
 export interface PreorderLabelData {
   id: string;
@@ -237,8 +238,17 @@ const drawLabel = async (
   }
 };
 
-export const printPreorderLabels = async (preorders: PreorderLabelData[]) => {
-  if (!preorders.length) return;
+export const preorderLabelsFilename = (preorders: PreorderLabelData[]) => {
+  const stamp = new Date().toISOString().slice(0, 10);
+  return preorders.length === 1
+    ? `etiqueta-${preorders[0].short_number || preorders[0].id.slice(0, 8)}.pdf`
+    : `etiquetas-${stamp}-${preorders.length}.pdf`;
+};
+
+/** Genera el PDF A4 (4 etiquetas por hoja) y devuelve el blob. */
+export const buildPreorderLabelsPdf = async (
+  preorders: PreorderLabelData[],
+): Promise<Blob> => {
   const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
   const perPage = COLS * ROWS;
 
@@ -252,21 +262,25 @@ export const printPreorderLabels = async (preorders: PreorderLabelData[]) => {
     await drawLabel(doc, preorders[i], ox, oy);
   }
 
-  // Trigger download via anchor (evita el popup blocker que dispara window.open)
-  const blob = doc.output("blob");
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  const stamp = new Date().toISOString().slice(0, 10);
-  a.download = preorders.length === 1
-    ? `etiqueta-preventa-${preorders[0].short_number || preorders[0].id.slice(0, 8)}.pdf`
-    : `etiquetas-preventas-${stamp}-${preorders.length}.pdf`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 30000);
+  return doc.output("blob");
+};
+
+/** Manda las etiquetas A4 directo a la impresora (sin descargar). */
+export const sendPreorderLabelsToPrinter = async (preorders: PreorderLabelData[]) => {
+  if (!preorders.length) return;
+  const blob = await buildPreorderLabelsPdf(preorders);
+  printPdfBlob(blob);
+};
+
+/** Descarga el PDF de etiquetas A4. */
+export const printPreorderLabels = async (preorders: PreorderLabelData[]) => {
+  if (!preorders.length) return;
+  const blob = await buildPreorderLabelsPdf(preorders);
+  downloadFileBlob(blob, preorderLabelsFilename(preorders));
 };
 
 export const printSinglePreorderLabel = async (p: PreorderLabelData) => {
   await printPreorderLabels([p]);
 };
+
+export { buildPayUrl as buildPreorderPayUrl };
