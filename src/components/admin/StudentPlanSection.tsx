@@ -1092,7 +1092,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider">
-              {dialogMode === "add" ? "Agregar plan" : "Cambiar plan"}
+              {dialogMode === "add" ? "Agregar plan" : changeScope === "renovar" ? "Renovar cambiando de plan" : "Corregir plan del período actual"}
             </DialogTitle>
             <DialogDescription>
               Alumno: {alumno.nombre} {(alumno as any).apellido || ""}
@@ -1103,8 +1103,40 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Alcance del cambio */}
+            {dialogMode === "change" && (() => {
+              const sub = subs.find(s => s.id === dialogSubId);
+              const fin = sub?.fecha_fin ? formatDate(sub.fecha_fin) : null;
+              return (
+                <div className="space-y-2 rounded-md bg-secondary/40 border border-border p-3">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">¿Qué querés hacer?</Label>
+                  <RadioGroup
+                    value={changeScope}
+                    onValueChange={(v) => applyChangeScope(v as "actual" | "renovar")}
+                    className="gap-2"
+                  >
+                    <label className="flex items-start gap-2 cursor-pointer text-xs">
+                      <RadioGroupItem value="renovar" className="mt-0.5" />
+                      <span>
+                        <span className="font-medium text-emerald-300">Renovar con otro plan (próximo período)</span> — crea una
+                        suscripción nueva {fin ? `a partir del vencimiento (${fin})` : "desde la fecha que elijas"} y deja el plan
+                        actual en el historial. Es lo habitual a fin de mes cuando el alumno sube o baja de plan.
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer text-xs">
+                      <RadioGroupItem value="actual" className="mt-0.5" />
+                      <span>
+                        <span className="font-medium text-amber-300">Corregir el período actual</span> — reemplaza el plan de la
+                        suscripción vigente (se usa para arreglar un error de carga). No genera historial ni un período nuevo.
+                      </span>
+                    </label>
+                  </RadioGroup>
+                </div>
+              );
+            })()}
+
             <div className="space-y-2">
-              <Label className="text-xs">{dialogMode === "add" ? "Plan a agregar" : "Nuevo plan"}</Label>
+              <Label className="text-xs">{dialogMode === "add" ? "Plan a agregar" : changeScope === "renovar" ? "Plan del próximo período" : "Nuevo plan"}</Label>
               <Select value={newPlanId} onValueChange={setNewPlanId}>
                 <SelectTrigger className="bg-secondary border-border">
                   <SelectValue placeholder="Seleccionar plan" />
@@ -1119,8 +1151,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Select>
             </div>
 
-            {/* Estado de pago — sólo al AGREGAR */}
-            {dialogMode === "add" && (
+            {/* Estado de pago — al AGREGAR o al RENOVAR */}
+            {(dialogMode === "add" || changeScope === "renovar") && (
               <div className="space-y-2 rounded-md bg-secondary/40 border border-border p-3">
                 <Label className="text-xs uppercase tracking-wide text-muted-foreground">Estado del pago</Label>
                 <RadioGroup
