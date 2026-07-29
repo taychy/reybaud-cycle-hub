@@ -19,8 +19,10 @@ const StoreVentas = () => {
   const tab: Tab =
     raw === "preventas" ? "preventas"
     : raw === "pedidos" ? "pedidos"
+    : raw === "por-pedir" ? "por-pedir"
     : raw === "cambios" ? "cambios"
     : "nuevos";
+
 
   const [nuevosCount, setNuevosCount] = useState<number | null>(null);
 
