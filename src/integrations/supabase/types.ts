@@ -9009,6 +9009,7 @@ export type Database = {
           currency: string
           customer_email: string | null
           customer_name: string
+          customer_phone: string | null
           delivered_at: string | null
           entrega_metodo: string | null
           envio_contacto: string | null
@@ -9016,6 +9017,7 @@ export type Database = {
           envio_direccion: string | null
           envio_estado: string | null
           envio_notas: string | null
+          es_externo: boolean
           fees_synced_at: string | null
           id: string
           iibb: number | null
@@ -9034,6 +9036,9 @@ export type Database = {
           shipping_tracking: string | null
           status: string
           stock_restored_at: string | null
+          supplier_notified_at: string | null
+          supplier_notified_by: string | null
+          supplier_order_ref: string | null
           tienda_emisor_id: string | null
           total: number
           updated_at: string
@@ -9048,6 +9053,7 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name: string
+          customer_phone?: string | null
           delivered_at?: string | null
           entrega_metodo?: string | null
           envio_contacto?: string | null
@@ -9055,6 +9061,7 @@ export type Database = {
           envio_direccion?: string | null
           envio_estado?: string | null
           envio_notas?: string | null
+          es_externo?: boolean
           fees_synced_at?: string | null
           id?: string
           iibb?: number | null
@@ -9073,6 +9080,9 @@ export type Database = {
           shipping_tracking?: string | null
           status?: string
           stock_restored_at?: string | null
+          supplier_notified_at?: string | null
+          supplier_notified_by?: string | null
+          supplier_order_ref?: string | null
           tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
@@ -9087,6 +9097,7 @@ export type Database = {
           currency?: string
           customer_email?: string | null
           customer_name?: string
+          customer_phone?: string | null
           delivered_at?: string | null
           entrega_metodo?: string | null
           envio_contacto?: string | null
@@ -9094,6 +9105,7 @@ export type Database = {
           envio_direccion?: string | null
           envio_estado?: string | null
           envio_notas?: string | null
+          es_externo?: boolean
           fees_synced_at?: string | null
           id?: string
           iibb?: number | null
@@ -9112,6 +9124,9 @@ export type Database = {
           shipping_tracking?: string | null
           status?: string
           stock_restored_at?: string | null
+          supplier_notified_at?: string | null
+          supplier_notified_by?: string | null
+          supplier_order_ref?: string | null
           tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
@@ -9354,6 +9369,7 @@ export type Database = {
           source_url: string | null
           status: string
           stock: number
+          supplier_id: string | null
           tag: string | null
           tienda_emisor_id: string | null
           updated_at: string
@@ -9405,6 +9421,7 @@ export type Database = {
           source_url?: string | null
           status?: string
           stock?: number
+          supplier_id?: string | null
           tag?: string | null
           tienda_emisor_id?: string | null
           updated_at?: string
@@ -9456,6 +9473,7 @@ export type Database = {
           source_url?: string | null
           status?: string
           stock?: number
+          supplier_id?: string | null
           tag?: string | null
           tienda_emisor_id?: string | null
           updated_at?: string
@@ -9468,6 +9486,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "store_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_products_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "store_suppliers"
             referencedColumns: ["id"]
           },
           {
@@ -9513,6 +9538,45 @@ export type Database = {
           id?: string
           name?: string
           sort_order?: number
+        }
+        Relationships: []
+      }
+      store_suppliers: {
+        Row: {
+          activo: boolean
+          created_at: string
+          email: string | null
+          email_cc: string | null
+          id: string
+          nombre: string
+          notas: string | null
+          sitio_web: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          email?: string | null
+          email_cc?: string | null
+          id?: string
+          nombre: string
+          notas?: string | null
+          sitio_web?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          email?: string | null
+          email_cc?: string | null
+          id?: string
+          nombre?: string
+          notas?: string | null
+          sitio_web?: string | null
+          telefono?: string | null
+          updated_at?: string
         }
         Relationships: []
       }
@@ -11790,6 +11854,7 @@ export type Database = {
         | "manual"
         | "importado"
         | "whatsapp_web"
+        | "cliente_tienda"
       modo_mp: "test" | "prod"
       payment_plan_monto_tipo: "fijo" | "porcentaje_saldo"
       payment_plan_regla_tardia:
@@ -12010,6 +12075,7 @@ export const Constants = {
         "manual",
         "importado",
         "whatsapp_web",
+        "cliente_tienda",
       ],
       modo_mp: ["test", "prod"],
       payment_plan_monto_tipo: ["fijo", "porcentaje_saldo"],
