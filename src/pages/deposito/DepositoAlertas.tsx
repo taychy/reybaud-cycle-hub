@@ -94,6 +94,14 @@ const DepositoAlertas = () => {
 
   return (
     <div className="space-y-8">
+      <DepositoPanelDia
+        procesosEnCurso={instances.map((i) => ({
+          id: i.id,
+          nombre: templates.find((t) => t.id === i.template_id)?.nombre || "Proceso",
+          started_at: i.started_at,
+        }))}
+      />
+
       {/* ====== STOCK ALERTS ====== */}
       <section className="space-y-4">
         <div className="flex items-center justify-between">
