@@ -219,10 +219,26 @@ const AdminLayout = () => {
       .sort((a, b) => b.to.length - a.to.length)[0];
     if (!item?.noveltyKey) return;
     const key = item.noveltyKey;
-    supabase.rpc("mark_admin_section_seen" as any, { p_section_key: key }).then(() => {
-      setNovedades((prev) => ({ ...prev, [key]: 0 }));
-    });
+    let cancelled = false;
+    (async () => {
+      // Guardamos la marca anterior para poder resaltar filas nuevas dentro de la sección
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        const { data: seen } = await supabase
+          .from("admin_section_seen")
+          .select("seen_at")
+          .eq("user_id", session.user.id)
+          .eq("section_key", key)
+          .maybeSingle();
+        setPrevSeen(key, (seen as any)?.seen_at ?? null);
+      }
+      if (cancelled) return;
+      await supabase.rpc("mark_admin_section_seen" as any, { p_section_key: key });
+      if (!cancelled) setNovedades((prev) => ({ ...prev, [key]: 0 }));
+    })();
+    return () => { cancelled = true; };
   }, [location.pathname]);
+
 
 
   const toggleCollapsed = () => {
