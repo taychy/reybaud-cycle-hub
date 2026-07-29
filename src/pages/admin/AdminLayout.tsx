@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
 import SwitchPortalButton from "@/components/SwitchPortalButton";
+import { setPrevSeen } from "@/lib/adminNovelty";
+
 
 /* ─── Nav structure ─── */
 type BadgeKey = "waitlist" | "waitlist_entries" | "turnera";
