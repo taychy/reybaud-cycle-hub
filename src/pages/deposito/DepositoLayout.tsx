@@ -31,20 +31,23 @@ const DepositoLayout = () => {
           <Package className="w-5 h-5 text-primary" />
           <span className="font-heading font-bold uppercase tracking-wider text-sm">Depósito</span>
         </div>
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleLogout} aria-label="Cerrar sesión">
-          <LogOut className="w-4 h-4" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <SwitchPortalButton variant="ghost" size="sm" className="h-8 px-2 text-muted-foreground" />
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleLogout} aria-label="Cerrar sesión">
+            <LogOut className="w-4 h-4" />
+          </Button>
+        </div>
       </header>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-56 border-r border-border bg-card flex-col">
+      <aside className="hidden md:flex w-56 border-r border-border bg-card flex-col md:sticky md:top-0 md:h-screen">
         <div className="p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Package className="w-5 h-5 text-primary" />
             <span className="font-heading font-bold uppercase tracking-wider text-sm">Depósito</span>
           </div>
         </div>
-        <nav className="flex-1 p-2 space-y-1">
+        <nav className="flex-1 overflow-y-auto p-2 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
