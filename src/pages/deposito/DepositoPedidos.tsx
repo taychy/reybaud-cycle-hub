@@ -217,6 +217,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const filtered = useMemo(() => rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterStatus === "all" && !restrictStatuses && !showFinalizados && CLOSED_STATUSES.includes(r.status)) return false;
     if (search) {
       const s = search.toLowerCase();
       const nom = nombreCliente(r).toLowerCase();
@@ -225,7 +226,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       if (!nom.includes(s) && !num.includes(s) && !prods.includes(s)) return false;
     }
     return true;
-  }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses]);
+  }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
+
 
   const printBulk = async () => {
     const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
