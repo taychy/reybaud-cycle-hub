@@ -321,13 +321,26 @@ const AdminLayout = () => {
     key === "waitlist_entries" ? waitlistEntriesPending :
     key === "turnera" ? turneraPending : 0;
 
+  const noveltyCountFor = (key?: NoveltyKey) => (key ? Number(novedades[key] ?? 0) : 0);
+
   const moduleBadgeCount = (m: NavModule) =>
     m.groups.reduce((acc, g) => acc + g.items.reduce((a, it) => a + badgeCountFor(it.badgeKey), 0), 0);
+
+  const moduleNoveltyCount = (m: NavModule) =>
+    m.groups.reduce((acc, g) => acc + g.items.reduce((a, it) => a + noveltyCountFor(it.noveltyKey), 0), 0);
+
+  const NoveltyDot = ({ count, className = "" }: { count: number; className?: string }) => (
+    <span
+      title={`${count} novedad${count === 1 ? "" : "es"}`}
+      className={`inline-block w-2 h-2 rounded-full bg-destructive shadow-[0_0_0_2px_hsl(var(--sidebar-background))] animate-pulse ${className}`}
+    />
+  );
 
   const NavItemRow = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2";
     const badgeCount = badgeCountFor(item.badgeKey);
+    const novelty = noveltyCountFor(item.noveltyKey);
 
     if (collapsed && !mobile) {
       return (
@@ -350,10 +363,13 @@ const AdminLayout = () => {
                   {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
               )}
+              {badgeCount === 0 && novelty > 0 && (
+                <NoveltyDot count={novelty} className="absolute top-1 right-1" />
+              )}
             </NavLink>
           </TooltipTrigger>
           <TooltipContent side="right" className="text-xs">
-            {item.label}{badgeCount > 0 ? ` (${badgeCount})` : ""}
+            {item.label}{badgeCount > 0 ? ` (${badgeCount})` : novelty > 0 ? ` — ${novelty} nuevo${novelty === 1 ? "" : "s"}` : ""}
           </TooltipContent>
         </Tooltip>
       );
@@ -373,7 +389,10 @@ const AdminLayout = () => {
         }
       >
         <item.icon className={iconSize} />
-        <span className="flex-1">{item.label}</span>
+        <span className="flex-1 flex items-center gap-2">
+          {item.label}
+          {novelty > 0 && <NoveltyDot count={novelty} />}
+        </span>
         {badgeCount > 0 && (
           <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
             {badgeCount > 99 ? "99+" : badgeCount}
@@ -388,6 +407,7 @@ const AdminLayout = () => {
       {visibleModules.map((m) => {
         const isOpen = openModule === m.key;
         const badge = moduleBadgeCount(m);
+        const moduleNovelty = moduleNoveltyCount(m);
         const Icon = m.icon;
 
         if (collapsed && !mobile) {
@@ -413,7 +433,10 @@ const AdminLayout = () => {
               }`}
             >
               <Icon className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-              <span className="flex-1 text-left">{m.label}</span>
+              <span className="flex-1 text-left flex items-center gap-2">
+                {m.label}
+                {!isOpen && moduleNovelty > 0 && <NoveltyDot count={moduleNovelty} />}
+              </span>
               {badge > 0 && !isOpen && (
                 <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
                   {badge > 99 ? "99+" : badge}
