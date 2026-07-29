@@ -127,6 +127,14 @@ const AdminDashboard = () => {
       const today = now.toISOString().split("T")[0];
       const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
 
+      // Mantiene la cola de facturación al día antes de contar "hoy" (evita mostrar
+      // datos desactualizados si nadie abrió la página de Facturación recientemente).
+      try {
+        await supabase.rpc("rebuild_facturacion_cola" as any, {});
+      } catch {
+        // Si falla (p.ej. permisos), seguimos con lo que ya haya en la tabla.
+      }
+
       const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasPendientesRes, cuotasRes] = await Promise.all([
         supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
         supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)").in("estado", ["activa", "conciliado"]),
@@ -134,7 +142,11 @@ const AdminDashboard = () => {
         supabase.from("alumnos").select("id, estado, grupo, created_at"),
         // Fuente única de verdad: misma tabla que usa la página real de Facturación (evita
         // el desfasaje que había contando directamente sobre `suscripciones`).
-        supabase.from("facturacion_cola" as any).select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+        // Acotado a HOY: la tarjeta muestra la tarea del día, no el backlog acumulado.
+        supabase.from("facturacion_cola" as any).select("id", { count: "exact", head: true })
+          .eq("estado", "pendiente")
+          .gte("pagado_at", `${today}T00:00:00`)
+          .lte("pagado_at", `${today}T23:59:59.999`),
         // Paso B: cuotas de eventos por cobrar (saldo > 0)
         supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date").eq("source", "cuota_evento"),
       ]);
@@ -328,9 +340,12 @@ const AdminDashboard = () => {
       }
       setAlerts(alertsList);
 
-      // Chequeo alerts (Facturas / Pagos / Bajas)
+      // Chequeo alerts (Facturas / Pagos / Bajas / Nuevos) — todas cuentan lo del DÍA DE HOY,
+      // no el backlog acumulado. El backlog completo se sigue pudiendo navegar día por día
+      // en cada vista ("Ver →"), yendo hacia atrás.
       const pagosACheckar = allSubs.filter((s: any) =>
-        (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin
+        (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin &&
+        s.created_at && s.created_at >= `${today}T00:00:00` && s.created_at <= `${today}T23:59:59.999`
       ).length;
       const facturasPendientes = facturasPendientesRes.count || 0;
       const d = new Date();
@@ -344,10 +359,11 @@ const AdminDashboard = () => {
         const renewed = allSubs.some((o: any) => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
         return !renewed;
       });
-      const bajasPendientes = bajasDelMes.filter((s: any) => !s.baja_chequeada).length;
-      const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400000).toISOString();
-      const nuevosUltimos30 = allAlumnos.filter((a: any) => a.created_at && a.created_at >= thirtyDaysAgoIso).length;
-      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes, nuevos: nuevosUltimos30 });
+      const bajasPendientes = bajasDelMes.filter((s: any) => !s.baja_chequeada && s.fecha_fin === today).length;
+      const nuevosHoy = allAlumnos.filter((a: any) =>
+        a.created_at && a.created_at >= `${today}T00:00:00` && a.created_at <= `${today}T23:59:59.999`
+      ).length;
+      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes, nuevos: nuevosHoy });
     } catch (err) {
       console.error("Error loading dashboard:", err);
     } finally {
@@ -478,13 +494,14 @@ const AdminDashboard = () => {
       )}
 
 
-      {/* Alertas de chequeo (Facturas / Pagos / Bajas) */}
+      {/* Alertas de chequeo (Facturas / Pagos / Bajas / Nuevos) — tareas de HOY */}
       <div className="space-y-2">
+        <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground">Tareas de hoy</p>
         {[
-          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion/por-dia", hint: "Subs cobradas sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
-          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos/por-dia", hint: "Conciliar contra MP / transferencia / efectivo", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
-          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas/por-dia", hint: "Alumnos sin renovar este mes", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
-          { label: "Nuevos usuarios", count: chequeoAlerts.nuevos, icon: UserPlus, to: "/admin/alumnos/nuevos-por-dia", hint: "Registrados en los últimos 30 días", tone: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500" },
+          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion/por-dia", hint: "Subs cobradas hoy sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
+          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos/por-dia", hint: "Pagos de hoy a conciliar", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
+          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas/por-dia", hint: "Alumnos que vencen hoy sin renovar", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
+          { label: "Nuevos usuarios", count: chequeoAlerts.nuevos, icon: UserPlus, to: "/admin/alumnos/nuevos-por-dia", hint: "Registrados hoy", tone: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500" },
         ].map((a) => (
           <Link key={a.label} to={a.to} className={`group flex items-center justify-between gap-3 border rounded-lg px-4 py-3 transition-colors ${a.tone}`}>
             <div className="flex items-center gap-3 min-w-0">
