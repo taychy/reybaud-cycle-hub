@@ -16,6 +16,7 @@ import {
   startProcessInstance,
   ProcessTemplate,
 } from "@/hooks/useProcesses";
+import DepositoPanelDia from "@/components/deposito/DepositoPanelDia";
 
 interface Product {
   id: string;
