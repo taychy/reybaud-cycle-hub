@@ -176,6 +176,7 @@ const AdminLayout = () => {
   const [waitlistPending, setWaitlistPending] = useState(0);
   const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
   const [turneraPending, setTurneraPending] = useState(0);
+  const [novedades, setNovedades] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const key = findModuleKeyForPath(location.pathname);
@@ -186,15 +187,17 @@ const AdminLayout = () => {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [{ data: pending }, { data: newEntries }, { data: newTurnera }] = await Promise.all([
+      const [{ data: pending }, { data: newEntries }, { data: newTurnera }, { data: nov }] = await Promise.all([
         supabase.rpc("count_pending_waitlist_requests" as any),
         supabase.rpc("count_new_waitlist_entries" as any),
         supabase.rpc("count_new_turnera_reservations" as any),
+        supabase.rpc("count_admin_novedades" as any),
       ]);
       if (alive) {
         setWaitlistPending(Number(pending ?? 0));
         setWaitlistEntriesPending(Number(newEntries ?? 0));
         setTurneraPending(Number(newTurnera ?? 0));
+        setNovedades((nov as any) || {});
       }
     };
     load();
@@ -207,6 +210,20 @@ const AdminLayout = () => {
       window.removeEventListener("reybaud:refresh-admin-badges", onRefresh);
     };
   }, [location.pathname]);
+
+  // Al entrar a una sección con novedades, la marcamos como vista
+  useEffect(() => {
+    const item = modules
+      .flatMap((m) => m.groups.flatMap((g) => g.items))
+      .filter((it) => it.noveltyKey && location.pathname.startsWith(it.to))
+      .sort((a, b) => b.to.length - a.to.length)[0];
+    if (!item?.noveltyKey) return;
+    const key = item.noveltyKey;
+    supabase.rpc("mark_admin_section_seen" as any, { p_section_key: key }).then(() => {
+      setNovedades((prev) => ({ ...prev, [key]: 0 }));
+    });
+  }, [location.pathname]);
+
 
   const toggleCollapsed = () => {
     const next = !collapsed;
