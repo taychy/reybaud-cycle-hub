@@ -116,7 +116,26 @@ const ExternalProductDialog = ({ open, onOpenChange, categories, onSaved }: Prop
       delivery_methods: ["retiro_sede"],
     };
 
-    const { error } = await supabase.from("store_products").insert(payload);
+    // Vincular (o crear) el proveedor para poder avisarle las ventas por email
+    let supplierId: string | null = null;
+    if (proveedor.trim()) {
+      const { data: found } = await supabase
+        .from("store_suppliers")
+        .select("id")
+        .ilike("nombre", proveedor.trim())
+        .maybeSingle();
+      if (found) supplierId = (found as any).id;
+      else {
+        const { data: created } = await supabase
+          .from("store_suppliers")
+          .insert({ nombre: proveedor.trim() })
+          .select("id")
+          .maybeSingle();
+        supplierId = (created as any)?.id || null;
+      }
+    }
+
+    const { error } = await supabase.from("store_products").insert({ ...payload, supplier_id: supplierId });
     setSaving(false);
     if (error) {
       toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
