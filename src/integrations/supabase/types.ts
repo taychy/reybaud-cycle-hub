@@ -128,6 +128,24 @@ export type Database = {
         }
         Relationships: []
       }
+      admin_section_seen: {
+        Row: {
+          section_key: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          section_key: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          section_key?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       agenda_grupal: {
         Row: {
           activo: boolean
@@ -10954,6 +10972,7 @@ export type Database = {
         }
         Returns: string
       }
+      count_admin_novedades: { Args: never; Returns: Json }
       count_new_turnera_reservations: { Args: never; Returns: number }
       count_new_waitlist_entries: { Args: never; Returns: number }
       count_pending_waitlist_requests: { Args: never; Returns: number }
@@ -11484,6 +11503,10 @@ export type Database = {
       }
       marcar_baja_evitada: {
         Args: { p_motivo: string; p_solicitud_id: string }
+        Returns: undefined
+      }
+      mark_admin_section_seen: {
+        Args: { p_section_key: string }
         Returns: undefined
       }
       mark_cash_collected: {

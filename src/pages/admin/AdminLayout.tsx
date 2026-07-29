@@ -9,9 +9,12 @@ import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 /* ─── Nav structure ─── */
 type BadgeKey = "waitlist" | "waitlist_entries" | "turnera";
-type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; superAdmin?: boolean };
+/** Secciones con "pelotita" de novedad (contenido nuevo desde la última visita) */
+type NoveltyKey = "alumnos" | "eventos" | "tienda_ventas" | "pedidos_proveedor" | "cobros_entrega" | "cambios_plan";
+type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; noveltyKey?: NoveltyKey; superAdmin?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 type NavModule = { key: string; label: string; icon: any; groups: NavGroup[] };
+
 
 const modules: NavModule[] = [
   {
@@ -29,15 +32,16 @@ const modules: NavModule[] = [
       {
         label: "Personas",
         items: [
-          { to: "/admin/alumnos", label: "Alumnos", icon: Users },
+          { to: "/admin/alumnos", label: "Alumnos", icon: Users, noveltyKey: "alumnos" },
           { to: "/admin/coaches", label: "Coaches", icon: UserCog },
           { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
+          { to: "/admin/solicitudes-cambio-plan", label: "Solicitudes cambio plan", icon: RefreshCw, noveltyKey: "cambios_plan" },
         ],
       },
       {
         label: "Admisiones",
         items: [
-          { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+          { to: "/admin/eventos", label: "Eventos", icon: Trophy, noveltyKey: "eventos" },
           { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
           { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" },
           { to: "/admin/procesos", label: "Procesos", icon: Workflow },
@@ -73,7 +77,7 @@ const modules: NavModule[] = [
           { to: "/admin/pagos", label: "Pagos", icon: Receipt },
           { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet },
           { to: "/admin/cuenta-corriente", label: "Cuenta corriente", icon: Wallet },
-          { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck },
+          { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck, noveltyKey: "cobros_entrega" },
         ],
       },
       {
@@ -119,8 +123,8 @@ const modules: NavModule[] = [
       {
         label: "Operación",
         items: [
-          { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
-          { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
+          { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes, noveltyKey: "tienda_ventas" },
+          { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck, noveltyKey: "pedidos_proveedor" },
           { to: "/admin/tienda/proveedores", label: "Proveedores", icon: Truck },
           { to: "/admin/tienda/control-mercaderia", label: "Control de Mercadería", icon: AlertTriangle },
           
@@ -172,6 +176,7 @@ const AdminLayout = () => {
   const [waitlistPending, setWaitlistPending] = useState(0);
   const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
   const [turneraPending, setTurneraPending] = useState(0);
+  const [novedades, setNovedades] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const key = findModuleKeyForPath(location.pathname);
@@ -182,15 +187,17 @@ const AdminLayout = () => {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [{ data: pending }, { data: newEntries }, { data: newTurnera }] = await Promise.all([
+      const [{ data: pending }, { data: newEntries }, { data: newTurnera }, { data: nov }] = await Promise.all([
         supabase.rpc("count_pending_waitlist_requests" as any),
         supabase.rpc("count_new_waitlist_entries" as any),
         supabase.rpc("count_new_turnera_reservations" as any),
+        supabase.rpc("count_admin_novedades" as any),
       ]);
       if (alive) {
         setWaitlistPending(Number(pending ?? 0));
         setWaitlistEntriesPending(Number(newEntries ?? 0));
         setTurneraPending(Number(newTurnera ?? 0));
+        setNovedades((nov as any) || {});
       }
     };
     load();
@@ -203,6 +210,20 @@ const AdminLayout = () => {
       window.removeEventListener("reybaud:refresh-admin-badges", onRefresh);
     };
   }, [location.pathname]);
+
+  // Al entrar a una sección con novedades, la marcamos como vista
+  useEffect(() => {
+    const item = modules
+      .flatMap((m) => m.groups.flatMap((g) => g.items))
+      .filter((it) => it.noveltyKey && location.pathname.startsWith(it.to))
+      .sort((a, b) => b.to.length - a.to.length)[0];
+    if (!item?.noveltyKey) return;
+    const key = item.noveltyKey;
+    supabase.rpc("mark_admin_section_seen" as any, { p_section_key: key }).then(() => {
+      setNovedades((prev) => ({ ...prev, [key]: 0 }));
+    });
+  }, [location.pathname]);
+
 
   const toggleCollapsed = () => {
     const next = !collapsed;
@@ -300,13 +321,26 @@ const AdminLayout = () => {
     key === "waitlist_entries" ? waitlistEntriesPending :
     key === "turnera" ? turneraPending : 0;
 
+  const noveltyCountFor = (key?: NoveltyKey) => (key ? Number(novedades[key] ?? 0) : 0);
+
   const moduleBadgeCount = (m: NavModule) =>
     m.groups.reduce((acc, g) => acc + g.items.reduce((a, it) => a + badgeCountFor(it.badgeKey), 0), 0);
+
+  const moduleNoveltyCount = (m: NavModule) =>
+    m.groups.reduce((acc, g) => acc + g.items.reduce((a, it) => a + noveltyCountFor(it.noveltyKey), 0), 0);
+
+  const NoveltyDot = ({ count, className = "" }: { count: number; className?: string }) => (
+    <span
+      title={`${count} novedad${count === 1 ? "" : "es"}`}
+      className={`inline-block w-2 h-2 rounded-full bg-destructive shadow-[0_0_0_2px_hsl(var(--sidebar-background))] animate-pulse ${className}`}
+    />
+  );
 
   const NavItemRow = ({ item, mobile = false }: { item: NavItem; mobile?: boolean }) => {
     const iconSize = mobile ? "w-5 h-5" : "w-4 h-4";
     const py = mobile ? "py-3" : "py-2";
     const badgeCount = badgeCountFor(item.badgeKey);
+    const novelty = noveltyCountFor(item.noveltyKey);
 
     if (collapsed && !mobile) {
       return (
@@ -329,10 +363,13 @@ const AdminLayout = () => {
                   {badgeCount > 99 ? "99+" : badgeCount}
                 </span>
               )}
+              {badgeCount === 0 && novelty > 0 && (
+                <NoveltyDot count={novelty} className="absolute top-1 right-1" />
+              )}
             </NavLink>
           </TooltipTrigger>
           <TooltipContent side="right" className="text-xs">
-            {item.label}{badgeCount > 0 ? ` (${badgeCount})` : ""}
+            {item.label}{badgeCount > 0 ? ` (${badgeCount})` : novelty > 0 ? ` — ${novelty} nuevo${novelty === 1 ? "" : "s"}` : ""}
           </TooltipContent>
         </Tooltip>
       );
@@ -352,7 +389,10 @@ const AdminLayout = () => {
         }
       >
         <item.icon className={iconSize} />
-        <span className="flex-1">{item.label}</span>
+        <span className="flex-1 flex items-center gap-2">
+          {item.label}
+          {novelty > 0 && <NoveltyDot count={novelty} />}
+        </span>
         {badgeCount > 0 && (
           <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
             {badgeCount > 99 ? "99+" : badgeCount}
@@ -367,6 +407,7 @@ const AdminLayout = () => {
       {visibleModules.map((m) => {
         const isOpen = openModule === m.key;
         const badge = moduleBadgeCount(m);
+        const moduleNovelty = moduleNoveltyCount(m);
         const Icon = m.icon;
 
         if (collapsed && !mobile) {
@@ -392,7 +433,10 @@ const AdminLayout = () => {
               }`}
             >
               <Icon className={mobile ? "w-5 h-5" : "w-4 h-4"} />
-              <span className="flex-1 text-left">{m.label}</span>
+              <span className="flex-1 text-left flex items-center gap-2">
+                {m.label}
+                {!isOpen && moduleNovelty > 0 && <NoveltyDot count={moduleNovelty} />}
+              </span>
               {badge > 0 && !isOpen && (
                 <span className="min-w-[20px] h-5 px-1.5 rounded-full bg-primary text-[10px] font-bold text-primary-foreground flex items-center justify-center">
                   {badge > 99 ? "99+" : badge}
