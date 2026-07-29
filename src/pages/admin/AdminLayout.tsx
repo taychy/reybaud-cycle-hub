@@ -9,9 +9,12 @@ import SwitchPortalButton from "@/components/SwitchPortalButton";
 
 /* ─── Nav structure ─── */
 type BadgeKey = "waitlist" | "waitlist_entries" | "turnera";
-type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; superAdmin?: boolean };
+/** Secciones con "pelotita" de novedad (contenido nuevo desde la última visita) */
+type NoveltyKey = "alumnos" | "eventos" | "tienda_ventas" | "pedidos_proveedor" | "cobros_entrega" | "cambios_plan";
+type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; noveltyKey?: NoveltyKey; superAdmin?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 type NavModule = { key: string; label: string; icon: any; groups: NavGroup[] };
+
 
 const modules: NavModule[] = [
   {
