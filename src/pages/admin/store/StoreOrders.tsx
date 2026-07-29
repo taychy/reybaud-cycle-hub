@@ -1033,14 +1033,19 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <Button
                         size="sm"
                         className="w-full"
-                        variant={detail.supplier_notified_at ? "outline" : "default"}
+                        variant="outline"
                         disabled={!supplier.email || notifying}
                         onClick={notifySupplier}
                       >
                         <Mail className="w-4 h-4 mr-1" />
-                        {notifying ? "Enviando..." : detail.supplier_notified_at ? "Reenviar pedido al proveedor" : "Avisar al proveedor"}
+                        {notifying ? "Enviando..." : detail.supplier_notified_at ? "Reenviar pedido al proveedor" : "Avisar solo este pedido"}
                       </Button>
+                      <p className="text-[10px] text-muted-foreground">
+                        Usalo solo para urgencias. Lo habitual es juntar las ventas en Ventas → Por pedir y armar un único
+                        pedido al proveedor.
+                      </p>
                     </section>
+
                   )}
 
                   {/* Tracking */}

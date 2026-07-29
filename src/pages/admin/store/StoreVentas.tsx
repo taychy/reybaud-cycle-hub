@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingCart, ClipboardList, Inbox, RefreshCw } from "lucide-react";
+import { ShoppingCart, ClipboardList, Inbox, RefreshCw, PackagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import StoreOrders from "./StoreOrders";
 import StorePreorders from "./StorePreorders";
 import StoreCambios from "./StoreCambios";
+import StorePorPedir from "./StorePorPedir";
 
-type Tab = "nuevos" | "pedidos" | "preventas" | "cambios";
+type Tab = "nuevos" | "pedidos" | "por-pedir" | "preventas" | "cambios";
 
 const NUEVOS_STATUSES = ["pendiente", "pagado", "preparando"];
+
 
 const StoreVentas = () => {
   const [params, setParams] = useSearchParams();
@@ -17,8 +19,10 @@ const StoreVentas = () => {
   const tab: Tab =
     raw === "preventas" ? "preventas"
     : raw === "pedidos" ? "pedidos"
+    : raw === "por-pedir" ? "por-pedir"
     : raw === "cambios" ? "cambios"
     : "nuevos";
+
 
   const [nuevosCount, setNuevosCount] = useState<number | null>(null);
 
@@ -52,7 +56,7 @@ const StoreVentas = () => {
       </div>
 
       <Tabs value={tab} onValueChange={handleChange} className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl">
           <TabsTrigger value="nuevos" className="gap-2">
             <Inbox className="w-4 h-4" />
             <span>Nuevos</span>
@@ -64,6 +68,9 @@ const StoreVentas = () => {
           </TabsTrigger>
           <TabsTrigger value="pedidos" className="gap-2">
             <ShoppingCart className="w-4 h-4" /> Pedidos
+          </TabsTrigger>
+          <TabsTrigger value="por-pedir" className="gap-2">
+            <PackagePlus className="w-4 h-4" /> Por pedir
           </TabsTrigger>
           <TabsTrigger value="preventas" className="gap-2">
             <ClipboardList className="w-4 h-4" /> Preventas
@@ -83,9 +90,13 @@ const StoreVentas = () => {
         <TabsContent value="pedidos" className="mt-4">
           <StoreOrders />
         </TabsContent>
+        <TabsContent value="por-pedir" className="mt-4">
+          <StorePorPedir />
+        </TabsContent>
         <TabsContent value="preventas" className="mt-4">
           <StorePreorders />
         </TabsContent>
+
         <TabsContent value="cambios" className="mt-4">
           <StoreCambios />
         </TabsContent>
