@@ -554,8 +554,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     try {
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
+      // Crear una suscripción nueva: al agregar plan, o al renovar cambiando de plan
+      const isCreating = dialogMode === "add" || changeScope === "renovar";
       // Compose internal note with payment data
-      const isUnpaidAdd = dialogMode === "add" && payStatus !== "pagado";
+      const isUnpaidAdd = isCreating && payStatus !== "pagado";
       const fechaPagoLabel = !isUnpaidAdd && payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
       const metodoLabel = PAYMENT_METHODS.find(m => m.key === payMetodo)?.label || payMetodo;
       const payTagParts: string[] = [];
@@ -568,7 +570,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const payTag = `[${payTagParts.join(" ")}]`;
       const composedNote = [changeNote?.trim() || null, payTag].filter(Boolean).join(" ");
 
-      if (dialogMode === "add") {
+      if (isCreating) {
         const endStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
