@@ -22,6 +22,8 @@ import autoTable from "jspdf-autotable";
 import { printSinglePreorderLabel } from "@/lib/preorderLabels";
 import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
+import { NewSinceDot } from "@/components/admin/NoveltyDot";
+
 
 interface OrderItem {
   id: string;
@@ -754,7 +756,13 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                   <td className="px-3 py-2 text-xs text-muted-foreground">
                     {new Date(r.created_at).toLocaleDateString("es-AR")}
                   </td>
-                  <td className="px-3 py-2 text-xs font-mono">#{r.order_number}</td>
+                  <td className="px-3 py-2 text-xs font-mono">
+                    <span className="inline-flex items-center gap-1.5">
+                      <NewSinceDot createdAt={r.created_at} section="tienda_ventas" />
+                      #{r.order_number}
+                    </span>
+                  </td>
+
                   <td className="px-3 py-2">
                     <div>{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || r.customer_name}</div>
                     <div className="text-[10px] text-muted-foreground">
