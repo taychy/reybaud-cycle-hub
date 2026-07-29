@@ -32,6 +32,21 @@ const statusColor = (s: string) => {
 
 const labelStatus = (s: string) => (s || "").replace(/_/g, " ");
 
+const CLOSED_STATUSES = ["entregado", "cancelado"];
+
+const variantText = (v: any): string => {
+  if (!v) return "";
+  if (typeof v === "string") return v;
+  try {
+    return Object.entries(v)
+      .filter(([, val]) => val !== null && val !== "" && val !== undefined)
+      .map(([k, val]) => `${k}: ${val}`)
+      .join(" · ");
+  } catch {
+    return "";
+  }
+};
+
 interface Props {
   restrictStatuses?: string[];
   title?: string;
