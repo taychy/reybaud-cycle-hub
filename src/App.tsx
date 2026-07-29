@@ -78,6 +78,7 @@ import StoreVentas from "./pages/admin/store/StoreVentas";
 import StorePromotions from "./pages/admin/store/StorePromotions";
 import StoreBanners from "./pages/admin/store/StoreBanners";
 import StoreStock from "./pages/admin/store/StoreStock";
+import StoreSuppliers from "./pages/admin/store/StoreSuppliers";
 import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
 import StoreCambios from "./pages/admin/store/StoreCambios";
 import DepositoCambios from "./pages/deposito/DepositoCambios";
@@ -265,6 +266,7 @@ const App = () => (
             <Route path="tienda/promociones" element={<StorePromotions />} />
             <Route path="tienda/banners" element={<StoreBanners />} />
             <Route path="tienda/stock" element={<StoreStock />} />
+            <Route path="tienda/proveedores" element={<StoreSuppliers />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
             <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
