@@ -152,7 +152,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     const its = itemsByOrder[orderId] || [];
     if (!its.length) return { texto: "—", cantidad: 0 };
     const cantidad = its.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
-    const v0 = variantText(its[0]?.variant);
+    const v0 = variantText(its[0]?.variant_selection);
     const primero = `${its[0]?.product_name || "—"}${v0 ? ` (${v0})` : ""}`;
     const texto = its.length > 1 ? `${primero} +${its.length - 1} más` : primero;
     return { texto, cantidad };
@@ -178,13 +178,13 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     return {
       id: r.id,
       alumno_id: r.alumno_id || undefined,
-      short_number: `#${r.order_number}`,
+      short_number: `${r.order_number}`,
       producto_nombre: productoNombre,
       cantidad: its.reduce((s, i) => s + Number(i.quantity || 0), 0) || 1,
-      variante: first?.variant || {},
+      variante: first?.variant_selection || {},
       items: its.map((i: any) => ({
         nombre: i.product_name,
-        variante: i.variant,
+        variante: i.variant_selection,
         precio: i.unit_price,
       })),
       precio_total: total,
@@ -431,8 +431,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                     <div key={it.id} className="px-3 py-2 flex justify-between">
                       <span>
                         {it.product_name} × {it.quantity}
-                        {variantText(it.variant) && (
-                          <span className="block text-xs text-muted-foreground">{variantText(it.variant)}</span>
+                        {variantText(it.variant_selection) && (
+                          <span className="block text-xs text-muted-foreground">{variantText(it.variant_selection)}</span>
                         )}
                       </span>
                       <span className="font-heading font-bold">${(it.unit_price * it.quantity).toLocaleString("es-AR")}</span>
