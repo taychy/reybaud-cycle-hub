@@ -4,8 +4,18 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload } from "lucide-react";
+import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { EVENTOS_TRANSFER_INFO } from "@/lib/contactInfo";
+
+const copyText = async (val: string, label: string) => {
+  try {
+    await navigator.clipboard.writeText(val);
+    toast({ title: `${label} copiado` });
+  } catch {
+    toast({ title: "No se pudo copiar", variant: "destructive" });
+  }
+};
 
 interface GuestData {
   participant: {
