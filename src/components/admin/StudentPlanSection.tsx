@@ -899,7 +899,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Button>
             )}
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openChangePlan(sub.id)}>
-              <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
+              <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar / Renovar
             </Button>
             {(sub.estado === "activa" || effectiveEstado === "activa") && !sub.cancelada_at && (
               <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openPauseSub(sub)}>
