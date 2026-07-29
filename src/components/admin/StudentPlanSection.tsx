@@ -109,6 +109,15 @@ const getPaymentMethodLabel = (method: string | null) => {
 const isOverdueStatus = (estado: string) =>
   estado === "vencida" || estado === "pago_pendiente" || estado === "acceso_pausado";
 
+/** Día siguiente al vencimiento del plan vigente (o hoy si ya venció / no hay fecha). */
+const nextPeriodStart = (fechaFin: string | null, todayStr: string) => {
+  if (!fechaFin) return todayStr;
+  const [y, m, d] = fechaFin.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  const iso = next.toISOString().slice(0, 10);
+  return iso > todayStr ? iso : todayStr;
+};
+
 export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUpdate, openOverduePreviewToken }: Props) {
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
