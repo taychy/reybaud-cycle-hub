@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Lock, LockOpen, Store, ChevronRight } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { NewSinceDot } from "@/components/admin/NoveltyDot";
+
 
 interface DeliveryList {
   id: string;
