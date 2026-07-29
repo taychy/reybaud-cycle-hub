@@ -98,6 +98,7 @@ import SupplierOrders from "./pages/SupplierOrders";
 import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
 import AdminControlMercaderia from "./pages/admin/AdminControlMercaderia";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import EventTerms from "./pages/EventTerms";
 import ExternalTripView from "./pages/ExternalTripView";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
 import PublicStore from "./pages/PublicStore";
