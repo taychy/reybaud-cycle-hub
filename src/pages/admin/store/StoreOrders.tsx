@@ -281,9 +281,19 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
         .from("store_order_items")
         .select("*")
         .in("order_id", orderIds);
-      (items || []).forEach((it: any) => {
+      (items || []).forEach((raw: any) => {
+        const it: OrderItem = {
+          id: raw.id,
+          order_id: raw.order_id,
+          product_id: raw.product_id ?? null,
+          producto_nombre: raw.producto_nombre ?? raw.product_name ?? "—",
+          variante: raw.variante ?? raw.variant_selection ?? {},
+          cantidad: Number(raw.cantidad ?? raw.quantity ?? 0),
+          precio_unitario: Number(raw.precio_unitario ?? raw.unit_price ?? 0),
+        };
         (itemsByOrder[it.order_id] = itemsByOrder[it.order_id] || []).push(it);
       });
+
     }
     const enriched: Order[] = list.map((o: any) => ({ ...o, items: itemsByOrder[o.id] || [] }));
     setRows(enriched);
