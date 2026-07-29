@@ -615,10 +615,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
         const discountText = discount ? ` (con dto. ${discount.nombre}: ${discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`})` : "";
         const statusText = isUnpaidAdd ? ` · ${payStatus === "vencida" ? "VENCIDO (deuda manual)" : "PENDIENTE de pago"}` : "";
-        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}${statusText}`);
+        const isRenewal = dialogMode === "change";
+        const prevName = isRenewal ? (subs.find(s => s.id === dialogSubId)?.planes?.nombre || "—") : null;
+        toast.success(
+          isRenewal
+            ? `Próximo período: "${selectedPlan?.nombre}" (antes ${prevName})${statusText}`
+            : `Plan "${selectedPlan?.nombre}" agregado${discountText}${statusText}`,
+        );
         await logStudentActivity({
-          alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${isUnpaidAdd ? statusText : (fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`)}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          alumnoId: alumno.id, eventType: "cambio_plan", title: isRenewal ? "Renovación con cambio de plan" : "Plan agregado",
+          description: `${isRenewal ? `Próximo período: de "${prevName}" a "${selectedPlan?.nombre || "—"}"` : `Se agregó "${selectedPlan?.nombre || "—"}"`} desde ${new Date(changeFechaInicio + "T00:00:00").toLocaleDateString("es-AR")}${discountText}${isUnpaidAdd ? statusText : (fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`)}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
