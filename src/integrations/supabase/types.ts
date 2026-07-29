@@ -8954,6 +8954,8 @@ export type Database = {
           product_id: string | null
           product_name: string
           quantity: number
+          supplier_order_item_id: string | null
+          supplier_ordered_at: string | null
           unit_price: number
           variant_selection: Json
         }
@@ -8966,6 +8968,8 @@ export type Database = {
           product_id?: string | null
           product_name: string
           quantity?: number
+          supplier_order_item_id?: string | null
+          supplier_ordered_at?: string | null
           unit_price: number
           variant_selection?: Json
         }
@@ -8978,6 +8982,8 @@ export type Database = {
           product_id?: string | null
           product_name?: string
           quantity?: number
+          supplier_order_item_id?: string | null
+          supplier_ordered_at?: string | null
           unit_price?: number
           variant_selection?: Json
         }
@@ -8994,6 +9000,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_order_items_supplier_order_item_id_fkey"
+            columns: ["supplier_order_item_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_order_items"
             referencedColumns: ["id"]
           },
         ]
@@ -9696,6 +9709,7 @@ export type Database = {
           proveedor_contacto: string | null
           proveedor_email: string | null
           proveedor_nombre: string
+          supplier_id: string | null
           total_estimado: number | null
           updated_at: string
         }
@@ -9712,6 +9726,7 @@ export type Database = {
           proveedor_contacto?: string | null
           proveedor_email?: string | null
           proveedor_nombre: string
+          supplier_id?: string | null
           total_estimado?: number | null
           updated_at?: string
         }
@@ -9728,10 +9743,19 @@ export type Database = {
           proveedor_contacto?: string | null
           proveedor_email?: string | null
           proveedor_nombre?: string
+          supplier_id?: string | null
           total_estimado?: number | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "supplier_orders_supplier_id_fkey"
+            columns: ["supplier_id"]
+            isOneToOne: false
+            referencedRelation: "store_suppliers"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       suppressed_emails: {
         Row: {
@@ -10944,6 +10968,21 @@ export type Database = {
           p_proveedor: string
         }
         Returns: string
+      }
+      create_supplier_order_from_sales: {
+        Args: {
+          p_fecha_estimada_entrega: string
+          p_groups: Json
+          p_moneda: string
+          p_notas: string
+          p_proveedor_email: string
+          p_proveedor_nombre: string
+          p_supplier_id: string
+        }
+        Returns: {
+          numero: string
+          order_id: string
+        }[]
       }
       cuenta_publica_consume_credit: {
         Args: { p_fuente_id: string; p_fuente_tabla: string; p_token: string }
