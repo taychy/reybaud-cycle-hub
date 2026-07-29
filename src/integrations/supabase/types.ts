@@ -2022,6 +2022,10 @@ export type Database = {
           monto_esperado: number | null
           notas: string | null
           origen: string
+          rechazado: boolean
+          rechazado_at: string | null
+          rechazado_motivo: string | null
+          rechazado_por: string | null
           updated_at: string
           validado: boolean
           validado_at: string | null
@@ -2045,6 +2049,10 @@ export type Database = {
           monto_esperado?: number | null
           notas?: string | null
           origen?: string
+          rechazado?: boolean
+          rechazado_at?: string | null
+          rechazado_motivo?: string | null
+          rechazado_por?: string | null
           updated_at?: string
           validado?: boolean
           validado_at?: string | null
@@ -2068,6 +2076,10 @@ export type Database = {
           monto_esperado?: number | null
           notas?: string | null
           origen?: string
+          rechazado?: boolean
+          rechazado_at?: string | null
+          rechazado_motivo?: string | null
+          rechazado_por?: string | null
           updated_at?: string
           validado?: boolean
           validado_at?: string | null
