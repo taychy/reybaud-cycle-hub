@@ -32,6 +32,21 @@ const statusColor = (s: string) => {
 
 const labelStatus = (s: string) => (s || "").replace(/_/g, " ");
 
+const CLOSED_STATUSES = ["entregado", "cancelado"];
+
+const variantText = (v: any): string => {
+  if (!v) return "";
+  if (typeof v === "string") return v;
+  try {
+    return Object.entries(v)
+      .filter(([, val]) => val !== null && val !== "" && val !== undefined)
+      .map(([k, val]) => `${k}: ${val}`)
+      .join(" · ");
+  } catch {
+    return "";
+  }
+};
+
 interface Props {
   restrictStatuses?: string[];
   title?: string;
@@ -44,6 +59,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [sedesMap, setSedesMap] = useState<Record<string, any>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [showFinalizados, setShowFinalizados] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
@@ -136,7 +152,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     const its = itemsByOrder[orderId] || [];
     if (!its.length) return { texto: "—", cantidad: 0 };
     const cantidad = its.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
-    const primero = its[0]?.product_name || "—";
+    const v0 = variantText(its[0]?.variant);
+    const primero = `${its[0]?.product_name || "—"}${v0 ? ` (${v0})` : ""}`;
     const texto = its.length > 1 ? `${primero} +${its.length - 1} más` : primero;
     return { texto, cantidad };
   };
@@ -201,6 +218,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const filtered = useMemo(() => rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
     if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterStatus === "all" && !restrictStatuses && !showFinalizados && CLOSED_STATUSES.includes(r.status)) return false;
     if (search) {
       const s = search.toLowerCase();
       const nom = nombreCliente(r).toLowerCase();
@@ -209,7 +227,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       if (!nom.includes(s) && !num.includes(s) && !prods.includes(s)) return false;
     }
     return true;
-  }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses]);
+  }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
+
 
   const printBulk = async () => {
     const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
@@ -272,7 +291,14 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
             {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
           </SelectContent>
         </Select>
+        {!restrictStatuses && filterStatus === "all" && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox checked={showFinalizados} onCheckedChange={(v) => setShowFinalizados(!!v)} />
+            Ver entregados y cancelados
+          </label>
+        )}
       </div>
+
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
@@ -403,7 +429,12 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <div className="divide-y divide-border rounded-lg border border-border">
                   {orderItems.map((it) => (
                     <div key={it.id} className="px-3 py-2 flex justify-between">
-                      <span>{it.product_name} × {it.quantity}</span>
+                      <span>
+                        {it.product_name} × {it.quantity}
+                        {variantText(it.variant) && (
+                          <span className="block text-xs text-muted-foreground">{variantText(it.variant)}</span>
+                        )}
+                      </span>
                       <span className="font-heading font-bold">${(it.unit_price * it.quantity).toLocaleString("es-AR")}</span>
                     </div>
                   ))}
