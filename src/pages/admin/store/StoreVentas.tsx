@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShoppingCart, ClipboardList, Inbox, RefreshCw } from "lucide-react";
+import { ShoppingCart, ClipboardList, Inbox, RefreshCw, PackagePlus } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import StoreOrders from "./StoreOrders";
 import StorePreorders from "./StorePreorders";
 import StoreCambios from "./StoreCambios";
+import StorePorPedir from "./StorePorPedir";
 
-type Tab = "nuevos" | "pedidos" | "preventas" | "cambios";
+type Tab = "nuevos" | "pedidos" | "por-pedir" | "preventas" | "cambios";
 
 const NUEVOS_STATUSES = ["pendiente", "pagado", "preparando"];
+
 
 const StoreVentas = () => {
   const [params, setParams] = useSearchParams();
