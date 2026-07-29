@@ -59,6 +59,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [sedesMap, setSedesMap] = useState<Record<string, any>>({});
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
+  const [showFinalizados, setShowFinalizados] = useState(false);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<any>(null);
   const [orderItems, setOrderItems] = useState<any[]>([]);
