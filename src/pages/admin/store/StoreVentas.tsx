@@ -56,7 +56,7 @@ const StoreVentas = () => {
       </div>
 
       <Tabs value={tab} onValueChange={handleChange} className="w-full">
-        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
+        <TabsList className="grid grid-cols-5 w-full max-w-3xl">
           <TabsTrigger value="nuevos" className="gap-2">
             <Inbox className="w-4 h-4" />
             <span>Nuevos</span>
@@ -68,6 +68,9 @@ const StoreVentas = () => {
           </TabsTrigger>
           <TabsTrigger value="pedidos" className="gap-2">
             <ShoppingCart className="w-4 h-4" /> Pedidos
+          </TabsTrigger>
+          <TabsTrigger value="por-pedir" className="gap-2">
+            <PackagePlus className="w-4 h-4" /> Por pedir
           </TabsTrigger>
           <TabsTrigger value="preventas" className="gap-2">
             <ClipboardList className="w-4 h-4" /> Preventas
@@ -87,9 +90,13 @@ const StoreVentas = () => {
         <TabsContent value="pedidos" className="mt-4">
           <StoreOrders />
         </TabsContent>
+        <TabsContent value="por-pedir" className="mt-4">
+          <StorePorPedir />
+        </TabsContent>
         <TabsContent value="preventas" className="mt-4">
           <StorePreorders />
         </TabsContent>
+
         <TabsContent value="cambios" className="mt-4">
           <StoreCambios />
         </TabsContent>
