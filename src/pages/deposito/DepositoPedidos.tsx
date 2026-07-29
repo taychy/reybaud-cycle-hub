@@ -429,7 +429,12 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <div className="divide-y divide-border rounded-lg border border-border">
                   {orderItems.map((it) => (
                     <div key={it.id} className="px-3 py-2 flex justify-between">
-                      <span>{it.product_name} × {it.quantity}</span>
+                      <span>
+                        {it.product_name} × {it.quantity}
+                        {variantText(it.variant) && (
+                          <span className="block text-xs text-muted-foreground">{variantText(it.variant)}</span>
+                        )}
+                      </span>
                       <span className="font-heading font-bold">${(it.unit_price * it.quantity).toLocaleString("es-AR")}</span>
                     </div>
                   ))}
