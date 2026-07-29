@@ -498,17 +498,46 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const openChangePlan = (subId: string) => {
     const sub = subs.find(s => s.id === subId);
     const todayStr = new Date().toISOString().split("T")[0];
+    // Si al plan vigente le quedan pocos días (o ya venció), lo más habitual
+    // es renovar cambiando de plan → arrancamos en modo "renovar".
+    const fin = sub?.fecha_fin?.slice(0, 10) || null;
+    let diasRestantes = 999;
+    if (fin) {
+      const [fy, fm, fd] = fin.split("-").map(Number);
+      const [ty, tm, td] = todayStr.split("-").map(Number);
+      diasRestantes = Math.round(
+        (Date.UTC(fy, fm - 1, fd) - Date.UTC(ty, tm - 1, td)) / 86400000,
+      );
+    }
+    const scope: "actual" | "renovar" = diasRestantes <= 10 ? "renovar" : "actual";
+    setChangeScope(scope);
     setDialogMode("change");
     setPayStatus("pagado");
     setDialogSubId(subId);
-    setNewPlanId(sub?.plan_id || "");
-    setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
+    setNewPlanId(scope === "renovar" ? "" : (sub?.plan_id || ""));
+    setChangeFechaInicio(scope === "renovar" ? nextPeriodStart(fin, todayStr) : (sub?.fecha_inicio?.slice(0, 10) || todayStr));
     setChangeNote("");
     setPayMetodo(sub?.metodo_pago || "efectivo");
     setPayFecha(todayStr);
-    setUsarPrecioActual(false);
+    setUsarPrecioActual(scope === "renovar");
     setShowPlanDialog(true);
   };
+
+  const applyChangeScope = (scope: "actual" | "renovar") => {
+    setChangeScope(scope);
+    const sub = subs.find(s => s.id === dialogSubId);
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (scope === "renovar") {
+      setChangeFechaInicio(nextPeriodStart(sub?.fecha_fin?.slice(0, 10) || null, todayStr));
+      setUsarPrecioActual(true);
+      setPayStatus("pagado");
+    } else {
+      setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
+      setNewPlanId(sub?.plan_id || "");
+      setUsarPrecioActual(false);
+    }
+  };
+
 
   const handleSavePlan = async () => {
     if (!newPlanId) return;
