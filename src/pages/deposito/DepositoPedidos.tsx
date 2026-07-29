@@ -291,7 +291,14 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
             {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
           </SelectContent>
         </Select>
+        {!restrictStatuses && filterStatus === "all" && (
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Checkbox checked={showFinalizados} onCheckedChange={(v) => setShowFinalizados(!!v)} />
+            Ver entregados y cancelados
+          </label>
+        )}
       </div>
+
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
