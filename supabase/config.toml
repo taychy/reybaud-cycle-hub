@@ -1,6 +1,8 @@
 project_id = "tgqfakfloonbunwkdoug"
 
 [functions]
+  [functions.create-public-store-order]
+    verify_jwt = false
   [functions.auth-email-hook]
     verify_jwt = false
   [functions.create-mp-preference]
