@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, MessageCircle } from "lucide-react";
+import { ArrowLeft, MessageCircle, ShoppingBag } from "lucide-react";
+import PublicCheckoutDialog from "@/components/store/PublicCheckoutDialog";
 import { formatPrice } from "@/lib/currency";
 import { effectiveStock, variantStockSum } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
@@ -18,6 +19,7 @@ interface PubProduct {
   tag: string | null;
   stock: number | null;
   variant_stock: any;
+  variants: any;
 }
 
 const prettyVariant = (key: string) => key.split("|").map((p) => p.split(":").slice(1).join(":") || p).join(" · ");
@@ -26,12 +28,13 @@ const PublicProduct = () => {
   const { id } = useParams<{ id: string }>();
   const [p, setP] = useState<PubProduct | null>(null);
   const [loading, setLoading] = useState(true);
+  const [buyOpen, setBuyOpen] = useState(false);
 
   useEffect(() => {
     const load = async () => {
       const { data } = await supabase
         .from("store_products")
-        .select("id, name, description, price, old_price, currency, image_url, tag, stock, variant_stock")
+        .select("id, name, description, price, old_price, currency, image_url, tag, stock, variant_stock, variants")
         .eq("id", id as string)
         .eq("status", "active")
         .maybeSingle();
@@ -108,16 +111,27 @@ const PublicProduct = () => {
               <p className="text-xs text-muted-foreground">{total > 0 ? `${total} unidades disponibles` : "Sin stock por el momento"}</p>
             )}
 
-            <a
-              href={buildWhatsAppUrl(`Hola! Quiero consultar por "${p.name}" de la tienda Reybaud. ${url}`)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="mt-2 flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-6 py-3 font-heading font-semibold uppercase tracking-wider text-sm hover:opacity-90 transition-opacity"
-            >
-              <MessageCircle className="w-4 h-4" /> Consultar por WhatsApp
-            </a>
+            <div className="mt-2 space-y-2">
+              <button
+                type="button"
+                disabled={total <= 0}
+                onClick={() => setBuyOpen(true)}
+                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-6 py-3 font-heading font-semibold uppercase tracking-wider text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                <ShoppingBag className="w-4 h-4" /> {total > 0 ? "Comprar ahora" : "Sin stock"}
+              </button>
+              <a
+                href={buildWhatsAppUrl(`Hola! Quiero consultar por "${p.name}" de la tienda Reybaud. ${url}`)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="w-full flex items-center justify-center gap-2 rounded-xl border border-border text-foreground px-6 py-2.5 font-heading font-semibold uppercase tracking-wider text-xs hover:bg-secondary transition-colors"
+              >
+                <MessageCircle className="w-4 h-4" /> Consultar por WhatsApp
+              </a>
+            </div>
           </div>
         </div>
+        <PublicCheckoutDialog open={buyOpen} onOpenChange={setBuyOpen} product={p as any} />
         <div className="h-6" />
       </div>
     </main>
