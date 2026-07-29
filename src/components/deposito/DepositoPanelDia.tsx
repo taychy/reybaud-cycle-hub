@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import DayNavigatorBar from "@/components/admin/DayNavigatorBar";
 import {
   AlertTriangle, Package, Truck, RefreshCw, ShoppingBag, CalendarDays,
   CheckCircle2, ClipboardList, ChevronRight,
@@ -66,13 +67,15 @@ interface Props {
 
 const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
   const navigate = useNavigate();
+  const [dia, setDia] = useState<string>(todayStr());
   const [loading, setLoading] = useState(true);
   const [alerts, setAlerts] = useState<AlertCard[]>([]);
   const [week, setWeek] = useState<WeekItem[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const hoy = todayStr();
+    const hoy = dia;
+    const esHoy = dia === todayStr();
     const fin = addDays(hoy, 7);
 
     const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, stockRes] = await Promise.all([
@@ -94,12 +97,12 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     const sinStock = productos.filter((p: any) => (p.stock ?? 0) <= 0).length;
     const stockBajo = productos.length - sinStock;
 
-    const entregasHoy = deliveries.filter((d: any) => d.fecha_entrega && d.fecha_entrega <= hoy);
+    const entregasHoy = deliveries.filter((d: any) => d.fecha_entrega && (esHoy ? d.fecha_entrega <= hoy : d.fecha_entrega === hoy));
     const vanHoy = vans.find((v: any) => v.fecha_salida === hoy);
 
     const cards: AlertCard[] = [];
 
-    if (orders.length > 0) {
+    if (esHoy && orders.length > 0) {
       cards.push({
         key: "preparar",
         icon: ShoppingBag,
@@ -116,14 +119,14 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         key: "entregas",
         icon: Truck,
         count: entregasHoy.length,
-        title: "Entregas para hoy",
+        title: esHoy ? "Entregas para hoy" : "Entregas de ese día",
         desc: entregasHoy.map((d: any) => d.titulo).slice(0, 2).join(" · "),
         cta: "Abrir listas",
         to: "/deposito/entregas",
         tone: "warn",
       });
     }
-    if (!vanHoy) {
+    if (esHoy && !vanHoy) {
       cards.push({
         key: "camioneta",
         icon: Package,
@@ -135,7 +138,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         tone: "warn",
       });
     }
-    if (cambios.length > 0) {
+    if (esHoy && cambios.length > 0) {
       cards.push({
         key: "cambios",
         icon: RefreshCw,
@@ -147,7 +150,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         tone: "info",
       });
     }
-    if (supplier.length > 0) {
+    if (esHoy && supplier.length > 0) {
       cards.push({
         key: "proveedor",
         icon: ClipboardList,
@@ -159,7 +162,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         tone: "info",
       });
     }
-    if (sinStock > 0 || stockBajo > 0) {
+    if (esHoy && (sinStock > 0 || stockBajo > 0)) {
       cards.push({
         key: "stock",
         icon: AlertTriangle,
@@ -202,7 +205,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     setAlerts(cards);
     setWeek(items);
     setLoading(false);
-  }, [JSON.stringify(procesosEnCurso.map((p) => p.id))]);
+  }, [dia, JSON.stringify(procesosEnCurso.map((p) => p.id))]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -213,20 +216,34 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
 
   return (
     <section className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Panel del día</h1>
-          <p className="text-xs text-muted-foreground">{fmtDay(todayStr())}</p>
+          <Button variant="outline" size="sm" onClick={load} disabled={loading}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
+          </Button>
         </div>
-        <Button variant="outline" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
-        </Button>
+        <DayNavigatorBar
+          label={fmtDay(dia)}
+          selected={dia}
+          minISO={addDays(todayStr(), -90)}
+          todayISO={addDays(todayStr(), 90)}
+          canGoPrev
+          canGoNext
+          isToday={dia === todayStr()}
+          onPrev={() => setDia((d) => addDays(d, -1))}
+          onNext={() => setDia((d) => addDays(d, 1))}
+          onToday={() => setDia(todayStr())}
+          onPick={(iso) => setDia(iso)}
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* HOY */}
         <div className="lg:col-span-2 space-y-3">
-          <p className="text-xs uppercase tracking-wider text-muted-foreground">Qué hacer hoy</p>
+          <p className="text-xs uppercase tracking-wider text-muted-foreground">
+            {dia === todayStr() ? "Qué hacer hoy" : `Qué hay para ${fmtDay(dia)}`}
+          </p>
           {loading ? (
             <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">Cargando…</CardContent></Card>
           ) : alerts.length === 0 ? (
@@ -234,7 +251,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
               <CardContent className="p-8 text-center">
                 <CheckCircle2 className="w-10 h-10 mx-auto text-green-500 mb-2" />
                 <h3 className="font-heading text-base font-bold">Todo en orden</h3>
-                <p className="text-muted-foreground text-xs">No hay tareas pendientes para hoy.</p>
+                <p className="text-muted-foreground text-xs">No hay tareas pendientes para este día.</p>
               </CardContent>
             </Card>
           ) : (
@@ -263,7 +280,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         {/* SEMANA */}
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-            <CalendarDays className="w-3.5 h-3.5" /> Pendientes de la semana
+            <CalendarDays className="w-3.5 h-3.5" /> Próximos 7 días
           </p>
           <Card>
             <CardContent className="p-3 space-y-3">

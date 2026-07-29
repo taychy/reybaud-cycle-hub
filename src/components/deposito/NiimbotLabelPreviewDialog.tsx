@@ -8,7 +8,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Download, Package, X } from "lucide-react";
+import { Download, Package, Printer, X } from "lucide-react";
+import { printImageBlobs } from "@/lib/printBlob";
 import {
   downloadBlob,
   downloadPreviewsAsZip,
@@ -81,20 +82,33 @@ const NiimbotLabelPreviewDialog = ({
                     {p.filename}
                   </div>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => downloadBlob(p.blob, p.filename)}
-                >
-                  <Download className="w-4 h-4 mr-1" />
-                  Descargar PNG
-                </Button>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={() => printImageBlobs([p.blob])}>
+                    <Printer className="w-4 h-4 mr-1" />
+                    Imprimir
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => downloadBlob(p.blob, p.filename)}
+                  >
+                    <Download className="w-4 h-4 mr-1" />
+                    Descargar PNG
+                  </Button>
+                </div>
               </div>
             </div>
           ))}
         </div>
 
         <DialogFooter className="gap-2 sm:gap-2">
+          <Button
+            variant="secondary"
+            onClick={() => printImageBlobs(previews.map((p) => p.blob))}
+          >
+            <Printer className="w-4 h-4 mr-1" />
+            Imprimir {previews.length > 1 ? "todas" : ""}
+          </Button>
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             <X className="w-4 h-4 mr-1" />
             Cerrar sin descargar

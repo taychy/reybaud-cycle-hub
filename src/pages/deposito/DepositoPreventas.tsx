@@ -8,7 +8,8 @@ import { Search, Eye, QrCode, Printer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { formatPrice } from "@/lib/currency";
-import { printPreorderLabels, printSinglePreorderLabel, type PreorderLabelData } from "@/lib/preorderLabels";
+import { type PreorderLabelData } from "@/lib/preorderLabels";
+import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
 
 const ESTADOS = [
   "pendiente_pago_sena",
@@ -49,6 +50,7 @@ const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {})
   const [selected, setSelected] = useState<any>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
+  const [labelTargets, setLabelTargets] = useState<PreorderLabelData[]>([]);
   const { toast } = useToast();
 
   const load = async () => {
@@ -144,28 +146,11 @@ const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {})
     };
   };
 
-  const printOne = async (r: any) => {
-    try {
-      setPrinting(true);
-      await printSinglePreorderLabel(toLabelData(r));
-    } catch (e: any) {
-      toast({ title: "Error al generar etiqueta", description: e.message, variant: "destructive" });
-    } finally {
-      setPrinting(false);
-    }
-  };
+  const printOne = (r: any) => setLabelTargets([toLabelData(r)]);
 
-  const printBulk = async () => {
+  const printBulk = () => {
     const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
-    if (!list.length) return;
-    try {
-      setPrinting(true);
-      await printPreorderLabels(list);
-    } catch (e: any) {
-      toast({ title: "Error al generar etiquetas", description: e.message, variant: "destructive" });
-    } finally {
-      setPrinting(false);
-    }
+    if (list.length) setLabelTargets(list);
   };
 
   const toggleId = (id: string) => {
@@ -403,6 +388,12 @@ const DepositoPreventas = ({ restrictEstados, title = "Preventas" }: Props = {})
           )}
         </SheetContent>
       </Sheet>
+      <OrderLabelPrintDialog
+        open={labelTargets.length > 0}
+        onOpenChange={(o) => !o && setLabelTargets([])}
+        labels={labelTargets}
+        title={labelTargets.length === 1 ? "Etiqueta del pedido" : `Etiquetas (${labelTargets.length})`}
+      />
     </div>
   );
 };
