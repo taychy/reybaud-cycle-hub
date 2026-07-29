@@ -55,6 +55,9 @@ interface Order {
   envio_costo: number | null;
   envio_estado: string | null;
   delivered_at: string | null;
+  customer_phone?: string | null;
+  es_externo?: boolean | null;
+  supplier_notified_at?: string | null;
   items?: OrderItem[];
 }
 
@@ -170,6 +173,8 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [soloDeudores, setSoloDeudores] = useState(false);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Order | null>(null);
+  const [supplier, setSupplier] = useState<{ id: string; nombre: string; email: string | null; email_cc: string | null } | null>(null);
+  const [notifying, setNotifying] = useState(false);
   const [payOrder, setPayOrder] = useState<Order | null>(null);
   const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState("");
@@ -197,6 +202,68 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     setCancelReason("");
     if (detail?.id === cancelOrder.id) setDetail(null);
     load();
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      setSupplier(null);
+      const pids = (detail?.items || []).map((i) => i.product_id).filter(Boolean) as string[];
+      if (!pids.length) return;
+      const { data: prods } = await supabase
+        .from("store_products")
+        .select("id, supplier_id")
+        .in("id", pids);
+      const sid = (prods || []).map((p: any) => p.supplier_id).find(Boolean);
+      if (!sid) return;
+      const { data: sup } = await supabase
+        .from("store_suppliers")
+        .select("id, nombre, email, email_cc")
+        .eq("id", sid)
+        .maybeSingle();
+      setSupplier((sup as any) || null);
+    };
+    run();
+  }, [detail?.id]);
+
+  const notifySupplier = async () => {
+    if (!detail || !supplier?.email) return;
+    setNotifying(true);
+    const items = (detail.items || []).map((i) => ({
+      producto_nombre: i.producto_nombre,
+      variante: i.variante || {},
+      cantidad_pedida: Number(i.cantidad) || 1,
+      precio_unitario: null,
+      notas: null,
+    }));
+    const entregaTxt =
+      detail.entrega_metodo === "moto"
+        ? `Envío a domicilio del cliente: ${detail.envio_direccion || "(a confirmar)"}`
+        : "Entrega en la escuela (retiro del cliente en clase).";
+    const { error } = await supabase.functions.invoke("send-transactional-email", {
+      body: {
+        templateName: "supplier-order-created",
+        recipientEmail: supplier.email,
+        idempotencyKey: `store-order-${detail.id}-supplier`,
+        templateData: {
+          proveedorNombre: supplier.nombre,
+          numero: `VENTA-${detail.order_number}`,
+          fechaPedido: new Date().toLocaleDateString("es-AR"),
+          fechaEta: null,
+          moneda: detail.currency || "ARS",
+          totalEstimado: 0,
+          notas: `Venta confirmada de Ciclismo Reybaud. ${entregaTxt}${detail.envio_notas ? ` Obs: ${detail.envio_notas}` : ""}`,
+          items,
+          contactoNombre: "Ciclismo Reybaud",
+        },
+      },
+    });
+    setNotifying(false);
+    if (error) {
+      toast({ title: "No se pudo enviar", description: error.message, variant: "destructive" });
+      return;
+    }
+    await updateField(detail.id, { supplier_notified_at: new Date().toISOString() } as any);
+    toast({ title: "Pedido enviado al proveedor", description: supplier.email });
   };
 
   const load = async () => {
@@ -945,6 +1012,36 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       </div>
                     )}
                   </section>
+
+                  {/* Proveedor */}
+                  {supplier && (
+                    <section className="rounded-lg border border-border p-3 space-y-2">
+                      <h4 className="text-[11px] font-heading uppercase text-muted-foreground flex items-center gap-1">
+                        <Truck className="w-3 h-3" /> Proveedor · {supplier.nombre}
+                      </h4>
+                      {detail.supplier_notified_at ? (
+                        <p className="text-xs text-emerald-400">
+                          ✓ Avisado el {new Date(detail.supplier_notified_at).toLocaleString("es-AR")}
+                        </p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground">
+                          {supplier.email
+                            ? "Todavía no le avisamos este pedido."
+                            : "Cargá el email del proveedor en Tienda → Proveedores."}
+                        </p>
+                      )}
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        variant={detail.supplier_notified_at ? "outline" : "default"}
+                        disabled={!supplier.email || notifying}
+                        onClick={notifySupplier}
+                      >
+                        <Mail className="w-4 h-4 mr-1" />
+                        {notifying ? "Enviando..." : detail.supplier_notified_at ? "Reenviar pedido al proveedor" : "Avisar al proveedor"}
+                      </Button>
+                    </section>
+                  )}
 
                   {/* Tracking */}
                   <section className="rounded-lg border border-border p-3 space-y-1">
