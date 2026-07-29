@@ -7,7 +7,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Search, Eye, Truck, QrCode, Printer } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { printPreorderLabels, printSinglePreorderLabel, type PreorderLabelData } from "@/lib/preorderLabels";
+import { type PreorderLabelData } from "@/lib/preorderLabels";
+import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
 
 const STATUSES = [
   "pendiente_pago",
@@ -66,6 +67,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [trackingInput, setTrackingInput] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
+  const [labelTargets, setLabelTargets] = useState<PreorderLabelData[]>([]);
   const { toast } = useToast();
 
   const load = async () => {
@@ -204,16 +206,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     };
   };
 
-  const printOne = async (r: any) => {
-    try {
-      setPrinting(true);
-      await printSinglePreorderLabel(toLabelData(r));
-    } catch (e: any) {
-      toast({ title: "Error al generar etiqueta", description: e.message, variant: "destructive" });
-    } finally {
-      setPrinting(false);
-    }
-  };
+  const printOne = (r: any) => setLabelTargets([toLabelData(r)]);
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
@@ -230,17 +223,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
 
 
-  const printBulk = async () => {
+  const printBulk = () => {
     const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
-    if (!list.length) return;
-    try {
-      setPrinting(true);
-      await printPreorderLabels(list);
-    } catch (e: any) {
-      toast({ title: "Error al generar etiquetas", description: e.message, variant: "destructive" });
-    } finally {
-      setPrinting(false);
-    }
+    if (list.length) setLabelTargets(list);
   };
 
   const toggleId = (id: string) => {
@@ -453,6 +438,12 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
           )}
         </SheetContent>
       </Sheet>
+      <OrderLabelPrintDialog
+        open={labelTargets.length > 0}
+        onOpenChange={(o) => !o && setLabelTargets([])}
+        labels={labelTargets}
+        title={labelTargets.length === 1 ? "Etiqueta del pedido" : `Etiquetas (${labelTargets.length})`}
+      />
     </div>
   );
 };
