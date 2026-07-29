@@ -128,6 +128,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [payMetodo, setPayMetodo] = useState<string>("efectivo");
   const [payFecha, setPayFecha] = useState<string>("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
+  // Alcance del cambio de plan:
+  // - "actual": corrige/reemplaza la suscripción vigente (mismo período)
+  // - "renovar": crea una NUEVA suscripción para el próximo período con otro plan
+  const [changeScope, setChangeScope] = useState<"actual" | "renovar">("actual");
   const [aligningId, setAligningId] = useState<string | null>(null);
   // Estado de pago al crear/cargar el plan (sólo aplica en modo "add")
   // - pagado: comportamiento previo, sub queda 'activa' y NO aparece en /admin/pagos
