@@ -32,15 +32,16 @@ const modules: NavModule[] = [
       {
         label: "Personas",
         items: [
-          { to: "/admin/alumnos", label: "Alumnos", icon: Users },
+          { to: "/admin/alumnos", label: "Alumnos", icon: Users, noveltyKey: "alumnos" },
           { to: "/admin/coaches", label: "Coaches", icon: UserCog },
           { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
+          { to: "/admin/solicitudes-cambio-plan", label: "Solicitudes cambio plan", icon: RefreshCw, noveltyKey: "cambios_plan" },
         ],
       },
       {
         label: "Admisiones",
         items: [
-          { to: "/admin/eventos", label: "Eventos", icon: Trophy },
+          { to: "/admin/eventos", label: "Eventos", icon: Trophy, noveltyKey: "eventos" },
           { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
           { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" },
           { to: "/admin/procesos", label: "Procesos", icon: Workflow },
@@ -76,7 +77,7 @@ const modules: NavModule[] = [
           { to: "/admin/pagos", label: "Pagos", icon: Receipt },
           { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet },
           { to: "/admin/cuenta-corriente", label: "Cuenta corriente", icon: Wallet },
-          { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck },
+          { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck, noveltyKey: "cobros_entrega" },
         ],
       },
       {
@@ -122,8 +123,8 @@ const modules: NavModule[] = [
       {
         label: "Operación",
         items: [
-          { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes },
-          { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck },
+          { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes, noveltyKey: "tienda_ventas" },
+          { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck, noveltyKey: "pedidos_proveedor" },
           { to: "/admin/tienda/proveedores", label: "Proveedores", icon: Truck },
           { to: "/admin/tienda/control-mercaderia", label: "Control de Mercadería", icon: AlertTriangle },
           
