@@ -151,7 +151,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     const its = itemsByOrder[orderId] || [];
     if (!its.length) return { texto: "—", cantidad: 0 };
     const cantidad = its.reduce((acc, it) => acc + (Number(it.quantity) || 0), 0);
-    const primero = its[0]?.product_name || "—";
+    const v0 = variantText(its[0]?.variant);
+    const primero = `${its[0]?.product_name || "—"}${v0 ? ` (${v0})` : ""}`;
     const texto = its.length > 1 ? `${primero} +${its.length - 1} más` : primero;
     return { texto, cantidad };
   };
