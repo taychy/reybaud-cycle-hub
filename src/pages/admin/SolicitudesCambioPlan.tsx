@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, ArrowRightLeft, CheckCircle, XCircle, CalendarClock } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { NewSinceDot } from "@/components/admin/NoveltyDot";
+
 
 interface Solicitud {
   id: string;
@@ -115,9 +117,11 @@ export default function SolicitudesCambioPlan() {
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <div>
-                    <CardTitle className="text-sm font-heading uppercase tracking-wider">
+                    <CardTitle className="text-sm font-heading uppercase tracking-wider flex items-center gap-2">
+                      <NewSinceDot createdAt={s.created_at} section="cambios_plan" />
                       {s.alumno_nombre}
                     </CardTitle>
+
                     <p className="text-[11px] text-muted-foreground">{s.alumno_email}</p>
                   </div>
                   <div className="flex flex-col items-end gap-1">

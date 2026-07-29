@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Lock, LockOpen, Store, ChevronRight } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { NewSinceDot } from "@/components/admin/NoveltyDot";
+
 
 interface DeliveryList {
   id: string;
@@ -115,7 +117,9 @@ const AdminEntregasCaja = () => {
               >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                    <NewSinceDot createdAt={l.created_at} section="cobros_entrega" />
                     {l.titulo}
+
                     <Badge
                       variant={l.caja_estado === "abierta" ? "default" : "secondary"}
                       className="text-[10px]"
