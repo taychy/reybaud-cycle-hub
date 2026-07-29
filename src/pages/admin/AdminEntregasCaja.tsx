@@ -115,7 +115,9 @@ const AdminEntregasCaja = () => {
               >
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2 flex-wrap">
+                    <NewSinceDot createdAt={l.created_at} section="cobros_entrega" />
                     {l.titulo}
+
                     <Badge
                       variant={l.caja_estado === "abierta" ? "default" : "secondary"}
                       className="text-[10px]"
