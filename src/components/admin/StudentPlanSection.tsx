@@ -109,6 +109,15 @@ const getPaymentMethodLabel = (method: string | null) => {
 const isOverdueStatus = (estado: string) =>
   estado === "vencida" || estado === "pago_pendiente" || estado === "acceso_pausado";
 
+/** Día siguiente al vencimiento del plan vigente (o hoy si ya venció / no hay fecha). */
+const nextPeriodStart = (fechaFin: string | null, todayStr: string) => {
+  if (!fechaFin) return todayStr;
+  const [y, m, d] = fechaFin.split("-").map(Number);
+  const next = new Date(Date.UTC(y, m - 1, d + 1));
+  const iso = next.toISOString().slice(0, 10);
+  return iso > todayStr ? iso : todayStr;
+};
+
 export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUpdate, openOverduePreviewToken }: Props) {
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
@@ -128,6 +137,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [payMetodo, setPayMetodo] = useState<string>("efectivo");
   const [payFecha, setPayFecha] = useState<string>("");
   const [usarPrecioActual, setUsarPrecioActual] = useState(false);
+  // Alcance del cambio de plan:
+  // - "actual": corrige/reemplaza la suscripción vigente (mismo período)
+  // - "renovar": crea una NUEVA suscripción para el próximo período con otro plan
+  const [changeScope, setChangeScope] = useState<"actual" | "renovar">("actual");
   const [aligningId, setAligningId] = useState<string | null>(null);
   // Estado de pago al crear/cargar el plan (sólo aplica en modo "add")
   // - pagado: comportamiento previo, sub queda 'activa' y NO aparece en /admin/pagos
@@ -494,17 +507,46 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const openChangePlan = (subId: string) => {
     const sub = subs.find(s => s.id === subId);
     const todayStr = new Date().toISOString().split("T")[0];
+    // Si al plan vigente le quedan pocos días (o ya venció), lo más habitual
+    // es renovar cambiando de plan → arrancamos en modo "renovar".
+    const fin = sub?.fecha_fin?.slice(0, 10) || null;
+    let diasRestantes = 999;
+    if (fin) {
+      const [fy, fm, fd] = fin.split("-").map(Number);
+      const [ty, tm, td] = todayStr.split("-").map(Number);
+      diasRestantes = Math.round(
+        (Date.UTC(fy, fm - 1, fd) - Date.UTC(ty, tm - 1, td)) / 86400000,
+      );
+    }
+    const scope: "actual" | "renovar" = diasRestantes <= 10 ? "renovar" : "actual";
+    setChangeScope(scope);
     setDialogMode("change");
     setPayStatus("pagado");
     setDialogSubId(subId);
-    setNewPlanId(sub?.plan_id || "");
-    setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
+    setNewPlanId(scope === "renovar" ? "" : (sub?.plan_id || ""));
+    setChangeFechaInicio(scope === "renovar" ? nextPeriodStart(fin, todayStr) : (sub?.fecha_inicio?.slice(0, 10) || todayStr));
     setChangeNote("");
     setPayMetodo(sub?.metodo_pago || "efectivo");
     setPayFecha(todayStr);
-    setUsarPrecioActual(false);
+    setUsarPrecioActual(scope === "renovar");
     setShowPlanDialog(true);
   };
+
+  const applyChangeScope = (scope: "actual" | "renovar") => {
+    setChangeScope(scope);
+    const sub = subs.find(s => s.id === dialogSubId);
+    const todayStr = new Date().toISOString().split("T")[0];
+    if (scope === "renovar") {
+      setChangeFechaInicio(nextPeriodStart(sub?.fecha_fin?.slice(0, 10) || null, todayStr));
+      setUsarPrecioActual(true);
+      setPayStatus("pagado");
+    } else {
+      setChangeFechaInicio(sub?.fecha_inicio?.slice(0, 10) || todayStr);
+      setNewPlanId(sub?.plan_id || "");
+      setUsarPrecioActual(false);
+    }
+  };
+
 
   const handleSavePlan = async () => {
     if (!newPlanId) return;
@@ -512,8 +554,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
     try {
       const selectedPlan = planes.find(p => p.id === newPlanId);
 
+      // Crear una suscripción nueva: al agregar plan, o al renovar cambiando de plan
+      const isCreating = dialogMode === "add" || changeScope === "renovar";
       // Compose internal note with payment data
-      const isUnpaidAdd = dialogMode === "add" && payStatus !== "pagado";
+      const isUnpaidAdd = isCreating && payStatus !== "pagado";
       const fechaPagoLabel = !isUnpaidAdd && payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
       const metodoLabel = PAYMENT_METHODS.find(m => m.key === payMetodo)?.label || payMetodo;
       const payTagParts: string[] = [];
@@ -526,7 +570,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       const payTag = `[${payTagParts.join(" ")}]`;
       const composedNote = [changeNote?.trim() || null, payTag].filter(Boolean).join(" ");
 
-      if (dialogMode === "add") {
+      if (isCreating) {
         const endStr = calculateSubscriptionEndDate(selectedPlan, changeFechaInicio);
         const precioBase = selectedPlan?.precio || 0;
         const discount = applySecondActivityDiscount ? availableDiscounts[0] : null;
@@ -571,10 +615,16 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
         const discountText = discount ? ` (con dto. ${discount.nombre}: ${discount.tipo === "porcentaje" ? `${discount.valor}%` : `$${discount.valor}`})` : "";
         const statusText = isUnpaidAdd ? ` · ${payStatus === "vencida" ? "VENCIDO (deuda manual)" : "PENDIENTE de pago"}` : "";
-        toast.success(`Plan "${selectedPlan?.nombre}" agregado${discountText}${statusText}`);
+        const isRenewal = dialogMode === "change";
+        const prevName = isRenewal ? (subs.find(s => s.id === dialogSubId)?.planes?.nombre || "—") : null;
+        toast.success(
+          isRenewal
+            ? `Próximo período: "${selectedPlan?.nombre}" (antes ${prevName})${statusText}`
+            : `Plan "${selectedPlan?.nombre}" agregado${discountText}${statusText}`,
+        );
         await logStudentActivity({
-          alumnoId: alumno.id, eventType: "cambio_plan", title: "Plan agregado",
-          description: `Se agregó "${selectedPlan?.nombre || "—"}" desde ${new Date(changeFechaInicio).toLocaleDateString("es-AR")}${discountText}${isUnpaidAdd ? statusText : (fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`)}${changeNote ? `. Nota: ${changeNote}` : ""}`,
+          alumnoId: alumno.id, eventType: "cambio_plan", title: isRenewal ? "Renovación con cambio de plan" : "Plan agregado",
+          description: `${isRenewal ? `Próximo período: de "${prevName}" a "${selectedPlan?.nombre || "—"}"` : `Se agregó "${selectedPlan?.nombre || "—"}"`} desde ${new Date(changeFechaInicio + "T00:00:00").toLocaleDateString("es-AR")}${discountText}${isUnpaidAdd ? statusText : (fechaPagoLabel ? ` · Pago: ${fechaPagoLabel} (${metodoLabel})` : ` · Método: ${metodoLabel}`)}${changeNote ? `. Nota: ${changeNote}` : ""}`,
           actorRole, referenceType: "plan", referenceId: newPlanId, referenceLabel: selectedPlan?.nombre || "—",
         });
       } else {
@@ -849,7 +899,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Button>
             )}
             <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openChangePlan(sub.id)}>
-              <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar
+              <ArrowRightLeft className="w-3 h-3 mr-0.5" /> Cambiar / Renovar
             </Button>
             {(sub.estado === "activa" || effectiveEstado === "activa") && !sub.cancelada_at && (
               <Button variant="outline" size="sm" className="text-[10px] h-6 px-2" onClick={() => openPauseSub(sub)}>
@@ -1042,7 +1092,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
         <DialogContent className="sm:max-w-md bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider">
-              {dialogMode === "add" ? "Agregar plan" : "Cambiar plan"}
+              {dialogMode === "add" ? "Agregar plan" : changeScope === "renovar" ? "Renovar cambiando de plan" : "Corregir plan del período actual"}
             </DialogTitle>
             <DialogDescription>
               Alumno: {alumno.nombre} {(alumno as any).apellido || ""}
@@ -1053,8 +1103,40 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </DialogHeader>
 
           <div className="space-y-4 py-2">
+            {/* Alcance del cambio */}
+            {dialogMode === "change" && (() => {
+              const sub = subs.find(s => s.id === dialogSubId);
+              const fin = sub?.fecha_fin ? formatDate(sub.fecha_fin) : null;
+              return (
+                <div className="space-y-2 rounded-md bg-secondary/40 border border-border p-3">
+                  <Label className="text-xs uppercase tracking-wide text-muted-foreground">¿Qué querés hacer?</Label>
+                  <RadioGroup
+                    value={changeScope}
+                    onValueChange={(v) => applyChangeScope(v as "actual" | "renovar")}
+                    className="gap-2"
+                  >
+                    <label className="flex items-start gap-2 cursor-pointer text-xs">
+                      <RadioGroupItem value="renovar" className="mt-0.5" />
+                      <span>
+                        <span className="font-medium text-emerald-300">Renovar con otro plan (próximo período)</span> — crea una
+                        suscripción nueva {fin ? `a partir del vencimiento (${fin})` : "desde la fecha que elijas"} y deja el plan
+                        actual en el historial. Es lo habitual a fin de mes cuando el alumno sube o baja de plan.
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 cursor-pointer text-xs">
+                      <RadioGroupItem value="actual" className="mt-0.5" />
+                      <span>
+                        <span className="font-medium text-amber-300">Corregir el período actual</span> — reemplaza el plan de la
+                        suscripción vigente (se usa para arreglar un error de carga). No genera historial ni un período nuevo.
+                      </span>
+                    </label>
+                  </RadioGroup>
+                </div>
+              );
+            })()}
+
             <div className="space-y-2">
-              <Label className="text-xs">{dialogMode === "add" ? "Plan a agregar" : "Nuevo plan"}</Label>
+              <Label className="text-xs">{dialogMode === "add" ? "Plan a agregar" : changeScope === "renovar" ? "Plan del próximo período" : "Nuevo plan"}</Label>
               <Select value={newPlanId} onValueChange={setNewPlanId}>
                 <SelectTrigger className="bg-secondary border-border">
                   <SelectValue placeholder="Seleccionar plan" />
@@ -1069,8 +1151,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </Select>
             </div>
 
-            {/* Estado de pago — sólo al AGREGAR */}
-            {dialogMode === "add" && (
+            {/* Estado de pago — al AGREGAR o al RENOVAR */}
+            {(dialogMode === "add" || changeScope === "renovar") && (
               <div className="space-y-2 rounded-md bg-secondary/40 border border-border p-3">
                 <Label className="text-xs uppercase tracking-wide text-muted-foreground">Estado del pago</Label>
                 <RadioGroup
@@ -1096,10 +1178,10 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label className="text-xs">Fecha de inicio</Label>
+                <Label className="text-xs">{dialogMode === "change" && changeScope === "renovar" ? "Inicio del nuevo período" : "Fecha de inicio"}</Label>
                 <Input type="date" value={changeFechaInicio} onChange={(e) => setChangeFechaInicio(e.target.value)} className="bg-secondary border-border text-sm" />
               </div>
-              {(dialogMode === "change" || payStatus === "pagado") && (
+              {(payStatus === "pagado" || (dialogMode === "change" && changeScope === "actual")) && (
                 <div className="space-y-2">
                   <Label className="text-xs">Fecha de pago</Label>
                   <Input type="date" value={payFecha} onChange={(e) => setPayFecha(e.target.value)} className="bg-secondary border-border text-sm" />
@@ -1107,7 +1189,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               )}
             </div>
 
-            {(dialogMode === "change" || payStatus === "pagado") && (
+            {(payStatus === "pagado" || (dialogMode === "change" && changeScope === "actual")) && (
               <div className="space-y-2">
                 <Label className="text-xs">Método de pago</Label>
                 <Select value={payMetodo} onValueChange={setPayMetodo}>
@@ -1123,8 +1205,8 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
               </div>
             )}
 
-            {/* Use current (updated) price toggle — only when changing an existing plan */}
-            {dialogMode === "change" && newPlanId && (() => {
+            {/* Use current (updated) price toggle — only when correcting the current period */}
+            {dialogMode === "change" && changeScope === "actual" && newPlanId && (() => {
               const sub = subs.find(s => s.id === dialogSubId);
               const selectedPlan = planes.find(p => p.id === newPlanId);
               if (!sub || !selectedPlan) return null;
@@ -1196,7 +1278,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowPlanDialog(false)}>Cancelar</Button>
             <Button variant="gold" disabled={!newPlanId || saving} onClick={handleSavePlan}>
-              {saving ? "Guardando..." : dialogMode === "add" ? "Agregar" : "Confirmar cambio"}
+              {saving ? "Guardando..." : dialogMode === "add" ? "Agregar" : changeScope === "renovar" ? "Crear próximo período" : "Confirmar corrección"}
             </Button>
           </DialogFooter>
         </DialogContent>
