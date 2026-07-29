@@ -265,6 +265,41 @@ export default function GuestReservationView() {
               {r.payment_status !== "pagado" && r.reservation_status !== "cancelada" && (
                 <div className="pt-3 border-t space-y-2">
                   <div className="text-xs text-muted-foreground uppercase tracking-wider">
+                    Datos para transferir
+                  </div>
+                  <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Titular</p>
+                      <p className="text-sm font-medium">{EVENTOS_TRANSFER_INFO.titular}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => copyText(EVENTOS_TRANSFER_INFO.cbu, "CBU")}
+                      className="w-full flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 hover:bg-muted/40 transition text-left"
+                    >
+                      <span>
+                        <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">CBU / CVU</span>
+                        <span className="text-sm font-mono break-all">{EVENTOS_TRANSFER_INFO.cbu}</span>
+                      </span>
+                      <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => copyText(EVENTOS_TRANSFER_INFO.alias, "Alias")}
+                      className="w-full flex items-center justify-between gap-2 rounded-md border border-border bg-background px-3 py-2 hover:bg-muted/40 transition text-left"
+                    >
+                      <span>
+                        <span className="block text-[11px] uppercase tracking-wider text-muted-foreground">Alias</span>
+                        <span className="text-sm font-mono">{EVENTOS_TRANSFER_INFO.alias}</span>
+                      </span>
+                      <Copy className="w-4 h-4 text-muted-foreground shrink-0" />
+                    </button>
+                    <p className="text-[11px] text-muted-foreground">
+                      Transferí {fmtMoney(r.balance_due, r.currency_snapshot)} y subí el comprobante acá abajo.
+                    </p>
+                  </div>
+
+                  <div className="text-xs text-muted-foreground uppercase tracking-wider pt-2">
                     Comprobante de transferencia
                   </div>
                   {r.last_proof_uploaded_at ? (
