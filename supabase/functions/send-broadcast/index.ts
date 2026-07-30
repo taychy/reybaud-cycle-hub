@@ -314,7 +314,9 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
       .from("marketing_contacts")
       .select("email")
       .eq("opt_in_marketing", false);
-    const outSet = new Set((outs || []).map((o: any) => String(o.email).toLowerCase()));
+    const outSet = new Set(
+      (outs || []).filter((o: any) => o?.email).map((o: any) => String(o.email).toLowerCase()),
+    );
     if (outSet.size) rows = rows.filter((r: any) => !outSet.has(r.email.toLowerCase()));
   }
 
