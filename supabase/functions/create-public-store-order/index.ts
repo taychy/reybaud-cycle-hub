@@ -74,10 +74,37 @@ Deno.serve(async (req) => {
     const unit = Number(product.price) || 0;
     const total = unit * cantidad;
 
+    // Vincular el pedido al alumno si el email (principal o adicional) coincide,
+    // para que la compra impacte en su cuenta corriente.
+    let alumnoId: string | null = null;
+    try {
+      const emailLc = email.trim().toLowerCase();
+      const { data: byEmail } = await supabase
+        .from("alumnos")
+        .select("id")
+        .ilike("email", emailLc)
+        .limit(1)
+        .maybeSingle();
+      if (byEmail?.id) {
+        alumnoId = byEmail.id;
+      } else {
+        const { data: byExtra } = await supabase
+          .from("alumnos")
+          .select("id, emails_adicionales")
+          .contains("emails_adicionales", [emailLc])
+          .limit(1)
+          .maybeSingle();
+        if (byExtra?.id) alumnoId = byExtra.id;
+      }
+    } catch (e) {
+      console.warn("[create-public-store-order] match alumno:", (e as Error).message);
+    }
+
     const { data: order, error: orderErr } = await supabase
       .from("store_orders")
       .insert({
-        alumno_id: null,
+        alumno_id: alumnoId,
+
         customer_name: nombre,
         customer_email: email,
         customer_phone: telefono,
