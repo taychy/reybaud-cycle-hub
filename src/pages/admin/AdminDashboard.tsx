@@ -619,22 +619,39 @@ const AdminDashboard = () => {
       {/* Tienda / Entregas - Caja abierta */}
       <DeliveryCashWidget />
 
-      {/* Alertas operativas - clickable */}
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          {alerts.map((a, i) => (
-            <div
-              key={i}
-              onClick={() => navigate(a.link)}
-              className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
-            >
-              <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
-              <span className="text-sm flex-1">{a.message}</span>
-              <span className="text-xs text-muted-foreground">Ver →</span>
-            </div>
-          ))}
+      {/* Alertas operativas agrupadas por urgencia + pendientes de la semana */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
+          {BUCKET_ORDER.map((bucket) => {
+            const group = alerts.filter((a) => a.bucket === bucket);
+            if (group.length === 0) return null;
+            return (
+              <div key={bucket} className="space-y-2">
+                <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground">
+                  {BUCKET_LABEL[bucket]}
+                </p>
+                {group.map((a, i) => (
+                  <div
+                    key={i}
+                    onClick={() => navigate(a.link)}
+                    className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
+                  >
+                    <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
+                    <span className="text-sm flex-1">{a.message}</span>
+                    <span className="text-xs text-muted-foreground">Ver →</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          {!loading && alerts.length === 0 && (
+            <p className="text-sm text-muted-foreground">Sin alertas abiertas. Todo al día.</p>
+          )}
         </div>
-      )}
+
+        <WeeklyPendingsPanel items={datedItems} loading={loading} />
+      </div>
+
 
 
 
