@@ -61,7 +61,9 @@ interface Alert {
   message: string;
   count: number;
   link: string;
+  bucket: AlertBucket;
 }
+
 
 // Payment status helpers
 const getPaymentBadge = (estado: string, mpStatus: string | null) => {
