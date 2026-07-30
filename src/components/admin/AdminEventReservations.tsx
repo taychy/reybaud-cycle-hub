@@ -1669,6 +1669,8 @@ const AdminEventReservations = ({
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                       <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
+                      <OverdueBadge info={overdueByRes[r.id]} fmt={fmtMoney} />
+
                     </div>
                     {/* Estado reserva */}
                     <div>
