@@ -164,6 +164,19 @@ export default function MpEgresosTab() {
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
   const categorizados = items.filter(i => i.gasto_id);
 
+  const filteredEjecuciones = ejecuciones.filter((e) => {
+    if (!ejecSearch.trim()) return true;
+    const rec: any = e.gastos_recurrentes;
+    const term = ejecSearch.toLowerCase();
+    return (
+      String(rec?.concepto ?? "").toLowerCase().includes(term) ||
+      String(rec?.categoria ?? "").toLowerCase().includes(term) ||
+      String(rec?.proveedor ?? "").toLowerCase().includes(term) ||
+      String(e.mes ?? "").toLowerCase().includes(term) ||
+      String(e.estado ?? "").toLowerCase().includes(term)
+    );
+  });
+
   const totalEgresosPendientes = egresos.reduce((s, i) => s + Number(i.amount), 0);
 
   return (
