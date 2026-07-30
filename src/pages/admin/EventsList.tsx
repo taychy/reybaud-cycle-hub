@@ -4,6 +4,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { getPrevSeen } from "@/lib/adminNovelty";
+import { NoveltyDot } from "@/components/admin/NoveltyDot";
 import {
   Search,
   Plus,
