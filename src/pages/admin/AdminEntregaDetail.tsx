@@ -1659,7 +1659,67 @@ const AdminEntregaDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* DETALLE DE COBRO + COMPROBANTE */}
+      <Dialog open={!!detailPayment} onOpenChange={(o) => { if (!o) { setDetailPayment(null); setDetailUrl(null); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalle del cobro</DialogTitle>
+          </DialogHeader>
+          {detailPayment && (
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="font-heading text-2xl text-primary">
+                  {formatPrice(Number(detailPayment.monto), detailPayment.moneda || "ARS")}
+                </span>
+                <Badge variant={detailPayment.rechazado ? "destructive" : detailPayment.validado ? "default" : "secondary"} className="text-[10px]">
+                  {detailPayment.rechazado ? "Rechazado" : detailPayment.validado ? <><CheckCircle2 className="w-3 h-3 mr-1" />Validado</> : <><Clock className="w-3 h-3 mr-1" />Pendiente</>}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div><span className="text-muted-foreground">Cliente</span><div>{detailPayment.cliente_nombre || "—"}</div></div>
+                <div><span className="text-muted-foreground">Forma de pago</span><div className="capitalize">{detailPayment.forma_pago || "—"}</div></div>
+                <div><span className="text-muted-foreground">Fecha</span><div>{new Date(detailPayment.created_at).toLocaleString("es-AR")}</div></div>
+                <div><span className="text-muted-foreground">Cargado por</span><div>{detailPayment.cargado_por_nombre || "—"}</div></div>
+              </div>
+              {detailPayment.notas && (
+                <div className="text-xs"><span className="text-muted-foreground">Notas</span><div>{detailPayment.notas}</div></div>
+              )}
+              {detailPayment.rechazado && detailPayment.rechazado_motivo && (
+                <div className="text-xs text-destructive">Motivo del rechazo: {detailPayment.rechazado_motivo}</div>
+              )}
+              <div className="rounded-md border border-border/60 p-2">
+                <div className="text-[11px] text-muted-foreground mb-1.5">Comprobante</div>
+                {!detailPayment.comprobante_path ? (
+                  <p className="text-xs text-muted-foreground italic">Este cobro se cargó sin foto de comprobante.</p>
+                ) : detailLoading ? (
+                  <p className="text-xs text-muted-foreground">Cargando comprobante…</p>
+                ) : !detailUrl ? (
+                  <p className="text-xs text-muted-foreground">No se pudo abrir el comprobante.</p>
+                ) : /\.pdf$/i.test(detailPayment.comprobante_path) ? (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={detailUrl} target="_blank" rel="noreferrer">Abrir PDF <ExternalLink className="w-3 h-3 ml-1" /></a>
+                  </Button>
+                ) : (
+                  <a href={detailUrl} target="_blank" rel="noreferrer">
+                    <img src={detailUrl} alt={`Comprobante de pago de ${detailPayment.cliente_nombre}`} className="w-full rounded-md" loading="lazy" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/cobros-entrega">Validar cobros <ExternalLink className="w-3 h-3 ml-1" /></Link>
+            </Button>
+            <Button size="sm" onClick={() => { if (detailPayment) { const p = detailPayment; setDetailPayment(null); setDetailUrl(null); openEditPayment(p); } }}>
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
 
   );
 };
