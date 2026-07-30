@@ -173,6 +173,7 @@ export default function MpEgresosTab() {
   const categorizados = items.filter(i => i.gasto_id);
 
   const filteredEjecuciones = ejecuciones.filter((e) => {
+    if (!incluirPagados && e.estado === "pagado") return false;
     if (!ejecSearch.trim()) return true;
     const rec: any = e.gastos_recurrentes;
     const term = ejecSearch.toLowerCase();
@@ -184,6 +185,7 @@ export default function MpEgresosTab() {
       String(e.estado ?? "").toLowerCase().includes(term)
     );
   });
+
 
   const totalEgresosPendientes = egresos.reduce((s, i) => s + Number(i.amount), 0);
 
