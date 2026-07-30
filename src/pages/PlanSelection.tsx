@@ -88,6 +88,9 @@ const PlanSelection = () => {
   const [pausaTipo, setPausaTipo] = useState<"lesion" | "vacaciones" | null>(null);
   const [pausaMotivo, setPausaMotivo] = useState<string>("");
   const [pausaDialogPlanId, setPausaDialogPlanId] = useState<string | null>(null);
+  // Cuando el bloqueo se debe a una pausa vigente, ofrecemos terminarla en el momento.
+  const [pausaBlocked, setPausaBlocked] = useState(false);
+  const [endingPausa, setEndingPausa] = useState(false);
   const isUpgradeFlow = !!upgradeFromSubId && !!upgradePreselectPlanId;
   const { applyDiscount, isSecondActivityForNew } = useStudentDiscounts(alumnoId);
 
