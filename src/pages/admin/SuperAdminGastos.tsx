@@ -790,6 +790,10 @@ const SuperAdminGastos = () => {
   // -------- Matriz (concepto × mes) ----------
   const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
   const [matrizData, setMatrizData] = useState<Record<string, Record<number, Ejecucion | null>>>({});
+  // Gastos sueltos (categorizados fuera del catálogo, ej. egresos MP → "Gasto nuevo")
+  const [matrizSueltos, setMatrizSueltos] = useState<
+    { key: string; categoria: string; descripcion: string; moneda: string; meses: Record<number, number> }[]
+  >([]);
 
   const loadMatriz = useCallback(async () => {
     const ini = `${matrizYear}-01`; const fin = `${matrizYear}-12`;
@@ -801,9 +805,32 @@ const SuperAdminGastos = () => {
       grid[e.recurrente_id][m] = e;
     }
     setMatrizData(grid);
+
+    // Gastos del año que NO provienen de una ejecución del catálogo
+    const [{ data: gastosYear }, { data: pagosLink }] = await Promise.all([
+      supabase
+        .from("gastos")
+        .select("id, fecha, categoria, descripcion, monto, moneda")
+        .gte("fecha", `${matrizYear}-01-01`)
+        .lte("fecha", `${matrizYear}-12-31`),
+      supabase.from("gastos_ejecucion_pagos" as any).select("gasto_id").not("gasto_id", "is", null),
+    ]);
+    const linked = new Set(((pagosLink || []) as any[]).map((p) => p.gasto_id));
+    const acc: Record<string, { key: string; categoria: string; descripcion: string; moneda: string; meses: Record<number, number> }> = {};
+    for (const g of (gastosYear || []) as any[]) {
+      if (linked.has(g.id)) continue;
+      const cat = g.categoria || "Otros";
+      const desc = (g.descripcion || "Sin descripción").trim();
+      const key = `${cat}||${desc.toLowerCase()}`;
+      const mes = Number(String(g.fecha).slice(5, 7));
+      if (!acc[key]) acc[key] = { key, categoria: cat, descripcion: desc, moneda: g.moneda || "ARS", meses: {} };
+      acc[key].meses[mes] = (acc[key].meses[mes] || 0) + Number(g.monto || 0);
+    }
+    setMatrizSueltos(Object.values(acc).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.descripcion.localeCompare(b.descripcion)));
   }, [matrizYear]);
 
-  useEffect(() => { loadMatriz(); }, [loadMatriz, ejecuciones]);
+  useEffect(() => { loadMatriz(); }, [loadMatriz, ejecuciones, gastos]);
+
 
   if (loading) return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando gastos...</div>;
 
