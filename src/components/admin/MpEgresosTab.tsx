@@ -256,14 +256,18 @@ export default function MpEgresosTab() {
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
         <div className="space-y-2">
-          {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => (
+          {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => {
+            const det = getMpMovementDetail(m);
+            return (
             <Card key={m.id} className="hover:border-orange-500/40 transition-colors">
               <CardContent className="py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm">{m.mp_payment_id}</span>
+                    <span className="text-sm font-semibold truncate">
+                      {det.concepto ?? det.contraparte ?? det.operacion ?? "Movimiento MP"}
+                    </span>
                     <Badge variant="outline" className="text-[10px]">{m.cuentas_mp?.nombre ?? "MP"}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{m.payment_type ?? "-"}</Badge>
+                    {det.medio && <Badge variant="outline" className="text-[10px]">{det.medio}</Badge>}
                     {m.direccion === "reserva_tecnica" && (
                       <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-[10px]">Reserva técnica</Badge>
                     )}
@@ -271,11 +275,15 @@ export default function MpEgresosTab() {
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Gasto creado</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {new Date(m.fecha_movimiento).toLocaleString("es-AR")}
-                    {m.description && m.description !== "Varios" && <span className="ml-2 italic text-cyan-400/80">{m.description}</span>}
+                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                    <span>{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</span>
+                    {det.operacion && <span className="text-cyan-400/80">· {det.operacion}</span>}
+                    {det.contraparte && det.contraparte !== det.concepto && <span>· {det.contraparte}</span>}
+                    {det.referencia && <span className="font-mono">· ref {det.referencia}</span>}
+                    <span className="font-mono opacity-60">· {m.mp_payment_id}</span>
                   </div>
                 </div>
+
                 <div className="text-right">
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
                   <div className="text-[10px] text-muted-foreground">{m.currency}</div>
