@@ -32,7 +32,9 @@ const formatWhatsAppUrl = (telefono: string | null, nombre?: string) => {
   const msg = nombre
     ? encodeURIComponent(`Hola ${nombre}, te contactamos desde Reybaud Ciclismo.`)
     : encodeURIComponent("Hola");
-  return `https://web.whatsapp.com/send?phone=${clean}&text=${msg}`;
+  // wa.me abre WhatsApp Web en escritorio (web.whatsapp.com/send suele estar
+  // bloqueado por políticas de red/extensiones: ERR_BLOCKED_BY_RESPONSE)
+  return `https://wa.me/${clean}?text=${msg}`;
 };
 
 const NuevosUsuariosPorDiaPage = () => {
