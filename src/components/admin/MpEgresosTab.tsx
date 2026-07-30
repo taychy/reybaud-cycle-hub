@@ -96,13 +96,14 @@ export default function MpEgresosTab() {
         id, mes, fecha_vencimiento, monto_previsto, monto_pagado, estado, moneda,
         gastos_recurrentes:gastos_recurrentes!recurrente_id ( concepto, categoria, proveedor, ambito )
       `)
-      .in("estado", ["pendiente", "parcial", "vencido"])
+      .in("estado", ["pendiente", "parcial", "vencido", "pagado"])
       .order("fecha_vencimiento", { ascending: true })
-      .limit(200);
+      .limit(400);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setEjecuciones((data as any) ?? []);
     setLoadingEjecs(false);
   }
+
 
   function openDialog(m: MpEgreso) {
     setDialog(m);
