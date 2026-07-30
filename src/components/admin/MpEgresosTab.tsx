@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon } from "lucide-react";
+import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
 
 type MpEgreso = {
   id: string;
@@ -18,6 +19,11 @@ type MpEgreso = {
   currency: string;
   description: string | null;
   payment_type: string | null;
+  payment_method: string | null;
+  payer_name: string | null;
+  payer_email: string | null;
+  external_reference: string | null;
+  raw: any;
   fecha_movimiento: string;
   direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
@@ -77,6 +83,7 @@ export default function MpEgresosTab() {
       .from("mp_account_movements")
       .select(`
         id, mp_payment_id, amount, currency, description, payment_type,
+        payment_method, payer_name, payer_email, external_reference, raw,
         fecha_movimiento, direccion, gasto_id,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
@@ -112,8 +119,8 @@ export default function MpEgresosTab() {
     setForm({
       categoria: "MP - Egresos",
       subcategoria: "",
-      descripcion: m.description && m.description !== "Varios" ? m.description : `Egreso MP ${m.mp_payment_id}`,
-      proveedor: "",
+      descripcion: suggestGastoDescripcion(m),
+      proveedor: getMpMovementDetail(m).contraparte ?? "",
       unidad_negocio: "compartido",
       notas: "",
     });
@@ -249,14 +256,18 @@ export default function MpEgresosTab() {
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
         <div className="space-y-2">
-          {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => (
+          {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => {
+            const det = getMpMovementDetail(m);
+            return (
             <Card key={m.id} className="hover:border-orange-500/40 transition-colors">
               <CardContent className="py-3 flex items-center gap-3">
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-mono text-sm">{m.mp_payment_id}</span>
+                    <span className="text-sm font-semibold truncate">
+                      {det.concepto ?? det.contraparte ?? det.operacion ?? "Movimiento MP"}
+                    </span>
                     <Badge variant="outline" className="text-[10px]">{m.cuentas_mp?.nombre ?? "MP"}</Badge>
-                    <Badge variant="outline" className="text-[10px]">{m.payment_type ?? "-"}</Badge>
+                    {det.medio && <Badge variant="outline" className="text-[10px]">{det.medio}</Badge>}
                     {m.direccion === "reserva_tecnica" && (
                       <Badge className="bg-cyan-500/20 text-cyan-400 border-cyan-500/30 text-[10px]">Reserva técnica</Badge>
                     )}
@@ -264,11 +275,15 @@ export default function MpEgresosTab() {
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Gasto creado</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
-                    {new Date(m.fecha_movimiento).toLocaleString("es-AR")}
-                    {m.description && m.description !== "Varios" && <span className="ml-2 italic text-cyan-400/80">{m.description}</span>}
+                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                    <span>{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</span>
+                    {det.operacion && <span className="text-cyan-400/80">· {det.operacion}</span>}
+                    {det.contraparte && det.contraparte !== det.concepto && <span>· {det.contraparte}</span>}
+                    {det.referencia && <span className="font-mono">· ref {det.referencia}</span>}
+                    <span className="font-mono opacity-60">· {m.mp_payment_id}</span>
                   </div>
                 </div>
+
                 <div className="text-right">
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
                   <div className="text-[10px] text-muted-foreground">{m.currency}</div>
@@ -278,7 +293,8 @@ export default function MpEgresosTab() {
                 )}
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
           {tab === "egresos" && egresos.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-400" />
@@ -299,6 +315,18 @@ export default function MpEgresosTab() {
                 <div className="flex justify-between"><span className="text-muted-foreground">MP ID:</span><span className="font-mono">{dialog.mp_payment_id}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Monto:</span><span className="font-bold text-orange-400">- $ {Number(dialog.amount).toLocaleString("es-AR")}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Fecha:</span><span>{new Date(dialog.fecha_movimiento).toLocaleString("es-AR")}</span></div>
+                {(() => {
+                  const d = getMpMovementDetail(dialog);
+                  return (
+                    <>
+                      {d.concepto && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Concepto:</span><span className="text-right">{d.concepto}</span></div>}
+                      {d.contraparte && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Contraparte:</span><span className="text-right">{d.contraparte}</span></div>}
+                      {d.operacion && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Operación:</span><span className="text-right">{d.operacion}</span></div>}
+                      {d.medio && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Medio:</span><span className="text-right">{d.medio}</span></div>}
+                      {d.referencia && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Referencia:</span><span className="text-right font-mono text-xs">{d.referencia}</span></div>}
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
