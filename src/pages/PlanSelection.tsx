@@ -334,17 +334,61 @@ const PlanSelection = () => {
     }
   };
 
+  /**
+   * Termina la pausa vigente del alumno y lo deja listo para contratar otro plan,
+   * sin depender de que administración conteste un WhatsApp.
+   */
+  const handleEndPausaNow = async () => {
+    if (!alumnoId) return;
+    setEndingPausa(true);
+    setError(null);
+    try {
+      const today = new Date().toISOString().split("T")[0];
+      const { data: pausas } = await supabase
+        .from("suscripciones")
+        .select("id, planes!inner(categoria)")
+        .eq("alumno_id", alumnoId)
+        .eq("planes.categoria", "pausa")
+        .in("estado", ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"])
+        .is("cancelada_at", null);
+
+      for (const p of ((pausas as any[]) || [])) {
+        await supabase
+          .from("suscripciones")
+          .update({
+            estado: "cancelada",
+            cancelada_at: new Date().toISOString(),
+            cancelada_motivo: "Pausa finalizada por el alumno para contratar un plan",
+            fecha_fin: today,
+            auto_renovacion: false,
+          } as any)
+          .eq("id", p.id);
+      }
+
+      setActivePausaPlan(null);
+      setPausaBlocked(false);
+      setError(null);
+    } catch (e) {
+      console.error("[handleEndPausaNow] failed", e);
+      setError("No pudimos terminar la pausa. Probá de nuevo o escribinos a administración.");
+    } finally {
+      setEndingPausa(false);
+    }
+  };
+
   const handleSelectPlan = (planId: string) => {
     const plan = planes.find(p => p.id === planId);
     // Si el alumno ya está en pausa, bloquear elegir otro plan distinto SALVO que venga
     // explícitamente desde el flujo de reactivación de vacaciones (la pausa se cancela al confirmar).
     if (activePausaPlan && plan?.categoria !== "pausa" && !isFromVacation) {
       setSelected(null);
+      setPausaBlocked(true);
       setError(
-        `Tu cuenta está en pausa hasta la fecha que indicaste. Para volver a entrenar tenés que esperar a que termine o cancelarla desde tu perfil.`
+        `Tu cuenta está en pausa (${activePausaPlan.planName}). Podés terminar la pausa ahora mismo y seguir con la contratación.`
       );
       return;
     }
+
 
     // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
     if (
