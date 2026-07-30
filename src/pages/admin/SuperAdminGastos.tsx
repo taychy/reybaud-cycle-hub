@@ -790,6 +790,10 @@ const SuperAdminGastos = () => {
   // -------- Matriz (concepto × mes) ----------
   const [matrizYear, setMatrizYear] = useState(new Date().getFullYear());
   const [matrizData, setMatrizData] = useState<Record<string, Record<number, Ejecucion | null>>>({});
+  // Gastos sueltos (categorizados fuera del catálogo, ej. egresos MP → "Gasto nuevo")
+  const [matrizSueltos, setMatrizSueltos] = useState<
+    { key: string; categoria: string; descripcion: string; moneda: string; meses: Record<number, number> }[]
+  >([]);
 
   const loadMatriz = useCallback(async () => {
     const ini = `${matrizYear}-01`; const fin = `${matrizYear}-12`;
@@ -801,9 +805,32 @@ const SuperAdminGastos = () => {
       grid[e.recurrente_id][m] = e;
     }
     setMatrizData(grid);
+
+    // Gastos del año que NO provienen de una ejecución del catálogo
+    const [{ data: gastosYear }, { data: pagosLink }] = await Promise.all([
+      supabase
+        .from("gastos")
+        .select("id, fecha, categoria, descripcion, monto, moneda")
+        .gte("fecha", `${matrizYear}-01-01`)
+        .lte("fecha", `${matrizYear}-12-31`),
+      supabase.from("gastos_ejecucion_pagos" as any).select("gasto_id").not("gasto_id", "is", null),
+    ]);
+    const linked = new Set(((pagosLink || []) as any[]).map((p) => p.gasto_id));
+    const acc: Record<string, { key: string; categoria: string; descripcion: string; moneda: string; meses: Record<number, number> }> = {};
+    for (const g of (gastosYear || []) as any[]) {
+      if (linked.has(g.id)) continue;
+      const cat = g.categoria || "Otros";
+      const desc = (g.descripcion || "Sin descripción").trim();
+      const key = `${cat}||${desc.toLowerCase()}`;
+      const mes = Number(String(g.fecha).slice(5, 7));
+      if (!acc[key]) acc[key] = { key, categoria: cat, descripcion: desc, moneda: g.moneda || "ARS", meses: {} };
+      acc[key].meses[mes] = (acc[key].meses[mes] || 0) + Number(g.monto || 0);
+    }
+    setMatrizSueltos(Object.values(acc).sort((a, b) => a.categoria.localeCompare(b.categoria) || a.descripcion.localeCompare(b.descripcion)));
   }, [matrizYear]);
 
-  useEffect(() => { loadMatriz(); }, [loadMatriz, ejecuciones]);
+  useEffect(() => { loadMatriz(); }, [loadMatriz, ejecuciones, gastos]);
+
 
   if (loading) return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando gastos...</div>;
 
@@ -1038,6 +1065,46 @@ const SuperAdminGastos = () => {
                         );})}
                       </>
                     ));
+                    })()}
+                    {(() => {
+                      const q = searchMatriz.trim().toLowerCase();
+                      const rows = q
+                        ? matrizSueltos.filter(s => `${s.categoria} ${s.descripcion}`.toLowerCase().includes(q))
+                        : matrizSueltos;
+                      if (rows.length === 0) return null;
+                      return (
+                        <>
+                          <TableRow className="bg-muted/40">
+                            <TableCell colSpan={14} className="font-heading font-bold uppercase text-xs tracking-wider">
+                              Sin catálogo (gastos categorizados sueltos)
+                            </TableCell>
+                          </TableRow>
+                          {rows.map(s => {
+                            const total = Object.values(s.meses).reduce((a, b) => a + b, 0);
+                            return (
+                              <TableRow key={s.key}>
+                                <TableCell className="sticky left-0 bg-card text-sm font-medium">
+                                  <div className="flex flex-col">
+                                    <span>{s.descripcion}</span>
+                                    <span className="text-[11px] text-muted-foreground">{s.categoria}</span>
+                                  </div>
+                                </TableCell>
+                                {Array.from({ length: 12 }, (_, i) => i + 1).map(mm => {
+                                  const monto = s.meses[mm] || 0;
+                                  return (
+                                    <TableCell key={mm} className={`text-center text-xs ${monto > 0 ? "text-green-500 bg-green-500/5" : "text-muted-foreground/40"}`}>
+                                      {monto > 0 ? Math.round(monto / 1000) + "k" : "—"}
+                                    </TableCell>
+                                  );
+                                })}
+                                <TableCell className="text-right text-xs font-heading font-bold bg-muted/30 sticky right-0">
+                                  {total > 0 ? fmt(total, s.moneda) : "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </>
+                      );
                     })()}
                   </TableBody>
                 </Table>
