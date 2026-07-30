@@ -776,7 +776,7 @@ const AdminEventReservations = ({
     });
 
     return list;
-  }, [reservations, filterResStatus, filterPayStatus, search, quickFilter, sortKey, sortAsc]);
+  }, [reservations, filterResStatus, filterPayStatus, search, quickFilter, sortKey, sortAsc, overdueByRes]);
 
   /* ─── Actions ─── */
 
