@@ -39,8 +39,17 @@ const DashboardTasksByDay = ({ tasks, loading }: Props) => {
 
     const out: { key: string; title: string; sub?: string; items: DayTask[]; tone: string }[] = [];
 
-    const overdue = tasks.filter((t) => t.date && t.date < today);
+    // El backlog se consolida por categoría (no tiene sentido una fila por día viejo)
+    const overdueRaw = tasks.filter((t) => t.date && t.date < today);
+    const overdueMap = new Map<string, DayTask>();
+    overdueRaw.forEach((t) => {
+      const prev = overdueMap.get(t.label);
+      if (prev) prev.count += t.count;
+      else overdueMap.set(t.label, { ...t, hint: undefined });
+    });
+    const overdue = Array.from(overdueMap.values()).sort((a, b) => b.count - a.count);
     if (overdue.length) out.push({ key: "backlog", title: "Vencidas", sub: "Backlog", items: overdue, tone: "danger" });
+
 
     const days = week.filter((d) => d >= today);
     days.forEach((iso) => {
