@@ -315,6 +315,18 @@ export default function MpEgresosTab() {
                 <div className="flex justify-between"><span className="text-muted-foreground">MP ID:</span><span className="font-mono">{dialog.mp_payment_id}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Monto:</span><span className="font-bold text-orange-400">- $ {Number(dialog.amount).toLocaleString("es-AR")}</span></div>
                 <div className="flex justify-between"><span className="text-muted-foreground">Fecha:</span><span>{new Date(dialog.fecha_movimiento).toLocaleString("es-AR")}</span></div>
+                {(() => {
+                  const d = getMpMovementDetail(dialog);
+                  return (
+                    <>
+                      {d.concepto && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Concepto:</span><span className="text-right">{d.concepto}</span></div>}
+                      {d.contraparte && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Contraparte:</span><span className="text-right">{d.contraparte}</span></div>}
+                      {d.operacion && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Operación:</span><span className="text-right">{d.operacion}</span></div>}
+                      {d.medio && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Medio:</span><span className="text-right">{d.medio}</span></div>}
+                      {d.referencia && <div className="flex justify-between gap-3"><span className="text-muted-foreground">Referencia:</span><span className="text-right font-mono text-xs">{d.referencia}</span></div>}
+                    </>
+                  );
+                })()}
               </div>
 
               <div className="grid grid-cols-2 gap-2">
