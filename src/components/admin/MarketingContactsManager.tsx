@@ -521,6 +521,13 @@ export default function MarketingContactsManager() {
         </DialogContent>
       </Dialog>
 
+      <GoogleContactsImportDialog
+        open={showGoogleImport}
+        onOpenChange={setShowGoogleImport}
+        onImported={load}
+      />
+
+
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
