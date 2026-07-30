@@ -293,7 +293,9 @@ export default function MpEgresosTab() {
                 )}
               </CardContent>
             </Card>
-          ))}
+            </Card>
+            );
+          })}
           {tab === "egresos" && egresos.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-400" />
