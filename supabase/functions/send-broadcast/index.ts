@@ -307,8 +307,20 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     rows = rows.filter((r: any) => !supSet.has(r.email.toLowerCase()));
   }
 
+  // exclude opt-out global: si el email pidió la baja en marketing_contacts,
+  // no se le envía aunque entre por alumnos, coaches o listas de espera.
+  if (!filters.marketing_include_opt_out && rows.length) {
+    const { data: outs } = await supabase
+      .from("marketing_contacts")
+      .select("email")
+      .eq("opt_in_marketing", false);
+    const outSet = new Set((outs || []).map((o: any) => String(o.email).toLowerCase()));
+    if (outSet.size) rows = rows.filter((r: any) => !outSet.has(r.email.toLowerCase()));
+  }
+
   // de-dupe by email (prioriza alumno > coach > marketing)
   const priority: Record<string, number> = { alumno: 0, coach: 1, waitlist: 2, marketing: 3 };
+
   rows.sort((a, b) => (priority[a.contact_type] ?? 9) - (priority[b.contact_type] ?? 9));
   const seen = new Set<string>();
   return rows.filter((r: any) => {
