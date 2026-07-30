@@ -117,6 +117,10 @@ const AdminDashboard = () => {
   const [duplicadosCount, setDuplicadosCount] = useState(0);
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
   const [cuotasEventos, setCuotasEventos] = useState({ count: 0, vencidas: 0, monto: 0 });
+  // Tareas de gastos: sección exclusiva de super admin
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [gastoTasks, setGastoTasks] = useState<DayTask[]>([]);
+
 
 
   // Confirmation dialog state
