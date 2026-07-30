@@ -65,6 +65,7 @@ export default function MpEgresosTab() {
   const [ejecuciones, setEjecuciones] = useState<any[]>([]);
   const [loadingEjecs, setLoadingEjecs] = useState(false);
   const [ejecId, setEjecId] = useState<string | null>(null);
+  const [ejecSearch, setEjecSearch] = useState("");
 
   useEffect(() => { load(); }, []);
 
