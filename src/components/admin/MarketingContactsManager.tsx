@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Search, Upload, Users, UserMinus, Trash2, Pencil, RefreshCw, Loader2, Download,
 } from "lucide-react";
+import GoogleContactsImportDialog from "@/components/admin/GoogleContactsImportDialog";
 
 type Tipo = "lead" | "ex_alumno" | "evento_externo" | "manual" | "importado";
 
