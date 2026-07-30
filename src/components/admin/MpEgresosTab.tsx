@@ -18,6 +18,11 @@ type MpEgreso = {
   currency: string;
   description: string | null;
   payment_type: string | null;
+  payment_method: string | null;
+  payer_name: string | null;
+  payer_email: string | null;
+  external_reference: string | null;
+  raw: any;
   fecha_movimiento: string;
   direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
