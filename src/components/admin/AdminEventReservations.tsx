@@ -1279,6 +1279,8 @@ const AdminEventReservations = ({
 
   /* ─── Priority indicators ─── */
   const getRowPriority = (r: EventReservation) => {
+    if (overdueByRes[r.id] && r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
+      return "border-l-4 border-l-destructive bg-destructive/5";
     if (r.payment_status === "pago_informado") return "border-l-4 border-l-orange-500";
     const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
     if (bal > 0 && r.reservation_status === "reserva_confirmada") return "border-l-4 border-l-amber-500";
