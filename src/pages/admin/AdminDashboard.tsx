@@ -109,6 +109,8 @@ const AdminDashboard = () => {
   const [expirations, setExpirations] = useState<UpcomingExpiration[]>([]);
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [datedItems, setDatedItems] = useState<DatedAlertItem[]>([]);
+
   const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
   const [duplicadosCount, setDuplicadosCount] = useState(0);
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
