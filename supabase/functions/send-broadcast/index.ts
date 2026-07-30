@@ -255,11 +255,15 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
   if (explicitMarketing) {
-    const { data, error } = await supabase
+    let q = supabase
       .from("marketing_contacts")
       .select("id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at")
       .in("id", filters.marketing_contact_ids!);
+    // Un contacto elegido a mano NO puede saltear la baja.
+    if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
+    const { data, error } = await q;
     if (error) throw error;
+
     rows.push(...(data || []).map((m: any) => ({
       id: m.id,
       email: m.email,
