@@ -119,7 +119,21 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: 'Failed to process unsubscribe' }, 500)
   }
 
+  // Reflejar la baja en la base de marketing para que se vea en el panel
+  const { error: optOutError } = await supabase
+    .from('marketing_contacts')
+    .update({ opt_in_marketing: false, opt_out_at: new Date().toISOString() })
+    .ilike('email', tokenRecord.email)
+
+  if (optOutError) {
+    console.error('Failed to opt-out marketing contact', {
+      error: optOutError,
+      email: tokenRecord.email,
+    })
+  }
+
   console.log('Email unsubscribed', { email: tokenRecord.email })
 
   return jsonResponse({ success: true })
+
 })
