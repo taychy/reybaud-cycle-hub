@@ -293,7 +293,6 @@ export default function MpEgresosTab() {
                 )}
               </CardContent>
             </Card>
-            </Card>
             );
           })}
           {tab === "egresos" && egresos.length === 0 && (
