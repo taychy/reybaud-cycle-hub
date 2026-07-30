@@ -141,7 +141,27 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
                 );
               })}
             </div>
+
+            {urgent.length > 0 && (
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+                <p className="text-[11px] font-heading uppercase tracking-wider text-muted-foreground">Lo más urgente</p>
+                {urgent.map((u, i) => (
+                  <button
+                    key={i}
+                    onClick={() => navigate(u.link)}
+                    className="w-full text-left flex items-start gap-2 hover:opacity-80 transition-opacity"
+                  >
+                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${toneDot[u.tone]}`} />
+                    <span className="min-w-0">
+                      <span className="block text-xs truncate">{u.kind}</span>
+                      <span className="block text-[10px] text-muted-foreground truncate">{u.label}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
+
         )}
       </CardContent>
     </Card>
