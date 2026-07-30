@@ -329,16 +329,28 @@ export default function MpEgresosTab() {
                     onChange={(e) => setEjecSearch(e.target.value)}
                     className="text-sm"
                   />
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={incluirPagados}
+                      onChange={(e) => setIncluirPagados(e.target.checked)}
+                      className="accent-cyan-500"
+                    />
+                    Incluir gastos ya pagados (el pago se registra como excedente)
+                  </label>
                   {loadingEjecs ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Cargando agenda…</div>
                   ) : filteredEjecuciones.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">{ejecSearch ? "No hay coincidencias." : "No hay gastos planificados pendientes."}</div>
+                    <div className="text-sm text-muted-foreground">{ejecSearch ? "No hay coincidencias." : "No hay gastos planificados."}</div>
                   ) : (
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
                       {filteredEjecuciones.map(e => {
-                        const rec: any = e.gastos_recurrentes;
-                        const pend = Number(e.monto_previsto || 0) - Number(e.monto_pagado || 0);
+                        const previsto = Number(e.monto_previsto || 0);
+                        const pagado = Number(e.monto_pagado || 0);
+                        const pend = previsto - pagado;
                         const match = Math.abs(pend - Number(dialog.amount)) < 1;
+                        const excede = pend <= 0 || Number(dialog.amount) > pend + 1;
+                        const nuevoExcedente = pagado + Number(dialog.amount) - previsto;
                         return (
                           <button
                             key={e.id}
@@ -347,21 +359,30 @@ export default function MpEgresosTab() {
                             className={`w-full text-left rounded-md border p-2.5 transition-colors ${ejecId === e.id ? "border-cyan-500 bg-cyan-500/10" : "border-border hover:border-cyan-500/40"}`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium truncate">{rec?.concepto ?? "Gasto"}</span>
-                              <span className="text-sm font-bold whitespace-nowrap">$ {pend.toLocaleString("es-AR")}</span>
+                              <span className="text-sm font-medium truncate">{rec_concepto(e)}</span>
+                              <span className={`text-sm font-bold whitespace-nowrap ${pend <= 0 ? "text-muted-foreground" : ""}`}>
+                                {pend > 0 ? `$ ${pend.toLocaleString("es-AR")}` : "Sin saldo"}
+                              </span>
                             </div>
                             <div className="text-[11px] text-muted-foreground flex items-center gap-2 flex-wrap mt-0.5">
                               <span>{e.mes}</span>
                               <Badge variant="outline" className="text-[10px]">{e.estado}</Badge>
-                              {rec?.categoria && <span>{rec.categoria}</span>}
-                              {rec?.proveedor && <span>· {rec.proveedor}</span>}
+                              {e.gastos_recurrentes?.categoria && <span>{e.gastos_recurrentes.categoria}</span>}
+                              {e.gastos_recurrentes?.proveedor && <span>· {e.gastos_recurrentes.proveedor}</span>}
+                              <span>· previsto $ {previsto.toLocaleString("es-AR")} · pagado $ {pagado.toLocaleString("es-AR")}</span>
                               {match && <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Coincide el monto</Badge>}
+                              {excede && (
+                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px]">
+                                  Excedente $ {Math.max(nuevoExcedente, 0).toLocaleString("es-AR")}
+                                </Badge>
+                              )}
                             </div>
                           </button>
                         );
                       })}
                     </div>
                   )}
+
                   <div>
                     <Label>Notas</Label>
                     <Textarea rows={2} value={form.notas} onChange={(e) => setForm(f => ({ ...f, notas: e.target.value }))} />
