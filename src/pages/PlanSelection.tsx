@@ -581,10 +581,13 @@ const PlanSelection = () => {
       const pausaMarker = plan.categoria === "pausa" && pausaTipo
         ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
         : null;
-      const notasMarker = [upgradeMarker, earlyMarker, pausaMarker].filter(Boolean).join(" | ") || null;
+      const afterPausaMarker = scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa"
+        ? `INICIA_AL_FIN_DE_PAUSA:${pausaNextStart.fechaInicio}`
+        : null;
+      const notasMarker = [upgradeMarker, earlyMarker, pausaMarker, afterPausaMarker].filter(Boolean).join(" | ") || null;
 
       let subId: string | null = null;
-      const reused = !earlyRenewal && !isUpgradeFlow
+      const reused = !earlyRenewal && !isUpgradeFlow && !afterPausaMarker
         ? await tryReuseExistingSubscription(alumnoId, plan.id, {
             estado: "pendiente",
             descuento_id: disc?.discount?.id ?? null,
