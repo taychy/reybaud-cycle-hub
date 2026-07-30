@@ -264,15 +264,20 @@ interface AdminEventReservationsProps {
 type SortKey = "name" | "date" | "balance" | "payment_status";
 
 /* ─── Quick filters ─── */
-type QuickFilter = "all" | "con_deuda" | "pago_informado" | "sin_revisar" | "confirmados" | "pendientes";
+type QuickFilter = "all" | "con_deuda" | "vencidas" | "pago_informado" | "sin_revisar" | "confirmados" | "pendientes";
 
 const quickFilters: { key: QuickFilter; label: string }[] = [
   { key: "all", label: "Todos" },
+  { key: "vencidas", label: "Cuotas vencidas" },
   { key: "con_deuda", label: "Con deuda" },
   { key: "pago_informado", label: "Pago informado" },
   { key: "pendientes", label: "Pendientes" },
   { key: "confirmados", label: "Confirmados" },
 ];
+
+/* ─── Cuotas vencidas por reserva ─── */
+interface OverdueInfo { count: number; amount: number; currency: string; days: number }
+
 
 /* ─── Component ─── */
 
@@ -405,6 +410,39 @@ const AdminEventReservations = ({
     setRoomByRes(map);
   };
 
+  /* ─── Cuotas vencidas por reserva ─── */
+  const [overdueByRes, setOverdueByRes] = useState<Record<string, OverdueInfo>>({});
+
+  const loadOverdueInstallments = async (resIds: string[]) => {
+    if (!resIds.length) { setOverdueByRes({}); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from("reservation_installments" as any)
+      .select("reservation_id, due_date, status, amount, balance_due, paid_amount, currency")
+      .in("reservation_id", resIds)
+      .lt("due_date", today);
+    const map: Record<string, OverdueInfo> = {};
+    ((data as any[]) || []).forEach((i) => {
+      const st = (i.status || "").toLowerCase();
+      if (["pagada", "pagado", "condonada", "condonado", "anulada", "cancelada"].includes(st)) return;
+      const saldo = i.balance_due != null
+        ? Number(i.balance_due)
+        : Number(i.amount || 0) - Number(i.paid_amount || 0);
+      if (!(saldo > 0)) return;
+      const [y, m, d] = String(i.due_date).split("-").map(Number);
+      const due = new Date(y, m - 1, d);
+      const days = Math.max(0, Math.floor((Date.now() - due.getTime()) / 86400000));
+      const prev = map[i.reservation_id];
+      map[i.reservation_id] = {
+        count: (prev?.count || 0) + 1,
+        amount: (prev?.amount || 0) + saldo,
+        currency: i.currency || eventCurrency,
+        days: Math.max(prev?.days || 0, days),
+      };
+    });
+    setOverdueByRes(map);
+  };
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
@@ -417,7 +455,9 @@ const AdminEventReservations = ({
     if (data) setReservations(data as unknown as EventReservation[]);
     setLoading(false);
     loadRoomAssignments();
+    loadOverdueInstallments(((data as any[]) || []).map((r) => r.id));
   };
+
 
   useEffect(() => { loadReservations(); }, [eventId]);
 
@@ -703,6 +743,8 @@ const AdminEventReservations = ({
         const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
         if (bal <= 0) return false;
       }
+      if (quickFilter === "vencidas" && !overdueByRes[r.id]) return false;
+
       if (quickFilter === "pago_informado" && r.payment_status !== "pago_informado") return false;
       if (quickFilter === "sin_revisar" && r.payment_status !== "pago_informado") return false;
       if (quickFilter === "confirmados" && r.reservation_status !== "reserva_confirmada") return false;
@@ -734,7 +776,7 @@ const AdminEventReservations = ({
     });
 
     return list;
-  }, [reservations, filterResStatus, filterPayStatus, search, quickFilter, sortKey, sortAsc]);
+  }, [reservations, filterResStatus, filterPayStatus, search, quickFilter, sortKey, sortAsc, overdueByRes]);
 
   /* ─── Actions ─── */
 
@@ -1237,6 +1279,8 @@ const AdminEventReservations = ({
 
   /* ─── Priority indicators ─── */
   const getRowPriority = (r: EventReservation) => {
+    if (overdueByRes[r.id] && r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
+      return "border-l-4 border-l-destructive bg-destructive/5";
     if (r.payment_status === "pago_informado") return "border-l-4 border-l-orange-500";
     const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
     if (bal > 0 && r.reservation_status === "reserva_confirmada") return "border-l-4 border-l-amber-500";
@@ -1429,7 +1473,8 @@ const AdminEventReservations = ({
             {f.label}
             {f.key !== "all" && (
               <span className="ml-1.5 opacity-70">
-                {f.key === "con_deuda" ? reservations.filter(r => { const b = r.balance_due ?? ((r.amount_total||0)-(r.amount_paid||0)); return b > 0; }).length
+                {f.key === "vencidas" ? Object.keys(overdueByRes).length
+                  : f.key === "con_deuda" ? reservations.filter(r => { const b = r.balance_due ?? ((r.amount_total||0)-(r.amount_paid||0)); return b > 0; }).length
                   : f.key === "pago_informado" ? stats.pagosARevisar
                   : f.key === "pendientes" ? stats.pending
                   : f.key === "confirmados" ? stats.confirmed
@@ -1626,6 +1671,8 @@ const AdminEventReservations = ({
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                       <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
+                      <OverdueBadge info={overdueByRes[r.id]} fmt={fmtMoney} />
+
                     </div>
                     {/* Estado reserva */}
                     <div>
@@ -1728,6 +1775,8 @@ const AdminEventReservations = ({
                         {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
                       <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
+                      <OverdueBadge info={overdueByRes[r.id]} fmt={fmtMoney} />
+
                     </div>
                     {!isPaymentFree && (
                       <div className="flex items-center gap-4 text-xs">
@@ -2763,6 +2812,19 @@ const AdminEventReservations = ({
 };
 
 /* ─── Sub-components ─── */
+
+const OverdueBadge = ({ info, fmt }: { info?: OverdueInfo; fmt: (a: number | null | undefined, c: string) => string }) => {
+  if (!info) return null;
+  return (
+    <Badge
+      variant="outline"
+      className="mt-1 ml-1 text-[9px] bg-destructive/15 text-destructive border-destructive/40 font-semibold"
+    >
+      {info.count} cuota{info.count > 1 ? "s" : ""} vencida{info.count > 1 ? "s" : ""} · {fmt(info.amount, info.currency)}
+      {info.days > 0 ? ` · +${info.days}d` : ""}
+    </Badge>
+  );
+};
 
 const RoomBadge = ({ room, cancelled }: { room?: string; cancelled?: boolean }) => {
   if (room) {
