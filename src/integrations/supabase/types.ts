@@ -11054,6 +11054,10 @@ export type Database = {
         Returns: string
       }
       delivery_get_by_token: { Args: { _token: string }; Returns: Json }
+      delivery_list_accepts_uploads: {
+        Args: { _list_id: string }
+        Returns: boolean
+      }
       delivery_list_summary_row: {
         Args: { p_list_id: string }
         Returns: {
