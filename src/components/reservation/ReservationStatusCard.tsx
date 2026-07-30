@@ -11,7 +11,7 @@ import {
   Banknote, FileText, MessageCircle, CreditCard, Eye, Upload, X,
   ChevronDown, ChevronUp, ChevronRight, Bell, CalendarDays, ArrowRight,
   HelpCircle, Bike, Footprints, Plane, ShieldCheck, Package,
-  CircleDot, Loader2, Landmark,
+  CircleDot, Loader2, Landmark, BedDouble, Users,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
@@ -289,6 +289,10 @@ const ReservationStatusCard = ({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
+  const [lodging, setLodging] = useState<{
+    package_nombre: string | null; room_nombre: string | null; room_tipo: string | null;
+    room_genero: string | null; room_capacidad: number | null; roommates: string[] | null;
+  } | null>(null);
   const [pendingPayments, setPendingPayments] = useState<Array<{ id: string; original_amount: number; original_currency: string; review_notes: string | null; status: string }>>([]);
   const [nextInst, setNextInst] = useState<{ installment_number: number; amount: number; balance_due: number; due_date: string | null; label: string | null } | null>(null);
   const [mpChoice, setMpChoice] = useState<"cuota" | "total">("cuota");
@@ -317,6 +321,17 @@ const ReservationStatusCard = ({
     setSearchParams(next, { replace: true });
   }, [searchParams, reservation.id, setSearchParams]);
 
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc("get_my_reservation_lodging" as any, { _reservation_id: reservation.id });
+      if (cancelled) return;
+      const row: any = Array.isArray(data) ? data[0] : data;
+      setLodging(row ?? null);
+    })();
+    return () => { cancelled = true; };
+  }, [reservation.id]);
 
   const loadChecklistData = useCallback(async () => {
     const { data } = await supabase
@@ -1014,6 +1029,43 @@ const ReservationStatusCard = ({
 
         {/* (Bloque "Progreso de tu reserva" eliminado — la info se muestra como chip de verificación y en el historial.) */}
 
+
+        {/* ═══ 5.b TU PAQUETE Y ALOJAMIENTO ═══ */}
+        {isTripLike && lodging && (lodging.package_nombre || lodging.room_nombre) && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
+          <div className="glass-card rounded-xl p-5 space-y-3">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Tu paquete</h3>
+            </div>
+            {lodging.package_nombre && <p className="text-sm font-bold text-foreground">{lodging.package_nombre}</p>}
+            {lodging.room_nombre ? (
+              <div className="rounded-lg bg-muted/40 p-3 space-y-2">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <BedDouble className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-semibold text-foreground">{lodging.room_nombre}</p>
+                  {lodging.room_tipo && <Badge variant="outline" className="text-[10px]">{lodging.room_tipo}</Badge>}
+                  {lodging.room_genero && lodging.room_genero !== "mixta" && (
+                    <Badge variant="outline" className="text-[10px]">{lodging.room_genero}</Badge>
+                  )}
+                </div>
+                {(lodging.roommates ?? []).length > 0 ? (
+                  <div className="space-y-1">
+                    <p className="text-[10px] uppercase text-muted-foreground flex items-center gap-1">
+                      <Users className="w-3 h-3" /> Compañeros asignados
+                    </p>
+                    <ul className="text-xs text-foreground list-disc pl-4">
+                      {(lodging.roommates ?? []).map((n, i) => <li key={i}>{n}</li>)}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Por ahora no hay otros participantes asignados a tu habitación.</p>
+                )}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">Tu alojamiento todavía no fue asignado. Te avisamos apenas esté definido.</p>
+            )}
+          </div>
+        )}
 
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
         {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (

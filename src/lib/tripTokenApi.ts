@@ -53,12 +53,31 @@ export interface TripTokenParticipant {
   email: string;
 }
 
+export interface TripTokenPackage {
+  id: string | null;
+  nombre: string;
+  descripcion: string | null;
+  personas_por_habitacion: number | null;
+  sin_alojamiento: boolean | null;
+}
+
+export interface TripTokenLodging {
+  id: string;
+  nombre: string;
+  tipo: string | null;
+  genero: string | null;
+  capacidad: number | null;
+  roommates: string[];
+}
+
 export interface TripTokenGetResponse {
   ok: true;
   reservation: TripTokenReservation;
   event: TripTokenEvent | null;
   participant: TripTokenParticipant | null;
   checklist: TripTokenChecklistRow[];
+  package?: TripTokenPackage | null;
+  lodging?: TripTokenLodging | null;
 }
 
 export const tripTokenGet = async (token: string) => {

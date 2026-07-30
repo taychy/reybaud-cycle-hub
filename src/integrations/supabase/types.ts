@@ -11318,6 +11318,18 @@ export type Database = {
         Args: { _external_token?: string; _reservation_id: string }
         Returns: Json
       }
+      get_my_reservation_lodging: {
+        Args: { _reservation_id: string }
+        Returns: {
+          package_nombre: string
+          room_capacidad: number
+          room_genero: string
+          room_id: string
+          room_nombre: string
+          room_tipo: string
+          roommates: string[]
+        }[]
+      }
       get_package_active_price: {
         Args: { p_now?: string; p_package_id: string }
         Returns: {

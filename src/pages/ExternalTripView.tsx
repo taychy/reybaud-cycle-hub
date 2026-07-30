@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
-import { tripTokenGet } from "@/lib/tripTokenApi";
+import { tripTokenGet, type TripTokenPackage, type TripTokenLodging } from "@/lib/tripTokenApi";
 import { formatPrice } from "@/lib/currency";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle, AlertCircle, Clock, Shield, Bike, Footprints,
   Plane, ShieldCheck, Package, Banknote, Loader2, CalendarDays,
-  MapPin, CreditCard, ChevronRight, Bell, XCircle, MessageCircle,
+  MapPin, CreditCard, ChevronRight, Bell, XCircle, MessageCircle, BedDouble,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
@@ -110,6 +110,8 @@ const ExternalTripView = () => {
   const [event, setEvent] = useState<EventData | null>(null);
   const [participant, setParticipant] = useState<ParticipantData | null>(null);
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
+  const [pkg, setPkg] = useState<TripTokenPackage | null>(null);
+  const [lodging, setLodging] = useState<TripTokenLodging | null>(null);
 
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
@@ -131,6 +133,8 @@ const ExternalTripView = () => {
       setReservation(resp.reservation as ReservationData);
       setEvent(resp.event as EventData);
       setParticipant((resp.participant as ParticipantData) ?? null);
+      setPkg(resp.package ?? null);
+      setLodging(resp.lodging ?? null);
       const map: Record<string, any> = {};
       (resp.checklist ?? []).forEach((row) => { map[row.step_key] = row; });
       setChecklistData(map);
@@ -248,6 +252,47 @@ const ExternalTripView = () => {
           </div>
         </div>
 
+        {/* Paquete contratado + alojamiento */}
+        {(pkg || lodging) && (
+          <div className="rounded-xl border border-border p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" />
+              <h3 className="font-semibold text-sm uppercase tracking-wide">Tu paquete</h3>
+            </div>
+            {pkg && (
+              <div>
+                <p className="text-sm font-bold text-foreground">{pkg.nombre}</p>
+                {pkg.descripcion && <p className="text-xs text-muted-foreground mt-0.5">{pkg.descripcion}</p>}
+                {pkg.sin_alojamiento && <Badge variant="outline" className="mt-2 text-[10px]">Sin alojamiento</Badge>}
+              </div>
+            )}
+            {lodging && (
+              <div className="rounded-lg bg-muted/40 p-3 space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <BedDouble className="w-4 h-4 text-primary" />
+                  <p className="text-sm font-semibold">{lodging.nombre}</p>
+                  {lodging.genero && lodging.genero !== "mixta" && (
+                    <Badge variant="outline" className="text-[10px]">{lodging.genero}</Badge>
+                  )}
+                </div>
+                {lodging.roommates.length > 0 ? (
+                  <div>
+                    <p className="text-[10px] uppercase text-muted-foreground">Compañeros asignados</p>
+                    <ul className="text-xs text-foreground list-disc pl-4">
+                      {lodging.roommates.map((n, i) => <li key={i}>{n}</li>)}
+                    </ul>
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">Todavía no hay otros participantes asignados a tu habitación.</p>
+                )}
+              </div>
+            )}
+            {!lodging && pkg && !pkg.sin_alojamiento && (
+              <p className="text-xs text-muted-foreground">Tu habitación todavía no fue asignada. Te avisamos cuando esté lista.</p>
+            )}
+          </div>
+        )}
+
         {/* Financial summary */}
         {total > 0 && (
           <div className="rounded-xl border border-border p-4 space-y-3">
@@ -286,9 +331,9 @@ const ExternalTripView = () => {
                   className="w-full gap-2"
                   onClick={() => {
                     try {
-                      sessionStorage.setItem("post_login_redirect", "/mis-reservas");
+                      sessionStorage.setItem("post_login_redirect", `/mis-reservas/${reservation.id}`);
                     } catch { /* ignore */ }
-                    window.location.href = "/mis-reservas";
+                    window.location.href = `/mis-reservas/${reservation.id}`;
                   }}
                 >
                   <CreditCard className="w-4 h-4" />
