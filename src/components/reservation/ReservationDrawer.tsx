@@ -358,8 +358,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       toast({ title: "Elegí un paquete para continuar.", variant: "destructive" });
       return;
     }
+    // El admin puede desactivar la elección de habitación/compañeros para este evento
+    // (ej: camps donde la habitación ya viene definida por el paquete).
+    const roomSelectionEnabled = event.metadata?.room_selection_enabled !== false;
     // Si el paquete tiene cupos por género, pedir elección de género
-    if (packageHasGenderConfig) setStep("room");
+    if (packageHasGenderConfig && roomSelectionEnabled) setStep("room");
     else setStep("form");
   };
 

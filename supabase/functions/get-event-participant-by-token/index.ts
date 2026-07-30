@@ -77,12 +77,13 @@ serve(async (req) => {
       const { data: reservation, error: rErr } = await supabase
         .from("event_reservations")
         .select(
-          "id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token"
+          "id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token, package_id, package_nombre_snapshot, genero_habitacion"
         )
         .eq("access_token", t)
         .maybeSingle();
       if (rErr) return json({ error: "lookup_failed", detail: rErr.message }, 500);
       if (!reservation) return json({ error: "not_found" }, 404);
+
 
       if (action === "trip_get") {
         const [eventRes, partExtRes, partAluRes, clRes] = await Promise.all([
@@ -134,13 +135,63 @@ serve(async (req) => {
           })
         );
 
+        // ── Paquete contratado + alojamiento asignado + compañeros ──
+        let packageInfo: any = null;
+        if (reservation.package_id) {
+          const { data: pkg } = await supabase
+            .from("event_packages")
+            .select("id, nombre, descripcion, personas_por_habitacion, sin_alojamiento")
+            .eq("id", reservation.package_id)
+            .maybeSingle();
+          packageInfo = pkg ?? null;
+        }
+        if (!packageInfo && reservation.package_nombre_snapshot) {
+          packageInfo = { id: null, nombre: reservation.package_nombre_snapshot, descripcion: null, personas_por_habitacion: null, sin_alojamiento: null };
+        }
+
+        let lodging: any = null;
+        const { data: myAssign } = await supabase
+          .from("event_room_assignments")
+          .select("room_id")
+          .eq("reservation_id", reservation.id)
+          .maybeSingle();
+        if (myAssign?.room_id) {
+          const [{ data: room }, { data: mates }] = await Promise.all([
+            supabase.from("event_rooms").select("id, nombre, tipo, genero, capacidad").eq("id", myAssign.room_id).maybeSingle(),
+            supabase.from("event_room_assignments").select("reservation_id").eq("room_id", myAssign.room_id),
+          ]);
+          const otherIds = (mates ?? []).map((m: any) => m.reservation_id).filter((rid: string) => rid !== reservation.id);
+          let names: string[] = [];
+          if (otherIds.length) {
+            const { data: others } = await supabase
+              .from("event_reservations")
+              .select("id, alumno_id, external_first_name, external_last_name")
+              .in("id", otherIds);
+            const aluIds = (others ?? []).map((o: any) => o.alumno_id).filter(Boolean);
+            let aluMap: Record<string, string> = {};
+            if (aluIds.length) {
+              const { data: alus } = await supabase.from("alumnos").select("id, nombre, apellido").in("id", aluIds);
+              (alus ?? []).forEach((a: any) => { aluMap[a.id] = `${a.nombre ?? ""} ${a.apellido ?? ""}`.trim(); });
+            }
+            names = (others ?? []).map((o: any) =>
+              (o.alumno_id && aluMap[o.alumno_id]) ||
+              `${o.external_first_name ?? ""} ${o.external_last_name ?? ""}`.trim() ||
+              "Participante"
+            );
+          }
+          lodging = room ? { ...room, roommates: names } : null;
+        }
+
         return json({
           ok: true,
           reservation,
           event: eventRes.data ?? null,
           participant: partExtRes.data ?? partAluRes.data ?? null,
           checklist,
+          package: packageInfo,
+          lodging,
         });
+
       }
 
       // trip_save_step

@@ -1040,6 +1040,16 @@ const EventForm = ({
         return (
           <fieldset className="space-y-3 border border-violet-500/20 rounded-lg p-4">
             <legend className="text-xs font-heading uppercase tracking-wider text-violet-400 px-2">Preparación del viaje</legend>
+            <div className="flex items-center gap-3 p-2.5 rounded-lg bg-muted/20 border border-border/40">
+              <Switch
+                checked={meta.room_selection_enabled !== false}
+                onCheckedChange={(v) => updateMeta("room_selection_enabled", v)}
+              />
+              <Label className="text-sm">
+                El participante elige habitación / compañeros al reservar
+                <span className="block text-[11px] text-muted-foreground">Desactivalo si la habitación ya queda definida por el paquete (la asigna el equipo).</span>
+              </Label>
+            </div>
             <p className="text-xs text-muted-foreground">Elegí qué pasos verá el alumno en su checklist. Desactivá los que no apliquen (ej: si no se alquilan bicis, no pidas medidas).</p>
             <div className="grid grid-cols-1 gap-2">
               {ALL_STEPS.map(s => (
