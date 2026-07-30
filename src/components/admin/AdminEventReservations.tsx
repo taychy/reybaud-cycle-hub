@@ -2811,6 +2811,19 @@ const AdminEventReservations = ({
 
 /* ─── Sub-components ─── */
 
+const OverdueBadge = ({ info, fmt }: { info?: OverdueInfo; fmt: (a: number | null | undefined, c: string) => string }) => {
+  if (!info) return null;
+  return (
+    <Badge
+      variant="outline"
+      className="mt-1 ml-1 text-[9px] bg-destructive/15 text-destructive border-destructive/40 font-semibold"
+    >
+      {info.count} cuota{info.count > 1 ? "s" : ""} vencida{info.count > 1 ? "s" : ""} · {fmt(info.amount, info.currency)}
+      {info.days > 0 ? ` · +${info.days}d` : ""}
+    </Badge>
+  );
+};
+
 const RoomBadge = ({ room, cancelled }: { room?: string; cancelled?: boolean }) => {
   if (room) {
     return (
