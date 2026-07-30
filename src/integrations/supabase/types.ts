@@ -5854,14 +5854,20 @@ export type Database = {
       }
       marketing_contacts: {
         Row: {
+          agenda_estado: string | null
           alumno_id: string | null
           apellido: string | null
           capturado_por_email: string | null
           capturado_por_id: string | null
           created_at: string
           created_by: string | null
-          email: string
+          email: string | null
           es_email_secundario: boolean
+          google_etag: string | null
+          google_resource_name: string | null
+          google_sync_error: string | null
+          google_sync_pending: boolean
+          google_synced_at: string | null
           id: string
           last_campaign_sent_at: string | null
           nombre: string | null
@@ -5879,14 +5885,20 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          agenda_estado?: string | null
           alumno_id?: string | null
           apellido?: string | null
           capturado_por_email?: string | null
           capturado_por_id?: string | null
           created_at?: string
           created_by?: string | null
-          email: string
+          email?: string | null
           es_email_secundario?: boolean
+          google_etag?: string | null
+          google_resource_name?: string | null
+          google_sync_error?: string | null
+          google_sync_pending?: boolean
+          google_synced_at?: string | null
           id?: string
           last_campaign_sent_at?: string | null
           nombre?: string | null
@@ -5904,14 +5916,20 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          agenda_estado?: string | null
           alumno_id?: string | null
           apellido?: string | null
           capturado_por_email?: string | null
           capturado_por_id?: string | null
           created_at?: string
           created_by?: string | null
-          email?: string
+          email?: string | null
           es_email_secundario?: boolean
+          google_etag?: string | null
+          google_resource_name?: string | null
+          google_sync_error?: string | null
+          google_sync_pending?: boolean
+          google_synced_at?: string | null
           id?: string
           last_campaign_sent_at?: string | null
           nombre?: string | null
