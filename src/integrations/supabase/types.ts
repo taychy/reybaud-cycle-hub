@@ -11825,6 +11825,7 @@ export type Database = {
         }
         Returns: Json
       }
+      restore_subscription_prices_tmp: { Args: never; Returns: number }
       reuse_pending_subscription: {
         Args: {
           p_alumno_id: string
