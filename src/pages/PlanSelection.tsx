@@ -1133,7 +1133,18 @@ const PlanSelection = () => {
             </div>
 
             {error && (
-              <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center">{error}</div>
+              <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center space-y-3">
+                <p>{error}</p>
+                {pausaBlocked && (
+                  <button
+                    onClick={handleEndPausaNow}
+                    disabled={endingPausa}
+                    className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2 disabled:opacity-60"
+                  >
+                    {endingPausa ? "Terminando pausa..." : "Terminar mi pausa y elegir este plan"}
+                  </button>
+                )}
+              </div>
             )}
 
             <div className="flex flex-col items-center gap-4">
