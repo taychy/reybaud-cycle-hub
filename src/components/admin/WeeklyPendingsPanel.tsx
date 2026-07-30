@@ -25,7 +25,7 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
   const navigate = useNavigate();
   const [openDay, setOpenDay] = useState<string | null>(toISODate(new Date()));
 
-  const { days, overdue, todayIso } = useMemo(() => {
+  const { days, overdue, todayIso, stats, urgent } = useMemo(() => {
     const todayIso = toISODate(new Date());
     const week = weekDays();
     const overdue = items.filter((i) => i.date < todayIso);
@@ -33,8 +33,16 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
       iso,
       items: items.filter((i) => i.date === iso),
     }));
-    return { days, overdue, todayIso };
+    const hoy = items.filter((i) => i.date === todayIso).length;
+    const semana = items.filter((i) => i.date >= todayIso && i.date <= week[6]).length;
+    const stats = { vencidas: overdue.length, hoy, semana };
+    const urgent = [...items]
+      .filter((i) => i.tone === "danger" || i.date <= todayIso)
+      .sort((a, b) => (a.date < b.date ? -1 : 1))
+      .slice(0, 3);
+    return { days, overdue, todayIso, stats, urgent };
   }, [items]);
+
 
   const renderItems = (list: DatedAlertItem[]) => (
     <div className="space-y-1 pl-3 pt-1">
@@ -69,7 +77,21 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
           <p className="text-xs text-muted-foreground">Cargando…</p>
         ) : (
           <>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: "Vencidas", value: stats.vencidas, cls: "text-destructive" },
+                { label: "Hoy", value: stats.hoy, cls: "text-yellow-500" },
+                { label: "Esta semana", value: stats.semana, cls: "text-blue-500" },
+              ].map((s) => (
+                <div key={s.label} className="rounded-md border border-border/60 bg-muted/20 p-2 text-center">
+                  <p className="text-[10px] text-muted-foreground truncate">{s.label}</p>
+                  <p className={`text-xl font-heading font-bold tabular-nums ${s.cls}`}>{s.value}</p>
+                </div>
+              ))}
+            </div>
+
             {overdue.length > 0 && (
+
               <div className="rounded-md border border-destructive/40 bg-destructive/10">
                 <button
                   onClick={() => setOpenDay(openDay === "overdue" ? null : "overdue")}
@@ -119,7 +141,27 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
                 );
               })}
             </div>
+
+            {urgent.length > 0 && (
+              <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+                <p className="text-[11px] font-heading uppercase tracking-wider text-muted-foreground">Lo más urgente</p>
+                {urgent.map((u, i) => (
+                  <button
+                    key={i}
+                    onClick={() => navigate(u.link)}
+                    className="w-full text-left flex items-start gap-2 hover:opacity-80 transition-opacity"
+                  >
+                    <span className={`mt-1.5 w-1.5 h-1.5 rounded-full shrink-0 ${toneDot[u.tone]}`} />
+                    <span className="min-w-0">
+                      <span className="block text-xs truncate">{u.kind}</span>
+                      <span className="block text-[10px] text-muted-foreground truncate">{u.label}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </>
+
         )}
       </CardContent>
     </Card>

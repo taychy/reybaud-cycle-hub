@@ -78,3 +78,45 @@ export interface DatedAlertItem {
   link: string;
   tone: "danger" | "warning" | "info";
 }
+
+/** Tarea agregada de un día concreto, con acción sugerida. */
+export interface DayTask {
+  date: string | null; // null = sin fecha / permanente
+  label: string;
+  hint?: string;
+  count: number;
+  link: string;
+  cta: string;
+  tone: "danger" | "warning" | "info";
+}
+
+/** Agrupa items diarios en tareas (una por día + categoría). */
+export function tasksFromDatedItems(
+  items: DatedAlertItem[],
+  ctaFor: (kind: string) => string,
+): DayTask[] {
+  const map = new Map<string, DayTask>();
+  items.forEach((it) => {
+    const key = `${it.date}|${it.kind}`;
+    const prev = map.get(key);
+    if (prev) {
+      prev.count += 1;
+      if (it.tone === "danger") prev.tone = "danger";
+    } else {
+      map.set(key, {
+        date: it.date,
+        label: it.kind,
+        hint: it.label,
+        count: 1,
+        link: it.link,
+        cta: ctaFor(it.kind),
+        tone: it.tone,
+      });
+    }
+  });
+  return Array.from(map.values()).map((t) => ({
+    ...t,
+    hint: t.count > 1 ? undefined : t.hint,
+  }));
+}
+

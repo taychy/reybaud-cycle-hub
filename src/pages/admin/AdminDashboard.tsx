@@ -21,8 +21,10 @@ import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
+import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
 import {
-  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, bucketForDate, toISODate, weekDays,
+  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
+  tasksFromDatedItems,
 } from "@/lib/adminAlerts";
 
 
@@ -537,10 +539,51 @@ const AdminDashboard = () => {
     );
   };
 
+  // ===== Tareas por día (derivadas de los datos ya cargados, sin queries nuevas) =====
+  const ctaFor = (kind: string) => {
+    if (kind.startsWith("Cuota")) return "Cobrar";
+    if (kind.startsWith("Pago vencido")) return "Cobrar";
+    if (kind.startsWith("Solicitud")) return "Revisar";
+    return "Revisar";
+  };
+  const todayIso = toISODate(new Date());
+  const dayTasks: DayTask[] = [
+    ...(chequeoAlerts.facturas > 0
+      ? [{ date: todayIso, label: "Facturas por emitir", hint: "Pagos cobrados hoy sin factura", count: chequeoAlerts.facturas, link: "/admin/facturacion/por-dia", cta: "Facturar", tone: "warning" as const }]
+      : []),
+    ...(chequeoAlerts.pagos > 0
+      ? [{ date: todayIso, label: "Pagos por conciliar", hint: "Pagos registrados hoy", count: chequeoAlerts.pagos, link: "/admin/pagos/por-dia", cta: "Conciliar", tone: "warning" as const }]
+      : []),
+    ...(chequeoAlerts.bajas > 0
+      ? [{ date: todayIso, label: "Bajas a chequear", hint: "Vencen hoy sin renovar", count: chequeoAlerts.bajas, link: "/admin/bajas/por-dia", cta: "Revisar", tone: "danger" as const }]
+      : []),
+    ...(chequeoAlerts.nuevos > 0
+      ? [{ date: todayIso, label: "Nuevos usuarios", hint: "Registrados hoy", count: chequeoAlerts.nuevos, link: "/admin/alumnos/nuevos-por-dia", cta: "Ver", tone: "info" as const }]
+      : []),
+    ...tasksFromDatedItems(datedItems, ctaFor),
+    ...alerts
+      .filter((a) => a.bucket === "sin_fecha")
+      .map((a) => ({ date: null, label: a.message, count: a.count, link: a.link, cta: "Ver", tone: a.type })),
+  ];
+
+  const criticas = alerts.filter((a) => a.type === "danger").reduce((s, a) => s + a.count, 0);
+  const kpis = [
+    { label: "Críticas", value: criticas, hint: "Requieren atención", icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido" },
+    { label: "Cobros pendientes", value: `$${Math.round(cuotasEventos.monto).toLocaleString("es-AR")}`, hint: `${cuotasEventos.count} cuotas de eventos`, icon: DollarSign, color: "text-yellow-500", to: "/admin/eventos" },
+    { label: "Facturas por emitir", value: chequeoAlerts.facturas, hint: "Pagos cobrados hoy", icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia" },
+    { label: "Pagos por conciliar", value: chequeoAlerts.pagos, hint: "Registrados hoy", icon: CreditCard, color: "text-emerald-500", to: "/admin/pagos/por-dia" },
+  ];
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Resumen operativo</h1>
+          <span className="hidden sm:inline-flex items-center gap-1 text-xs text-muted-foreground border border-border rounded-full px-2 py-0.5">
+            <CalendarClock className="w-3 h-3" />
+            {new Date().toLocaleDateString("es-AR", { weekday: "short", day: "numeric", month: "numeric" })}
+          </span>
+        </div>
         <Link to="/admin/procesos/plantillas">
           <Button variant="outline" size="sm">
             <FileText className="w-4 h-4 mr-1" /> Plantillas de procesos
@@ -548,7 +591,47 @@ const AdminDashboard = () => {
         </Link>
       </div>
 
-      {/* Metric Cards */}
+      {/* KPIs operativos */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {kpis.map((k) => (
+          <Link key={k.label} to={k.to} className="block">
+            <Card className="border-border hover:border-primary/50 transition-colors h-full">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <k.icon className={`w-4 h-4 ${k.color}`} />
+                  <span className="text-xs text-muted-foreground truncate">{k.label}</span>
+                </div>
+                <p className="text-2xl font-heading font-bold tabular-nums">{k.value}</p>
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">{k.hint}</p>
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {/* Tareas por día + Pendientes de la semana */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
+          <DashboardTasksByDay tasks={dayTasks} loading={loading} />
+
+          {duplicadosCount > 0 && (
+            <Link
+              to="/admin/alumnos?filter=multi_subs"
+              className="flex items-center gap-3 rounded-md border border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 p-3 transition-colors"
+            >
+              <AlertTriangle className="w-5 h-5 shrink-0 text-blue-500" />
+              <div className="flex-1 text-sm">
+                <span className="font-medium">{duplicadosCount} alumno(s) con más de una suscripción activa</span>
+                <p className="text-xs text-muted-foreground">Ver detalle →</p>
+              </div>
+            </Link>
+          )}
+        </div>
+
+        <WeeklyPendingsPanel items={datedItems} loading={loading} />
+      </div>
+
+      {/* Métricas generales */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         {metrics.map((m) => {
           const inner = (
@@ -573,84 +656,12 @@ const AdminDashboard = () => {
         })}
       </div>
 
-      {/* Aviso de inconsistencia alumnos vs suscripciones */}
-      {duplicadosCount > 0 && (
-        <Link
-          to="/admin/alumnos?filter=multi_subs"
-          className="flex items-center gap-3 rounded-md border border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 p-3 transition-colors"
-        >
-          <AlertTriangle className="w-5 h-5 shrink-0 text-blue-500" />
-          <div className="flex-1 text-sm">
-            <span className="font-medium">{duplicadosCount} alumno(s) con más de una suscripción activa</span>
-            <p className="text-xs text-muted-foreground">Esto explica que haya más suscripciones que alumnos activos. Ver detalle →</p>
-          </div>
-        </Link>
-      )}
-
-
-      {/* Alertas de chequeo (Facturas / Pagos / Bajas / Nuevos) — tareas de HOY */}
-      <div className="space-y-2">
-        <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground">Tareas de hoy</p>
-        {[
-          { label: "Facturas por realizar", count: chequeoAlerts.facturas, icon: FileText, to: "/admin/facturacion/por-dia", hint: "Subs cobradas hoy sin factura emitida", tone: "border-yellow-500/40 bg-yellow-500/5 hover:bg-yellow-500/10 text-yellow-500" },
-          { label: "Pagos a chequear", count: chequeoAlerts.pagos, icon: CreditCard, to: "/admin/pagos/por-dia", hint: "Pagos de hoy a conciliar", tone: "border-orange-500/40 bg-orange-500/5 hover:bg-orange-500/10 text-orange-500" },
-          { label: "Bajas a chequear", count: chequeoAlerts.bajas, icon: AlertTriangle, to: "/admin/bajas/por-dia", hint: "Alumnos que vencen hoy sin renovar", tone: "border-destructive/50 bg-destructive/10 hover:bg-destructive/20 text-destructive" },
-          { label: "Nuevos usuarios", count: chequeoAlerts.nuevos, icon: UserPlus, to: "/admin/alumnos/nuevos-por-dia", hint: "Registrados hoy", tone: "border-emerald-500/40 bg-emerald-500/5 hover:bg-emerald-500/10 text-emerald-500" },
-        ].map((a) => (
-          <Link key={a.label} to={a.to} className={`group flex items-center justify-between gap-3 border rounded-lg px-4 py-3 transition-colors ${a.tone}`}>
-            <div className="flex items-center gap-3 min-w-0">
-              <a.icon className="w-4 h-4 shrink-0" />
-              <span className="text-2xl font-heading font-bold tabular-nums w-10 text-right">{a.count}</span>
-              <div className="min-w-0">
-                <div className="text-[11px] font-heading uppercase tracking-wider truncate">{a.label}</div>
-                <p className="text-[11px] text-muted-foreground truncate">
-                  {a.count === 0 ? "Todo al día" : a.hint}
-                </p>
-              </div>
-            </div>
-            <span className="text-xs opacity-70 group-hover:opacity-100 shrink-0">Ver →</span>
-          </Link>
-        ))}
+      {/* Cumpleaños + Tienda / Entregas */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <BirthdayWidget />
+        <DeliveryCashWidget />
       </div>
 
-      {/* Cumpleaños */}
-      <BirthdayWidget />
-
-      {/* Tienda / Entregas - Caja abierta */}
-      <DeliveryCashWidget />
-
-      {/* Alertas operativas agrupadas por urgencia + pendientes de la semana */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2 space-y-4">
-          {BUCKET_ORDER.map((bucket) => {
-            const group = alerts.filter((a) => a.bucket === bucket);
-            if (group.length === 0) return null;
-            return (
-              <div key={bucket} className="space-y-2">
-                <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground">
-                  {BUCKET_LABEL[bucket]}
-                </p>
-                {group.map((a, i) => (
-                  <div
-                    key={i}
-                    onClick={() => navigate(a.link)}
-                    className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
-                  >
-                    <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
-                    <span className="text-sm flex-1">{a.message}</span>
-                    <span className="text-xs text-muted-foreground">Ver →</span>
-                  </div>
-                ))}
-              </div>
-            );
-          })}
-          {!loading && alerts.length === 0 && (
-            <p className="text-sm text-muted-foreground">Sin alertas abiertas. Todo al día.</p>
-          )}
-        </div>
-
-        <WeeklyPendingsPanel items={datedItems} loading={loading} />
-      </div>
 
 
 
