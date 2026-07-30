@@ -1166,13 +1166,23 @@ const PlanSelection = () => {
               <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center space-y-3">
                 <p>{error}</p>
                 {pausaBlocked && (
-                  <button
-                    onClick={handleEndPausaNow}
-                    disabled={endingPausa}
-                    className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2 disabled:opacity-60"
-                  >
-                    {endingPausa ? "Terminando pausa..." : "Terminar mi pausa y elegir este plan"}
-                  </button>
+                  <div className="space-y-2">
+                    {pausaNextStart && (
+                      <button
+                        onClick={handleScheduleAfterPausa}
+                        className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2"
+                      >
+                        Arrancar este plan cuando termine mi pausa ({formatLocalDate(pausaNextStart.fechaInicio)})
+                      </button>
+                    )}
+                    <button
+                      onClick={handleEndPausaNow}
+                      disabled={endingPausa}
+                      className="w-full rounded-md border border-primary/50 text-foreground text-sm font-semibold py-2 disabled:opacity-60"
+                    >
+                      {endingPausa ? "Terminando pausa..." : "Terminar mi pausa ahora y empezar ya"}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
