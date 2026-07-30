@@ -119,8 +119,8 @@ export default function MpEgresosTab() {
     setForm({
       categoria: "MP - Egresos",
       subcategoria: "",
-      descripcion: m.description && m.description !== "Varios" ? m.description : `Egreso MP ${m.mp_payment_id}`,
-      proveedor: "",
+      descripcion: suggestGastoDescripcion(m),
+      proveedor: getMpMovementDetail(m).contraparte ?? "",
       unidad_negocio: "compartido",
       notas: "",
     });
