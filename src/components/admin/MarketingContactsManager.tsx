@@ -73,6 +73,7 @@ export default function MarketingContactsManager() {
   const [saving, setSaving] = useState(false);
 
   const [showImport, setShowImport] = useState(false);
+  const [showGoogleImport, setShowGoogleImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importTipo, setImportTipo] = useState<Tipo>("importado");
   const [importTags, setImportTags] = useState("");
