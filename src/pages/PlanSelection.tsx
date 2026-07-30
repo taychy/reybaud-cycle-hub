@@ -245,7 +245,7 @@ const PlanSelection = () => {
         setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
       }
       if (pausa) {
-        setActivePausaPlan({ planId: pausa.plan_id, planName: pausa.planes?.nombre || "Pausa" });
+        setActivePausaPlan({ planId: pausa.plan_id, planName: pausa.planes?.nombre || "Pausa", fechaFin: pausa.fecha_fin ?? null });
       }
     })();
     return () => { cancel = true; };
