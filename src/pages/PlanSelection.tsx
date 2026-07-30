@@ -591,7 +591,8 @@ const PlanSelection = () => {
           if (msg.includes("PAUSA_BLOCKED_BY_ACTIVE_SUB")) {
             setError("No podés activar la pausa porque tenés un plan deportivo vigente que debe cancelarse primero. Contactá administración.");
           } else if (msg.includes("BLOCKED_BY_ACTIVE_PAUSA")) {
-            setError("Tu cuenta está en pausa. Para contratar otro plan, primero hay que cancelar la pausa.");
+            setPausaBlocked(true);
+            setError("Tu cuenta está en pausa. Podés terminarla ahora mismo y seguir con este plan.");
           } else if (msg.includes("PAUSA_TOO_LONG")) {
             setError("La pausa no puede durar más de 2 meses.");
           } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
