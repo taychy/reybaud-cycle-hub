@@ -19,6 +19,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   Plus, Search, Upload, Users, UserMinus, Trash2, Pencil, RefreshCw, Loader2, Download,
 } from "lucide-react";
+import GoogleContactsImportDialog from "@/components/admin/GoogleContactsImportDialog";
 
 type Tipo = "lead" | "ex_alumno" | "evento_externo" | "manual" | "importado";
 
@@ -73,6 +74,7 @@ export default function MarketingContactsManager() {
   const [saving, setSaving] = useState(false);
 
   const [showImport, setShowImport] = useState(false);
+  const [showGoogleImport, setShowGoogleImport] = useState(false);
   const [importText, setImportText] = useState("");
   const [importTipo, setImportTipo] = useState<Tipo>("importado");
   const [importTags, setImportTags] = useState("");
@@ -311,6 +313,7 @@ export default function MarketingContactsManager() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={openNew}><Plus className="w-4 h-4 mr-1" />Nuevo contacto</Button>
             <Button size="sm" variant="outline" onClick={() => setShowImport(true)}><Upload className="w-4 h-4 mr-1" />Importar CSV</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowGoogleImport(true)}><Users className="w-4 h-4 mr-1" />Importar agenda Google</Button>
             <Button size="sm" variant="outline" disabled={syncing !== null} onClick={() => runSync("sync_ex_alumnos_to_marketing", "ex alumnos")}>
               {syncing === "sync_ex_alumnos_to_marketing" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
               Sumar ex-alumnos
@@ -518,6 +521,13 @@ export default function MarketingContactsManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <GoogleContactsImportDialog
+        open={showGoogleImport}
+        onOpenChange={setShowGoogleImport}
+        onImported={load}
+      />
+
 
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
