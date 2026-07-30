@@ -20,6 +20,11 @@ import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscri
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
+import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
+import {
+  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, bucketForDate, toISODate, weekDays,
+} from "@/lib/adminAlerts";
+
 
 interface MetricCard {
   label: string;
@@ -61,7 +66,9 @@ interface Alert {
   message: string;
   count: number;
   link: string;
+  bucket: AlertBucket;
 }
+
 
 // Payment status helpers
 const getPaymentBadge = (estado: string, mpStatus: string | null) => {
@@ -102,6 +109,8 @@ const AdminDashboard = () => {
   const [expirations, setExpirations] = useState<UpcomingExpiration[]>([]);
   const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [datedItems, setDatedItems] = useState<DatedAlertItem[]>([]);
+
   const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
   const [duplicadosCount, setDuplicadosCount] = useState(0);
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
@@ -148,7 +157,7 @@ const AdminDashboard = () => {
           .gte("pagado_at", `${today}T00:00:00`)
           .lte("pagado_at", `${today}T23:59:59.999`),
         // Paso B: cuotas de eventos por cobrar (saldo > 0)
-        supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date").eq("source", "cuota_evento"),
+        supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date, alumno_nombre, concepto").eq("source", "cuota_evento"),
       ]);
 
       const alumnos = alumnosRes.data || [];
@@ -275,37 +284,96 @@ const AdminDashboard = () => {
         });
       setPendingPayments(recentPending);
 
-      // Alerts
+      // ================= ALERTAS ORGANIZADAS POR DÍA =================
+      // Cada alerta se ancla a una fecha operativa y cae en un balde:
+      // vencido (fecha < hoy) · hoy · semana (lun-dom en curso) · sin_fecha.
+      const week = weekDays();
+      const weekEnd = week[6];
+      const dated: DatedAlertItem[] = [];
       const alertsList: Alert[] = [];
+
+      // — Vencimientos de suscripciones (fecha operativa = fecha_fin)
+      subsActivas
+        .filter((s: any) => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= weekEnd)
+        .forEach((s: any) => {
+          dated.push({
+            date: s.fecha_fin.substring(0, 10),
+            kind: "Vence suscripción",
+            label: (s.alumnos as any)?.nombre || "Alumno",
+            link: "/admin/pagos?estado=por_cobrar",
+            tone: "warning",
+          });
+        });
+
+      // — Subs vencidas / acceso pausado (backlog)
+      vencidas.forEach((x) => {
+        const s: any = x.s;
+        dated.push({
+          date: (s.fecha_fin || today).substring(0, 10),
+          kind: "Pago vencido sin cobrar",
+          label: (s.alumnos as any)?.nombre || "Alumno",
+          link: "/admin/pagos?estado=vencido",
+          tone: "danger",
+        });
+      });
+
+      // — Cuotas de eventos (fecha operativa = due_date)
+      cuotas
+        .filter((c: any) => c.due_date && c.due_date <= weekEnd)
+        .forEach((c: any) => {
+          dated.push({
+            date: c.due_date.substring(0, 10),
+            kind: "Cuota de evento",
+            label: c.alumno_nombre || c.concepto || "Cuota",
+            link: "/admin/eventos",
+            tone: c.due_date < today ? "danger" : "warning",
+          });
+        });
+
       if (pagosVencidos > 0) {
-        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${pagosVencidos} pago(s) vencido(s) sin cobrar`, count: pagosVencidos, link: "/admin/pagos?estado=vencido" });
+        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${pagosVencidos} pago(s) vencido(s) sin cobrar`, count: pagosVencidos, link: "/admin/pagos?estado=vencido", bucket: "vencido" });
       }
-      const porVencer = subsActivas.filter(s => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= in7Days).length;
-      if (porVencer > 0) {
-        alertsList.push({ type: "warning", icon: Clock, message: `${porVencer} suscripción(es) vence(n) en los próximos 7 días`, count: porVencer, link: "/admin/pagos?estado=por_cobrar" });
+      if (cuotasVencidas > 0) {
+        alertsList.push({ type: "danger", icon: CalendarClock, message: `${cuotasVencidas} cuota(s) de evento vencida(s) sin cobrar`, count: cuotasVencidas, link: "/admin/eventos", bucket: "vencido" });
       }
+
+      // Vencimientos de plan separados por día: hoy vs resto de la semana
+      const venceHoy = subsActivas.filter((s: any) => s.fecha_fin && s.fecha_fin.substring(0, 10) === today).length;
+      const venceSemana = subsActivas.filter(
+        (s: any) => s.fecha_fin && s.fecha_fin > today && s.fecha_fin <= weekEnd
+      ).length;
+      const vencePronto = subsActivas.filter(
+        (s: any) => s.fecha_fin && s.fecha_fin > weekEnd && s.fecha_fin <= in7Days
+      ).length;
+      if (venceHoy > 0) {
+        alertsList.push({ type: "warning", icon: Clock, message: `${venceHoy} suscripción(es) vence(n) HOY`, count: venceHoy, link: "/admin/pagos?estado=por_cobrar", bucket: "hoy" });
+      }
+      if (venceSemana > 0) {
+        alertsList.push({ type: "warning", icon: Clock, message: `${venceSemana} suscripción(es) vence(n) esta semana`, count: venceSemana, link: "/admin/pagos?estado=por_cobrar", bucket: "semana" });
+      }
+      if (vencePronto > 0) {
+        alertsList.push({ type: "info", icon: Clock, message: `${vencePronto} suscripción(es) vence(n) en los próximos días`, count: vencePronto, link: "/admin/pagos?estado=por_cobrar", bucket: "sin_fecha" });
+      }
+
+      const informados = allSubs.filter(s => s.origen_registro === "informado_alumno" && s.estado === "pendiente").length;
+      if (informados > 0) {
+        alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado", bucket: "hoy" });
+      }
+
       const alumnoIdsConSub = new Set(subsActivas.map(s => s.alumno_id));
       const sinPlan = alumnos.filter(a => !alumnoIdsConSub.has(a.id)).length;
       if (sinPlan > 0) {
-        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos?filter=sin_plan_activo" });
-      }
-      const informados = allSubs.filter(s => s.origen_registro === "informado_alumno" && s.estado === "pendiente").length;
-      if (informados > 0) {
-        alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado" });
-      }
-      // Paso B: alerta de cuotas de eventos vencidas
-      if (cuotasVencidas > 0) {
-        alertsList.push({ type: "danger", icon: CalendarClock, message: `${cuotasVencidas} cuota(s) de evento vencida(s) sin cobrar`, count: cuotasVencidas, link: "/admin/eventos" });
+        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos?filter=sin_plan_activo", bucket: "sin_fecha" });
       }
       if (alumnosBloqueados > 0) {
-        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos?filter=bloqueados" });
+        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos?filter=bloqueados", bucket: "vencido" });
       }
       if (alumnosVacaciones > 0) {
-        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos?filter=vacaciones" });
+        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos?filter=vacaciones", bucket: "sin_fecha" });
       }
       const sinGrupo = allAlumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
       if (sinGrupo > 0) {
-        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos?filter=sin_grupo" });
+        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos?filter=sin_grupo", bucket: "sin_fecha" });
       }
       // Inconsistency detection
       const INVALID_COMBOS: [string, string][] = [["vacaciones", "activa"], ["inactivo", "activa"], ["bloqueado", "activa"]];
@@ -320,25 +388,51 @@ const AdminDashboard = () => {
         return INVALID_COMBOS.some(([u, s]) => u === a.estado && s === effSub);
       }).length;
       if (inconsistentCount > 0) {
-        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos?filter=inconsistentes" });
+        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos?filter=inconsistentes", bucket: "vencido" });
       }
 
-      // Solicitudes de cambio de plan pendientes (alumno pidió cambio este período)
-      const { count: solicitudesCount } = await supabase
+      // Solicitudes de cambio de plan pendientes — SLA de 2 días desde la solicitud
+      const { data: solicitudesData } = await supabase
         .from("solicitudes_cambio_plan" as any)
-        .select("id", { count: "exact", head: true })
+        .select("id, created_at, estado")
         .eq("estado", "pendiente");
-      setSolicitudesCambioCount(solicitudesCount || 0);
-      if ((solicitudesCount || 0) > 0) {
+      const solicitudes = (solicitudesData as any[]) || [];
+      setSolicitudesCambioCount(solicitudes.length);
+      solicitudes.forEach((sol: any) => {
+        const base = new Date(sol.created_at);
+        base.setDate(base.getDate() + 2);
+        const iso = toISODate(base);
+        if (iso <= weekEnd) {
+          dated.push({
+            date: iso,
+            kind: "Solicitud de cambio de plan",
+            label: "Responder al alumno",
+            link: "/admin/solicitudes-cambio-plan",
+            tone: iso < today ? "danger" : "warning",
+          });
+        }
+      });
+      if (solicitudes.length > 0) {
+        const masUrgente = solicitudes
+          .map((s: any) => {
+            const d = new Date(s.created_at);
+            d.setDate(d.getDate() + 2);
+            return toISODate(d);
+          })
+          .sort()[0];
         alertsList.push({
           type: "warning",
           icon: ArrowRightLeft,
-          message: `${solicitudesCount} solicitud(es) de cambio de plan pendiente(s) de revisión`,
-          count: solicitudesCount || 0,
+          message: `${solicitudes.length} solicitud(es) de cambio de plan pendiente(s) de revisión`,
+          count: solicitudes.length,
           link: "/admin/solicitudes-cambio-plan",
+          bucket: bucketForDate(masUrgente),
         });
       }
+
       setAlerts(alertsList);
+      setDatedItems(dated.sort((a, b) => (a.date < b.date ? -1 : 1)));
+
 
       // Chequeo alerts (Facturas / Pagos / Bajas / Nuevos) — todas cuentan lo del DÍA DE HOY,
       // no el backlog acumulado. El backlog completo se sigue pudiendo navegar día por día
@@ -525,22 +619,39 @@ const AdminDashboard = () => {
       {/* Tienda / Entregas - Caja abierta */}
       <DeliveryCashWidget />
 
-      {/* Alertas operativas - clickable */}
-      {alerts.length > 0 && (
-        <div className="space-y-2">
-          {alerts.map((a, i) => (
-            <div
-              key={i}
-              onClick={() => navigate(a.link)}
-              className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
-            >
-              <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
-              <span className="text-sm flex-1">{a.message}</span>
-              <span className="text-xs text-muted-foreground">Ver →</span>
-            </div>
-          ))}
+      {/* Alertas operativas agrupadas por urgencia + pendientes de la semana */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
+        <div className="lg:col-span-2 space-y-4">
+          {BUCKET_ORDER.map((bucket) => {
+            const group = alerts.filter((a) => a.bucket === bucket);
+            if (group.length === 0) return null;
+            return (
+              <div key={bucket} className="space-y-2">
+                <p className="text-xs font-heading uppercase tracking-wider text-muted-foreground">
+                  {BUCKET_LABEL[bucket]}
+                </p>
+                {group.map((a, i) => (
+                  <div
+                    key={i}
+                    onClick={() => navigate(a.link)}
+                    className={`flex items-center gap-3 rounded-md border p-3 cursor-pointer transition-opacity hover:opacity-80 ${alertColorMap[a.type]}`}
+                  >
+                    <a.icon className={`w-5 h-5 shrink-0 ${alertIconColorMap[a.type]}`} />
+                    <span className="text-sm flex-1">{a.message}</span>
+                    <span className="text-xs text-muted-foreground">Ver →</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+          {!loading && alerts.length === 0 && (
+            <p className="text-sm text-muted-foreground">Sin alertas abiertas. Todo al día.</p>
+          )}
         </div>
-      )}
+
+        <WeeklyPendingsPanel items={datedItems} loading={loading} />
+      </div>
+
 
 
 
