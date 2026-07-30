@@ -359,7 +359,7 @@ export default function MpEgresosTab() {
                             className={`w-full text-left rounded-md border p-2.5 transition-colors ${ejecId === e.id ? "border-cyan-500 bg-cyan-500/10" : "border-border hover:border-cyan-500/40"}`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium truncate">{rec_concepto(e)}</span>
+                              <span className="text-sm font-medium truncate">{e.gastos_recurrentes?.concepto ?? "Gasto"}</span>
                               <span className={`text-sm font-bold whitespace-nowrap ${pend <= 0 ? "text-muted-foreground" : ""}`}>
                                 {pend > 0 ? `$ ${pend.toLocaleString("es-AR")}` : "Sin saldo"}
                               </span>
