@@ -617,6 +617,9 @@ const AdminDashboard = () => {
       ? [{ date: todayIso, label: "Nuevos usuarios", hint: "Registrados hoy", count: chequeoAlerts.nuevos, link: "/admin/alumnos/nuevos-por-dia", cta: "Ver", tone: "info" as const }]
       : []),
     ...tasksFromDatedItems(datedItems, ctaFor),
+    // Sólo super admin ve las tareas de gastos
+    ...(isSuperAdmin ? gastoTasks : []),
+
     ...alerts
       .filter((a) => a.bucket === "sin_fecha")
       .map((a) => ({ date: null, label: a.message, count: a.count, link: a.link, cta: "Ver", tone: a.type })),
