@@ -139,20 +139,91 @@ export default function MpEgresosTab() {
   }
 
 
+  async function runAI() {
+    setAiLoading(true);
+    try {
+      let ejecs = ejecuciones;
+      if (ejecs.length === 0) {
+        const { data } = await supabase
+          .from("gastos_ejecuciones")
+          .select(`
+            id, mes, fecha_vencimiento, monto_previsto, monto_pagado, estado, moneda,
+            gastos_recurrentes:gastos_recurrentes!recurrente_id ( concepto, categoria, proveedor, ambito )
+          `)
+          .in("estado", ["pendiente", "parcial", "vencido", "pagado"])
+          .order("fecha_vencimiento", { ascending: true })
+          .limit(400);
+        ejecs = (data as any) ?? [];
+        setEjecuciones(ejecs);
+      }
+
+      const movimientos = egresos.slice(0, 40).map((m) => {
+        const d = getMpMovementDetail(m);
+        return {
+          id: m.id,
+          monto: Number(m.amount),
+          moneda: m.currency,
+          fecha: m.fecha_movimiento,
+          concepto: d.concepto ?? m.description,
+          contraparte: d.contraparte,
+          operacion: d.operacion,
+          medio: d.medio,
+          referencia: d.referencia,
+        };
+      });
+
+      const catalogo = ejecs.slice(0, 150).map((e: any) => ({
+        ejecucion_id: e.id,
+        concepto: e.gastos_recurrentes?.concepto,
+        categoria: e.gastos_recurrentes?.categoria,
+        proveedor: e.gastos_recurrentes?.proveedor,
+        ambito: e.gastos_recurrentes?.ambito,
+        mes: e.mes,
+        estado: e.estado,
+        previsto: Number(e.monto_previsto || 0),
+        pagado: Number(e.monto_pagado || 0),
+        saldo: Number(e.monto_previsto || 0) - Number(e.monto_pagado || 0),
+      }));
+
+      const { data, error } = await supabase.functions.invoke("sugerir-categorias-gastos", {
+        body: { movimientos, catalogo, categorias: CATEGORIAS, unidades: UNIDADES.map(u => u.value) },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      const map: Record<string, AiSugerencia> = {};
+      for (const s of ((data as any)?.sugerencias ?? []) as AiSugerencia[]) {
+        if (s?.movement_id) map[s.movement_id] = s;
+      }
+      setAiSug(map);
+      setAiRenombres(((data as any)?.renombres ?? []) as AiRenombre[]);
+      toast({
+        title: "Sugerencias listas",
+        description: `${Object.keys(map).length} movimientos analizados · ${((data as any)?.renombres ?? []).length} propuestas de renombre`,
+      });
+    } catch (e: any) {
+      toast({ title: "No se pudo analizar", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   function openDialog(m: MpEgreso) {
+    const s = aiSug[m.id];
     setDialog(m);
-    setMode("nuevo");
-    setEjecId(null);
+    setMode(s?.tipo === "agenda" && s.ejecucion_id ? "agenda" : "nuevo");
+    setEjecId(s?.tipo === "agenda" ? (s.ejecucion_id ?? null) : null);
     setForm({
-      categoria: "MP - Egresos",
-      subcategoria: "",
-      descripcion: suggestGastoDescripcion(m),
-      proveedor: getMpMovementDetail(m).contraparte ?? "",
-      unidad_negocio: "compartido",
-      notas: "",
+      categoria: s?.categoria && CATEGORIAS.includes(s.categoria) ? s.categoria : "MP - Egresos",
+      subcategoria: s?.subcategoria ?? "",
+      descripcion: s?.descripcion || suggestGastoDescripcion(m),
+      proveedor: s?.proveedor || (getMpMovementDetail(m).contraparte ?? ""),
+      unidad_negocio: s?.unidad_negocio && UNIDADES.some(u => u.value === s.unidad_negocio) ? s.unidad_negocio : "compartido",
+      notas: s?.motivo ? `Sugerido por IA: ${s.motivo}` : "",
     });
     if (ejecuciones.length === 0) loadEjecuciones();
   }
+
 
   async function handleSave() {
     if (!dialog) return;
