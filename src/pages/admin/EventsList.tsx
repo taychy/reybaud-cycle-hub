@@ -482,8 +482,17 @@ const EventsList = () => {
                 {/* Info */}
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
+                    {(newReservationsByEvent[ev.id] || 0) > 0 && <NoveltyDot title="Reservas nuevas" />}
                     <h3 className="font-semibold text-sm">{ev.title}</h3>
                     {typeBadge(ev.type)}
+                    {(newReservationsByEvent[ev.id] || 0) > 0 && (
+                      <button
+                        onClick={() => setReservationsEvent(ev)}
+                        className="text-[10px] font-semibold rounded-full px-2 py-0.5 border border-destructive/50 text-destructive bg-destructive/10 hover:bg-destructive/20 transition-colors"
+                      >
+                        {newReservationsByEvent[ev.id]} reserva{newReservationsByEvent[ev.id] > 1 ? "s" : ""} nueva{newReservationsByEvent[ev.id] > 1 ? "s" : ""}
+                      </button>
+                    )}
                   </div>
                   <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
                     <span className="flex items-center gap-1">
