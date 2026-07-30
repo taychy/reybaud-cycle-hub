@@ -185,6 +185,24 @@ const EventsList = () => {
     fetchEvents();
   }, []);
 
+  // Reservas nuevas desde la última visita a "Eventos", agrupadas por evento,
+  // para poder detectar en qué evento está la novedad que marca la pelotita del sidebar.
+  useEffect(() => {
+    (async () => {
+      const prev = getPrevSeen("eventos");
+      if (!prev) return;
+      const { data } = await supabase
+        .from("event_reservations")
+        .select("event_id")
+        .gt("created_at", prev.toISOString());
+      const counts: Record<string, number> = {};
+      for (const r of ((data as any[]) || [])) {
+        if (r.event_id) counts[r.event_id] = (counts[r.event_id] || 0) + 1;
+      }
+      setNewReservationsByEvent(counts);
+    })();
+  }, []);
+
   /* ─── Filtering + Sorting ─── */
   const filtered = events
     .filter((e) => {
