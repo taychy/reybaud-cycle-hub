@@ -380,6 +380,27 @@ const AdminEntregaDetail = () => {
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
 
+  const paymentsByClient = useMemo(() => {
+    const map: Record<string, Payment[]> = {};
+    payments.forEach((p) => {
+      const k = p.cliente_nombre || "(sin cliente)";
+      (map[k] ||= []).push(p);
+    });
+    return map;
+  }, [payments]);
+
+  const groupedFiltered = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return grouped;
+    return grouped.filter(([cliente, its]) => {
+      if (cliente.toLowerCase().includes(q)) return true;
+      if (its.some((i) => `${i.producto} ${i.variante || ""}`.toLowerCase().includes(q))) return true;
+      if (its.some((i) => String(i.precio_venta ?? "").includes(q))) return true;
+      return (paymentsByClient[cliente] || []).some((p) => String(p.monto).includes(q));
+    });
+  }, [grouped, clientSearch, paymentsByClient]);
+
+
   const balancesByClient = useMemo(
     () => computeDeliveryBalances(items as any, payments as any),
     [items, payments],
