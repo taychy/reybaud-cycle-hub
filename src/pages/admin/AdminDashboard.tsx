@@ -117,6 +117,10 @@ const AdminDashboard = () => {
   const [duplicadosCount, setDuplicadosCount] = useState(0);
   const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
   const [cuotasEventos, setCuotasEventos] = useState({ count: 0, vencidas: 0, monto: 0 });
+  // Tareas de gastos: sección exclusiva de super admin
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [gastoTasks, setGastoTasks] = useState<DayTask[]>([]);
+
 
 
   // Confirmation dialog state
@@ -128,9 +132,61 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadDashboard();
+    loadGastosTasks();
   }, []);
 
+  /**
+   * Tareas de gastos (pagos previstos por día).
+   * Sólo se cargan y muestran si el usuario es super_admin: Gastos es una
+   * sección exclusiva de super admin, así que un admin común ni siquiera
+   * dispara las queries.
+   */
+  const loadGastosTasks = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const { data: profile } = await supabase
+        .from("admin_profiles")
+        .select("role")
+        .eq("user_id", session.user.id)
+        .maybeSingle();
+      if ((profile as any)?.role !== "super_admin") return;
+      setIsSuperAdmin(true);
+
+      const today = toISODate(new Date());
+      const weekEnd = weekDays()[6];
+      const { data } = await supabase
+        .from("gastos_ejecuciones")
+        .select("id, estado, fecha_vencimiento, monto_previsto, moneda")
+        .in("estado", ["pendiente", "vencido"] as any)
+        .not("fecha_vencimiento", "is", null)
+        .lte("fecha_vencimiento", weekEnd);
+
+      const rows = (data as any[]) || [];
+      const map = new Map<string, { count: number; monto: number }>();
+      rows.forEach((r) => {
+        const iso = String(r.fecha_vencimiento).substring(0, 10);
+        const prev = map.get(iso) || { count: 0, monto: 0 };
+        map.set(iso, { count: prev.count + 1, monto: prev.monto + Number(r.monto_previsto || 0) });
+      });
+
+      const tasks: DayTask[] = Array.from(map.entries()).map(([iso, v]) => ({
+        date: iso,
+        label: iso < today ? "Gastos vencidos" : "Gastos a pagar",
+        hint: `$${Math.round(v.monto).toLocaleString("es-AR")} previstos`,
+        count: v.count,
+        link: "/admin/gastos",
+        cta: "Pagar",
+        tone: iso < today ? ("danger" as const) : iso === today ? ("warning" as const) : ("info" as const),
+      }));
+      setGastoTasks(tasks);
+    } catch (err) {
+      console.error("Error loading gastos tasks:", err);
+    }
+  };
+
   const loadDashboard = async () => {
+
     setLoading(true);
     try {
       const now = new Date();
@@ -561,6 +617,9 @@ const AdminDashboard = () => {
       ? [{ date: todayIso, label: "Nuevos usuarios", hint: "Registrados hoy", count: chequeoAlerts.nuevos, link: "/admin/alumnos/nuevos-por-dia", cta: "Ver", tone: "info" as const }]
       : []),
     ...tasksFromDatedItems(datedItems, ctaFor),
+    // Sólo super admin ve las tareas de gastos
+    ...(isSuperAdmin ? gastoTasks : []),
+
     ...alerts
       .filter((a) => a.bucket === "sin_fecha")
       .map((a) => ({ date: null, label: a.message, count: a.count, link: a.link, cta: "Ver", tone: a.type })),
