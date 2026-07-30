@@ -410,6 +410,39 @@ const AdminEventReservations = ({
     setRoomByRes(map);
   };
 
+  /* ─── Cuotas vencidas por reserva ─── */
+  const [overdueByRes, setOverdueByRes] = useState<Record<string, OverdueInfo>>({});
+
+  const loadOverdueInstallments = async (resIds: string[]) => {
+    if (!resIds.length) { setOverdueByRes({}); return; }
+    const today = new Date().toISOString().slice(0, 10);
+    const { data } = await supabase
+      .from("reservation_installments" as any)
+      .select("reservation_id, due_date, status, amount, balance_due, paid_amount, currency")
+      .in("reservation_id", resIds)
+      .lt("due_date", today);
+    const map: Record<string, OverdueInfo> = {};
+    ((data as any[]) || []).forEach((i) => {
+      const st = (i.status || "").toLowerCase();
+      if (["pagada", "pagado", "condonada", "condonado", "anulada", "cancelada"].includes(st)) return;
+      const saldo = i.balance_due != null
+        ? Number(i.balance_due)
+        : Number(i.amount || 0) - Number(i.paid_amount || 0);
+      if (!(saldo > 0)) return;
+      const [y, m, d] = String(i.due_date).split("-").map(Number);
+      const due = new Date(y, m - 1, d);
+      const days = Math.max(0, Math.floor((Date.now() - due.getTime()) / 86400000));
+      const prev = map[i.reservation_id];
+      map[i.reservation_id] = {
+        count: (prev?.count || 0) + 1,
+        amount: (prev?.amount || 0) + saldo,
+        currency: i.currency || eventCurrency,
+        days: Math.max(prev?.days || 0, days),
+      };
+    });
+    setOverdueByRes(map);
+  };
+
   /* ─── Data loading ─── */
 
   const loadReservations = async () => {
@@ -422,7 +455,9 @@ const AdminEventReservations = ({
     if (data) setReservations(data as unknown as EventReservation[]);
     setLoading(false);
     loadRoomAssignments();
+    loadOverdueInstallments(((data as any[]) || []).map((r) => r.id));
   };
+
 
   useEffect(() => { loadReservations(); }, [eventId]);
 
