@@ -20,6 +20,11 @@ import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscri
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
+import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
+import {
+  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, bucketForDate, toISODate, weekDays,
+} from "@/lib/adminAlerts";
+
 
 interface MetricCard {
   label: string;
