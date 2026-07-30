@@ -1162,6 +1162,13 @@ const PlanSelection = () => {
               })}
             </div>
 
+            {scheduleAfterPausa && pausaNextStart && (
+              <div className="max-w-md mx-auto text-sm text-muted-foreground bg-primary/10 border border-primary/30 rounded-md p-3 text-center">
+                Tu pausa sigue vigente. El plan que elijas va a arrancar el{" "}
+                <strong className="text-foreground">{formatLocalDate(pausaNextStart.fechaInicio)}</strong>, cuando termine la pausa.
+              </div>
+            )}
+
             {error && (
               <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center space-y-3">
                 <p>{error}</p>
