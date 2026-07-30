@@ -1080,6 +1080,58 @@ const AdminEntregaDetail = () => {
                         </div>
                       </div>
                     ))}
+
+                    {/* COBROS DEL CLIENTE */}
+                    {(() => {
+                      const pays = paymentsByClient[cliente] || [];
+                      const bals = balancesByClient[cliente] || [];
+                      if (pays.length === 0 && bals.every((b) => b.total === 0)) return null;
+                      return (
+                        <div className="rounded-md border border-primary/40 bg-primary/5 p-2.5 mt-2 space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] font-medium text-primary flex items-center gap-1.5 uppercase tracking-wide">
+                              <Banknote className="w-3.5 h-3.5" /> Cobros
+                            </span>
+                            <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                              {bals.map((b) => (
+                                <span key={b.moneda} className={b.pendiente > 0 ? "text-amber-500" : "text-emerald-500"}>
+                                  {formatPrice(b.cobrado, b.moneda)} de {formatPrice(b.total, b.moneda)}
+                                  {b.pendiente > 0 ? ` · falta ${formatPrice(b.pendiente, b.moneda)}` : " · saldado ✓"}
+                                </span>
+                              ))}
+                              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => { openNewPayment(); setPayEdit((prev) => ({ ...prev, cliente_nombre: cliente })); }}>
+                                <Plus className="w-3 h-3 mr-1" /> Cobro
+                              </Button>
+                            </div>
+                          </div>
+                          {pays.length === 0 ? (
+                            <p className="text-[11px] text-muted-foreground">Sin cobros registrados.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {pays.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => openPaymentDetail(p)}
+                                  className="flex items-center gap-2 rounded-md bg-background/60 border border-border/60 px-2 py-1.5 text-left hover:border-primary/60 transition-colors"
+                                >
+                                  <span className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0">
+                                    {p.comprobante_path ? <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" /> : <ImageOff className="w-3.5 h-3.5 text-muted-foreground/60" />}
+                                  </span>
+                                  <span className="leading-tight">
+                                    <span className="block text-xs">{(p.forma_pago || "").replace(/^\w/, (c) => c.toUpperCase())} · {formatPrice(Number(p.monto), p.moneda || "ARS")}</span>
+                                    <span className={`block text-[10px] ${p.rechazado ? "text-destructive" : p.validado ? "text-emerald-500" : "text-amber-500"}`}>
+                                      {p.rechazado ? "rechazado" : p.validado ? "✓ validado" : "pendiente"} · {new Date(p.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {list && (
                       <DeliveryClientNotify
                         listId={list.id}
