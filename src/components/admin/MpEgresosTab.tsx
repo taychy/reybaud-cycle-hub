@@ -83,6 +83,7 @@ export default function MpEgresosTab() {
       .from("mp_account_movements")
       .select(`
         id, mp_payment_id, amount, currency, description, payment_type,
+        payment_method, payer_name, payer_email, external_reference, raw,
         fecha_movimiento, direccion, gasto_id,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
