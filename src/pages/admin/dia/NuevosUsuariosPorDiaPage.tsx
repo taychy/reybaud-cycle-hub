@@ -32,7 +32,7 @@ const formatWhatsAppUrl = (telefono: string | null, nombre?: string) => {
   const msg = nombre
     ? encodeURIComponent(`Hola ${nombre}, te contactamos desde Reybaud Ciclismo.`)
     : encodeURIComponent("Hola");
-  return `https://wa.me/${clean}?text=${msg}`;
+  return `https://web.whatsapp.com/send?phone=${clean}&text=${msg}`;
 };
 
 const NuevosUsuariosPorDiaPage = () => {
