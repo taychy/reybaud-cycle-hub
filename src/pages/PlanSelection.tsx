@@ -378,18 +378,38 @@ const PlanSelection = () => {
     }
   };
 
+  // Fecha en la que arrancaría el plan nuevo si el alumno espera a que termine la pausa.
+  const pausaNextStart = (() => {
+    const fin = activePausaPlan?.fechaFin;
+    if (!fin) return null;
+    const [y, m, d] = fin.split("-").map(Number);
+    const start = new Date(y, m - 1, d + 1);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    const fmt = (dt: Date) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    return { fechaInicio: fmt(start), fechaFin: fmt(end) };
+  })();
+
+  const handleScheduleAfterPausa = () => {
+    setScheduleAfterPausa(true);
+    setPausaBlocked(false);
+    setError(null);
+  };
+
   const handleSelectPlan = (planId: string) => {
     const plan = planes.find(p => p.id === planId);
     // Si el alumno ya está en pausa, bloquear elegir otro plan distinto SALVO que venga
-    // explícitamente desde el flujo de reactivación de vacaciones (la pausa se cancela al confirmar).
-    if (activePausaPlan && plan?.categoria !== "pausa" && !isFromVacation) {
+    // explícitamente desde el flujo de reactivación de vacaciones (la pausa se cancela al confirmar)
+    // o que haya elegido arrancar el plan nuevo recién cuando termine la pausa.
+    if (activePausaPlan && plan?.categoria !== "pausa" && !isFromVacation && !scheduleAfterPausa) {
       setSelected(null);
       setPausaBlocked(true);
       setError(
-        `Tu cuenta está en pausa (${activePausaPlan.planName}). Podés terminar la pausa ahora mismo y seguir con la contratación.`
+        `Tu cuenta está en pausa (${activePausaPlan.planName}). Elegí si querés terminar la pausa ahora o arrancar este plan cuando termine.`
       );
       return;
     }
+
 
 
     // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
