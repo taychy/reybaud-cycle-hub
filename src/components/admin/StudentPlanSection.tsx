@@ -1089,7 +1089,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
       {/* ===== ADD/CHANGE PLAN DIALOG ===== */}
       <Dialog open={showPlanDialog} onOpenChange={setShowPlanDialog}>
-        <DialogContent className="sm:max-w-md bg-card border-border">
+        <DialogContent className="sm:max-w-md bg-card border-border max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider">
               {dialogMode === "add" ? "Agregar plan" : changeScope === "renovar" ? "Renovar cambiando de plan" : "Corregir plan del período actual"}
