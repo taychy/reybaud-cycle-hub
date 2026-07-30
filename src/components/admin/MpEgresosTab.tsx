@@ -9,8 +9,31 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2 } from "lucide-react";
 import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
+
+type AiSugerencia = {
+  movement_id: string;
+  tipo: "agenda" | "nuevo";
+  ejecucion_id?: string | null;
+  categoria?: string;
+  subcategoria?: string;
+  descripcion?: string;
+  proveedor?: string;
+  unidad_negocio?: string;
+  confianza?: number;
+  motivo?: string;
+};
+
+type AiRenombre = {
+  tipo: string;
+  actual: string;
+  sugerido: string;
+  patron_mp?: string;
+  impacto?: number;
+  motivo?: string;
+};
+
 
 type MpEgreso = {
   id: string;
@@ -73,6 +96,10 @@ export default function MpEgresosTab() {
   const [ejecId, setEjecId] = useState<string | null>(null);
   const [ejecSearch, setEjecSearch] = useState("");
   const [incluirPagados, setIncluirPagados] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSug, setAiSug] = useState<Record<string, AiSugerencia>>({});
+  const [aiRenombres, setAiRenombres] = useState<AiRenombre[]>([]);
+
 
 
   useEffect(() => { load(); }, []);
@@ -112,20 +139,91 @@ export default function MpEgresosTab() {
   }
 
 
+  async function runAI() {
+    setAiLoading(true);
+    try {
+      let ejecs = ejecuciones;
+      if (ejecs.length === 0) {
+        const { data } = await supabase
+          .from("gastos_ejecuciones")
+          .select(`
+            id, mes, fecha_vencimiento, monto_previsto, monto_pagado, estado, moneda,
+            gastos_recurrentes:gastos_recurrentes!recurrente_id ( concepto, categoria, proveedor, ambito )
+          `)
+          .in("estado", ["pendiente", "parcial", "vencido", "pagado"])
+          .order("fecha_vencimiento", { ascending: true })
+          .limit(400);
+        ejecs = (data as any) ?? [];
+        setEjecuciones(ejecs);
+      }
+
+      const movimientos = egresos.slice(0, 40).map((m) => {
+        const d = getMpMovementDetail(m);
+        return {
+          id: m.id,
+          monto: Number(m.amount),
+          moneda: m.currency,
+          fecha: m.fecha_movimiento,
+          concepto: d.concepto ?? m.description,
+          contraparte: d.contraparte,
+          operacion: d.operacion,
+          medio: d.medio,
+          referencia: d.referencia,
+        };
+      });
+
+      const catalogo = ejecs.slice(0, 150).map((e: any) => ({
+        ejecucion_id: e.id,
+        concepto: e.gastos_recurrentes?.concepto,
+        categoria: e.gastos_recurrentes?.categoria,
+        proveedor: e.gastos_recurrentes?.proveedor,
+        ambito: e.gastos_recurrentes?.ambito,
+        mes: e.mes,
+        estado: e.estado,
+        previsto: Number(e.monto_previsto || 0),
+        pagado: Number(e.monto_pagado || 0),
+        saldo: Number(e.monto_previsto || 0) - Number(e.monto_pagado || 0),
+      }));
+
+      const { data, error } = await supabase.functions.invoke("sugerir-categorias-gastos", {
+        body: { movimientos, catalogo, categorias: CATEGORIAS, unidades: UNIDADES.map(u => u.value) },
+      });
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+
+      const map: Record<string, AiSugerencia> = {};
+      for (const s of ((data as any)?.sugerencias ?? []) as AiSugerencia[]) {
+        if (s?.movement_id) map[s.movement_id] = s;
+      }
+      setAiSug(map);
+      setAiRenombres(((data as any)?.renombres ?? []) as AiRenombre[]);
+      toast({
+        title: "Sugerencias listas",
+        description: `${Object.keys(map).length} movimientos analizados · ${((data as any)?.renombres ?? []).length} propuestas de renombre`,
+      });
+    } catch (e: any) {
+      toast({ title: "No se pudo analizar", description: e.message ?? String(e), variant: "destructive" });
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   function openDialog(m: MpEgreso) {
+    const s = aiSug[m.id];
     setDialog(m);
-    setMode("nuevo");
-    setEjecId(null);
+    setMode(s?.tipo === "agenda" && s.ejecucion_id ? "agenda" : "nuevo");
+    setEjecId(s?.tipo === "agenda" ? (s.ejecucion_id ?? null) : null);
     setForm({
-      categoria: "MP - Egresos",
-      subcategoria: "",
-      descripcion: suggestGastoDescripcion(m),
-      proveedor: getMpMovementDetail(m).contraparte ?? "",
-      unidad_negocio: "compartido",
-      notas: "",
+      categoria: s?.categoria && CATEGORIAS.includes(s.categoria) ? s.categoria : "MP - Egresos",
+      subcategoria: s?.subcategoria ?? "",
+      descripcion: s?.descripcion || suggestGastoDescripcion(m),
+      proveedor: s?.proveedor || (getMpMovementDetail(m).contraparte ?? ""),
+      unidad_negocio: s?.unidad_negocio && UNIDADES.some(u => u.value === s.unidad_negocio) ? s.unidad_negocio : "compartido",
+      notas: s?.motivo ? `Sugerido por IA: ${s.motivo}` : "",
     });
     if (ejecuciones.length === 0) loadEjecuciones();
   }
+
 
   async function handleSave() {
     if (!dialog) return;
@@ -244,6 +342,52 @@ export default function MpEgresosTab() {
         ))}
       </div>
 
+      {tab === "egresos" && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs text-muted-foreground">
+            La IA analiza los pendientes, propone categoría o vínculo con la agenda y sugiere renombres para que el próximo match sea automático.
+          </div>
+          <Button size="sm" variant="outline" onClick={runAI} disabled={aiLoading || egresos.length === 0}>
+            {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Sugerir con IA
+          </Button>
+        </div>
+      )}
+
+      {tab === "egresos" && aiRenombres.length > 0 && (
+        <Card className="border-purple-500/30 bg-purple-500/5">
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex items-center gap-2 text-purple-300 text-xs uppercase tracking-wider">
+              <Wand2 className="w-4 h-4" /> Renombres sugeridos para automatizar por regla
+            </div>
+            {aiRenombres.map((r, i) => (
+              <div key={i} className="rounded-md border border-purple-500/20 p-2.5 text-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="text-[10px]">{r.tipo}</Badge>
+                  <span className="line-through text-muted-foreground">{r.actual}</span>
+                  <span className="text-purple-300">→</span>
+                  <span className="font-semibold text-purple-200">{r.sugerido}</span>
+                  {typeof r.impacto === "number" && r.impacto > 0 && (
+                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px]">
+                      automatiza {r.impacto}
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {r.patron_mp && <>MP envía: <span className="font-mono">{r.patron_mp}</span> · </>}
+                  {r.motivo}
+                </div>
+              </div>
+            ))}
+            <div className="text-[11px] text-muted-foreground">
+              Aplicá el renombre en el catálogo de gastos recurrentes: al coincidir el texto exacto con lo que envía MP, el sistema los vincula sin usar IA.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {tab === "internos" && (
         <div className="text-xs text-muted-foreground bg-cyan-500/5 border border-cyan-500/20 rounded p-3">
           Son <b>transferencias internas</b> de MP entre bolsillos (Disponible ↔ Reservas ↔ Inversiones). No son cobros ni gastos.
@@ -258,6 +402,8 @@ export default function MpEgresosTab() {
         <div className="space-y-2">
           {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => {
             const det = getMpMovementDetail(m);
+            const sug = aiSug[m.id];
+            const sugEjec = sug?.ejecucion_id ? ejecuciones.find(e => e.id === sug.ejecucion_id) : null;
             return (
             <Card key={m.id} className="hover:border-orange-500/40 transition-colors">
               <CardContent className="py-3 flex items-center gap-3">
@@ -282,7 +428,23 @@ export default function MpEgresosTab() {
                     {det.referencia && <span className="font-mono">· ref {det.referencia}</span>}
                     <span className="font-mono opacity-60">· {m.mp_payment_id}</span>
                   </div>
+                  {sug && (
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap text-xs">
+                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px]">
+                        <Sparkles className="w-3 h-3 mr-1" /> IA
+                      </Badge>
+                      <span className="text-purple-200">
+                        {sug.tipo === "agenda"
+                          ? `Agenda: ${sugEjec?.gastos_recurrentes?.concepto ?? "gasto planificado"}${sugEjec?.mes ? ` (${sugEjec.mes})` : ""}`
+                          : `${sug.categoria ?? "Gasto nuevo"}${sug.descripcion ? ` · ${sug.descripcion}` : ""}`}
+                      </span>
+                      {typeof sug.confianza === "number" && (
+                        <span className="text-muted-foreground">{Math.round(sug.confianza * 100)}%</span>
+                      )}
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="text-right">
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
