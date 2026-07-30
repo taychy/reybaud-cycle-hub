@@ -96,6 +96,10 @@ export default function MpEgresosTab() {
   const [ejecId, setEjecId] = useState<string | null>(null);
   const [ejecSearch, setEjecSearch] = useState("");
   const [incluirPagados, setIncluirPagados] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiSug, setAiSug] = useState<Record<string, AiSugerencia>>({});
+  const [aiRenombres, setAiRenombres] = useState<AiRenombre[]>([]);
+
 
 
   useEffect(() => { load(); }, []);
