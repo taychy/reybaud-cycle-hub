@@ -21,8 +21,10 @@ import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
+import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
 import {
-  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, bucketForDate, toISODate, weekDays,
+  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
+  tasksFromDatedItems,
 } from "@/lib/adminAlerts";
 
 
