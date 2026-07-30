@@ -1773,6 +1773,8 @@ const AdminEventReservations = ({
                         {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
                       <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
+                      <OverdueBadge info={overdueByRes[r.id]} fmt={fmtMoney} />
+
                     </div>
                     {!isPaymentFree && (
                       <div className="flex items-center gap-4 text-xs">
