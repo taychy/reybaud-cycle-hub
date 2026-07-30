@@ -33,6 +33,13 @@ import {
   Banknote,
   Plus,
   Trash2,
+  Search,
+  ImageIcon,
+  ImageOff,
+  Pencil,
+  CheckCircle2,
+  Clock,
+
 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
@@ -123,7 +130,11 @@ interface Payment {
   created_at: string;
   cargado_por_nombre: string | null;
   notas?: string | null;
+  comprobante_path?: string | null;
+  rechazado?: boolean | null;
+  rechazado_motivo?: string | null;
 }
+
 
 
 interface Item {
@@ -187,6 +198,25 @@ const AdminEntregaDetail = () => {
   const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "", concepto: "sena" });
   const [savingPayEdit, setSavingPayEdit] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
+  const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
+  const [detailUrl, setDetailUrl] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openPaymentDetail = async (p: Payment) => {
+    setDetailPayment(p);
+    setDetailUrl(null);
+    if (p.comprobante_path) {
+      setDetailLoading(true);
+      const { data } = await supabase.storage
+        .from("delivery-payments")
+        .createSignedUrl(p.comprobante_path, 60 * 10);
+      setDetailUrl(data?.signedUrl || null);
+      setDetailLoading(false);
+    }
+  };
+
+
 
   // Parse concepto tag from notas prefix like "[Seña] resto..."
   const parseConceptoFromNotas = (notas: string | null | undefined): { concepto: string; rest: string } => {
@@ -281,7 +311,7 @@ const AdminEntregaDetail = () => {
       supabase.from("delivery_supplier_payments").select("*").eq("delivery_list_id", listId).order("fecha", { ascending: false }),
       supabase
         .from("delivery_list_payments")
-        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre, notas")
+        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre, notas, comprobante_path, rechazado, rechazado_motivo")
         .eq("list_id", listId)
         .order("created_at", { ascending: false }),
       supabase
@@ -356,6 +386,27 @@ const AdminEntregaDetail = () => {
     });
     return Object.entries(map).sort(([a], [b]) => a.localeCompare(b, "es"));
   }, [items]);
+
+  const paymentsByClient = useMemo(() => {
+    const map: Record<string, Payment[]> = {};
+    payments.forEach((p) => {
+      const k = p.cliente_nombre || "(sin cliente)";
+      (map[k] ||= []).push(p);
+    });
+    return map;
+  }, [payments]);
+
+  const groupedFiltered = useMemo(() => {
+    const q = clientSearch.trim().toLowerCase();
+    if (!q) return grouped;
+    return grouped.filter(([cliente, its]) => {
+      if (cliente.toLowerCase().includes(q)) return true;
+      if (its.some((i) => `${i.producto} ${i.variante || ""}`.toLowerCase().includes(q))) return true;
+      if (its.some((i) => String(i.precio_venta ?? "").includes(q))) return true;
+      return (paymentsByClient[cliente] || []).some((p) => String(p.monto).includes(q));
+    });
+  }, [grouped, clientSearch, paymentsByClient]);
+
 
   const balancesByClient = useMemo(
     () => computeDeliveryBalances(items as any, payments as any),
@@ -979,11 +1030,23 @@ const AdminEntregaDetail = () => {
           <p className="text-xs text-muted-foreground">
             Marcá los ítems entregados. El costo y precio se configura en la pestaña <strong>Productos</strong>.
           </p>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              placeholder="Buscar por cliente, producto o importe..."
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
           {grouped.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">Sin ítems.</p>
+          ) : groupedFiltered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Sin resultados para “{clientSearch}”.</p>
           ) : (
-            grouped.map(([cliente, its]) => {
+            groupedFiltered.map(([cliente, its]) => {
               const done = its.filter((i) => i.preparado).length;
+
               return (
                 <Card key={cliente}>
                   <CardHeader className="pb-2">
@@ -1017,6 +1080,58 @@ const AdminEntregaDetail = () => {
                         </div>
                       </div>
                     ))}
+
+                    {/* COBROS DEL CLIENTE */}
+                    {(() => {
+                      const pays = paymentsByClient[cliente] || [];
+                      const bals = balancesByClient[cliente] || [];
+                      if (pays.length === 0 && bals.every((b) => b.total === 0)) return null;
+                      return (
+                        <div className="rounded-md border border-primary/40 bg-primary/5 p-2.5 mt-2 space-y-2">
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-[11px] font-medium text-primary flex items-center gap-1.5 uppercase tracking-wide">
+                              <Banknote className="w-3.5 h-3.5" /> Cobros
+                            </span>
+                            <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                              {bals.map((b) => (
+                                <span key={b.moneda} className={b.pendiente > 0 ? "text-amber-500" : "text-emerald-500"}>
+                                  {formatPrice(b.cobrado, b.moneda)} de {formatPrice(b.total, b.moneda)}
+                                  {b.pendiente > 0 ? ` · falta ${formatPrice(b.pendiente, b.moneda)}` : " · saldado ✓"}
+                                </span>
+                              ))}
+                              <Button size="sm" variant="ghost" className="h-6 px-2 text-[11px]" onClick={() => { openNewPayment(); setPayEdit((prev) => ({ ...prev, cliente_nombre: cliente })); }}>
+                                <Plus className="w-3 h-3 mr-1" /> Cobro
+                              </Button>
+                            </div>
+                          </div>
+                          {pays.length === 0 ? (
+                            <p className="text-[11px] text-muted-foreground">Sin cobros registrados.</p>
+                          ) : (
+                            <div className="flex flex-wrap gap-2">
+                              {pays.map((p) => (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => openPaymentDetail(p)}
+                                  className="flex items-center gap-2 rounded-md bg-background/60 border border-border/60 px-2 py-1.5 text-left hover:border-primary/60 transition-colors"
+                                >
+                                  <span className="w-7 h-7 rounded bg-muted flex items-center justify-center shrink-0">
+                                    {p.comprobante_path ? <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" /> : <ImageOff className="w-3.5 h-3.5 text-muted-foreground/60" />}
+                                  </span>
+                                  <span className="leading-tight">
+                                    <span className="block text-xs">{(p.forma_pago || "").replace(/^\w/, (c) => c.toUpperCase())} · {formatPrice(Number(p.monto), p.moneda || "ARS")}</span>
+                                    <span className={`block text-[10px] ${p.rechazado ? "text-destructive" : p.validado ? "text-emerald-500" : "text-amber-500"}`}>
+                                      {p.rechazado ? "rechazado" : p.validado ? "✓ validado" : "pendiente"} · {new Date(p.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}
+                                    </span>
+                                  </span>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+
                     {list && (
                       <DeliveryClientNotify
                         listId={list.id}
@@ -1544,7 +1659,67 @@ const AdminEntregaDetail = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* DETALLE DE COBRO + COMPROBANTE */}
+      <Dialog open={!!detailPayment} onOpenChange={(o) => { if (!o) { setDetailPayment(null); setDetailUrl(null); } }}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Detalle del cobro</DialogTitle>
+          </DialogHeader>
+          {detailPayment && (
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="font-heading text-2xl text-primary">
+                  {formatPrice(Number(detailPayment.monto), detailPayment.moneda || "ARS")}
+                </span>
+                <Badge variant={detailPayment.rechazado ? "destructive" : detailPayment.validado ? "default" : "secondary"} className="text-[10px]">
+                  {detailPayment.rechazado ? "Rechazado" : detailPayment.validado ? <><CheckCircle2 className="w-3 h-3 mr-1" />Validado</> : <><Clock className="w-3 h-3 mr-1" />Pendiente</>}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div><span className="text-muted-foreground">Cliente</span><div>{detailPayment.cliente_nombre || "—"}</div></div>
+                <div><span className="text-muted-foreground">Forma de pago</span><div className="capitalize">{detailPayment.forma_pago || "—"}</div></div>
+                <div><span className="text-muted-foreground">Fecha</span><div>{new Date(detailPayment.created_at).toLocaleString("es-AR")}</div></div>
+                <div><span className="text-muted-foreground">Cargado por</span><div>{detailPayment.cargado_por_nombre || "—"}</div></div>
+              </div>
+              {detailPayment.notas && (
+                <div className="text-xs"><span className="text-muted-foreground">Notas</span><div>{detailPayment.notas}</div></div>
+              )}
+              {detailPayment.rechazado && detailPayment.rechazado_motivo && (
+                <div className="text-xs text-destructive">Motivo del rechazo: {detailPayment.rechazado_motivo}</div>
+              )}
+              <div className="rounded-md border border-border/60 p-2">
+                <div className="text-[11px] text-muted-foreground mb-1.5">Comprobante</div>
+                {!detailPayment.comprobante_path ? (
+                  <p className="text-xs text-muted-foreground italic">Este cobro se cargó sin foto de comprobante.</p>
+                ) : detailLoading ? (
+                  <p className="text-xs text-muted-foreground">Cargando comprobante…</p>
+                ) : !detailUrl ? (
+                  <p className="text-xs text-muted-foreground">No se pudo abrir el comprobante.</p>
+                ) : /\.pdf$/i.test(detailPayment.comprobante_path) ? (
+                  <Button size="sm" variant="outline" asChild>
+                    <a href={detailUrl} target="_blank" rel="noreferrer">Abrir PDF <ExternalLink className="w-3 h-3 ml-1" /></a>
+                  </Button>
+                ) : (
+                  <a href={detailUrl} target="_blank" rel="noreferrer">
+                    <img src={detailUrl} alt={`Comprobante de pago de ${detailPayment.cliente_nombre}`} className="w-full rounded-md" loading="lazy" />
+                  </a>
+                )}
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <Button variant="outline" size="sm" asChild>
+              <Link to="/admin/cobros-entrega">Validar cobros <ExternalLink className="w-3 h-3 ml-1" /></Link>
+            </Button>
+            <Button size="sm" onClick={() => { if (detailPayment) { const p = detailPayment; setDetailPayment(null); setDetailUrl(null); openEditPayment(p); } }}>
+              <Pencil className="w-3.5 h-3.5 mr-1" /> Editar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+
 
   );
 };
