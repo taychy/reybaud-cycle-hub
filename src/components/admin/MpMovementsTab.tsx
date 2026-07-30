@@ -41,6 +41,10 @@ type Movement = {
 
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
 
+type TargetRow = { id: string; label: string; currency: string; total: number; paid?: number; balance?: number; estado?: string; fecha?: string };
+type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[] };
+
+
 const STATUS_COLORS: Record<string, string> = {
   approved: "bg-green-500/20 text-green-400 border-green-500/30",
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
@@ -77,6 +81,16 @@ export default function MpMovementsTab() {
   const [selectedAlumno, setSelectedAlumno] = useState<string | null>(null);
   const [assignNotes, setAssignNotes] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [targets, setTargets] = useState<PaymentTargets | null>(null);
+  const [loadingTargets, setLoadingTargets] = useState(false);
+  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion"; id: string | null }>({ type: "saldo", id: null });
+
+  useEffect(() => {
+    setTarget({ type: "saldo", id: null });
+    if (selectedAlumno) void loadTargets(selectedAlumno);
+    else setTargets(null);
+  }, [selectedAlumno]);
+
 
   useEffect(() => {
     void load();
@@ -186,14 +200,26 @@ export default function MpMovementsTab() {
     setSuggested(found);
     if (found.length === 1) setSelectedAlumno(found[0].id);
   }
-
+  async function loadTargets(alumnoId: string) {
+    setTargets(null);
+    setLoadingTargets(true);
+    const { data, error } = await supabase.rpc("get_alumno_payment_targets", { _alumno_id: alumnoId });
+    setLoadingTargets(false);
+    if (error) {
+      toast({ title: "No se pudieron cargar los destinos", description: error.message, variant: "destructive" });
+      return;
+    }
+    setTargets((data as any) ?? { reservations: [], subscriptions: [] });
+  }
 
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
     setAssigning(true);
-    const { data, error } = await supabase.rpc("assign_mp_movement_to_alumno", {
+    const { data, error } = await supabase.rpc("assign_mp_movement_to_target", {
       _movement_id: assignDialog.id,
       _alumno_id: selectedAlumno,
+      _target_type: target.type,
+      _target_id: target.id,
       _notes: assignNotes || null,
     });
     setAssigning(false);
@@ -204,21 +230,30 @@ export default function MpMovementsTab() {
       else if (msg.includes("only_approved_movements")) human = "Sólo se pueden asignar movimientos aprobados.";
       else if (msg.includes("only_income_movements")) human = "Sólo se pueden asignar ingresos.";
       else if (msg.includes("not_authorized")) human = "No tenés permisos para asignar movimientos.";
+      else if (msg.includes("reservation_not_found")) human = "No se encontró la reserva seleccionada.";
+      else if (msg.includes("subscription_not_found")) human = "No se encontró el plan seleccionado.";
       toast({ title: "No se pudo asignar", description: human, variant: "destructive" });
       return;
     }
     const created = (data as any)?.created;
     toast({
       title: "Movimiento asignado",
-      description: created
-        ? "Se registró un saldo a favor en la cuenta corriente del alumno."
-        : "Ya existía un saldo a favor vinculado a este pago.",
+      description:
+        target.type === "reservation"
+          ? (created ? "Se registró el pago en la reserva del evento y se imputó a la cuota más antigua." : "Este pago ya estaba vinculado a la reserva.")
+          : target.type === "suscripcion"
+            ? "El plan quedó marcado como pagado con este movimiento."
+            : (created ? "Se registró un saldo a favor en la cuenta corriente del alumno." : "Ya existía un saldo a favor vinculado a este pago."),
     });
     setAssignDialog(null);
     setSelectedAlumno(null);
     setAssignNotes("");
+    setTargets(null);
+    setTarget({ type: "saldo", id: null });
     await load();
   }
+
+
 
   async function handleUnassign(m: Movement) {
     if (!confirm("¿Quitar la asignación de este movimiento? Se revertirá el saldo a favor si aún no fue aplicado.")) return;
@@ -462,8 +497,9 @@ export default function MpMovementsTab() {
           </DialogHeader>
 
           <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-200">
-            Al asignar este movimiento se cargará automáticamente un <b>saldo a favor</b> por {assignDialog && formatPrice(Number(assignDialog.amount), assignDialog.currency)} en la cuenta corriente del alumno. Después podés aplicarlo a la deuda que corresponda (cuota, evento, turno, tienda) desde su ficha.
+            Paso 1: elegí el alumno. Paso 2: elegí <b>a qué se aplica</b> el pago (evento, plan o saldo a favor).
           </div>
+
 
           <div className="space-y-3">
             {suggested.length > 0 && (
@@ -509,6 +545,50 @@ export default function MpMovementsTab() {
                 </CommandList>
               </Command>
             </div>
+            {selectedAlumno && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">¿A qué se aplica este pago?</label>
+                {loadingTargets && <div className="text-xs text-muted-foreground">Buscando deudas abiertas...</div>}
+                {!loadingTargets && (
+                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                    {(targets?.reservations ?? []).map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setTarget({ type: "reservation", id: r.id })}
+                        className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "reservation" && target.id === r.id ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                      >
+                        <div className="font-medium">🎟️ {r.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Saldo {formatPrice(Number(r.balance ?? 0), r.currency)} · Total {formatPrice(Number(r.total ?? 0), r.currency)}
+                        </div>
+                      </button>
+                    ))}
+                    {(targets?.subscriptions ?? []).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setTarget({ type: "suscripcion", id: s.id })}
+                        className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "suscripcion" && target.id === s.id ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                      >
+                        <div className="font-medium">📅 {s.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatPrice(Number(s.total ?? 0), s.currency)} · {s.estado} · desde {s.fecha}
+                        </div>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setTarget({ type: "saldo", id: null })}
+                      className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "saldo" ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                    >
+                      <div className="font-medium">💰 Dejar como saldo a favor</div>
+                      <div className="text-xs text-muted-foreground">Queda como crédito en la cuenta corriente para aplicar después.</div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium">Notas (opcional)</label>
               <Input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Ej: transferencia por seña evento X" />
@@ -517,10 +597,11 @@ export default function MpMovementsTab() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignDialog(null)}>Cancelar</Button>
-            <Button onClick={handleAssign} disabled={!selectedAlumno || assigning}>
-              {assigning ? "Asignando..." : "Asignar"}
+            <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
+              {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </div>
