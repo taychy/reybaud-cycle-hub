@@ -402,6 +402,8 @@ export default function MpEgresosTab() {
         <div className="space-y-2">
           {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => {
             const det = getMpMovementDetail(m);
+            const sug = aiSug[m.id];
+            const sugEjec = sug?.ejecucion_id ? ejecuciones.find(e => e.id === sug.ejecucion_id) : null;
             return (
             <Card key={m.id} className="hover:border-orange-500/40 transition-colors">
               <CardContent className="py-3 flex items-center gap-3">
@@ -426,7 +428,23 @@ export default function MpEgresosTab() {
                     {det.referencia && <span className="font-mono">· ref {det.referencia}</span>}
                     <span className="font-mono opacity-60">· {m.mp_payment_id}</span>
                   </div>
+                  {sug && (
+                    <div className="mt-1.5 flex items-center gap-2 flex-wrap text-xs">
+                      <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px]">
+                        <Sparkles className="w-3 h-3 mr-1" /> IA
+                      </Badge>
+                      <span className="text-purple-200">
+                        {sug.tipo === "agenda"
+                          ? `Agenda: ${sugEjec?.gastos_recurrentes?.concepto ?? "gasto planificado"}${sugEjec?.mes ? ` (${sugEjec.mes})` : ""}`
+                          : `${sug.categoria ?? "Gasto nuevo"}${sug.descripcion ? ` · ${sug.descripcion}` : ""}`}
+                      </span>
+                      {typeof sug.confianza === "number" && (
+                        <span className="text-muted-foreground">{Math.round(sug.confianza * 100)}%</span>
+                      )}
+                    </div>
+                  )}
                 </div>
+
 
                 <div className="text-right">
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
