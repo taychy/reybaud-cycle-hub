@@ -1,9 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Check, Eye } from "lucide-react";
 import { DayTask, dayLabel, toISODate, weekDays } from "@/lib/adminAlerts";
+import {
+  dismissTask,
+  getDismissed,
+  isDismissed,
+  restoreAll,
+  taskKey,
+} from "@/lib/dismissedTasks";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   tasks: DayTask[];
@@ -30,8 +46,20 @@ const toneRail: Record<string, string> = {
 
 const DashboardTasksByDay = ({ tasks, loading }: Props) => {
   const navigate = useNavigate();
+  const [version, setVersion] = useState(0);
 
-  const groups = useMemo(() => {
+  const { groups, hiddenCount } = useMemo(() => {
+    const store = getDismissed();
+    let hidden = 0;
+
+    const visible = tasks.filter((t) => {
+      if (isDismissed(taskKey(t.date, t.label), t.count, store)) {
+        hidden += 1;
+        return false;
+      }
+      return true;
+    });
+
     const today = toISODate(new Date());
     const week = weekDays();
     const weekEnd = week[6];
@@ -40,7 +68,7 @@ const DashboardTasksByDay = ({ tasks, loading }: Props) => {
     const out: { key: string; title: string; sub?: string; items: DayTask[]; tone: string }[] = [];
 
     // El backlog se consolida por categoría (no tiene sentido una fila por día viejo)
-    const overdueRaw = tasks.filter((t) => t.date && t.date < today);
+    const overdueRaw = visible.filter((t) => t.date && t.date < today);
     const overdueMap = new Map<string, DayTask>();
     overdueRaw.forEach((t) => {
       const prev = overdueMap.get(t.label);
@@ -50,10 +78,9 @@ const DashboardTasksByDay = ({ tasks, loading }: Props) => {
     const overdue = Array.from(overdueMap.values()).sort((a, b) => b.count - a.count);
     if (overdue.length) out.push({ key: "backlog", title: "Vencidas", sub: "Backlog", items: overdue, tone: "danger" });
 
-
     const days = week.filter((d) => d >= today);
     days.forEach((iso) => {
-      const items = tasks.filter((t) => t.date === iso);
+      const items = visible.filter((t) => t.date === iso);
       if (!items.length) return;
       const title = iso === today ? "Hoy" : iso === tomorrow ? "Mañana" : dayLabel(iso).split(" ")[0];
       out.push({
@@ -65,16 +92,49 @@ const DashboardTasksByDay = ({ tasks, loading }: Props) => {
       });
     });
 
-    const later = tasks.filter((t) => !t.date || t.date > weekEnd);
+    const later = visible.filter((t) => !t.date || t.date > weekEnd);
     if (later.length) out.push({ key: "later", title: "Próximos días", sub: "Sin fecha / más adelante", items: later, tone: "info" });
 
-    return out;
-  }, [tasks]);
+    return { groups: out, hiddenCount: hidden };
+  }, [tasks, version]);
+
+  const handleDismiss = (t: DayTask, groupKey: string, days: number, texto: string) => {
+    // En el backlog las tareas se consolidan por categoría: ocultamos todas las
+    // fechas viejas de esa misma categoría.
+    if (groupKey === "backlog") {
+      const today = toISODate(new Date());
+      tasks
+        .filter((x) => x.date && x.date < today && x.label === t.label)
+        .forEach((x) => dismissTask(taskKey(x.date, x.label), x.count, days));
+    } else {
+      dismissTask(taskKey(t.date, t.label), t.count, days);
+    }
+    setVersion((v) => v + 1);
+    toast({
+      title: "Tarea marcada como gestionada",
+      description: `“${t.label}” se oculta ${texto}. Reaparece si surgen casos nuevos.`,
+    });
+  };
 
   return (
     <Card className="border-border">
       <CardContent className="p-4 space-y-4">
-        <h2 className="text-xs font-heading uppercase tracking-wider text-muted-foreground">Tareas por día</h2>
+        <div className="flex items-center justify-between gap-2">
+          <h2 className="text-xs font-heading uppercase tracking-wider text-muted-foreground">Tareas por día</h2>
+          {hiddenCount > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 px-2 text-[11px] text-muted-foreground"
+              onClick={() => {
+                restoreAll();
+                setVersion((v) => v + 1);
+              }}
+            >
+              <Eye className="w-3 h-3 mr-1" /> Ver {hiddenCount} oculta{hiddenCount > 1 ? "s" : ""}
+            </Button>
+          )}
+        </div>
 
         {loading ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
@@ -115,6 +175,32 @@ const DashboardTasksByDay = ({ tasks, loading }: Props) => {
                         >
                           {t.cta}
                         </Button>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-7 w-7 shrink-0 text-muted-foreground hover:text-foreground"
+                              title="Ya la gestioné"
+                            >
+                              <Check className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuLabel className="text-[11px] font-normal text-muted-foreground">
+                              Ya la gestioné, ocultar…
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem onClick={() => handleDismiss(t, g.key, 0, "hasta mañana")}>
+                              Por hoy
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDismiss(t, g.key, 3, "por 3 días")}>
+                              Por 3 días
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleDismiss(t, g.key, 7, "por 7 días")}>
+                              Por 7 días
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     ))}
                   </div>
