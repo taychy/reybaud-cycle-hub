@@ -81,7 +81,9 @@ const PlanSelection = () => {
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
   const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
-  const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string } | null>(null);
+  const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string; fechaFin: string | null } | null>(null);
+  // El alumno decide arrancar el plan nuevo recién cuando termine la pausa (renovación al próximo período).
+  const [scheduleAfterPausa, setScheduleAfterPausa] = useState(false);
   // Cuando el alumno elige una pausa, almacenamos la fecha de regreso confirmada en el diálogo.
   // Esto fuerza fecha_fin de la suscripción al valor elegido (en vez del fin de mes habitual).
   const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
@@ -243,7 +245,7 @@ const PlanSelection = () => {
         setActiveGrupalPlan({ planId: grupal.plan_id, planName: grupal.planes?.nombre || "Plan grupal" });
       }
       if (pausa) {
-        setActivePausaPlan({ planId: pausa.plan_id, planName: pausa.planes?.nombre || "Pausa" });
+        setActivePausaPlan({ planId: pausa.plan_id, planName: pausa.planes?.nombre || "Pausa", fechaFin: pausa.fecha_fin ?? null });
       }
     })();
     return () => { cancel = true; };
@@ -376,18 +378,38 @@ const PlanSelection = () => {
     }
   };
 
+  // Fecha en la que arrancaría el plan nuevo si el alumno espera a que termine la pausa.
+  const pausaNextStart = (() => {
+    const fin = activePausaPlan?.fechaFin;
+    if (!fin) return null;
+    const [y, m, d] = fin.split("-").map(Number);
+    const start = new Date(y, m - 1, d + 1);
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 0);
+    const fmt = (dt: Date) =>
+      `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    return { fechaInicio: fmt(start), fechaFin: fmt(end) };
+  })();
+
+  const handleScheduleAfterPausa = () => {
+    setScheduleAfterPausa(true);
+    setPausaBlocked(false);
+    setError(null);
+  };
+
   const handleSelectPlan = (planId: string) => {
     const plan = planes.find(p => p.id === planId);
     // Si el alumno ya está en pausa, bloquear elegir otro plan distinto SALVO que venga
-    // explícitamente desde el flujo de reactivación de vacaciones (la pausa se cancela al confirmar).
-    if (activePausaPlan && plan?.categoria !== "pausa" && !isFromVacation) {
+    // explícitamente desde el flujo de reactivación de vacaciones (la pausa se cancela al confirmar)
+    // o que haya elegido arrancar el plan nuevo recién cuando termine la pausa.
+    if (activePausaPlan && plan?.categoria !== "pausa" && !isFromVacation && !scheduleAfterPausa) {
       setSelected(null);
       setPausaBlocked(true);
       setError(
-        `Tu cuenta está en pausa (${activePausaPlan.planName}). Podés terminar la pausa ahora mismo y seguir con la contratación.`
+        `Tu cuenta está en pausa (${activePausaPlan.planName}). Elegí si querés terminar la pausa ahora o arrancar este plan cuando termine.`
       );
       return;
     }
+
 
 
     // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
@@ -542,6 +564,11 @@ const PlanSelection = () => {
         const now = new Date();
         fechaInicio = now.toISOString().split("T")[0];
         fechaFin = pausaFechaRegreso;
+      } else if (scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa") {
+        // Renovación con cambio de plan estando en pausa: el plan nuevo arranca
+        // el día siguiente al fin de la pausa (no se corta la pausa vigente).
+        fechaInicio = pausaNextStart.fechaInicio;
+        fechaFin = pausaNextStart.fechaFin;
       } else {
         const now = new Date();
         fechaInicio = now.toISOString().split("T")[0];
@@ -554,10 +581,13 @@ const PlanSelection = () => {
       const pausaMarker = plan.categoria === "pausa" && pausaTipo
         ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
         : null;
-      const notasMarker = [upgradeMarker, earlyMarker, pausaMarker].filter(Boolean).join(" | ") || null;
+      const afterPausaMarker = scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa"
+        ? `INICIA_AL_FIN_DE_PAUSA:${pausaNextStart.fechaInicio}`
+        : null;
+      const notasMarker = [upgradeMarker, earlyMarker, pausaMarker, afterPausaMarker].filter(Boolean).join(" | ") || null;
 
       let subId: string | null = null;
-      const reused = !earlyRenewal && !isUpgradeFlow
+      const reused = !earlyRenewal && !isUpgradeFlow && !afterPausaMarker
         ? await tryReuseExistingSubscription(alumnoId, plan.id, {
             estado: "pendiente",
             descuento_id: disc?.discount?.id ?? null,
@@ -1132,17 +1162,34 @@ const PlanSelection = () => {
               })}
             </div>
 
+            {scheduleAfterPausa && pausaNextStart && (
+              <div className="max-w-md mx-auto text-sm text-muted-foreground bg-primary/10 border border-primary/30 rounded-md p-3 text-center">
+                Tu pausa sigue vigente. El plan que elijas va a arrancar el{" "}
+                <strong className="text-foreground">{formatLocalDate(pausaNextStart.fechaInicio)}</strong>, cuando termine la pausa.
+              </div>
+            )}
+
             {error && (
               <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center space-y-3">
                 <p>{error}</p>
                 {pausaBlocked && (
-                  <button
-                    onClick={handleEndPausaNow}
-                    disabled={endingPausa}
-                    className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2 disabled:opacity-60"
-                  >
-                    {endingPausa ? "Terminando pausa..." : "Terminar mi pausa y elegir este plan"}
-                  </button>
+                  <div className="space-y-2">
+                    {pausaNextStart && (
+                      <button
+                        onClick={handleScheduleAfterPausa}
+                        className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2"
+                      >
+                        Arrancar este plan cuando termine mi pausa ({formatLocalDate(pausaNextStart.fechaInicio)})
+                      </button>
+                    )}
+                    <button
+                      onClick={handleEndPausaNow}
+                      disabled={endingPausa}
+                      className="w-full rounded-md border border-primary/50 text-foreground text-sm font-semibold py-2 disabled:opacity-60"
+                    >
+                      {endingPausa ? "Terminando pausa..." : "Terminar mi pausa ahora y empezar ya"}
+                    </button>
+                  </div>
                 )}
               </div>
             )}
@@ -1236,13 +1283,23 @@ const PlanSelection = () => {
           <div className="max-w-md mx-auto text-sm text-destructive bg-destructive/10 rounded-md p-3 text-center space-y-3">
             <p>{error}</p>
             {pausaBlocked && (
-              <button
-                onClick={handleEndPausaNow}
-                disabled={endingPausa}
-                className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2 disabled:opacity-60"
-              >
-                {endingPausa ? "Terminando pausa..." : "Terminar mi pausa y continuar"}
-              </button>
+              <div className="space-y-2">
+                {pausaNextStart && (
+                  <button
+                    onClick={handleScheduleAfterPausa}
+                    className="w-full rounded-md bg-primary text-primary-foreground text-sm font-semibold py-2"
+                  >
+                    Arrancar este plan cuando termine mi pausa ({formatLocalDate(pausaNextStart.fechaInicio)})
+                  </button>
+                )}
+                <button
+                  onClick={handleEndPausaNow}
+                  disabled={endingPausa}
+                  className="w-full rounded-md border border-primary/50 text-foreground text-sm font-semibold py-2 disabled:opacity-60"
+                >
+                  {endingPausa ? "Terminando pausa..." : "Terminar mi pausa ahora y continuar"}
+                </button>
+              </div>
             )}
           </div>
         )}
