@@ -123,7 +123,11 @@ interface Payment {
   created_at: string;
   cargado_por_nombre: string | null;
   notas?: string | null;
+  comprobante_path?: string | null;
+  rechazado?: boolean | null;
+  rechazado_motivo?: string | null;
 }
+
 
 
 interface Item {
