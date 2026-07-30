@@ -65,6 +65,7 @@ export default function MpEgresosTab() {
   const [ejecuciones, setEjecuciones] = useState<any[]>([]);
   const [loadingEjecs, setLoadingEjecs] = useState(false);
   const [ejecId, setEjecId] = useState<string | null>(null);
+  const [ejecSearch, setEjecSearch] = useState("");
 
   useEffect(() => { load(); }, []);
 
@@ -162,6 +163,19 @@ export default function MpEgresosTab() {
   const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id);
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
   const categorizados = items.filter(i => i.gasto_id);
+
+  const filteredEjecuciones = ejecuciones.filter((e) => {
+    if (!ejecSearch.trim()) return true;
+    const rec: any = e.gastos_recurrentes;
+    const term = ejecSearch.toLowerCase();
+    return (
+      String(rec?.concepto ?? "").toLowerCase().includes(term) ||
+      String(rec?.categoria ?? "").toLowerCase().includes(term) ||
+      String(rec?.proveedor ?? "").toLowerCase().includes(term) ||
+      String(e.mes ?? "").toLowerCase().includes(term) ||
+      String(e.estado ?? "").toLowerCase().includes(term)
+    );
+  });
 
   const totalEgresosPendientes = egresos.reduce((s, i) => s + Number(i.amount), 0);
 
@@ -299,13 +313,19 @@ export default function MpEgresosTab() {
                   <div className="text-xs text-muted-foreground">
                     Elegí el gasto planificado del catálogo/agenda al que corresponde este pago. Se registra el pago y la agenda se actualiza sola.
                   </div>
+                  <Input
+                    placeholder="Buscar por concepto, categoría, proveedor, mes…"
+                    value={ejecSearch}
+                    onChange={(e) => setEjecSearch(e.target.value)}
+                    className="text-sm"
+                  />
                   {loadingEjecs ? (
                     <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="w-4 h-4 animate-spin" /> Cargando agenda…</div>
-                  ) : ejecuciones.length === 0 ? (
-                    <div className="text-sm text-muted-foreground">No hay gastos planificados pendientes.</div>
+                  ) : filteredEjecuciones.length === 0 ? (
+                    <div className="text-sm text-muted-foreground">{ejecSearch ? "No hay coincidencias." : "No hay gastos planificados pendientes."}</div>
                   ) : (
                     <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
-                      {ejecuciones.map(e => {
+                      {filteredEjecuciones.map(e => {
                         const rec: any = e.gastos_recurrentes;
                         const pend = Number(e.monto_previsto || 0) - Number(e.monto_pagado || 0);
                         const match = Math.abs(pend - Number(dialog.amount)) < 1;
