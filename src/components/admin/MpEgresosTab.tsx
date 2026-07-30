@@ -342,6 +342,52 @@ export default function MpEgresosTab() {
         ))}
       </div>
 
+      {tab === "egresos" && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="text-xs text-muted-foreground">
+            La IA analiza los pendientes, propone categoría o vínculo con la agenda y sugiere renombres para que el próximo match sea automático.
+          </div>
+          <Button size="sm" variant="outline" onClick={runAI} disabled={aiLoading || egresos.length === 0}>
+            {aiLoading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Sugerir con IA
+          </Button>
+        </div>
+      )}
+
+      {tab === "egresos" && aiRenombres.length > 0 && (
+        <Card className="border-purple-500/30 bg-purple-500/5">
+          <CardContent className="pt-4 space-y-2">
+            <div className="flex items-center gap-2 text-purple-300 text-xs uppercase tracking-wider">
+              <Wand2 className="w-4 h-4" /> Renombres sugeridos para automatizar por regla
+            </div>
+            {aiRenombres.map((r, i) => (
+              <div key={i} className="rounded-md border border-purple-500/20 p-2.5 text-sm">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="text-[10px]">{r.tipo}</Badge>
+                  <span className="line-through text-muted-foreground">{r.actual}</span>
+                  <span className="text-purple-300">→</span>
+                  <span className="font-semibold text-purple-200">{r.sugerido}</span>
+                  {typeof r.impacto === "number" && r.impacto > 0 && (
+                    <Badge className="bg-purple-500/20 text-purple-300 border-purple-500/30 text-[10px]">
+                      automatiza {r.impacto}
+                    </Badge>
+                  )}
+                </div>
+                <div className="text-xs text-muted-foreground mt-1">
+                  {r.patron_mp && <>MP envía: <span className="font-mono">{r.patron_mp}</span> · </>}
+                  {r.motivo}
+                </div>
+              </div>
+            ))}
+            <div className="text-[11px] text-muted-foreground">
+              Aplicá el renombre en el catálogo de gastos recurrentes: al coincidir el texto exacto con lo que envía MP, el sistema los vincula sin usar IA.
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+
+
       {tab === "internos" && (
         <div className="text-xs text-muted-foreground bg-cyan-500/5 border border-cyan-500/20 rounded p-3">
           Son <b>transferencias internas</b> de MP entre bolsillos (Disponible ↔ Reservas ↔ Inversiones). No son cobros ni gastos.
