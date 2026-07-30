@@ -311,6 +311,7 @@ export default function MarketingContactsManager() {
           <div className="flex flex-wrap gap-2">
             <Button size="sm" onClick={openNew}><Plus className="w-4 h-4 mr-1" />Nuevo contacto</Button>
             <Button size="sm" variant="outline" onClick={() => setShowImport(true)}><Upload className="w-4 h-4 mr-1" />Importar CSV</Button>
+            <Button size="sm" variant="outline" onClick={() => setShowGoogleImport(true)}><Users className="w-4 h-4 mr-1" />Importar agenda Google</Button>
             <Button size="sm" variant="outline" disabled={syncing !== null} onClick={() => runSync("sync_ex_alumnos_to_marketing", "ex alumnos")}>
               {syncing === "sync_ex_alumnos_to_marketing" ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-1" />}
               Sumar ex-alumnos
