@@ -191,6 +191,25 @@ const AdminEntregaDetail = () => {
   const [payEdit, setPayEdit] = useState({ monto: "", moneda: "ARS", forma_pago: "efectivo", validado: false, notas: "", cliente_nombre: "", concepto: "sena" });
   const [savingPayEdit, setSavingPayEdit] = useState(false);
   const [deletingPaymentId, setDeletingPaymentId] = useState<string | null>(null);
+  const [clientSearch, setClientSearch] = useState("");
+  const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
+  const [detailUrl, setDetailUrl] = useState<string | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+
+  const openPaymentDetail = async (p: Payment) => {
+    setDetailPayment(p);
+    setDetailUrl(null);
+    if (p.comprobante_path) {
+      setDetailLoading(true);
+      const { data } = await supabase.storage
+        .from("delivery-payments")
+        .createSignedUrl(p.comprobante_path, 60 * 10);
+      setDetailUrl(data?.signedUrl || null);
+      setDetailLoading(false);
+    }
+  };
+
+
 
   // Parse concepto tag from notas prefix like "[Seña] resto..."
   const parseConceptoFromNotas = (notas: string | null | undefined): { concepto: string; rest: string } => {
