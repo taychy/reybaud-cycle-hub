@@ -545,6 +545,50 @@ export default function MpMovementsTab() {
                 </CommandList>
               </Command>
             </div>
+            {selectedAlumno && (
+              <div className="space-y-2">
+                <label className="text-sm font-medium">¿A qué se aplica este pago?</label>
+                {loadingTargets && <div className="text-xs text-muted-foreground">Buscando deudas abiertas...</div>}
+                {!loadingTargets && (
+                  <div className="space-y-1.5 max-h-[220px] overflow-y-auto pr-1">
+                    {(targets?.reservations ?? []).map((r) => (
+                      <button
+                        key={r.id}
+                        type="button"
+                        onClick={() => setTarget({ type: "reservation", id: r.id })}
+                        className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "reservation" && target.id === r.id ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                      >
+                        <div className="font-medium">🎟️ {r.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Saldo {formatPrice(Number(r.balance ?? 0), r.currency)} · Total {formatPrice(Number(r.total ?? 0), r.currency)}
+                        </div>
+                      </button>
+                    ))}
+                    {(targets?.subscriptions ?? []).map((s) => (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => setTarget({ type: "suscripcion", id: s.id })}
+                        className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "suscripcion" && target.id === s.id ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                      >
+                        <div className="font-medium">📅 {s.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {formatPrice(Number(s.total ?? 0), s.currency)} · {s.estado} · desde {s.fecha}
+                        </div>
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={() => setTarget({ type: "saldo", id: null })}
+                      className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "saldo" ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                    >
+                      <div className="font-medium">💰 Dejar como saldo a favor</div>
+                      <div className="text-xs text-muted-foreground">Queda como crédito en la cuenta corriente para aplicar después.</div>
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
             <div>
               <label className="text-sm font-medium">Notas (opcional)</label>
               <Input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Ej: transferencia por seña evento X" />
@@ -553,10 +597,11 @@ export default function MpMovementsTab() {
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignDialog(null)}>Cancelar</Button>
-            <Button onClick={handleAssign} disabled={!selectedAlumno || assigning}>
-              {assigning ? "Asignando..." : "Asignar"}
+            <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
+              {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </div>
