@@ -1471,7 +1471,8 @@ const AdminEventReservations = ({
             {f.label}
             {f.key !== "all" && (
               <span className="ml-1.5 opacity-70">
-                {f.key === "con_deuda" ? reservations.filter(r => { const b = r.balance_due ?? ((r.amount_total||0)-(r.amount_paid||0)); return b > 0; }).length
+                {f.key === "vencidas" ? Object.keys(overdueByRes).length
+                  : f.key === "con_deuda" ? reservations.filter(r => { const b = r.balance_due ?? ((r.amount_total||0)-(r.amount_paid||0)); return b > 0; }).length
                   : f.key === "pago_informado" ? stats.pagosARevisar
                   : f.key === "pendientes" ? stats.pending
                   : f.key === "confirmados" ? stats.confirmed
