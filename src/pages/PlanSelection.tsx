@@ -564,6 +564,11 @@ const PlanSelection = () => {
         const now = new Date();
         fechaInicio = now.toISOString().split("T")[0];
         fechaFin = pausaFechaRegreso;
+      } else if (scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa") {
+        // Renovación con cambio de plan estando en pausa: el plan nuevo arranca
+        // el día siguiente al fin de la pausa (no se corta la pausa vigente).
+        fechaInicio = pausaNextStart.fechaInicio;
+        fechaFin = pausaNextStart.fechaFin;
       } else {
         const now = new Date();
         fechaInicio = now.toISOString().split("T")[0];
