@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon } from "lucide-react";
+import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
 
 type MpEgreso = {
   id: string;
