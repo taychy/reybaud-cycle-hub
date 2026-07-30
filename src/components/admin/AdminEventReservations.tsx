@@ -264,15 +264,20 @@ interface AdminEventReservationsProps {
 type SortKey = "name" | "date" | "balance" | "payment_status";
 
 /* ─── Quick filters ─── */
-type QuickFilter = "all" | "con_deuda" | "pago_informado" | "sin_revisar" | "confirmados" | "pendientes";
+type QuickFilter = "all" | "con_deuda" | "vencidas" | "pago_informado" | "sin_revisar" | "confirmados" | "pendientes";
 
 const quickFilters: { key: QuickFilter; label: string }[] = [
   { key: "all", label: "Todos" },
+  { key: "vencidas", label: "Cuotas vencidas" },
   { key: "con_deuda", label: "Con deuda" },
   { key: "pago_informado", label: "Pago informado" },
   { key: "pendientes", label: "Pendientes" },
   { key: "confirmados", label: "Confirmados" },
 ];
+
+/* ─── Cuotas vencidas por reserva ─── */
+interface OverdueInfo { count: number; amount: number; currency: string; days: number }
+
 
 /* ─── Component ─── */
 
