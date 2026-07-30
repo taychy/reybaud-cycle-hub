@@ -236,18 +236,18 @@ const PaymentDialog = ({
     }
   }, [open, expectedMonto, expectedMoneda, expectedForma]);
 
-  const uploadComprobante = async (): Promise<string | null> => {
-    if (!file) return null;
+  const uploadComprobante = async (): Promise<{ path: string | null; failed: boolean }> => {
+    if (!file) return { path: null, failed: false };
     const ext = file.name.split(".").pop() || "bin";
     const path = `${listId}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage
       .from("delivery-payments")
       .upload(path, file, { upsert: false });
     if (error) {
-      toast.error("No se pudo subir el comprobante");
-      return null;
+      toast.error(`No se pudo subir la foto del comprobante: ${error.message}`);
+      return { path: null, failed: true };
     }
-    return path;
+    return { path, failed: false };
   };
 
   const save = async () => {
@@ -262,7 +262,12 @@ const PaymentDialog = ({
     }
     setSaving(true);
 
-    const comprobante_path = await uploadComprobante();
+    const { path: comprobante_path, failed } = await uploadComprobante();
+    if (failed) {
+      setSaving(false);
+      return;
+    }
+
 
     if (mode === "public") {
       const { error } = await supabase.rpc("delivery_add_payment_by_token", {
