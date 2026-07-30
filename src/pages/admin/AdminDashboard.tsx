@@ -157,7 +157,7 @@ const AdminDashboard = () => {
           .gte("pagado_at", `${today}T00:00:00`)
           .lte("pagado_at", `${today}T23:59:59.999`),
         // Paso B: cuotas de eventos por cobrar (saldo > 0)
-        supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date").eq("source", "cuota_evento"),
+        supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date, alumno_nombre, concepto").eq("source", "cuota_evento"),
       ]);
 
       const alumnos = alumnosRes.data || [];
