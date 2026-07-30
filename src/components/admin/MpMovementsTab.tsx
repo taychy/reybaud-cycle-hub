@@ -77,6 +77,16 @@ export default function MpMovementsTab() {
   const [selectedAlumno, setSelectedAlumno] = useState<string | null>(null);
   const [assignNotes, setAssignNotes] = useState("");
   const [assigning, setAssigning] = useState(false);
+  const [targets, setTargets] = useState<PaymentTargets | null>(null);
+  const [loadingTargets, setLoadingTargets] = useState(false);
+  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion"; id: string | null }>({ type: "saldo", id: null });
+
+  useEffect(() => {
+    setTarget({ type: "saldo", id: null });
+    if (selectedAlumno) void loadTargets(selectedAlumno);
+    else setTargets(null);
+  }, [selectedAlumno]);
+
 
   useEffect(() => {
     void load();
