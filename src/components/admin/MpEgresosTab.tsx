@@ -66,6 +66,8 @@ export default function MpEgresosTab() {
   const [loadingEjecs, setLoadingEjecs] = useState(false);
   const [ejecId, setEjecId] = useState<string | null>(null);
   const [ejecSearch, setEjecSearch] = useState("");
+  const [incluirPagados, setIncluirPagados] = useState(true);
+
 
   useEffect(() => { load(); }, []);
 
