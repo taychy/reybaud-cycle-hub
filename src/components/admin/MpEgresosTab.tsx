@@ -126,11 +126,16 @@ export default function MpEgresosTab() {
 
     if (mode === "agenda") {
       if (!ejecId) { setSaving(false); return; }
+      const sel = ejecuciones.find(e => e.id === ejecId);
+      const pendSel = sel ? Number(sel.monto_previsto || 0) - Number(sel.monto_pagado || 0) : 0;
+      const esExcedente = pendSel <= 0 || Number(dialog.amount) > pendSel + 1;
       const { error } = await supabase.rpc("mp_egreso_to_ejecucion", {
         _movement_id: dialog.id,
         _ejecucion_id: ejecId,
         _notas: form.notas || null,
+        _es_excedente: esExcedente,
       });
+
       setSaving(false);
       if (error) {
         toast({ title: "No se pudo vincular", description: error.message, variant: "destructive" });
