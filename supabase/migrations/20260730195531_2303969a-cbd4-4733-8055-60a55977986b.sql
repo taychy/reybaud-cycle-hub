@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.restore_subscription_prices_tmp();
