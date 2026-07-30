@@ -6598,6 +6598,7 @@ export type Database = {
       }
       precio_historial: {
         Row: {
+          aplicado_at: string | null
           aplicar_a: string
           created_at: string
           fecha_cambio: string
@@ -6608,8 +6609,10 @@ export type Database = {
           plan_id: string
           precio_anterior: number
           precio_nuevo: number
+          suscripciones_actualizadas: number
         }
         Insert: {
+          aplicado_at?: string | null
           aplicar_a?: string
           created_at?: string
           fecha_cambio?: string
@@ -6620,8 +6623,10 @@ export type Database = {
           plan_id: string
           precio_anterior: number
           precio_nuevo: number
+          suscripciones_actualizadas?: number
         }
         Update: {
+          aplicado_at?: string | null
           aplicar_a?: string
           created_at?: string
           fecha_cambio?: string
@@ -6632,6 +6637,7 @@ export type Database = {
           plan_id?: string
           precio_anterior?: number
           precio_nuevo?: number
+          suscripciones_actualizadas?: number
         }
         Relationships: [
           {
@@ -10926,6 +10932,11 @@ export type Database = {
           p_revalidation_token: string
         }
         Returns: Json
+      }
+      apply_pending_price_changes: { Args: never; Returns: number }
+      apply_price_change_to_subscriptions: {
+        Args: { _historial_id: string }
+        Returns: number
       }
       apply_supplier_shortage_to_delivery: {
         Args: { _list_id: string; _order_id: string }

@@ -107,7 +107,7 @@ const ManagePrecios = () => {
       const { data: { session } } = await supabase.auth.getSession();
 
       // Insert history
-      const { error: histError } = await supabase.from("precio_historial").insert({
+      const { data: histRow, error: histError } = await supabase.from("precio_historial").insert({
         plan_id: selectedPlan.id,
         precio_anterior: selectedPlan.precio,
         precio_nuevo: newPrice,
@@ -115,7 +115,7 @@ const ManagePrecios = () => {
         aplicar_a: form.aplicar_a,
         modificado_por: session?.user?.id || null,
         notas: form.notas.trim() || null,
-      } as any);
+      } as any).select("id").single();
 
       if (histError) {
         toast({ title: "Error al guardar historial", description: histError.message, variant: "destructive" });
@@ -130,13 +130,39 @@ const ManagePrecios = () => {
         return;
       }
 
-      toast({ title: "Precio actualizado" });
+      // Propagar a las suscripciones existentes cuando corresponde ("Todos")
+      let propagadas = 0;
+      if (form.aplicar_a === "todos" && histRow?.id) {
+        const { data: count, error: applyError } = await supabase.rpc("apply_price_change_to_subscriptions" as any, {
+          _historial_id: histRow.id,
+        });
+        if (applyError) {
+          toast({
+            title: "Precio actualizado, pero no se pudo propagar",
+            description: applyError.message,
+            variant: "destructive",
+          });
+          setDialogOpen(false);
+          fetchAll();
+          return;
+        }
+        propagadas = Number(count) || 0;
+      }
+
+      toast({
+        title: "Precio actualizado",
+        description:
+          form.aplicar_a === "todos"
+            ? `${propagadas} suscripción(es) desde la fecha de vigencia quedaron actualizadas.`
+            : "Se aplicará solo a nuevas suscripciones.",
+      });
       setDialogOpen(false);
       fetchAll();
     } catch (err: any) {
       toast({ title: "Error inesperado", description: err.message || "Intentá de nuevo", variant: "destructive" });
     }
   };
+
 
   // formatPrice imported from @/lib/currency
 
