@@ -1066,6 +1066,46 @@ const SuperAdminGastos = () => {
                       </>
                     ));
                     })()}
+                    {(() => {
+                      const q = searchMatriz.trim().toLowerCase();
+                      const rows = q
+                        ? matrizSueltos.filter(s => `${s.categoria} ${s.descripcion}`.toLowerCase().includes(q))
+                        : matrizSueltos;
+                      if (rows.length === 0) return null;
+                      return (
+                        <>
+                          <TableRow className="bg-muted/40">
+                            <TableCell colSpan={14} className="font-heading font-bold uppercase text-xs tracking-wider">
+                              Sin catálogo (gastos categorizados sueltos)
+                            </TableCell>
+                          </TableRow>
+                          {rows.map(s => {
+                            const total = Object.values(s.meses).reduce((a, b) => a + b, 0);
+                            return (
+                              <TableRow key={s.key}>
+                                <TableCell className="sticky left-0 bg-card text-sm font-medium">
+                                  <div className="flex flex-col">
+                                    <span>{s.descripcion}</span>
+                                    <span className="text-[11px] text-muted-foreground">{s.categoria}</span>
+                                  </div>
+                                </TableCell>
+                                {Array.from({ length: 12 }, (_, i) => i + 1).map(mm => {
+                                  const monto = s.meses[mm] || 0;
+                                  return (
+                                    <TableCell key={mm} className={`text-center text-xs ${monto > 0 ? "text-green-500 bg-green-500/5" : "text-muted-foreground/40"}`}>
+                                      {monto > 0 ? Math.round(monto / 1000) + "k" : "—"}
+                                    </TableCell>
+                                  );
+                                })}
+                                <TableCell className="text-right text-xs font-heading font-bold bg-muted/30 sticky right-0">
+                                  {total > 0 ? fmt(total, s.moneda) : "—"}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </>
+                      );
+                    })()}
                   </TableBody>
                 </Table>
               </div>
