@@ -10952,6 +10952,16 @@ export type Database = {
         Args: { _alumno_id: string; _movement_id: string; _notes?: string }
         Returns: Json
       }
+      assign_mp_movement_to_target: {
+        Args: {
+          _alumno_id: string
+          _movement_id: string
+          _notes?: string
+          _target_id?: string
+          _target_type: string
+        }
+        Returns: Json
+      }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
       cancel_store_order:
@@ -11224,6 +11234,10 @@ export type Database = {
           recurrente_id: string
           saldo_total: number
         }[]
+      }
+      get_alumno_payment_targets: {
+        Args: { _alumno_id: string }
+        Returns: Json
       }
       get_coaches_public: {
         Args: never
