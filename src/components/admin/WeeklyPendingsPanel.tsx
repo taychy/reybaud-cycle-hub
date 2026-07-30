@@ -25,22 +25,18 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
   const navigate = useNavigate();
   const [openDay, setOpenDay] = useState<string | null>(toISODate(new Date()));
 
-  const { days, overdue, todayIso, stats, urgent } = useMemo(() => {
+  const { days, todayIso, urgent } = useMemo(() => {
     const todayIso = toISODate(new Date());
     const week = weekDays();
-    const overdue = items.filter((i) => i.date < todayIso);
     const days = week.map((iso) => ({
       iso,
       items: items.filter((i) => i.date === iso),
     }));
-    const hoy = items.filter((i) => i.date === todayIso).length;
-    const semana = items.filter((i) => i.date >= todayIso && i.date <= week[6]).length;
-    const stats = { vencidas: overdue.length, hoy, semana };
     const urgent = [...items]
       .filter((i) => i.tone === "danger" || i.date <= todayIso)
       .sort((a, b) => (a.date < b.date ? -1 : 1))
       .slice(0, 3);
-    return { days, overdue, todayIso, stats, urgent };
+    return { days, todayIso, urgent };
   }, [items]);
 
 
