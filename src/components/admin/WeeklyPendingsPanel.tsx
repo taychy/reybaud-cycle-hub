@@ -77,35 +77,6 @@ const WeeklyPendingsPanel = ({ items, loading }: Props) => {
           <p className="text-xs text-muted-foreground">Cargando…</p>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-2">
-              {[
-                { label: "Vencidas", value: stats.vencidas, cls: "text-destructive" },
-                { label: "Hoy", value: stats.hoy, cls: "text-yellow-500" },
-                { label: "Esta semana", value: stats.semana, cls: "text-blue-500" },
-              ].map((s) => (
-                <div key={s.label} className="rounded-md border border-border/60 bg-muted/20 p-2 text-center">
-                  <p className="text-[10px] text-muted-foreground truncate">{s.label}</p>
-                  <p className={`text-xl font-heading font-bold tabular-nums ${s.cls}`}>{s.value}</p>
-                </div>
-              ))}
-            </div>
-
-            {overdue.length > 0 && (
-
-              <div className="rounded-md border border-destructive/40 bg-destructive/10">
-                <button
-                  onClick={() => setOpenDay(openDay === "overdue" ? null : "overdue")}
-                  className="w-full flex items-center justify-between px-3 py-2"
-                >
-                  <span className="flex items-center gap-2 text-xs font-medium text-destructive">
-                    {openDay === "overdue" ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
-                    Vencidas (backlog)
-                  </span>
-                  <Badge variant="destructive" className="tabular-nums">{overdue.length}</Badge>
-                </button>
-                {openDay === "overdue" && <div className="pb-2">{renderItems(overdue)}</div>}
-              </div>
-            )}
 
             <div className="space-y-1">
               {days.map((d) => {
