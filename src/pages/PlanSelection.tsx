@@ -81,7 +81,9 @@ const PlanSelection = () => {
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
   const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
-  const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string } | null>(null);
+  const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string; fechaFin: string | null } | null>(null);
+  // El alumno decide arrancar el plan nuevo recién cuando termine la pausa (renovación al próximo período).
+  const [scheduleAfterPausa, setScheduleAfterPausa] = useState(false);
   // Cuando el alumno elige una pausa, almacenamos la fecha de regreso confirmada en el diálogo.
   // Esto fuerza fecha_fin de la suscripción al valor elegido (en vez del fin de mes habitual).
   const [pausaFechaRegreso, setPausaFechaRegreso] = useState<string | null>(null);
