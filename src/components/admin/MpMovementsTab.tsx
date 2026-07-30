@@ -41,6 +41,10 @@ type Movement = {
 
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
 
+type TargetRow = { id: string; label: string; currency: string; total: number; paid?: number; balance?: number; estado?: string; fecha?: string };
+type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[] };
+
+
 const STATUS_COLORS: Record<string, string> = {
   approved: "bg-green-500/20 text-green-400 border-green-500/30",
   pending: "bg-yellow-500/20 text-yellow-400 border-yellow-500/30",
