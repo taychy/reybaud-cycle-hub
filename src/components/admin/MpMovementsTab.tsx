@@ -186,14 +186,26 @@ export default function MpMovementsTab() {
     setSuggested(found);
     if (found.length === 1) setSelectedAlumno(found[0].id);
   }
-
+  async function loadTargets(alumnoId: string) {
+    setTargets(null);
+    setLoadingTargets(true);
+    const { data, error } = await supabase.rpc("get_alumno_payment_targets", { _alumno_id: alumnoId });
+    setLoadingTargets(false);
+    if (error) {
+      toast({ title: "No se pudieron cargar los destinos", description: error.message, variant: "destructive" });
+      return;
+    }
+    setTargets((data as any) ?? { reservations: [], subscriptions: [] });
+  }
 
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
     setAssigning(true);
-    const { data, error } = await supabase.rpc("assign_mp_movement_to_alumno", {
+    const { data, error } = await supabase.rpc("assign_mp_movement_to_target", {
       _movement_id: assignDialog.id,
       _alumno_id: selectedAlumno,
+      _target_type: target.type,
+      _target_id: target.id,
       _notes: assignNotes || null,
     });
     setAssigning(false);
@@ -204,21 +216,30 @@ export default function MpMovementsTab() {
       else if (msg.includes("only_approved_movements")) human = "Sólo se pueden asignar movimientos aprobados.";
       else if (msg.includes("only_income_movements")) human = "Sólo se pueden asignar ingresos.";
       else if (msg.includes("not_authorized")) human = "No tenés permisos para asignar movimientos.";
+      else if (msg.includes("reservation_not_found")) human = "No se encontró la reserva seleccionada.";
+      else if (msg.includes("subscription_not_found")) human = "No se encontró el plan seleccionado.";
       toast({ title: "No se pudo asignar", description: human, variant: "destructive" });
       return;
     }
     const created = (data as any)?.created;
     toast({
       title: "Movimiento asignado",
-      description: created
-        ? "Se registró un saldo a favor en la cuenta corriente del alumno."
-        : "Ya existía un saldo a favor vinculado a este pago.",
+      description:
+        target.type === "reservation"
+          ? (created ? "Se registró el pago en la reserva del evento y se imputó a la cuota más antigua." : "Este pago ya estaba vinculado a la reserva.")
+          : target.type === "suscripcion"
+            ? "El plan quedó marcado como pagado con este movimiento."
+            : (created ? "Se registró un saldo a favor en la cuenta corriente del alumno." : "Ya existía un saldo a favor vinculado a este pago."),
     });
     setAssignDialog(null);
     setSelectedAlumno(null);
     setAssignNotes("");
+    setTargets(null);
+    setTarget({ type: "saldo", id: null });
     await load();
   }
+
+
 
   async function handleUnassign(m: Movement) {
     if (!confirm("¿Quitar la asignación de este movimiento? Se revertirá el saldo a favor si aún no fue aplicado.")) return;
