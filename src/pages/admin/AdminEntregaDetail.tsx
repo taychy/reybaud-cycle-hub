@@ -1030,11 +1030,23 @@ const AdminEntregaDetail = () => {
           <p className="text-xs text-muted-foreground">
             Marcá los ítems entregados. El costo y precio se configura en la pestaña <strong>Productos</strong>.
           </p>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              value={clientSearch}
+              onChange={(e) => setClientSearch(e.target.value)}
+              placeholder="Buscar por cliente, producto o importe..."
+              className="pl-9 h-9 text-sm"
+            />
+          </div>
           {grouped.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-6">Sin ítems.</p>
+          ) : groupedFiltered.length === 0 ? (
+            <p className="text-sm text-muted-foreground text-center py-6">Sin resultados para “{clientSearch}”.</p>
           ) : (
-            grouped.map(([cliente, its]) => {
+            groupedFiltered.map(([cliente, its]) => {
               const done = its.filter((i) => i.preparado).length;
+
               return (
                 <Card key={cliente}>
                   <CardHeader className="pb-2">
