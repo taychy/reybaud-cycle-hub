@@ -743,6 +743,8 @@ const AdminEventReservations = ({
         const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
         if (bal <= 0) return false;
       }
+      if (quickFilter === "vencidas" && !overdueByRes[r.id]) return false;
+
       if (quickFilter === "pago_informado" && r.payment_status !== "pago_informado") return false;
       if (quickFilter === "sin_revisar" && r.payment_status !== "pago_informado") return false;
       if (quickFilter === "confirmados" && r.reservation_status !== "reserva_confirmada") return false;
