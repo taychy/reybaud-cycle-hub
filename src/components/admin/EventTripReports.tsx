@@ -143,9 +143,20 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       });
 
       setRows(built);
+
+      // Extras contratados (visión agregada para proveedores / logística)
+      const { data: addonsData } = resIds.length
+        ? await (supabase as any)
+            .from("reservation_addons")
+            .select("id, reservation_id, cantidad, precio_unitario, subtotal, currency, notas, addon:event_addons(id, nombre, tipo, sort_order)")
+            .in("reservation_id", resIds)
+        : { data: [] as any[] };
+      setAddonRows((addonsData as any[]) || []);
+
       setLoading(false);
     })();
   }, [open, eventId]);
+
 
   // Agrupación de habitaciones por asignación real
   const habitaciones = useMemo(() => {
