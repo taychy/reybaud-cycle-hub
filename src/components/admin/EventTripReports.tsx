@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle } from "lucide-react";
+import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag } from "lucide-react";
 import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
+import { formatPrice } from "@/lib/currency";
+
 
 
 interface Props {
