@@ -12,8 +12,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle } from "lucide-react";
+import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag } from "lucide-react";
 import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
+import { formatPrice } from "@/lib/currency";
+
 
 
 interface Props {
@@ -64,6 +66,8 @@ const downloadCSV = (rows: string[][], filename: string) => {
 const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const [addonRows, setAddonRows] = useState<any[]>([]);
+
 
   useEffect(() => {
     if (!open) return;
@@ -139,9 +143,20 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       });
 
       setRows(built);
+
+      // Extras contratados (visión agregada para proveedores / logística)
+      const { data: addonsData } = resIds.length
+        ? await (supabase as any)
+            .from("reservation_addons")
+            .select("id, reservation_id, cantidad, precio_unitario, subtotal, currency, notas, addon:event_addons(id, nombre, tipo, sort_order)")
+            .in("reservation_id", resIds)
+        : { data: [] as any[] };
+      setAddonRows((addonsData as any[]) || []);
+
       setLoading(false);
     })();
   }, [open, eventId]);
+
 
   // Agrupación de habitaciones por asignación real
   const habitaciones = useMemo(() => {
@@ -196,14 +211,63 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   };
 
 
+  // ---- Extras contratados: resumen por extra (para proveedores) + detalle por persona
+  const extrasResumen = useMemo(() => {
+    const rowMap = new Map(rows.map(r => [r.reservation_id, r]));
+    const grouped: Record<string, {
+      nombre: string; tipo: string; sort: number; cantidad: number;
+      montos: Record<string, number>;
+      participantes: { nombre: string; cantidad: number; notas: string | null }[];
+    }> = {};
+    addonRows.forEach((a: any) => {
+      const r = rowMap.get(a.reservation_id);
+      if (!r) return; // reserva cancelada / fuera del listado
+      const key = a.addon?.id || a.addon_id || "sin_extra";
+      grouped[key] ??= {
+        nombre: a.addon?.nombre || "Extra",
+        tipo: a.addon?.tipo || "",
+        sort: a.addon?.sort_order ?? 0,
+        cantidad: 0,
+        montos: {},
+        participantes: [],
+      };
+      const g = grouped[key];
+      const qty = Number(a.cantidad) || 0;
+      g.cantidad += qty;
+      const cur = a.currency || "ARS";
+      g.montos[cur] = (g.montos[cur] || 0) + (Number(a.subtotal) || 0);
+      g.participantes.push({ nombre: `${r.nombre} ${r.apellido}`.trim(), cantidad: qty, notas: a.notas || null });
+    });
+    return Object.values(grouped).sort((a, b) => a.sort - b.sort || a.nombre.localeCompare(b.nombre));
+  }, [addonRows, rows]);
+
+  const extrasTotalUnidades = extrasResumen.reduce((s, g) => s + g.cantidad, 0);
+  const extrasTotalMontos = extrasResumen.reduce((acc: Record<string, number>, g) => {
+    Object.entries(g.montos).forEach(([c, v]) => { acc[c] = (acc[c] || 0) + v; });
+    return acc;
+  }, {});
+
+  const exportExtras = () => {
+    const header = ["Extra", "Tipo", "Participante", "Cantidad", "Notas"];
+    const body: string[][] = [];
+    extrasResumen.forEach(g => {
+      g.participantes
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .forEach(p => body.push([g.nombre, g.tipo, p.nombre, String(p.cantidad), p.notas ?? ""]));
+      body.push([`TOTAL ${g.nombre}`, "", "", String(g.cantidad), ""]);
+    });
+    downloadCSV([header, ...body], `extras_${eventTitle.replace(/\s+/g, "_")}.csv`);
+  };
+
   const missingSeguro = rows.filter(r => !r.is_external && (!r.documento || !r.contacto_emergencia_telefono));
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Reportes del viaje — {eventTitle}</DialogTitle>
-          <DialogDescription>Distribución de habitaciones y lista consolidada para seguro.</DialogDescription>
+          <DialogDescription>Habitaciones, extras contratados y lista consolidada para seguro.</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -212,8 +276,10 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           <Tabs defaultValue="habitaciones">
             <TabsList className="w-full">
               <TabsTrigger value="habitaciones" className="flex-1"><BedDouble className="w-3.5 h-3.5 mr-1.5" />Habitaciones</TabsTrigger>
+              <TabsTrigger value="extras" className="flex-1"><ShoppingBag className="w-3.5 h-3.5 mr-1.5" />Extras</TabsTrigger>
               <TabsTrigger value="seguro" className="flex-1"><ShieldCheck className="w-3.5 h-3.5 mr-1.5" />Seguro</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="habitaciones" className="space-y-3 mt-4">
               <div className="flex items-center justify-between">
@@ -272,6 +338,56 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                 )}
               </div>
             </TabsContent>
+
+            <TabsContent value="extras" className="space-y-3 mt-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  {extrasResumen.length} extra(s) · {extrasTotalUnidades} unidad(es)
+                  {Object.keys(extrasTotalMontos).length > 0 && (
+                    <> · {Object.entries(extrasTotalMontos).map(([c, v]) => formatPrice(v, c)).join(" + ")}</>
+                  )}
+                </p>
+                <Button size="sm" variant="outline" onClick={exportExtras} disabled={extrasResumen.length === 0}>
+                  <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+                </Button>
+              </div>
+
+              {extrasResumen.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+                  Todavía no hay extras contratados en este viaje.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {extrasResumen.map(g => (
+                    <div key={g.nombre} className="rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="font-medium text-sm">{g.nombre}</span>
+                        {g.tipo && <Badge variant="outline" className="text-[10px] capitalize">{g.tipo}</Badge>}
+                        <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30" variant="outline">
+                          {g.cantidad} unidad(es)
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">{g.participantes.length} persona(s)</Badge>
+                        <span className="ml-auto text-xs font-semibold">
+                          {Object.entries(g.montos).map(([c, v]) => formatPrice(v, c)).join(" + ")}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {[...g.participantes].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((p, i) => (
+                          <div key={i} className="flex items-start justify-between gap-2 text-xs">
+                            <span>
+                              {p.nombre}
+                              {p.notas && <span className="ml-1.5 text-[10px] text-muted-foreground italic">({p.notas})</span>}
+                            </span>
+                            <span className="text-muted-foreground shrink-0">x{p.cantidad}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
 
             <TabsContent value="seguro" className="space-y-3 mt-4">
               <div className="flex items-center justify-between">
