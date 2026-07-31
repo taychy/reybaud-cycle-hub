@@ -211,7 +211,56 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   };
 
 
+  // ---- Extras contratados: resumen por extra (para proveedores) + detalle por persona
+  const extrasResumen = useMemo(() => {
+    const rowMap = new Map(rows.map(r => [r.reservation_id, r]));
+    const grouped: Record<string, {
+      nombre: string; tipo: string; sort: number; cantidad: number;
+      montos: Record<string, number>;
+      participantes: { nombre: string; cantidad: number; notas: string | null }[];
+    }> = {};
+    addonRows.forEach((a: any) => {
+      const r = rowMap.get(a.reservation_id);
+      if (!r) return; // reserva cancelada / fuera del listado
+      const key = a.addon?.id || a.addon_id || "sin_extra";
+      grouped[key] ??= {
+        nombre: a.addon?.nombre || "Extra",
+        tipo: a.addon?.tipo || "",
+        sort: a.addon?.sort_order ?? 0,
+        cantidad: 0,
+        montos: {},
+        participantes: [],
+      };
+      const g = grouped[key];
+      const qty = Number(a.cantidad) || 0;
+      g.cantidad += qty;
+      const cur = a.currency || "ARS";
+      g.montos[cur] = (g.montos[cur] || 0) + (Number(a.subtotal) || 0);
+      g.participantes.push({ nombre: `${r.nombre} ${r.apellido}`.trim(), cantidad: qty, notas: a.notas || null });
+    });
+    return Object.values(grouped).sort((a, b) => a.sort - b.sort || a.nombre.localeCompare(b.nombre));
+  }, [addonRows, rows]);
+
+  const extrasTotalUnidades = extrasResumen.reduce((s, g) => s + g.cantidad, 0);
+  const extrasTotalMontos = extrasResumen.reduce((acc: Record<string, number>, g) => {
+    Object.entries(g.montos).forEach(([c, v]) => { acc[c] = (acc[c] || 0) + v; });
+    return acc;
+  }, {});
+
+  const exportExtras = () => {
+    const header = ["Extra", "Tipo", "Participante", "Cantidad", "Notas"];
+    const body: string[][] = [];
+    extrasResumen.forEach(g => {
+      g.participantes
+        .sort((a, b) => a.nombre.localeCompare(b.nombre))
+        .forEach(p => body.push([g.nombre, g.tipo, p.nombre, String(p.cantidad), p.notas ?? ""]));
+      body.push([`TOTAL ${g.nombre}`, "", "", String(g.cantidad), ""]);
+    });
+    downloadCSV([header, ...body], `extras_${eventTitle.replace(/\s+/g, "_")}.csv`);
+  };
+
   const missingSeguro = rows.filter(r => !r.is_external && (!r.documento || !r.contacto_emergencia_telefono));
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
