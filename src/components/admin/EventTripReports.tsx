@@ -267,7 +267,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Reportes del viaje — {eventTitle}</DialogTitle>
-          <DialogDescription>Distribución de habitaciones y lista consolidada para seguro.</DialogDescription>
+          <DialogDescription>Habitaciones, extras contratados y lista consolidada para seguro.</DialogDescription>
         </DialogHeader>
 
         {loading ? (
@@ -276,8 +276,10 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           <Tabs defaultValue="habitaciones">
             <TabsList className="w-full">
               <TabsTrigger value="habitaciones" className="flex-1"><BedDouble className="w-3.5 h-3.5 mr-1.5" />Habitaciones</TabsTrigger>
+              <TabsTrigger value="extras" className="flex-1"><ShoppingBag className="w-3.5 h-3.5 mr-1.5" />Extras</TabsTrigger>
               <TabsTrigger value="seguro" className="flex-1"><ShieldCheck className="w-3.5 h-3.5 mr-1.5" />Seguro</TabsTrigger>
             </TabsList>
+
 
             <TabsContent value="habitaciones" className="space-y-3 mt-4">
               <div className="flex items-center justify-between">
