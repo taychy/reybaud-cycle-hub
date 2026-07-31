@@ -66,6 +66,8 @@ const downloadCSV = (rows: string[][], filename: string) => {
 const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const [addonRows, setAddonRows] = useState<any[]>([]);
+
 
   useEffect(() => {
     if (!open) return;
