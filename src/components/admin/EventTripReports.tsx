@@ -339,6 +339,56 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
               </div>
             </TabsContent>
 
+            <TabsContent value="extras" className="space-y-3 mt-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-muted-foreground">
+                  {extrasResumen.length} extra(s) · {extrasTotalUnidades} unidad(es)
+                  {Object.keys(extrasTotalMontos).length > 0 && (
+                    <> · {Object.entries(extrasTotalMontos).map(([c, v]) => formatPrice(v, c)).join(" + ")}</>
+                  )}
+                </p>
+                <Button size="sm" variant="outline" onClick={exportExtras} disabled={extrasResumen.length === 0}>
+                  <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+                </Button>
+              </div>
+
+              {extrasResumen.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+                  Todavía no hay extras contratados en este viaje.
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {extrasResumen.map(g => (
+                    <div key={g.nombre} className="rounded-lg border border-border p-3">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <span className="font-medium text-sm">{g.nombre}</span>
+                        {g.tipo && <Badge variant="outline" className="text-[10px] capitalize">{g.tipo}</Badge>}
+                        <Badge className="text-[10px] bg-primary/15 text-primary border-primary/30" variant="outline">
+                          {g.cantidad} unidad(es)
+                        </Badge>
+                        <Badge variant="outline" className="text-[10px]">{g.participantes.length} persona(s)</Badge>
+                        <span className="ml-auto text-xs font-semibold">
+                          {Object.entries(g.montos).map(([c, v]) => formatPrice(v, c)).join(" + ")}
+                        </span>
+                      </div>
+                      <div className="space-y-1">
+                        {[...g.participantes].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((p, i) => (
+                          <div key={i} className="flex items-start justify-between gap-2 text-xs">
+                            <span>
+                              {p.nombre}
+                              {p.notas && <span className="ml-1.5 text-[10px] text-muted-foreground italic">({p.notas})</span>}
+                            </span>
+                            <span className="text-muted-foreground shrink-0">x{p.cantidad}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </TabsContent>
+
+
             <TabsContent value="seguro" className="space-y-3 mt-4">
               <div className="flex items-center justify-between">
                 <p className="text-xs text-muted-foreground">{rows.length} participante(s)</p>
