@@ -9878,6 +9878,9 @@ export type Database = {
           precio_excepcion_at: string | null
           precio_excepcion_autorizado_por: string | null
           precio_excepcion_motivo: string | null
+          precio_excepcion_tipo: string | null
+          precio_excepcion_valor: number | null
+          precio_excepcion_vigencia_hasta: string | null
           precio_final: number | null
           ultimo_intento_cobro_at: string | null
           updated_at: string
@@ -9924,6 +9927,9 @@ export type Database = {
           precio_excepcion_at?: string | null
           precio_excepcion_autorizado_por?: string | null
           precio_excepcion_motivo?: string | null
+          precio_excepcion_tipo?: string | null
+          precio_excepcion_valor?: number | null
+          precio_excepcion_vigencia_hasta?: string | null
           precio_final?: number | null
           ultimo_intento_cobro_at?: string | null
           updated_at?: string
@@ -9970,6 +9976,9 @@ export type Database = {
           precio_excepcion_at?: string | null
           precio_excepcion_autorizado_por?: string | null
           precio_excepcion_motivo?: string | null
+          precio_excepcion_tipo?: string | null
+          precio_excepcion_valor?: number | null
+          precio_excepcion_vigencia_hasta?: string | null
           precio_final?: number | null
           ultimo_intento_cobro_at?: string | null
           updated_at?: string
@@ -11808,6 +11817,41 @@ export type Database = {
         Returns: Json
       }
       reopen_delivery_cash: { Args: { p_list_id: string }; Returns: undefined }
+      report_excepciones_revision_manual: {
+        Args: never
+        Returns: {
+          alumno_id: string
+          alumno_nombre: string
+          diferencia: number
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          motivo: string
+          motivo_revision: string
+          plan_id: string
+          plan_nombre: string
+          precio_base: number
+          precio_final: number
+          suscripcion_id: string
+        }[]
+      }
+      report_precio_final_final_estado: {
+        Args: never
+        Returns: {
+          alumno_nombre: string
+          clasificacion: string
+          diferencia: number
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          plan_nombre: string
+          precio_base: number
+          precio_final: number
+          precio_proxima_renovacion: number
+          suscripcion_id: string
+          tratamiento: string
+        }[]
+      }
       report_precio_final_sin_respaldo: {
         Args: never
         Returns: {
