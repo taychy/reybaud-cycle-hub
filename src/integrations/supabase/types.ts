@@ -9875,6 +9875,9 @@ export type Database = {
           otros_fees: number | null
           plan_id: string
           precio_base: number | null
+          precio_excepcion_at: string | null
+          precio_excepcion_autorizado_por: string | null
+          precio_excepcion_motivo: string | null
           precio_final: number | null
           ultimo_intento_cobro_at: string | null
           updated_at: string
@@ -9918,6 +9921,9 @@ export type Database = {
           otros_fees?: number | null
           plan_id: string
           precio_base?: number | null
+          precio_excepcion_at?: string | null
+          precio_excepcion_autorizado_por?: string | null
+          precio_excepcion_motivo?: string | null
           precio_final?: number | null
           ultimo_intento_cobro_at?: string | null
           updated_at?: string
@@ -9961,6 +9967,9 @@ export type Database = {
           otros_fees?: number | null
           plan_id?: string
           precio_base?: number | null
+          precio_excepcion_at?: string | null
+          precio_excepcion_autorizado_por?: string | null
+          precio_excepcion_motivo?: string | null
           precio_final?: number | null
           ultimo_intento_cobro_at?: string | null
           updated_at?: string
@@ -11799,6 +11808,23 @@ export type Database = {
         Returns: Json
       }
       reopen_delivery_cash: { Args: { p_list_id: string }; Returns: undefined }
+      report_precio_final_sin_respaldo: {
+        Args: never
+        Returns: {
+          alumno_id: string
+          alumno_nombre: string
+          clasificacion: string
+          diferencia: number
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          plan_id: string
+          plan_nombre: string
+          precio_base: number
+          precio_final: number
+          suscripcion_id: string
+        }[]
+      }
       request_baja_alumno: {
         Args: {
           p_alumno_id: string
