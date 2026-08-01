@@ -412,11 +412,14 @@ const PlanSelection = () => {
 
 
 
-    // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto
+    // Bloquear si el alumno ya tiene un plan grupal activo y elige otro grupal distinto.
+    // Excepción: renovación anticipada / cambio para el PRÓXIMO período — ahí justamente
+    // el alumno elige un plan distinto que arranca cuando termina el actual.
     if (
       plan?.categoria === "grupal" &&
       activeGrupalPlan &&
-      activeGrupalPlan.planId !== planId
+      activeGrupalPlan.planId !== planId &&
+      !isEarlyRenewal
     ) {
       setSelected(null);
       setError(
@@ -424,6 +427,7 @@ const PlanSelection = () => {
       );
       return;
     }
+
 
     // Bloqueo temprano: si el alumno YA tiene ESTE MISMO plan activo/pendiente
     // para el período vigente, mostrar mensaje amable en vez de dejarlo pagar
