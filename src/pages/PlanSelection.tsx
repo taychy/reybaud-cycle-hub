@@ -558,7 +558,17 @@ const PlanSelection = () => {
       const disc = selectedDiscount;
       let fechaInicio: string;
       let fechaFin: string;
-      if (earlyRenewal) {
+      const isPausaPlan = plan.categoria === "pausa";
+      if (isPausaPlan) {
+        // La pausa SIEMPRE arranca hoy: nunca hereda fechas de una renovación
+        // anticipada ("próximo período"), porque suspende el acceso actual.
+        const now = new Date();
+        fechaInicio = now.toISOString().split("T")[0];
+        fechaFin = pausaFechaRegreso || (() => {
+          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+          return lastDay.toISOString().split("T")[0];
+        })();
+      } else if (earlyRenewal) {
         fechaInicio = earlyRenewal.fechaInicio;
         fechaFin = earlyRenewal.fechaFin;
         if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
@@ -567,10 +577,6 @@ const PlanSelection = () => {
             .update({ auto_renovacion: false } as any)
             .eq("id", earlyRenewal.subId);
         }
-      } else if (pausaFechaRegreso && plan.categoria === "pausa") {
-        const now = new Date();
-        fechaInicio = now.toISOString().split("T")[0];
-        fechaFin = pausaFechaRegreso;
       } else if (scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa") {
         // Renovación con cambio de plan estando en pausa: el plan nuevo arranca
         // el día siguiente al fin de la pausa (no se corta la pausa vigente).
@@ -582,6 +588,7 @@ const PlanSelection = () => {
         const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
         fechaFin = lastDay.toISOString().split("T")[0];
       }
+
 
       const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
       const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
