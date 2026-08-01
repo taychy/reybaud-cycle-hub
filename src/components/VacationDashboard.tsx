@@ -172,7 +172,11 @@ const VacationDashboard = ({ alumno, onLogout }: VacationDashboardProps) => {
             {/* Contact admin */}
             <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-4">
               <button
-                onClick={() => window.open("mailto:info@ciclismoreybaud.com", "_blank")}
+                onClick={() => {
+                  window.location.href =
+                    "mailto:natalia@ciclismoreybaud.com,scarlett@ciclismoreybaud.com?subject=" +
+                    encodeURIComponent("Quiero reactivar mi cuenta");
+                }}
                 className="w-full flex items-center gap-3"
               >
                 <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
