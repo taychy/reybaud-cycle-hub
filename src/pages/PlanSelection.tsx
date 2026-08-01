@@ -61,11 +61,14 @@ const PlanSelection = () => {
   const navigate = useNavigate();
   const alumnoId = localStorage.getItem("registro_alumno_id");
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
-  const earlyRenewal = getEarlyRenewal();
-  const isEarlyRenewal = !!earlyRenewal;
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
   const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
   const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
+  // Un cambio de plan del PERÍODO ACTUAL (upgrade) nunca debe leer el contexto de
+  // renovación anticipada: si quedó una bandera vieja de "próximo período", la ignoramos.
+  const earlyRenewal = upgradeFromSubId ? null : getEarlyRenewal();
+  const isEarlyRenewal = !!earlyRenewal;
+
   const vacationPreselectPlanId = localStorage.getItem("alumno_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
