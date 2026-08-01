@@ -163,8 +163,12 @@ export default function ChangePlanDrawer({
     });
     localStorage.setItem("registro_alumno_id", alumnoId);
     localStorage.setItem("alumno_renewal", "1");
+    // Este cambio es para el PERÍODO ACTUAL: limpiamos cualquier contexto de
+    // renovación anticipada ("próximo período") que haya quedado de un intento previo.
+    clearEarlyRenewal();
     localStorage.setItem("upgrade_from_sub_id", currentSubscription.id);
     localStorage.setItem("upgrade_preselect_plan_id", selectedPlan.id);
+
     onOpenChange(false);
     navigate("/planes");
   };
