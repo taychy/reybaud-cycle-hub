@@ -591,7 +591,7 @@ const PlanSelection = () => {
 
 
       const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
-      const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+      const earlyMarker = earlyRenewal && !isPausaPlan ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
       const pausaMarker = plan.categoria === "pausa" && pausaTipo
         ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
         : null;
