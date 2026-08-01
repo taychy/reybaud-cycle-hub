@@ -14,6 +14,8 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer";
 import { useToast } from "@/hooks/use-toast";
+import { clearEarlyRenewal } from "@/lib/earlyRenewal";
+
 
 interface Plan {
   id: string;
