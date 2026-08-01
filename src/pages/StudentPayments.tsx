@@ -1085,7 +1085,12 @@ const StudentPayments = () => {
             setScopeDialogSub(null);
             if (!sub) return;
             if (scope === "actual") {
+              // Aseguramos que no quede contexto de "próximo período" de un intento previo
+              clearEarlyRenewal();
+              localStorage.removeItem("upgrade_from_sub_id");
+              localStorage.removeItem("upgrade_preselect_plan_id");
               setChangePlanSub(sub);
+
             } else {
               // Próximo período: pagar adelantado eligiendo el nuevo plan
               if (sub.fecha_fin) {
