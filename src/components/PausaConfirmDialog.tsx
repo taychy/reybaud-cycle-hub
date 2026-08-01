@@ -122,7 +122,7 @@ const PausaConfirmDialog = ({ open, alumnoId, planNombre, onCancel, onConfirm }:
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onCancel()}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain">
         {step === "tipo" && (
           <>
             <DialogHeader>
