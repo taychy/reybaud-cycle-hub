@@ -1093,6 +1093,9 @@ const StudentPayments = () => {
 
             } else {
               // Próximo período: pagar adelantado eligiendo el nuevo plan
+              localStorage.removeItem("upgrade_from_sub_id");
+              localStorage.removeItem("upgrade_preselect_plan_id");
+
               if (sub.fecha_fin) {
                 setEarlyRenewal({
                   subId: sub.id,
