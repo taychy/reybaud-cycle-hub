@@ -327,6 +327,7 @@ const StudentPayments = () => {
     if (action === "baja") {
       setBajaDialogOpen(true);
     } else if (action === "pausa") {
+      clearEarlyRenewal();
       navigate("/planes?categoria=pausa&returnTo=/alumno/pagos");
       return;
     } else if (action === "cambiar-plan") {
@@ -829,6 +830,7 @@ const StudentPayments = () => {
                               onClick={() => {
                                 if (readOnly) return;
                                 if (alumno?.id) localStorage.setItem("registro_alumno_id", alumno.id);
+                                clearEarlyRenewal();
                                 navigate("/planes?categoria=pausa&returnTo=/alumno/pagos");
                               }}
                               disabled={readOnly}
