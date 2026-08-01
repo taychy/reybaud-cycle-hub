@@ -82,9 +82,11 @@ Deno.serve(async (req) => {
     }
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
+    // Sólo mencionamos el crédito si realmente se aplicó un monto > 0.
+    const creditSuffix = applied > 0 ? " (saldo restante aplicando crédito)" : "";
     const prefBody = {
       items: [{
-        title: `Plan ${plan?.nombre ?? ""} (saldo restante aplicando crédito) — Ciclismo Reybaud`,
+        title: `Plan ${plan?.nombre ?? ""}${creditSuffix} — Ciclismo Reybaud`,
         quantity: 1,
         unit_price: Number(remaining.toFixed(2)),
         currency_id: "ARS",
