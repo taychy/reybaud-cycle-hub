@@ -264,10 +264,16 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       .filter(({ r }) => r.productId === selectedProduct.id);
     const st = perProduct[selectedProduct.id];
     return (
+      <>
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base truncate">{selectedProduct.name}</CardTitle>
+            <CardTitle className="text-base truncate flex items-center gap-2">
+              {selectedProduct.name}
+              {selectedProduct.status && selectedProduct.status !== "active" && (
+                <Badge variant="outline" className="text-[10px]">{selectedProduct.status === "hidden" ? "Oculto" : selectedProduct.status}</Badge>
+              )}
+            </CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setSelectedProductId(null)}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Productos
             </Button>
@@ -298,6 +304,10 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             </div>
           </div>
 
+          <Button variant="outline" className="w-full" onClick={() => setLabelProductId(selectedProduct.id)}>
+            <Tag className="w-4 h-4 mr-1" /> Imprimir etiquetas (Niimbot / A4)
+          </Button>
+
           <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
             {prodRows.map(({ r, idx }) => renderRow(r, idx))}
           </div>
@@ -307,7 +317,14 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
           </Button>
         </CardContent>
       </Card>
+      <ProductLabelsDialog
+        open={!!labelProductId}
+        product={labelProduct as any}
+        onOpenChange={(o) => !o && setLabelProductId(null)}
+      />
+      </>
     );
+
   }
 
   // ---------- Paso 2: lista de productos ----------
