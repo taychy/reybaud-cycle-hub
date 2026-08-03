@@ -229,17 +229,23 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {categories.map((c) => (
+              {[ALL_CAT, ...categories].map((c) => (
                 <button
                   key={c.id}
                   onClick={() => pickCategory(c)}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 text-left transition"
+                  className={`flex items-center gap-3 p-3 rounded-lg border text-left transition hover:border-primary hover:bg-primary/5 ${
+                    c.id === ALL_CAT.id ? "border-primary/50 sm:col-span-2" : "border-border"
+                  }`}
                 >
                   <span className="text-2xl">{c.icon || "📦"}</span>
                   <span className="font-medium">{c.name}</span>
+                  {c.id === ALL_CAT.id && (
+                    <span className="ml-auto text-[11px] text-muted-foreground">incluye ocultos y sin categoría</span>
+                  )}
                 </button>
               ))}
             </div>
+
           )}
           <div className="mt-4">
             <Button variant="ghost" size="sm" onClick={onCancel}>Cancelar proceso</Button>
