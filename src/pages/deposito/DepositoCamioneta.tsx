@@ -210,6 +210,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [candidates, setCandidates] = useState<CandidateItem[]>([]);
+  const [addSearch, setAddSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addLoading, setAddLoading] = useState(false);
   const [saving, setSaving] = useState(false);
