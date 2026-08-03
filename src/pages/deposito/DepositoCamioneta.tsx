@@ -37,12 +37,15 @@ interface CargaItem {
 }
 interface CandidateItem {
   id: string;
-  list_id: string;
+  source_table: "delivery_list_items" | "store_order_items";
+  source_id: string;
+  order_id?: string;
   cliente_nombre: string;
   producto: string;
   variante: string | null;
   cantidad: number;
   list_titulo: string;
+  grupo: "sede" | "sin_sede" | "otra_sede";
 }
 
 const estadoBadge = (estado: string) => {
