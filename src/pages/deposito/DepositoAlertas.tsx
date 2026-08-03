@@ -248,7 +248,9 @@ const DepositoAlertas = () => {
             <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No hay plantillas activas. Pedile al admin que las configure.</CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {templates.map((t) => (
+              {templates.map((t) => {
+                const abierto = openInstanceFor(t.id);
+                return (
                 <Card key={t.id} className="hover:border-primary cursor-pointer transition-colors" onClick={() => openLaunch(t)}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
@@ -257,10 +259,13 @@ const DepositoAlertas = () => {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <p className="text-xs text-muted-foreground line-clamp-2">{t.descripcion}</p>
-                    <Button size="sm" className="mt-3 w-full"><Play className="w-3 h-3 mr-1" /> Iniciar</Button>
+                    <Button size="sm" variant={abierto ? "outline" : "default"} className="mt-3 w-full">
+                      <Play className="w-3 h-3 mr-1" /> {abierto ? "Continuar (en curso)" : "Iniciar"}
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
