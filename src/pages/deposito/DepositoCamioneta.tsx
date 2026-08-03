@@ -769,6 +769,97 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         </div>
       </div>
 
+      {chequeo && (
+        <div className="glass-card rounded-lg p-4 border border-primary/30 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <div className="font-heading font-bold uppercase tracking-wider text-sm">
+                Ronda {chequeo.ronda} · {chequeo.tipo === "inicial" ? "Registro inicial" : "Control contra ronda anterior"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {chequeo.tipo === "inicial"
+                  ? "Escaneá todo lo que hay físicamente en la camioneta. Eso queda como registro base."
+                  : "Escaneá lo que sigue en la camioneta. Se compara contra la ronda anterior y contra lo que el entregador informó como entregado."}
+              </p>
+            </div>
+            <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+              <ScanLine className="w-4 h-4 mr-1" /> Escanear
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <Metric label="Escaneados" value={diffCounts.presente + diffCounts.nuevo + diffCounts.entregado_pero_presente} />
+            <Metric label="Nuevos" value={diffCounts.nuevo} />
+            <Metric label="Entregas OK" value={diffCounts.entregado_ok} tone="ok" />
+            <Metric label="Faltan sin aviso" value={diffCounts.faltante_sin_aviso} tone="danger" />
+            <Metric label="Informado pero está" value={diffCounts.entregado_pero_presente} tone="warning" />
+          </div>
+
+          {diffLoading ? (
+            <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Cruzando datos...</div>
+          ) : (
+            <div className="space-y-3">
+              {DIFF_SECTIONS.map(({ key, label, hint, tone }) => {
+                const rows = diff.filter((d) => d.resultado === key);
+                if (rows.length === 0) return null;
+                return (
+                  <div key={key} className="rounded-lg border border-border p-2">
+                    <div className={`text-[11px] uppercase tracking-wider font-medium ${tone}`}>{label} · {rows.length}</div>
+                    <p className="text-[10px] text-muted-foreground mb-1">{hint}</p>
+                    <div className="space-y-1">
+                      {rows.map((d) => (
+                        <div key={d.item_id} className="text-xs flex gap-2">
+                          <span className="text-foreground font-medium truncate">{d.cliente_nombre}</span>
+                          <span className="text-muted-foreground truncate">
+                            {d.producto || "—"}{d.variante ? ` · ${d.variante}` : ""} × {Number(d.cantidad)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <Textarea
+            rows={2}
+            placeholder="Observaciones de la ronda (opcional)"
+            value={rondaNotas}
+            onChange={(e) => setRondaNotas(e.target.value)}
+          />
+          <div className="flex justify-end">
+            <Button variant="gold" size="sm" onClick={cerrarRonda} disabled={closingRonda}>
+              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar ronda"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {rondas.filter((r) => r.estado === "cerrado").length > 0 && (
+        <div className="glass-card rounded-lg p-3">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Historial de chequeos</div>
+          <div className="space-y-1">
+            {rondas.filter((r) => r.estado === "cerrado").map((r) => (
+              <div key={r.id} className="text-xs flex flex-wrap items-center gap-2">
+                <Badge variant="outline">Ronda {r.ronda}</Badge>
+                <span className="text-muted-foreground">{r.tipo === "inicial" ? "Registro inicial" : "Control"}</span>
+                <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
+                {r.resumen && (
+                  <span className="text-muted-foreground">
+                    · {r.resumen.entregado_ok || 0} entregados · {r.resumen.faltante_sin_aviso || 0} faltantes
+                    {r.resumen.entregado_pero_presente ? ` · ${r.resumen.entregado_pero_presente} inconsistentes` : ""}
+                  </span>
+                )}
+                {r.notas && <span className="text-muted-foreground/80 italic">"{r.notas}"</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
+
       {items.length === 0 ? (
         <div className="py-16 text-center">
           <Package className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
