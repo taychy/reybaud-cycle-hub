@@ -665,9 +665,12 @@ const PlanSelection = () => {
             }
           } else if (msg.includes("DUPLICATE_ACTIVE_SUB")) {
             setError("Ya tenés este mismo plan activo para este período. Si querés renovarlo antes de tiempo o creés que es un error, contactá a administración.");
+          } else if (/row-level security|permission denied/i.test(msg)) {
+            setError("Tu sesión no está vinculada a tu ficha de alumno. Cerrá sesión y volvé a entrar con el mismo email; si sigue fallando, escribinos a administración.");
           } else {
             setError("No pudimos crear el pago. Recargá la página e intentá de nuevo; si sigue fallando, escribinos a administración.");
           }
+
           setProcessing(false);
           return;
         }
