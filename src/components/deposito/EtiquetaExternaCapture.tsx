@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Camera, Loader2, Sparkles } from "lucide-react";
+import { Camera, Loader2, Sparkles, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const ORIGENES = [
@@ -25,18 +25,20 @@ interface Props {
   onSaved?: () => void;
 }
 
+interface ItemForm { producto: string; variante: string; cantidad: number }
+
+const emptyItem: ItemForm = { producto: "", variante: "", cantidad: 1 };
+
 const emptyForm = {
   origen: "tienda_nube",
   externo_ref: "",
   cliente_nombre: "",
   cliente_telefono: "",
   cliente_email: "",
-  producto: "",
-  variante: "",
-  cantidad: 1,
   ubicacion: "",
   notas: "",
 };
+
 
 /** Comprime la foto para que suba rápido desde el celular. */
 const compress = (file: File): Promise<string> =>
@@ -78,8 +80,12 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
   const [saving, setSaving] = useState(false);
   const [ocr, setOcr] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [items, setItems] = useState<ItemForm[]>([{ ...emptyItem }]);
 
-  const reset = () => { setPhoto(null); setForm({ ...emptyForm }); setOcr(null); };
+  const reset = () => { setPhoto(null); setForm({ ...emptyForm }); setItems([{ ...emptyItem }]); setOcr(null); };
+
+  const updateItem = (idx: number, patch: Partial<ItemForm>) =>
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
   const handleFile = async (file?: File | null) => {
     if (!file) return;
@@ -101,10 +107,23 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
         cliente_nombre: d.cliente_nombre || f.cliente_nombre,
         cliente_telefono: d.cliente_telefono || f.cliente_telefono,
         cliente_email: d.cliente_email || f.cliente_email,
-        producto: d.producto || f.producto,
-        variante: d.variante || f.variante,
-        cantidad: Number(d.cantidad) > 0 ? Number(d.cantidad) : f.cantidad,
       }));
+      const detected: ItemForm[] = Array.isArray(d.items) && d.items.length
+        ? d.items.map((it: any) => ({
+            producto: String(it?.producto || "").trim(),
+            variante: String(it?.variante || "").trim(),
+            cantidad: Number(it?.cantidad) > 0 ? Number(it.cantidad) : 1,
+          })).filter((it: ItemForm) => it.producto || it.variante)
+        : [];
+      if (detected.length) setItems(detected);
+      else if (d.producto || d.variante) {
+        setItems([{
+          producto: d.producto || "",
+          variante: d.variante || "",
+          cantidad: Number(d.cantidad) > 0 ? Number(d.cantidad) : 1,
+        }]);
+      }
+
       if (d.cliente_nombre) toast.success("Etiqueta leída", { description: d.cliente_nombre });
     } catch (e) {
       setReading(false);
@@ -114,6 +133,8 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
 
   const save = async () => {
     if (!form.cliente_nombre.trim()) { toast.error("Falta el nombre del cliente"); return; }
+    const validItems = items.filter((it) => it.producto.trim() || it.variante.trim());
+    const finalItems: ItemForm[] = validItems.length ? validItems : [{ ...emptyItem }];
     setSaving(true);
     try {
       const { data: userRes } = await supabase.auth.getUser();
@@ -131,49 +152,60 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
         foto_url = signed?.signedUrl ?? null;
       }
 
-      const { data: pedido, error } = await (supabase as any)
+      const base = {
+        origen: form.origen,
+        externo_ref: form.externo_ref.trim() || null,
+        cliente_nombre: form.cliente_nombre.trim(),
+        cliente_telefono: form.cliente_telefono.trim() || null,
+        cliente_email: form.cliente_email.trim() || null,
+        ubicacion: form.ubicacion.trim() || (cargaId ? "Camioneta" : "Depósito"),
+        notas: form.notas.trim() || null,
+        sede_id: sedeId || null,
+        estado: cargaId ? "en_camioneta" : "en_deposito",
+        foto_path,
+        foto_url,
+        ocr_raw: ocr || null,
+        created_by: userRes.user?.id ?? null,
+      };
+
+      const { data: pedidos, error } = await (supabase as any)
         .from("pedidos_externos")
-        .insert({
-          origen: form.origen,
-          externo_ref: form.externo_ref.trim() || null,
-          cliente_nombre: form.cliente_nombre.trim(),
-          cliente_telefono: form.cliente_telefono.trim() || null,
-          cliente_email: form.cliente_email.trim() || null,
-          producto: form.producto.trim() || null,
-          variante: form.variante.trim() || null,
-          cantidad: Number(form.cantidad) || 1,
-          ubicacion: form.ubicacion.trim() || (cargaId ? "Camioneta" : "Depósito"),
-          notas: form.notas.trim() || null,
-          sede_id: sedeId || null,
-          estado: cargaId ? "en_camioneta" : "en_deposito",
-          foto_path,
-          foto_url,
-          ocr_raw: ocr || null,
-          created_by: userRes.user?.id ?? null,
-        })
-        .select()
-        .single();
+        .insert(
+          finalItems.map((it) => ({
+            ...base,
+            producto: it.producto.trim() || null,
+            variante: it.variante.trim() || null,
+            cantidad: Number(it.cantidad) || 1,
+          })),
+        )
+        .select();
       if (error) throw error;
 
-      if (cargaId && pedido) {
+      if (cargaId && pedidos?.length) {
         const now = new Date().toISOString();
-        const { error: itemErr } = await (supabase as any).from("vehiculo_carga_items").insert({
-          carga_id: cargaId,
-          source_table: "pedidos_externos",
-          source_id: pedido.id,
-          cliente_nombre: pedido.cliente_nombre,
-          producto: pedido.producto,
-          variante: pedido.variante,
-          cantidad: pedido.cantidad,
-          estado: "cargado",
-          chequeado_at: now,
-          chequeado_by: userRes.user?.id ?? null,
-          notas: `Venta externa (${ORIGENES.find((o) => o.value === pedido.origen)?.label || pedido.origen})`,
-        });
+        const { error: itemErr } = await (supabase as any).from("vehiculo_carga_items").insert(
+          pedidos.map((pedido: any) => ({
+            carga_id: cargaId,
+            source_table: "pedidos_externos",
+            source_id: pedido.id,
+            cliente_nombre: pedido.cliente_nombre,
+            producto: pedido.producto,
+            variante: pedido.variante,
+            cantidad: pedido.cantidad,
+            estado: "cargado",
+            chequeado_at: now,
+            chequeado_by: userRes.user?.id ?? null,
+            notas: `Venta externa (${ORIGENES.find((o) => o.value === pedido.origen)?.label || pedido.origen})`,
+          })),
+        );
         if (itemErr) throw itemErr;
       }
 
-      toast.success(cargaId ? "Pedido externo cargado en la camioneta" : "Pedido externo registrado");
+      toast.success(
+        cargaId ? "Pedido externo cargado en la camioneta" : "Pedido externo registrado",
+        { description: `${finalItems.length} producto(s)` },
+      );
+
       reset();
       onOpenChange(false);
       onSaved?.();
@@ -246,18 +278,50 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
               <Label>N° de orden</Label>
               <Input value={form.externo_ref} onChange={(e) => setForm({ ...form, externo_ref: e.target.value })} placeholder="#1234" />
             </div>
-            <div className="space-y-1.5 col-span-2">
-              <Label>Producto</Label>
-              <Input value={form.producto} onChange={(e) => setForm({ ...form, producto: e.target.value })} />
+            <div className="space-y-2 col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Productos ({items.length})</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setItems((p) => [...p, { ...emptyItem }])}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Agregar producto
+                </Button>
+              </div>
+              {items.map((it, idx) => (
+                <div key={idx} className="rounded-md border border-border p-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={it.producto}
+                      onChange={(e) => updateItem(idx, { producto: e.target.value })}
+                      placeholder={`Producto ${idx + 1}`}
+                    />
+                    {items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      value={it.variante}
+                      onChange={(e) => updateItem(idx, { variante: e.target.value })}
+                      placeholder="Talle / color"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={it.cantidad}
+                      onChange={(e) => updateItem(idx, { cantidad: Number(e.target.value) })}
+                      placeholder="Cantidad"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <Label>Variante</Label>
-              <Input value={form.variante} onChange={(e) => setForm({ ...form, variante: e.target.value })} placeholder="Talle / color" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Cantidad</Label>
-              <Input type="number" min={1} value={form.cantidad} onChange={(e) => setForm({ ...form, cantidad: Number(e.target.value) })} />
-            </div>
+
             <div className="space-y-1.5">
               <Label>Teléfono</Label>
               <Input value={form.cliente_telefono} onChange={(e) => setForm({ ...form, cliente_telefono: e.target.value })} />
