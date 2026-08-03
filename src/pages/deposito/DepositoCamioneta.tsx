@@ -527,6 +527,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   const sede = sedes.find((s) => s.id === carga?.sede_id);
 
+  const diffCounts = useMemo(() => {
+    const c: Record<string, number> = { presente: 0, nuevo: 0, entregado_ok: 0, faltante_sin_aviso: 0, entregado_pero_presente: 0, fuera_de_ronda: 0 };
+    diff.forEach((d) => { c[d.resultado] = (c[d.resultado] || 0) + 1; });
+    return c as Record<DiffRow["resultado"], number>;
+  }, [diff]);
+
   const grouped = useMemo(() => {
     const g: Record<string, CargaItem[]> = {};
     items.forEach((it) => {
