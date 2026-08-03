@@ -25,18 +25,20 @@ interface Props {
   onSaved?: () => void;
 }
 
+interface ItemForm { producto: string; variante: string; cantidad: number }
+
+const emptyItem: ItemForm = { producto: "", variante: "", cantidad: 1 };
+
 const emptyForm = {
   origen: "tienda_nube",
   externo_ref: "",
   cliente_nombre: "",
   cliente_telefono: "",
   cliente_email: "",
-  producto: "",
-  variante: "",
-  cantidad: 1,
   ubicacion: "",
   notas: "",
 };
+
 
 /** Comprime la foto para que suba rápido desde el celular. */
 const compress = (file: File): Promise<string> =>
