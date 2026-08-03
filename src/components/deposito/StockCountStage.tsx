@@ -87,6 +87,36 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleScanned = (raw: string) => {
+    setScannerOpen(false);
+    const code = (raw || "").trim();
+    if (!code) return;
+    const decoded = decodeProductQr(code);
+    let prod = decoded ? products.find((p) => p.id === decoded.productId) : undefined;
+    if (!prod) {
+      const q = code.toLowerCase();
+      prod = products.find(
+        (p) =>
+          p.id === q ||
+          (p.sku_base || "").toLowerCase() === q ||
+          p.name.toLowerCase() === q ||
+          (!!p.sku_base && q.includes(p.sku_base.toLowerCase())) ||
+          p.name.toLowerCase().includes(q),
+      );
+    }
+    if (!prod) {
+      setSearch(code);
+      toast({ title: "Producto no encontrado", description: `Buscando “${code}”…`, variant: "destructive" });
+      return;
+    }
+    setSelectedProductId(prod.id);
+    toast({
+      title: prod.name,
+      description: decoded?.variante ? `Variante: ${formatVariante(decoded.variante)}` : "Cargá el conteo por variante.",
+    });
+  };
 
   useEffect(() => {
     (async () => {
