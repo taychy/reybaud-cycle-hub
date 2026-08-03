@@ -67,10 +67,20 @@ const DepositoAlertas = () => {
       });
   }, []);
 
-  const openLaunch = (t: ProcessTemplate) => {
+  const openLaunch = async (t: ProcessTemplate) => {
     setLaunchTemplate(t);
-    setLaunchEmail(admins[0]?.email || "");
+    let list = admins;
+    if (list.length === 0) {
+      const { data } = await sb.from("admin_profiles").select("email, first_name, last_name").in("status", ["active", "activo"]);
+      list = (data || []).map((a: any) => ({
+        email: a.email,
+        nombre: `${a.first_name || ""} ${a.last_name || ""}`.trim() || a.email,
+      }));
+      setAdmins(list);
+    }
+    setLaunchEmail(list[0]?.email || "");
   };
+
 
   const launch = async () => {
     if (!launchTemplate || !userId) return;
