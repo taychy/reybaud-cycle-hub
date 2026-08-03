@@ -10383,6 +10383,104 @@ export type Database = {
           },
         ]
       }
+      vehiculo_chequeo_scans: {
+        Row: {
+          chequeo_id: string
+          created_at: string
+          id: string
+          item_id: string
+          scanned_at: string
+          scanned_by: string | null
+        }
+        Insert: {
+          chequeo_id: string
+          created_at?: string
+          id?: string
+          item_id: string
+          scanned_at?: string
+          scanned_by?: string | null
+        }
+        Update: {
+          chequeo_id?: string
+          created_at?: string
+          id?: string
+          item_id?: string
+          scanned_at?: string
+          scanned_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_chequeo_scans_chequeo_id_fkey"
+            columns: ["chequeo_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculo_chequeos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vehiculo_chequeo_scans_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculo_carga_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehiculo_chequeos: {
+        Row: {
+          carga_id: string
+          closed_at: string | null
+          created_at: string
+          estado: string
+          id: string
+          notas: string | null
+          responsable_nombre: string | null
+          responsable_user_id: string | null
+          resumen: Json | null
+          ronda: number
+          started_at: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          carga_id: string
+          closed_at?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          notas?: string | null
+          responsable_nombre?: string | null
+          responsable_user_id?: string | null
+          resumen?: Json | null
+          ronda: number
+          started_at?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          carga_id?: string
+          closed_at?: string | null
+          created_at?: string
+          estado?: string
+          id?: string
+          notas?: string | null
+          responsable_nombre?: string | null
+          responsable_user_id?: string | null
+          resumen?: Json | null
+          ronda?: number
+          started_at?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_chequeos_carga_id_fkey"
+            columns: ["carga_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculo_cargas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       waitlist_question_templates: {
         Row: {
           created_at: string
@@ -11083,6 +11181,10 @@ export type Database = {
         Args: { p_list_id: string; p_notas?: string }
         Returns: undefined
       }
+      close_vehiculo_chequeo: {
+        Args: { _chequeo_id: string; _notas?: string }
+        Returns: Json
+      }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
@@ -11621,6 +11723,21 @@ export type Database = {
           titular: string
         }[]
       }
+      get_vehiculo_chequeo_diff: {
+        Args: { _chequeo_id: string }
+        Returns: {
+          cantidad: number
+          cliente_nombre: string
+          en_base: boolean
+          escaneado: boolean
+          informado_entregado: boolean
+          item_id: string
+          producto: string
+          resultado: string
+          source_table: string
+          variante: string
+        }[]
+      }
       get_waitlist_entries_for_template: {
         Args: { p_template_id: string }
         Returns: {
@@ -12008,6 +12125,30 @@ export type Database = {
       start_pausa_alumno: {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
         Returns: Json
+      }
+      start_vehiculo_chequeo: {
+        Args: { _carga_id: string; _responsable_nombre?: string }
+        Returns: {
+          carga_id: string
+          closed_at: string | null
+          created_at: string
+          estado: string
+          id: string
+          notas: string | null
+          responsable_nombre: string | null
+          responsable_user_id: string | null
+          resumen: Json | null
+          ronda: number
+          started_at: string
+          tipo: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "vehiculo_chequeos"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       submit_survey_response: {
         Args: { _nps?: number; _respuestas: Json; _token: string }
