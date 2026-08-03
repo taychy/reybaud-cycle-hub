@@ -745,9 +745,15 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                 <Button variant="outline" size="sm" onClick={() => setEtiquetaOpen(true)}>
                   <Camera className="w-4 h-4 mr-1" /> Foto etiqueta (venta externa)
                 </Button>
-                <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-                  <ScanLine className="w-4 h-4 mr-1" /> Chequear camioneta
-                </Button>
+                {chequeo ? (
+                  <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+                    <ScanLine className="w-4 h-4 mr-1" /> Seguir ronda {chequeo.ronda}
+                  </Button>
+                ) : (
+                  <Button variant="gold" size="sm" onClick={iniciarRonda}>
+                    <ScanLine className="w-4 h-4 mr-1" /> {rondas.length === 0 ? "Iniciar registro de camioneta" : "Nueva ronda de control"}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
               </>
             )}
