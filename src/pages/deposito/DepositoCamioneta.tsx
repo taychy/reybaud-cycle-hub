@@ -456,8 +456,10 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       });
 
     pedidos.forEach((o: any) => {
+      const mismaSede = !!o.sede_retiro_id && o.sede_retiro_id === carga?.sede_id;
+      const enCamioneta = o.status === "en_camioneta";
       const grupo: CandidateItem["grupo"] =
-        o.sede_retiro_id && o.sede_retiro_id === carga?.sede_id
+        mismaSede || (enCamioneta && !o.sede_retiro_id)
           ? "sede"
           : o.sede_retiro_id
             ? "otra_sede"
@@ -474,15 +476,17 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             producto: i.product_name,
             variante: variantText(i.variant_selection) || null,
             cantidad: i.quantity,
-            list_titulo: "Pedido de tienda",
+            list_titulo: `Pedido #${o.order_number ?? "—"} · ${String(o.status || "").replace(/_/g, " ")}`,
             grupo,
+            enCamioneta,
           });
         });
     });
 
     setCandidates(cands);
-    // Preseleccionamos los que corresponden a la sede de esta carga
-    setSelected(new Set(cands.filter((c) => c.grupo === "sede").map((c) => c.id)));
+    // Preseleccionamos los de esta sede y los que ya están marcados "en camioneta"
+    setSelected(new Set(cands.filter((c) => c.grupo === "sede" || c.enCamioneta).map((c) => c.id)));
+
     setAddLoading(false);
   };
 
