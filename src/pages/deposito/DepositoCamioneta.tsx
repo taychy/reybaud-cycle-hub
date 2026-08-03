@@ -218,6 +218,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const scanBusyRef = useRef(false);
+  // --- Rondas de chequeo (cruce con lo informado por el entregador) ---
+  const [chequeo, setChequeo] = useState<Chequeo | null>(null);
+  const [rondas, setRondas] = useState<Chequeo[]>([]);
+  const [scannedIds, setScannedIds] = useState<Set<string>>(new Set());
+  const [diff, setDiff] = useState<DiffRow[]>([]);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [closingRonda, setClosingRonda] = useState(false);
+  const [rondaNotas, setRondaNotas] = useState("");
 
   const parseClientCode = (code: string): { listId: string; cliente: string } | null => {
     if (!code.startsWith("RBDLV1:")) return null;
