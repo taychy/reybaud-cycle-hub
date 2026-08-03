@@ -10193,6 +10193,8 @@ export type Database = {
           alumno_id: string | null
           cantidad: number
           carga_id: string
+          chequeado_at: string | null
+          chequeado_by: string | null
           cliente_nombre: string
           created_at: string
           entregado_at: string | null
@@ -10209,6 +10211,8 @@ export type Database = {
           alumno_id?: string | null
           cantidad?: number
           carga_id: string
+          chequeado_at?: string | null
+          chequeado_by?: string | null
           cliente_nombre: string
           created_at?: string
           entregado_at?: string | null
@@ -10225,6 +10229,8 @@ export type Database = {
           alumno_id?: string | null
           cantidad?: number
           carga_id?: string
+          chequeado_at?: string | null
+          chequeado_by?: string | null
           cliente_nombre?: string
           created_at?: string
           entregado_at?: string | null
