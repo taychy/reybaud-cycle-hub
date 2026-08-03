@@ -492,7 +492,17 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setAddLoading(false);
   };
 
-  const openAdd = () => { setShowAdd(true); loadCandidates(); };
+  const filteredCandidates = useMemo(() => {
+    const q = norm(addSearch);
+    if (!q) return candidates;
+    return candidates.filter((c) =>
+      [c.cliente_nombre, c.producto, c.variante, c.list_titulo]
+        .filter(Boolean)
+        .some((v) => norm(String(v)).includes(q)),
+    );
+  }, [candidates, addSearch]);
+
+  const openAdd = () => { setShowAdd(true); setAddSearch(""); loadCandidates(); };
 
   const toggle = (id: string) => {
     const n = new Set(selected);
