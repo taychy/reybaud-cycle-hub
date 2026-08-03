@@ -48,6 +48,7 @@ interface CandidateItem {
   cantidad: number;
   list_titulo: string;
   grupo: "sede" | "sin_sede" | "otra_sede";
+  enCamioneta?: boolean;
 }
 
 const estadoBadge = (estado: string) => {
