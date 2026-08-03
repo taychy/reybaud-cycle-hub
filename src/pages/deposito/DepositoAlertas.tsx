@@ -210,13 +210,28 @@ const DepositoAlertas = () => {
               {instances.map((i) => {
                 const tpl = templates.find((t) => t.id === i.template_id);
                 return (
-                  <Card key={i.id} className="border-primary/30 cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/deposito/procesos/${i.id}`)}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div>
+                  <Card key={i.id} className="border-primary/30">
+                    <CardContent className="p-3 flex items-center justify-between gap-2">
+                      <div className="cursor-pointer flex-1" onClick={() => navigate(`/deposito/procesos/${i.id}`)}>
                         <p className="font-medium text-sm">{tpl?.nombre || "Proceso"}</p>
                         <p className="text-xs text-muted-foreground">Iniciado {new Date(i.started_at).toLocaleString("es-AR")}</p>
                       </div>
-                      <Badge variant="default">En curso</Badge>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="default">En curso</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={async () => {
+                            if (!confirm("¿Cancelar este proceso en curso?")) return;
+                            await cancelInstance(i.id);
+                            await reloadInstances();
+                            toast({ title: "Proceso cancelado" });
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 );
