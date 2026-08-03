@@ -51,6 +51,31 @@ interface CandidateItem {
   enCamioneta?: boolean;
 }
 
+interface Chequeo {
+  id: string;
+  carga_id: string;
+  ronda: number;
+  tipo: "inicial" | "control";
+  estado: "en_curso" | "cerrado";
+  responsable_nombre: string | null;
+  notas: string | null;
+  resumen: Record<string, number> | null;
+  started_at: string;
+  closed_at: string | null;
+}
+interface DiffRow {
+  item_id: string;
+  cliente_nombre: string;
+  producto: string | null;
+  variante: string | null;
+  cantidad: number;
+  source_table: string;
+  en_base: boolean;
+  escaneado: boolean;
+  informado_entregado: boolean;
+  resultado: "presente" | "nuevo" | "entregado_ok" | "faltante_sin_aviso" | "entregado_pero_presente" | "fuera_de_ronda";
+}
+
 const estadoBadge = (estado: string) => {
   const map: Record<string, { label: string; variant: any }> = {
     abierta: { label: "Abierta", variant: "default" },
