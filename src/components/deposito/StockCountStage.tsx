@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 
 interface Category { id: string; name: string; icon: string | null }
@@ -15,6 +15,12 @@ interface Product {
   stock: number;
   variants: any;
   variant_stock: Record<string, number> | null;
+  sku_base: string | null;
+  image_url: string | null;
+  description: string | null;
+  price: number | null;
+  proveedor: string | null;
+  tag: string | null;
 }
 
 interface Row {
@@ -67,6 +73,9 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [loadingCats, setLoadingCats] = useState(true);
   const [selectedCat, setSelectedCat] = useState<Category | null>(null);
   const [loadingProds, setLoadingProds] = useState(false);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
 
@@ -84,14 +93,18 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
 
   const pickCategory = async (cat: Category) => {
     setSelectedCat(cat);
+    setSelectedProductId(null);
+    setSearch("");
     setLoadingProds(true);
     const { data } = await supabase
       .from("store_products")
-      .select("id, name, stock, variants, variant_stock")
+      .select("id, name, stock, variants, variant_stock, sku_base, image_url, description, price, proveedor, tag")
       .eq("category_id", cat.id)
       .neq("status", "archived")
       .order("name", { ascending: true });
-    setRows(buildRows((data || []) as Product[]));
+    const prods = (data || []) as Product[];
+    setProducts(prods);
+    setRows(buildRows(prods));
     setLoadingProds(false);
   };
 
@@ -109,6 +122,20 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       }
     }
     return { coincide, dif, sin, faltantes, sobrantes };
+  }, [rows]);
+
+  const perProduct = useMemo(() => {
+    const map: Record<string, { total: number; contados: number; dif: number; esperado: number }> = {};
+    rows.forEach((r) => {
+      const e = map[r.productId] || (map[r.productId] = { total: 0, contados: 0, dif: 0, esperado: 0 });
+      e.total++;
+      e.esperado += r.esperado;
+      if (r.contado !== "" && !Number.isNaN(Number(r.contado))) {
+        e.contados++;
+        if (Number(r.contado) !== r.esperado) e.dif++;
+      }
+    });
+    return map;
   }, [rows]);
 
   const allFilled = rows.length > 0 && summary.sin === 0;
@@ -144,6 +171,44 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     onConfirm({ nota: lineas.join("\n"), entidad_ref_texto: selectedCat.name });
   };
 
+  const renderRow = (r: Row, idx: number) => {
+    const c = r.contado === "" ? null : Number(r.contado);
+    const state = c === null || Number.isNaN(c) ? "sin" : c === r.esperado ? "ok" : "dif";
+    const borderCls = state === "dif" ? "border-orange-500/60" : "border-border";
+    return (
+      <div
+        key={`${r.productId}-${r.variantSig || "_"}-${idx}`}
+        className={`flex items-center gap-2 p-2 rounded-lg border ${borderCls} bg-card`}
+      >
+        <Package className="w-4 h-4 text-muted-foreground shrink-0" />
+        <div className="min-w-0 flex-1">
+          <div className="text-sm font-medium truncate">
+            {r.variantSig ? r.variantSig.replace(/\|/g, " · ") : r.productName}
+          </div>
+          <div className="text-[11px] text-muted-foreground">esp. {r.esperado}</div>
+        </div>
+        <Input
+          type="number"
+          inputMode="numeric"
+          min={0}
+          value={r.contado}
+          placeholder="—"
+          onChange={(e) => {
+            const v = e.target.value;
+            setRows((prev) => prev.map((x, i) => (i === idx ? { ...x, contado: v } : x)));
+          }}
+          className={`h-10 w-20 text-center font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden ${state === "dif" ? "text-orange-500 border-orange-500/60" : ""}`}
+        />
+        <div className="w-4 text-center">
+          {state === "ok" && <span className="text-green-500">✓</span>}
+          {state === "dif" && <span className="text-orange-500">!</span>}
+          {state === "sin" && <span className="text-muted-foreground">—</span>}
+        </div>
+      </div>
+    );
+  };
+
+  // ---------- Paso 1: categoría ----------
   if (!selectedCat) {
     return (
       <Card className="border-primary/40">
@@ -175,6 +240,68 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     );
   }
 
+  const selectedProduct = products.find((p) => p.id === selectedProductId) || null;
+
+  // ---------- Paso 3: detalle de producto ----------
+  if (selectedProduct) {
+    const prodRows = rows
+      .map((r, idx) => ({ r, idx }))
+      .filter(({ r }) => r.productId === selectedProduct.id);
+    const st = perProduct[selectedProduct.id];
+    return (
+      <Card className="border-primary/40">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base truncate">{selectedProduct.name}</CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedProductId(null)}>
+              <ArrowLeft className="w-4 h-4 mr-1" /> Productos
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex gap-3 p-3 rounded-lg border border-border bg-muted/20">
+            {selectedProduct.image_url ? (
+              <img
+                src={selectedProduct.image_url}
+                alt={selectedProduct.name}
+                loading="lazy"
+                className="w-20 h-20 rounded-md object-cover border border-border shrink-0"
+              />
+            ) : (
+              <div className="w-20 h-20 rounded-md border border-border flex items-center justify-center shrink-0">
+                <Package className="w-6 h-6 text-muted-foreground" />
+              </div>
+            )}
+            <div className="min-w-0 text-xs space-y-1">
+              {selectedProduct.sku_base && <div><span className="text-muted-foreground">SKU:</span> {selectedProduct.sku_base}</div>}
+              {selectedProduct.proveedor && <div><span className="text-muted-foreground">Proveedor:</span> {selectedProduct.proveedor}</div>}
+              {selectedProduct.tag && <div><span className="text-muted-foreground">Tag:</span> {selectedProduct.tag}</div>}
+              <div><span className="text-muted-foreground">Stock sistema:</span> {st?.esperado ?? selectedProduct.stock ?? 0} u.</div>
+              {selectedProduct.description && (
+                <p className="text-muted-foreground line-clamp-3">{selectedProduct.description}</p>
+              )}
+            </div>
+          </div>
+
+          <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+            {prodRows.map(({ r, idx }) => renderRow(r, idx))}
+          </div>
+
+          <Button className="w-full" variant="secondary" onClick={() => setSelectedProductId(null)}>
+            Listo, volver a productos
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  // ---------- Paso 2: lista de productos ----------
+  const filtered = products.filter((p) => {
+    const q = search.trim().toLowerCase();
+    if (!q) return true;
+    return [p.name, p.sku_base, p.proveedor, p.tag].some((v) => (v || "").toLowerCase().includes(q));
+  });
+
   return (
     <Card className="border-primary/40">
       <CardHeader className="pb-3">
@@ -183,69 +310,73 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             <span className="text-xl">{selectedCat.icon || "📦"}</span>
             {selectedCat.name}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => { setSelectedCat(null); setRows([]); }}>
+          <Button variant="ghost" size="sm" onClick={() => { setSelectedCat(null); setRows([]); setProducts([]); }}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Cambiar
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-1">
-          Ingresá la cantidad física contada por cada ítem. El sistema muestra lo esperado.
+          Elegí un producto para ver su detalle y cargar el conteo por talle/variante.
         </p>
         <div className="flex flex-wrap gap-2 text-[11px] mt-2">
-          <Badge variant="outline" className="border-green-500/40 text-green-500">✓ Coincide</Badge>
+          <Badge variant="outline" className="border-green-500/40 text-green-500">✓ Completo</Badge>
           <Badge variant="outline" className="border-orange-500/40 text-orange-500">! Diferencia</Badge>
-          <Badge variant="outline">— Sin ingresar</Badge>
+          <Badge variant="outline">— Pendiente</Badge>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {loadingProds ? (
           <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-        ) : rows.length === 0 ? (
+        ) : products.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">No hay productos activos en esta categoría.</p>
         ) : (
-          <div className="space-y-2 max-h-[60vh] overflow-y-auto pr-1">
-            {rows.map((r, idx) => {
-              const c = r.contado === "" ? null : Number(r.contado);
-              const state = c === null || Number.isNaN(c)
-                ? "sin"
-                : c === r.esperado ? "ok" : "dif";
-              const borderCls =
-                state === "dif" ? "border-orange-500/60" : "border-border";
-              return (
-                <div
-                  key={`${r.productId}-${r.variantSig || "_"}-${idx}`}
-                  className={`flex items-center gap-2 p-2 rounded-lg border ${borderCls} bg-card`}
-                >
-                  <Package className="w-4 h-4 text-muted-foreground shrink-0" />
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate">{r.productName}</div>
-                    {r.variantSig && (
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {r.variantSig.replace(/\|/g, " · ")}
+          <>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar producto, SKU o proveedor…"
+                className="pl-9"
+              />
+            </div>
+
+            <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+              {filtered.map((p) => {
+                const st = perProduct[p.id] || { total: 0, contados: 0, dif: 0, esperado: 0 };
+                const done = st.total > 0 && st.contados === st.total;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => setSelectedProductId(p.id)}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg border text-left transition hover:border-primary ${
+                      st.dif > 0 ? "border-orange-500/60" : done ? "border-green-500/50" : "border-border"
+                    } bg-card`}
+                  >
+                    {p.image_url ? (
+                      <img src={p.image_url} alt={p.name} loading="lazy" className="w-12 h-12 rounded-md object-cover border border-border shrink-0" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-md border border-border flex items-center justify-center shrink-0">
+                        <Package className="w-4 h-4 text-muted-foreground" />
                       </div>
                     )}
-                    <div className="text-[11px] text-muted-foreground">esp. {r.esperado}</div>
-                  </div>
-                  <Input
-                    type="number"
-                    inputMode="numeric"
-                    min={0}
-                    value={r.contado}
-                    placeholder="—"
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      setRows((prev) => prev.map((x, i) => i === idx ? { ...x, contado: v } : x));
-                    }}
-                    className={`h-10 w-20 text-center font-semibold [appearance:textfield] [&::-webkit-outer-spin-button]:hidden [&::-webkit-inner-spin-button]:hidden ${state === "dif" ? "text-orange-500 border-orange-500/60" : ""}`}
-                  />
-                  <div className="w-4 text-center">
-                    {state === "ok" && <span className="text-green-500">✓</span>}
-                    {state === "dif" && <span className="text-orange-500">!</span>}
-                    {state === "sin" && <span className="text-muted-foreground">—</span>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {p.sku_base ? `${p.sku_base} · ` : ""}{st.total} ítem(s) · esp. {st.esperado} u.
+                      </div>
+                    </div>
+                    <span className={`text-[11px] shrink-0 ${st.dif > 0 ? "text-orange-500" : done ? "text-green-500" : "text-muted-foreground"}`}>
+                      {st.contados}/{st.total}
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Sin resultados para “{search}”.</p>
+              )}
+            </div>
+          </>
         )}
 
         {rows.length > 0 && summary.dif > 0 && (
