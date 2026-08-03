@@ -361,7 +361,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
         {loadingProds ? (
           <Loader2 className="w-5 h-5 animate-spin mx-auto" />
         ) : products.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No hay productos activos en esta categoría.</p>
+          <p className="text-sm text-muted-foreground text-center py-6">No hay productos en esta categoría.</p>
         ) : (
           <>
             <div className="relative">
