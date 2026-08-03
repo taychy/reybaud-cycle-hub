@@ -9,9 +9,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Truck, Plus, ChevronRight, ArrowLeft, Package, CheckCircle2, AlertTriangle, X, ScanLine } from "lucide-react";
+import { Truck, Plus, ChevronRight, ArrowLeft, Package, CheckCircle2, AlertTriangle, X, ScanLine, Camera } from "lucide-react";
 import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
+import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
 
 interface Sede { id: string; nombre: string; }
 interface Carga {
@@ -212,6 +213,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [addLoading, setAddLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const scanBusyRef = useRef(false);
 
@@ -482,6 +484,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     if (!confirm("¿Quitar este ítem de la carga?")) return;
     const item = items.find((i) => i.id === itemId);
     await (supabase as any).from("vehiculo_carga_items").delete().eq("id", itemId);
+    if (item?.source_table === "pedidos_externos") {
+      await (supabase as any)
+        .from("pedidos_externos")
+        .update({ estado: "en_deposito", ubicacion: "Depósito" })
+        .eq("id", item.source_id);
+    }
     if (item?.source_table === "store_order_items") {
       const { data: soi } = await supabase
         .from("store_order_items")
@@ -540,6 +548,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             {carga.estado === "abierta" && (
               <>
                 <Button variant="outline" size="sm" onClick={openAdd}><Plus className="w-4 h-4 mr-1" /> Agregar</Button>
+                <Button variant="outline" size="sm" onClick={() => setEtiquetaOpen(true)}>
+                  <Camera className="w-4 h-4 mr-1" /> Foto etiqueta (venta externa)
+                </Button>
                 <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
                   <ScanLine className="w-4 h-4 mr-1" /> Chequear camioneta
                 </Button>
@@ -595,6 +606,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           ))}
         </div>
       )}
+
+      <EtiquetaExternaCapture
+        open={etiquetaOpen}
+        onOpenChange={setEtiquetaOpen}
+        cargaId={id}
+        sedeId={carga.sede_id}
+        onSaved={load}
+      />
 
       <Dialog open={showAdd} onOpenChange={setShowAdd}>
         <DialogContent className="max-w-2xl">
