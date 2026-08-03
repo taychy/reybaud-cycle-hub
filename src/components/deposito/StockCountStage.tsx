@@ -72,6 +72,8 @@ const buildRows = (products: Product[]): Row[] => {
   return rows;
 };
 
+const ALL_CAT: Category = { id: "__all__", name: "Todos los productos", icon: "🗂️" };
+
 const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -82,6 +84,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
+  const [labelProductId, setLabelProductId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -100,17 +103,19 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     setSelectedProductId(null);
     setSearch("");
     setLoadingProds(true);
-    const { data } = await supabase
+    let q = supabase
       .from("store_products")
-      .select("id, name, stock, variants, variant_stock, sku_base, image_url, description, price, proveedor, tag")
-      .eq("category_id", cat.id)
+      .select("id, name, stock, variants, variant_stock, sku_base, image_url, description, price, currency, status, proveedor, tag")
       .neq("status", "archived")
       .order("name", { ascending: true });
+    if (cat.id !== ALL_CAT.id) q = q.eq("category_id", cat.id);
+    const { data } = await q;
     const prods = (data || []) as Product[];
     setProducts(prods);
     setRows(buildRows(prods));
     setLoadingProds(false);
   };
+
 
   const summary = useMemo(() => {
     let coincide = 0, dif = 0, sin = 0, faltantes = 0, sobrantes = 0;
