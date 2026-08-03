@@ -34,6 +34,7 @@ interface CargaItem {
   cantidad: number;
   estado: string;
   entregado_at: string | null;
+  chequeado_at?: string | null;
 }
 interface CandidateItem {
   id: string;
@@ -230,7 +231,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   /** Resuelve qué ítems de esta carga corresponden al código escaneado. */
   const resolveTargets = async (code: string): Promise<{ label: string; targets: CargaItem[]; dliIds: string[] } | null> => {
-    const pendientes = items.filter((i) => i.estado !== "entregado");
+    const pendientes = items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
 
     // 1) QR de lista de entrega (RBDLV1)
     const parsed = parseClientCode(code);
