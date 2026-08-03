@@ -312,7 +312,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setItems((prev) => prev.map((i) => (targetIds.includes(i.id) ? { ...i, estado: "entregado" } : i)));
     const { data: userRes } = await supabase.auth.getUser();
 
-    const ops: Promise<any>[] = [
+    const ops: PromiseLike<any>[] = [
       (supabase as any).from("vehiculo_carga_items").update({ estado: "entregado" }).in("id", targetIds),
     ];
     if (dliIds.length) {
