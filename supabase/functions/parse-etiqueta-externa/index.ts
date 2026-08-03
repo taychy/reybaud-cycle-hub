@@ -11,16 +11,22 @@ const PROMPT = `Sos un asistente de depósito. Te paso la FOTO de una etiqueta d
 Extraé los datos y devolvé SOLO un JSON válido con esta forma exacta:
 {
   "cliente_nombre": string,        // nombre del destinatario/comprador. Si no se ve, ""
-  "producto": string,              // descripción del producto o contenido. Si no se ve, ""
-  "variante": string,              // talle/color si aparece, si no ""
-  "cantidad": number,              // por defecto 1
+  "producto": string,              // descripción del primer producto. Si no se ve, ""
+  "variante": string,              // talle/color del primer producto, si no ""
+  "cantidad": number,              // cantidad del primer producto, por defecto 1
+  "items": [                       // TODOS los productos que aparezcan en la etiqueta (uno por línea del detalle)
+    { "producto": string, "variante": string, "cantidad": number }
+  ],
   "externo_ref": string,           // número de orden / tracking / código de la etiqueta, si no ""
   "cliente_telefono": string,      // si aparece, si no ""
   "cliente_email": string,         // si aparece, si no ""
+  "cliente_direccion": string,     // dirección de entrega si aparece, si no ""
   "origen": "tienda_nube" | "mercado_libre" | "instagram" | "otro",
   "texto_detectado": string        // todo el texto legible de la etiqueta
 }
+Si la etiqueta tiene varios productos, listalos todos en "items". Si hay uno solo, "items" igual debe tener ese único producto.
 No agregues explicaciones ni bloques de markdown.`;
+
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
