@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight, Tag } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight, Tag, Camera } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
+import CameraScanner from "@/components/deposito/CameraScanner";
+import { decodeProductQr, formatVariante } from "@/lib/productQr";
 
 interface Category { id: string; name: string; icon: string | null }
 interface Product {
@@ -85,6 +87,36 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  const handleScanned = (raw: string) => {
+    setScannerOpen(false);
+    const code = (raw || "").trim();
+    if (!code) return;
+    const decoded = decodeProductQr(code);
+    let prod = decoded ? products.find((p) => p.id === decoded.productId) : undefined;
+    if (!prod) {
+      const q = code.toLowerCase();
+      prod = products.find(
+        (p) =>
+          p.id === q ||
+          (p.sku_base || "").toLowerCase() === q ||
+          p.name.toLowerCase() === q ||
+          (!!p.sku_base && q.includes(p.sku_base.toLowerCase())) ||
+          p.name.toLowerCase().includes(q),
+      );
+    }
+    if (!prod) {
+      setSearch(code);
+      toast({ title: "Producto no encontrado", description: `Buscando “${code}”…`, variant: "destructive" });
+      return;
+    }
+    setSelectedProductId(prod.id);
+    toast({
+      title: prod.name,
+      description: decoded?.variante ? `Variante: ${formatVariante(decoded.variante)}` : "Cargá el conteo por variante.",
+    });
+  };
 
   useEffect(() => {
     (async () => {
@@ -364,15 +396,22 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
           <p className="text-sm text-muted-foreground text-center py-6">No hay productos en esta categoría.</p>
         ) : (
           <>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar producto, SKU o proveedor…"
-                className="pl-9"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar producto, SKU o proveedor…"
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" onClick={() => setScannerOpen(true)} title="Escanear etiqueta">
+                <Camera className="w-4 h-4 mr-1" /> Escanear
+              </Button>
             </div>
+            <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleScanned} />
+
 
             <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
               {filtered.map((p) => {
