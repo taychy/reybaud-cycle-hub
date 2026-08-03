@@ -48,6 +48,7 @@ interface CandidateItem {
   cantidad: number;
   list_titulo: string;
   grupo: "sede" | "sin_sede" | "otra_sede";
+  enCamioneta?: boolean;
 }
 
 const estadoBadge = (estado: string) => {
@@ -209,6 +210,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
   const [candidates, setCandidates] = useState<CandidateItem[]>([]);
+  const [addSearch, setAddSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [addLoading, setAddLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -272,11 +274,54 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       if (targets.length === 0) {
         targets = pendientes.filter((i) => i.source_table === "store_preorders" && i.source_id.toLowerCase() === uuid.toLowerCase());
       }
+      // d) es el id del ALUMNO (etiquetas Niimbot con QR /pagar-preventas-alumno/:alumnoId)
+      if (targets.length === 0) {
+        const [{ data: ordersOfAlumno }, { data: preordersOfAlumno }] = await Promise.all([
+          supabase.from("store_orders").select("id").eq("alumno_id", uuid),
+          supabase.from("store_preorders").select("id").eq("alumno_id", uuid),
+        ]);
+        const orderIds = ((ordersOfAlumno as any[]) || []).map((r) => r.id);
+        if (orderIds.length) {
+          const { data: soi2 } = await supabase
+            .from("store_order_items")
+            .select("id")
+            .in("order_id", orderIds);
+          const soiIds2 = ((soi2 as any[]) || []).map((r) => r.id);
+          targets = pendientes.filter(
+            (i) => i.source_table === "store_order_items" && soiIds2.includes(i.source_id),
+          );
+        }
+        const preIds = ((preordersOfAlumno as any[]) || []).map((r) => r.id.toLowerCase());
+        if (preIds.length) {
+          targets = [
+            ...targets,
+            ...pendientes.filter(
+              (i) => i.source_table === "store_preorders" && preIds.includes(i.source_id.toLowerCase()),
+            ),
+          ];
+        }
+        // e) sin ítems vinculados: probamos por nombre del alumno
+        if (targets.length === 0) {
+          const { data: al } = await supabase
+            .from("alumnos")
+            .select("nombre,apellido")
+            .eq("id", uuid)
+            .maybeSingle();
+          const full = norm(`${(al as any)?.nombre || ""} ${(al as any)?.apellido || ""}`);
+          if (full.length >= 4) {
+            targets = pendientes.filter((i) => {
+              const n = norm(i.cliente_nombre);
+              return n === full || n.includes(full) || full.includes(n);
+            });
+          }
+        }
+      }
       if (targets.length) {
         const dliIds = targets.filter((t) => t.source_table === "delivery_list_items").map((t) => t.source_id);
         return { label: targets[0].cliente_nombre, targets, dliIds };
       }
     }
+
 
     // 3) Último recurso: texto que coincide con el nombre del cliente
     const t = norm(code);
@@ -377,15 +422,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .order("cliente_nombre");
     const abiertos = ((rows as any[]) || []).filter((r) => r.list?.estado === "abierta");
 
-    // 2) Pedidos de tienda preparados / en camioneta con retiro en sede
+    // 2) Todos los pedidos de tienda abiertos (cualquier método de entrega)
     const { data: orders } = await supabase
       .from("store_orders")
-      .select("id,customer_name,status,entrega_metodo,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
-      .in("status", ["pagado", "preparando", "en_camioneta"])
+      .select("id,order_number,customer_name,status,entrega_metodo,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
+      .not("status", "in", "(entregado,cancelado,reembolsado)")
       .order("created_at", { ascending: false });
-    const pedidos = ((orders as any[]) || []).filter(
-      (o) => o.entrega_metodo !== "envio_moto" && o.entrega_metodo !== "correo",
-    );
+    const pedidos = ((orders as any[]) || []);
+
 
     // Ítems ya cargados en alguna carga activa
     const dliIds = abiertos.map((r: any) => r.id);
@@ -414,8 +458,10 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       });
 
     pedidos.forEach((o: any) => {
+      const mismaSede = !!o.sede_retiro_id && o.sede_retiro_id === carga?.sede_id;
+      const enCamioneta = o.status === "en_camioneta";
       const grupo: CandidateItem["grupo"] =
-        o.sede_retiro_id && o.sede_retiro_id === carga?.sede_id
+        mismaSede || (enCamioneta && !o.sede_retiro_id)
           ? "sede"
           : o.sede_retiro_id
             ? "otra_sede"
@@ -432,19 +478,31 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             producto: i.product_name,
             variante: variantText(i.variant_selection) || null,
             cantidad: i.quantity,
-            list_titulo: "Pedido de tienda",
+            list_titulo: `Pedido #${o.order_number ?? "—"} · ${String(o.status || "").replace(/_/g, " ")}`,
             grupo,
+            enCamioneta,
           });
         });
     });
 
     setCandidates(cands);
-    // Preseleccionamos los que corresponden a la sede de esta carga
-    setSelected(new Set(cands.filter((c) => c.grupo === "sede").map((c) => c.id)));
+    // Preseleccionamos los de esta sede y los que ya están marcados "en camioneta"
+    setSelected(new Set(cands.filter((c) => c.grupo === "sede" || c.enCamioneta).map((c) => c.id)));
+
     setAddLoading(false);
   };
 
-  const openAdd = () => { setShowAdd(true); loadCandidates(); };
+  const filteredCandidates = useMemo(() => {
+    const q = norm(addSearch);
+    if (!q) return candidates;
+    return candidates.filter((c) =>
+      [c.cliente_nombre, c.producto, c.variante, c.list_titulo]
+        .filter(Boolean)
+        .some((v) => norm(String(v)).includes(q)),
+    );
+  }, [candidates, addSearch]);
+
+  const openAdd = () => { setShowAdd(true); setAddSearch(""); loadCandidates(); };
 
   const toggle = (id: string) => {
     const n = new Set(selected);
@@ -620,12 +678,17 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <DialogHeader>
             <DialogTitle>Agregar ítems a la carga</DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Pedidos de tienda preparados con retiro en sede y listas de entrega abiertas. Los de {sede?.nombre || "esta sede"} vienen preseleccionados.
+              Todos los pedidos de tienda abiertos y las listas de entrega abiertas. Los de {sede?.nombre || "esta sede"} y los marcados "en camioneta" vienen preseleccionados.
             </p>
           </DialogHeader>
+          <Input
+            placeholder="Buscar por cliente, producto, variante o #pedido..."
+            value={addSearch}
+            onChange={(e) => setAddSearch(e.target.value)}
+          />
           {addLoading ? (
             <div className="py-8 text-center text-muted-foreground animate-pulse">Cargando...</div>
-          ) : candidates.length === 0 ? (
+          ) : filteredCandidates.length === 0 ? (
             <div className="py-8 text-center">
               <AlertTriangle className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">No hay ítems disponibles.</p>
@@ -637,8 +700,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                 { key: "sin_sede", label: "Sin sede asignada" },
                 { key: "otra_sede", label: "Otras sedes" },
               ] as const).map(({ key, label }) => {
-                const group = candidates.filter((c) => c.grupo === key);
+                const group = filteredCandidates.filter((c) => c.grupo === key);
                 if (group.length === 0) return null;
+
                 return (
                   <div key={key} className="space-y-1">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1">

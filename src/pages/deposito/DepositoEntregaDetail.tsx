@@ -389,23 +389,60 @@ const DepositoEntregaDetail = () => {
 
   const handleScannedCode = async (code: string) => {
     if (scanBusyRef.current) return;
-    const parsed = parseClientCode(code.trim());
-    if (!parsed) {
-      toast.error("Código no válido", { description: code.slice(0, 40) });
-      return;
-    }
     if (!list) return;
+    const clean = code.trim();
+    let parsed = parseClientCode(clean);
+
+    // Etiquetas Niimbot de pedido/preventa: QR con URL que contiene el UUID
+    // del alumno (o del pedido). Resolvemos el nombre del cliente y lo
+    // buscamos dentro de esta lista de entrega.
+    if (!parsed) {
+      const uuid = clean.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];
+      let nombre: string | null = null;
+      if (uuid) {
+        const { data: al } = await supabase
+          .from("alumnos")
+          .select("nombre,apellido")
+          .eq("id", uuid)
+          .maybeSingle();
+        if (al) nombre = `${(al as any).nombre || ""} ${(al as any).apellido || ""}`.trim();
+        if (!nombre) {
+          const { data: ord } = await supabase
+            .from("store_orders")
+            .select("customer_name")
+            .eq("id", uuid)
+            .maybeSingle();
+          nombre = (ord as any)?.customer_name || null;
+        }
+      }
+      if (!nombre && clean.length >= 4 && !clean.startsWith("http")) nombre = clean;
+      const n = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      const match = nombre
+        ? items.find((i) => {
+            const a = n(i.cliente_nombre);
+            const b = n(nombre!);
+            return a === b || a.includes(b) || b.includes(a);
+          })
+        : undefined;
+      if (!match) {
+        toast.error("Código no válido", { description: clean.slice(0, 40) });
+        return;
+      }
+      parsed = { listId: list.id, cliente: match.cliente_nombre };
+    }
+
     if (parsed.listId !== list.id) {
       toast.error("Este código pertenece a otra lista de entregas");
       return;
     }
     const clienteItems = items.filter(
-      (i) => i.cliente_nombre.trim().toLowerCase() === parsed.cliente.trim().toLowerCase(),
+      (i) => i.cliente_nombre.trim().toLowerCase() === parsed!.cliente.trim().toLowerCase(),
     );
     if (clienteItems.length === 0) {
       toast.error(`Sin ítems para "${parsed.cliente}"`);
       return;
     }
+
     const pending = clienteItems.filter((i) => !i.preparado);
     if (pending.length === 0) {
       toast.info(`${parsed.cliente} ya estaba entregado`);
