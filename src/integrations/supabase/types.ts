@@ -11025,6 +11025,17 @@ export type Database = {
         }
         Returns: undefined
       }
+      _adjust_stock_by_key: {
+        Args: {
+          p_delta: number
+          p_key: string
+          p_motivo: string
+          p_order_id: string
+          p_product_id: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       _build_variant_key: {
         Args: { p_product_id: string; p_variante: Json }
         Returns: string
@@ -12105,6 +12116,10 @@ export type Database = {
           _new_status: string
         }
         Returns: Json
+      }
+      resolve_variant_key: {
+        Args: { p_product_id: string; p_variante: string }
+        Returns: string
       }
       reuse_pending_subscription: {
         Args: {
