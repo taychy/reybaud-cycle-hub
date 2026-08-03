@@ -436,6 +436,13 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .from("vehiculo_carga_items")
       .update({ chequeado_at: now, chequeado_by: userRes.user?.id ?? null })
       .in("id", targetIds);
+    if (!error && chequeo) {
+      await (supabase as any).from("vehiculo_chequeo_scans").upsert(
+        targetIds.map((itemId) => ({ chequeo_id: chequeo.id, item_id: itemId, scanned_by: userRes.user?.id ?? null })),
+        { onConflict: "chequeo_id,item_id" },
+      );
+      setScannedIds((prev) => new Set([...prev, ...targetIds]));
+    }
     scanBusyRef.current = false;
     if (error) {
       toast.error("No se pudo registrar el chequeo");
@@ -447,7 +454,60 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   };
 
+  const loadRondas = async () => {
+    const { data } = await (supabase as any)
+      .from("vehiculo_chequeos")
+      .select("*")
+      .eq("carga_id", id)
+      .order("ronda", { ascending: false });
+    const list = ((data as any[]) || []) as Chequeo[];
+    setRondas(list);
+    const abierta = list.find((r) => r.estado === "en_curso") || null;
+    setChequeo(abierta);
+    if (abierta) {
+      const { data: scans } = await (supabase as any)
+        .from("vehiculo_chequeo_scans")
+        .select("item_id")
+        .eq("chequeo_id", abierta.id);
+      setScannedIds(new Set(((scans as any[]) || []).map((s) => s.item_id)));
+    } else {
+      setScannedIds(new Set());
+      setDiff([]);
+    }
+    return abierta;
+  };
 
+  const loadDiff = async (chequeoId: string) => {
+    setDiffLoading(true);
+    const { data, error } = await (supabase as any).rpc("get_vehiculo_chequeo_diff", { _chequeo_id: chequeoId });
+    setDiffLoading(false);
+    if (error) { toast.error(error.message); return; }
+    setDiff(((data as any[]) || []) as DiffRow[]);
+  };
+
+  const iniciarRonda = async () => {
+    const { data, error } = await (supabase as any).rpc("start_vehiculo_chequeo", { _carga_id: id, _responsable_nombre: null });
+    if (error) { toast.error(error.message); return; }
+    const row = (Array.isArray(data) ? data[0] : data) as Chequeo;
+    setChequeo(row);
+    await loadRondas();
+    setScanCount(0);
+    setScannerOpen(true);
+    toast.success(row.tipo === "inicial" ? `Ronda 1 · Registro inicial` : `Ronda ${row.ronda} · Control`);
+  };
+
+  const cerrarRonda = async () => {
+    if (!chequeo) return;
+    if (!confirm("¿Cerrar la ronda? Se aplicarán entregas y faltantes según el cruce.")) return;
+    setClosingRonda(true);
+    const { error } = await (supabase as any).rpc("close_vehiculo_chequeo", { _chequeo_id: chequeo.id, _notas: rondaNotas || null });
+    setClosingRonda(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Ronda cerrada y cruzada con lo informado por el entregador");
+    setRondaNotas("");
+    setDiff([]);
+    await Promise.all([load(), loadRondas()]);
+  };
 
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
@@ -458,7 +518,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setItems((iRes.data as any[]) || []);
     setLoading(false);
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); loadRondas(); }, [id]);
+
+  useEffect(() => {
+    if (chequeo && !scannerOpen) loadDiff(chequeo.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chequeo?.id, scannerOpen, scannedIds.size]);
 
   const sede = sedes.find((s) => s.id === carga?.sede_id);
 
