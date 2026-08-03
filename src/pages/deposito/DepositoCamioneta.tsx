@@ -542,7 +542,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Agregar ítems a la carga</DialogTitle>
-            <p className="text-xs text-muted-foreground">Pedidos pendientes de listas de entrega abiertas.</p>
+            <p className="text-xs text-muted-foreground">
+              Pedidos de tienda preparados con retiro en sede y listas de entrega abiertas. Los de {sede?.nombre || "esta sede"} vienen preseleccionados.
+            </p>
           </DialogHeader>
           {addLoading ? (
             <div className="py-8 text-center text-muted-foreground animate-pulse">Cargando...</div>
@@ -552,19 +554,34 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
               <p className="text-sm text-muted-foreground">No hay ítems disponibles.</p>
             </div>
           ) : (
-            <div className="max-h-[50vh] overflow-y-auto space-y-1 border border-border rounded-lg p-2">
-              {candidates.map((c) => (
-                <label key={c.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
-                  <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} className="mt-0.5" />
-                  <div className="flex-1 min-w-0 text-sm">
-                    <div className="font-medium text-foreground">{c.cliente_nombre}</div>
-                    <div className="text-muted-foreground text-xs">
-                      {c.producto}{c.variante ? ` · ${c.variante}` : ""} × {Number(c.cantidad)}
+            <div className="max-h-[50vh] overflow-y-auto space-y-3 border border-border rounded-lg p-2">
+              {([
+                { key: "sede", label: `Para ${sede?.nombre || "esta sede"}` },
+                { key: "sin_sede", label: "Sin sede asignada" },
+                { key: "otra_sede", label: "Otras sedes" },
+              ] as const).map(({ key, label }) => {
+                const group = candidates.filter((c) => c.grupo === key);
+                if (group.length === 0) return null;
+                return (
+                  <div key={key} className="space-y-1">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1">
+                      {label} · {group.length}
                     </div>
-                    <div className="text-[10px] text-muted-foreground/70">{c.list_titulo}</div>
+                    {group.map((c) => (
+                      <label key={c.id} className="flex items-start gap-2 p-2 rounded hover:bg-muted cursor-pointer">
+                        <Checkbox checked={selected.has(c.id)} onCheckedChange={() => toggle(c.id)} className="mt-0.5" />
+                        <div className="flex-1 min-w-0 text-sm">
+                          <div className="font-medium text-foreground">{c.cliente_nombre}</div>
+                          <div className="text-muted-foreground text-xs">
+                            {c.producto}{c.variante ? ` · ${c.variante}` : ""} × {Number(c.cantidad)}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground/70">{c.list_titulo}</div>
+                        </div>
+                      </label>
+                    ))}
                   </div>
-                </label>
-              ))}
+                );
+              })}
             </div>
           )}
           <DialogFooter>
