@@ -256,6 +256,8 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   }
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || null;
+  const labelProduct = products.find((p) => p.id === labelProductId) || null;
+
 
   // ---------- Paso 3: detalle de producto ----------
   if (selectedProduct) {
