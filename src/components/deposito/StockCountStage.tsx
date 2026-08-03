@@ -338,9 +338,14 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             </div>
           </div>
 
-          <Button variant="outline" className="w-full" onClick={() => setLabelProductId(selectedProduct.id)}>
-            <Tag className="w-4 h-4 mr-1" /> Imprimir etiquetas (Niimbot / A4)
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="outline" onClick={() => setLabelProductId(selectedProduct.id)}>
+              <Tag className="w-4 h-4 mr-1" /> Etiquetas
+            </Button>
+            <Button variant="gold" onClick={() => setScannerOpen(true)}>
+              <Camera className="w-4 h-4 mr-1" /> Escanear
+            </Button>
+          </div>
 
           <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
             {prodRows.map(({ r, idx }) => renderRow(r, idx))}
@@ -351,11 +356,13 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
           </Button>
         </CardContent>
       </Card>
+      <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleScanned} />
       <ProductLabelsDialog
         open={!!labelProductId}
         product={labelProduct as any}
         onOpenChange={(o) => !o && setLabelProductId(null)}
       />
+
       </>
     );
 
