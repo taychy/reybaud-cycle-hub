@@ -420,15 +420,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .order("cliente_nombre");
     const abiertos = ((rows as any[]) || []).filter((r) => r.list?.estado === "abierta");
 
-    // 2) Pedidos de tienda preparados / en camioneta con retiro en sede
+    // 2) Todos los pedidos de tienda abiertos (cualquier método de entrega)
     const { data: orders } = await supabase
       .from("store_orders")
-      .select("id,customer_name,status,entrega_metodo,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
-      .in("status", ["pagado", "preparando", "en_camioneta"])
+      .select("id,order_number,customer_name,status,entrega_metodo,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
+      .not("status", "in", "(entregado,cancelado,reembolsado)")
       .order("created_at", { ascending: false });
-    const pedidos = ((orders as any[]) || []).filter(
-      (o) => o.entrega_metodo !== "envio_moto" && o.entrega_metodo !== "correo",
-    );
+    const pedidos = ((orders as any[]) || []);
+
 
     // Ítems ya cargados en alguna carga activa
     const dliIds = abiertos.map((r: any) => r.id);
