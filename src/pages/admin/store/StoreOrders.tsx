@@ -85,6 +85,7 @@ const STATUSES = [
   "pendiente_pago_efectivo",
   "pagado",
   "preparando",
+  "en_camioneta",
   "enviado",
   "entregado",
   "cancelado",
@@ -96,6 +97,7 @@ const estadoColor = (e: string) => {
   switch (e) {
     case "pagado": return "bg-emerald-500/20 text-emerald-400";
     case "preparando": return "bg-accent/20 text-accent";
+    case "en_camioneta": return "bg-cyan-500/20 text-cyan-400";
     case "enviado": return "bg-primary/20 text-primary";
     case "entregado": return "bg-green-500/20 text-green-400";
     case "cancelado": return "bg-destructive/20 text-destructive";
