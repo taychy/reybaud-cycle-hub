@@ -76,6 +76,14 @@ interface DiffRow {
   resultado: "presente" | "nuevo" | "entregado_ok" | "faltante_sin_aviso" | "entregado_pero_presente" | "fuera_de_ronda";
 }
 
+const DIFF_SECTIONS = [
+  { key: "faltante_sin_aviso", label: "Faltan y nadie informó entrega", hint: "Estaban en la ronda anterior, no están en la camioneta y el entregador no los marcó como entregados.", tone: "text-red-500" },
+  { key: "entregado_pero_presente", label: "Informados como entregados pero siguen en la camioneta", hint: "El entregador los marcó entregados y sin embargo se escanearon acá.", tone: "text-amber-500" },
+  { key: "entregado_ok", label: "Entregas confirmadas", hint: "Ya no están en la camioneta y el entregador informó la entrega.", tone: "text-green-500" },
+  { key: "nuevo", label: "Nuevos en esta ronda", hint: "No estaban en la ronda anterior.", tone: "text-cyan-400" },
+  { key: "presente", label: "Siguen en la camioneta", hint: "Escaneados y pendientes de entrega.", tone: "text-muted-foreground" },
+] as const;
+
 const estadoBadge = (estado: string) => {
   const map: Record<string, { label: string; variant: any }> = {
     abierta: { label: "Abierta", variant: "default" },
