@@ -513,6 +513,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const totalItems = items.length;
   const entregados = items.filter((i) => i.estado === "entregado").length;
   const enCaja = items.filter((i) => i.estado === "cargado").length;
+  const chequeados = items.filter((i) => !!i.chequeado_at && i.estado !== "entregado").length;
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
   return (
@@ -540,7 +541,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
               <>
                 <Button variant="outline" size="sm" onClick={openAdd}><Plus className="w-4 h-4 mr-1" /> Agregar</Button>
                 <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-                  <ScanLine className="w-4 h-4 mr-1" /> Escanear entregas
+                  <ScanLine className="w-4 h-4 mr-1" /> Chequear camioneta
                 </Button>
                 <Button variant="outline" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
               </>
@@ -548,9 +549,10 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           </div>
         </div>
 
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4">
           <Metric label="Total" value={totalItems} />
           <Metric label="En caja" value={enCaja} tone="warning" />
+          <Metric label="Chequeados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
           <Metric label="Faltantes" value={faltantes} tone="danger" />
         </div>
@@ -577,6 +579,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                       {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
                       <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
                     </div>
+                    {it.estado !== "entregado" && it.chequeado_at && (
+                      <Badge variant="outline" className="border-cyan-500/40 text-cyan-400">En camioneta</Badge>
+                    )}
                     {itemEstadoBadge(it.estado)}
                     {carga.estado === "abierta" && it.estado === "cargado" && (
                       <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
