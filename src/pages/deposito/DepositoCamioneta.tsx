@@ -225,57 +225,126 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     } catch { return null; }
   };
 
+  const norm = (s: string) =>
+    (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+
+  /** Resuelve qué ítems de esta carga corresponden al código escaneado. */
+  const resolveTargets = async (code: string): Promise<{ label: string; targets: CargaItem[]; dliIds: string[] } | null> => {
+    const pendientes = items.filter((i) => i.estado !== "entregado");
+
+    // 1) QR de lista de entrega (RBDLV1)
+    const parsed = parseClientCode(code);
+    if (parsed) {
+      const { data: dliRows } = await supabase
+        .from("delivery_list_items")
+        .select("id, cliente_nombre")
+        .eq("list_id", parsed.listId);
+      const dliIds = ((dliRows as any[]) || [])
+        .filter((r) => norm(r.cliente_nombre) === norm(parsed.cliente))
+        .map((r) => r.id);
+      return {
+        label: parsed.cliente,
+        targets: pendientes.filter((i) => i.source_table === "delivery_list_items" && dliIds.includes(i.source_id)),
+        dliIds,
+      };
+    }
+
+    // 2) UUID suelto o dentro de una URL (etiquetas Niimbot de pedido/preventa, QR de producto)
+    const uuid = code.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];
+    if (uuid) {
+      // a) coincide directo con el ítem de la carga
+      let targets = pendientes.filter((i) => i.source_id.toLowerCase() === uuid.toLowerCase());
+      // b) es el id de un pedido de tienda → sus ítems
+      if (targets.length === 0) {
+        const { data: soi } = await supabase
+          .from("store_order_items")
+          .select("id")
+          .eq("order_id", uuid);
+        const soiIds = ((soi as any[]) || []).map((r) => r.id);
+        if (soiIds.length) {
+          targets = pendientes.filter((i) => i.source_table === "store_order_items" && soiIds.includes(i.source_id));
+        }
+      }
+      // c) es el id de una preventa
+      if (targets.length === 0) {
+        targets = pendientes.filter((i) => i.source_table === "store_preorders" && i.source_id.toLowerCase() === uuid.toLowerCase());
+      }
+      if (targets.length) {
+        const dliIds = targets.filter((t) => t.source_table === "delivery_list_items").map((t) => t.source_id);
+        return { label: targets[0].cliente_nombre, targets, dliIds };
+      }
+    }
+
+    // 3) Último recurso: texto que coincide con el nombre del cliente
+    const t = norm(code);
+    if (t.length >= 4) {
+      const byName = pendientes.filter((i) => {
+        const n = norm(i.cliente_nombre);
+        return n === t || n.includes(t) || t.includes(n);
+      });
+      if (byName.length) {
+        return {
+          label: byName[0].cliente_nombre,
+          targets: byName,
+          dliIds: byName.filter((i) => i.source_table === "delivery_list_items").map((i) => i.source_id),
+        };
+      }
+    }
+
+    return null;
+  };
+
   const handleScannedCode = async (code: string) => {
     if (scanBusyRef.current) return;
-    const parsed = parseClientCode(code.trim());
-    if (!parsed) {
-      toast.error("Código no válido", { description: code.slice(0, 40) });
+    const clean = code.trim();
+    const res = await resolveTargets(clean);
+    if (!res) {
+      toast.error("No encontramos este código en la carga", { description: clean.slice(0, 60) });
       return;
     }
-    // Find delivery_list_items matching this client+list
-    const { data: dliRows } = await supabase
-      .from("delivery_list_items")
-      .select("id, cliente_nombre")
-      .eq("list_id", parsed.listId);
-    const matchingDliIds = ((dliRows as any[]) || [])
-      .filter((r) => (r.cliente_nombre || "").trim().toLowerCase() === parsed.cliente.trim().toLowerCase())
-      .map((r) => r.id);
-    if (matchingDliIds.length === 0) {
-      toast.error(`Sin ítems para "${parsed.cliente}"`);
-      return;
-    }
-    // Carga items belonging to this carga referencing those DLIs and not delivered yet
-    const targets = items.filter(
-      (i) => i.source_table === "delivery_list_items" && matchingDliIds.includes(i.source_id) && i.estado !== "entregado",
-    );
+    const { label, targets, dliIds } = res;
     if (targets.length === 0) {
-      toast.info(`${parsed.cliente} ya estaba entregado o no está en esta carga`);
+      toast.info(`${label} ya estaba entregado o no está en esta carga`);
       return;
     }
     scanBusyRef.current = true;
     const targetIds = targets.map((t) => t.id);
     setItems((prev) => prev.map((i) => (targetIds.includes(i.id) ? { ...i, estado: "entregado" } : i)));
     const { data: userRes } = await supabase.auth.getUser();
-    const [{ error: e1 }, { error: e2 }] = await Promise.all([
-      (supabase as any)
-        .from("vehiculo_carga_items")
-        .update({ estado: "entregado" })
-        .in("id", targetIds),
-      supabase
-        .from("delivery_list_items")
-        .update({ preparado: true, preparado_by: userRes.user?.id ?? null })
-        .in("id", matchingDliIds)
-        .eq("preparado", false),
-    ]);
+
+    const ops: Promise<any>[] = [
+      (supabase as any).from("vehiculo_carga_items").update({ estado: "entregado" }).in("id", targetIds),
+    ];
+    if (dliIds.length) {
+      ops.push(
+        supabase
+          .from("delivery_list_items")
+          .update({ preparado: true, preparado_by: userRes.user?.id ?? null })
+          .in("id", dliIds)
+          .eq("preparado", false),
+      );
+    }
+    // Pedidos de tienda: pasan a entregado cuando todos sus ítems se entregaron
+    const soiIds = targets.filter((t) => t.source_table === "store_order_items").map((t) => t.source_id);
+    if (soiIds.length) {
+      const { data: soi } = await supabase.from("store_order_items").select("order_id").in("id", soiIds);
+      const orderIds = Array.from(new Set(((soi as any[]) || []).map((r) => r.order_id).filter(Boolean)));
+      if (orderIds.length) {
+        ops.push(supabase.from("store_orders").update({ status: "entregado" }).in("id", orderIds));
+      }
+    }
+
+    const results = await Promise.all(ops);
     scanBusyRef.current = false;
-    if (e1 || e2) {
+    if (results.some((r: any) => r?.error)) {
       toast.error("No se pudo marcar como entregado");
       load();
       return;
     }
     setScanCount((n) => n + 1);
-    toast.success(`✓ ${parsed.cliente}`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} entregado${targets.length !== 1 ? "s" : ""}` });
+    toast.success(`✓ ${label}`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} entregado${targets.length !== 1 ? "s" : ""}` });
   };
+
 
 
   const load = async () => {
