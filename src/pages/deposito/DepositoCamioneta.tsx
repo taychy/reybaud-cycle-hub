@@ -667,12 +667,17 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <DialogHeader>
             <DialogTitle>Agregar ítems a la carga</DialogTitle>
             <p className="text-xs text-muted-foreground">
-              Pedidos de tienda preparados con retiro en sede y listas de entrega abiertas. Los de {sede?.nombre || "esta sede"} vienen preseleccionados.
+              Todos los pedidos de tienda abiertos y las listas de entrega abiertas. Los de {sede?.nombre || "esta sede"} y los marcados "en camioneta" vienen preseleccionados.
             </p>
           </DialogHeader>
+          <Input
+            placeholder="Buscar por cliente, producto, variante o #pedido..."
+            value={addSearch}
+            onChange={(e) => setAddSearch(e.target.value)}
+          />
           {addLoading ? (
             <div className="py-8 text-center text-muted-foreground animate-pulse">Cargando...</div>
-          ) : candidates.length === 0 ? (
+          ) : filteredCandidates.length === 0 ? (
             <div className="py-8 text-center">
               <AlertTriangle className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
               <p className="text-sm text-muted-foreground">No hay ítems disponibles.</p>
@@ -684,8 +689,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                 { key: "sin_sede", label: "Sin sede asignada" },
                 { key: "otra_sede", label: "Otras sedes" },
               ] as const).map(({ key, label }) => {
-                const group = candidates.filter((c) => c.grupo === key);
+                const group = filteredCandidates.filter((c) => c.grupo === key);
                 if (group.length === 0) return null;
+
                 return (
                   <div key={key} className="space-y-1">
                     <div className="text-[10px] uppercase tracking-wider text-muted-foreground px-1">
