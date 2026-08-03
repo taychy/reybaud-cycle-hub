@@ -113,7 +113,6 @@ const DepositoAlertas = () => {
         variant: "destructive",
       });
       if (dup) { setLaunchTemplate(null); await reloadInstances(); }
-    }
     } finally {
       setLaunching(false);
     }
