@@ -133,6 +133,8 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
 
   const save = async () => {
     if (!form.cliente_nombre.trim()) { toast.error("Falta el nombre del cliente"); return; }
+    const validItems = items.filter((it) => it.producto.trim() || it.variante.trim());
+    const finalItems: ItemForm[] = validItems.length ? validItems : [{ ...emptyItem }];
     setSaving(true);
     try {
       const { data: userRes } = await supabase.auth.getUser();
@@ -150,49 +152,60 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
         foto_url = signed?.signedUrl ?? null;
       }
 
-      const { data: pedido, error } = await (supabase as any)
+      const base = {
+        origen: form.origen,
+        externo_ref: form.externo_ref.trim() || null,
+        cliente_nombre: form.cliente_nombre.trim(),
+        cliente_telefono: form.cliente_telefono.trim() || null,
+        cliente_email: form.cliente_email.trim() || null,
+        ubicacion: form.ubicacion.trim() || (cargaId ? "Camioneta" : "Depósito"),
+        notas: form.notas.trim() || null,
+        sede_id: sedeId || null,
+        estado: cargaId ? "en_camioneta" : "en_deposito",
+        foto_path,
+        foto_url,
+        ocr_raw: ocr || null,
+        created_by: userRes.user?.id ?? null,
+      };
+
+      const { data: pedidos, error } = await (supabase as any)
         .from("pedidos_externos")
-        .insert({
-          origen: form.origen,
-          externo_ref: form.externo_ref.trim() || null,
-          cliente_nombre: form.cliente_nombre.trim(),
-          cliente_telefono: form.cliente_telefono.trim() || null,
-          cliente_email: form.cliente_email.trim() || null,
-          producto: form.producto.trim() || null,
-          variante: form.variante.trim() || null,
-          cantidad: Number(form.cantidad) || 1,
-          ubicacion: form.ubicacion.trim() || (cargaId ? "Camioneta" : "Depósito"),
-          notas: form.notas.trim() || null,
-          sede_id: sedeId || null,
-          estado: cargaId ? "en_camioneta" : "en_deposito",
-          foto_path,
-          foto_url,
-          ocr_raw: ocr || null,
-          created_by: userRes.user?.id ?? null,
-        })
-        .select()
-        .single();
+        .insert(
+          finalItems.map((it) => ({
+            ...base,
+            producto: it.producto.trim() || null,
+            variante: it.variante.trim() || null,
+            cantidad: Number(it.cantidad) || 1,
+          })),
+        )
+        .select();
       if (error) throw error;
 
-      if (cargaId && pedido) {
+      if (cargaId && pedidos?.length) {
         const now = new Date().toISOString();
-        const { error: itemErr } = await (supabase as any).from("vehiculo_carga_items").insert({
-          carga_id: cargaId,
-          source_table: "pedidos_externos",
-          source_id: pedido.id,
-          cliente_nombre: pedido.cliente_nombre,
-          producto: pedido.producto,
-          variante: pedido.variante,
-          cantidad: pedido.cantidad,
-          estado: "cargado",
-          chequeado_at: now,
-          chequeado_by: userRes.user?.id ?? null,
-          notas: `Venta externa (${ORIGENES.find((o) => o.value === pedido.origen)?.label || pedido.origen})`,
-        });
+        const { error: itemErr } = await (supabase as any).from("vehiculo_carga_items").insert(
+          pedidos.map((pedido: any) => ({
+            carga_id: cargaId,
+            source_table: "pedidos_externos",
+            source_id: pedido.id,
+            cliente_nombre: pedido.cliente_nombre,
+            producto: pedido.producto,
+            variante: pedido.variante,
+            cantidad: pedido.cantidad,
+            estado: "cargado",
+            chequeado_at: now,
+            chequeado_by: userRes.user?.id ?? null,
+            notas: `Venta externa (${ORIGENES.find((o) => o.value === pedido.origen)?.label || pedido.origen})`,
+          })),
+        );
         if (itemErr) throw itemErr;
       }
 
-      toast.success(cargaId ? "Pedido externo cargado en la camioneta" : "Pedido externo registrado");
+      toast.success(
+        cargaId ? "Pedido externo cargado en la camioneta" : "Pedido externo registrado",
+        { description: `${finalItems.length} producto(s)` },
+      );
+
       reset();
       onOpenChange(false);
       onSaved?.();
