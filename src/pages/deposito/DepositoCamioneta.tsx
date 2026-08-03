@@ -233,9 +233,44 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const norm = (s: string) =>
     (s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 
+  const scannedPathId = (code: string, segment: string): string | null => {
+    const match = code.match(new RegExp(`(?:^|/)${segment}/([0-9a-f-]{36})(?:[/?#]|$)`, "i"));
+    return match?.[1] || null;
+  };
+
   /** Resuelve qué ítems de esta carga corresponden al código escaneado. */
   const resolveTargets = async (code: string): Promise<{ label: string; targets: CargaItem[]; dliIds: string[] } | null> => {
     const pendientes = items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
+
+    // Las etiquetas de pedidos codifican una URL de cobro. Resolver primero la
+    // intención de esa URL evita confundir alumno, pedido y preventa por el UUID.
+    const scannedOrderId = scannedPathId(code, "pagar-preventa");
+    const scannedAlumnoId = scannedPathId(code, "pagar-preventas-alumno");
+    if (scannedOrderId) {
+      const direct = pendientes.filter(
+        (i) => i.source_table === "store_preorders" && i.source_id.toLowerCase() === scannedOrderId.toLowerCase(),
+      );
+      if (direct.length) return { label: direct[0].cliente_nombre, targets: direct, dliIds: [] };
+    }
+    if (scannedAlumnoId) {
+      const [{ data: orders }, { data: preorders }] = await Promise.all([
+        supabase.from("store_orders").select("id").eq("alumno_id", scannedAlumnoId),
+        supabase.from("store_preorders").select("id").eq("alumno_id", scannedAlumnoId),
+      ]);
+      const orderIds = ((orders as any[]) || []).map((row) => row.id);
+      const preorderIds = ((preorders as any[]) || []).map((row) => row.id.toLowerCase());
+      let storeItemIds: string[] = [];
+      if (orderIds.length) {
+        const { data: storeItems } = await supabase.from("store_order_items").select("id").in("order_id", orderIds);
+        storeItemIds = ((storeItems as any[]) || []).map((row) => row.id);
+      }
+      const targets = pendientes.filter(
+        (i) =>
+          (i.source_table === "store_order_items" && storeItemIds.includes(i.source_id)) ||
+          (i.source_table === "store_preorders" && preorderIds.includes(i.source_id.toLowerCase())),
+      );
+      if (targets.length) return { label: targets[0].cliente_nombre, targets, dliIds: [] };
+    }
 
     // 1) QR de lista de entrega (RBDLV1)
     const parsed = parseClientCode(code);

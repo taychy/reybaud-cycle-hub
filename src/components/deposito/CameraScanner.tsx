@@ -92,8 +92,10 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
         }
 
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        const back = devices.find((d) => /back|rear|trasera|environment/i.test(d.label));
-        const deviceId = back?.deviceId ?? devices[0]?.deviceId;
+        // En varios Android/iPhone en español la cámara figura como "posterior" o
+        // "mirando hacia atrás". Si no hay etiqueta, la trasera suele ser la última.
+        const back = devices.find((d) => /back|rear|trasera|posterior|atr[aá]s|environment/i.test(d.label));
+        const deviceId = back?.deviceId ?? devices.at(-1)?.deviceId;
 
         // Cerrar el stream temporal antes de que ZXing abra el suyo
         permStream?.getTracks().forEach((t) => t.stop());
@@ -138,6 +140,13 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
         const track = stream?.getVideoTracks()[0];
         const caps = (track?.getCapabilities?.() as any) || {};
         setTorchSupported(!!caps.torch);
+        // Las etiquetas Niimbot se leen a corta distancia: mantener autofocus
+        // continuo evita que el QR quede visible pero borroso.
+        if (track && Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
+          try {
+            await track.applyConstraints({ advanced: [{ focusMode: "continuous" } as any] });
+          } catch {}
+        }
       } catch (e: any) {
         setError(e?.message || "No se pudo iniciar la cámara");
       }
@@ -203,7 +212,7 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
                 muted
               />
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-[80%] max-w-md h-32 border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
+                <div className="w-[72vw] max-w-72 aspect-square border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
               </div>
               {flash && (
                 <div className="absolute inset-0 pointer-events-none bg-primary/30 animate-pulse" />
