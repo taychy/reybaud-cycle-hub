@@ -14,6 +14,7 @@ import {
   useProcessTemplates,
   useMyInstances,
   startProcessInstance,
+  cancelInstance,
   ProcessTemplate,
 } from "@/hooks/useProcesses";
 import DepositoPanelDia from "@/components/deposito/DepositoPanelDia";
@@ -67,7 +68,19 @@ const DepositoAlertas = () => {
       });
   }, []);
 
+  const openInstanceFor = (templateId: string) =>
+    instances.find((i) => i.template_id === templateId && (!userId || i.iniciado_por === userId));
+
   const openLaunch = async (t: ProcessTemplate) => {
+    const existing = openInstanceFor(t.id);
+    if (existing) {
+      toast({
+        title: "Ya tenés este proceso en curso",
+        description: "Te llevamos al proceso abierto. Finalizalo o cancelalo antes de iniciar otro.",
+      });
+      navigate(`/deposito/procesos/${existing.id}`);
+      return;
+    }
     setLaunchTemplate(t);
     let list = admins;
     if (list.length === 0) {
@@ -94,7 +107,13 @@ const DepositoAlertas = () => {
       setLaunchTemplate(null);
       navigate(`/deposito/procesos/${id}`);
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      const dup = /en curso de esta plantilla/i.test(e?.message || "");
+      toast({
+        title: dup ? "Ya tenés este proceso en curso" : "Error",
+        description: dup ? "Finalizá o cancelá el proceso abierto antes de iniciar otro." : e.message,
+        variant: "destructive",
+      });
+      if (dup) { setLaunchTemplate(null); await reloadInstances(); }
     } finally {
       setLaunching(false);
     }
@@ -192,13 +211,28 @@ const DepositoAlertas = () => {
               {instances.map((i) => {
                 const tpl = templates.find((t) => t.id === i.template_id);
                 return (
-                  <Card key={i.id} className="border-primary/30 cursor-pointer hover:bg-muted/30" onClick={() => navigate(`/deposito/procesos/${i.id}`)}>
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div>
+                  <Card key={i.id} className="border-primary/30">
+                    <CardContent className="p-3 flex items-center justify-between gap-2">
+                      <div className="cursor-pointer flex-1" onClick={() => navigate(`/deposito/procesos/${i.id}`)}>
                         <p className="font-medium text-sm">{tpl?.nombre || "Proceso"}</p>
                         <p className="text-xs text-muted-foreground">Iniciado {new Date(i.started_at).toLocaleString("es-AR")}</p>
                       </div>
-                      <Badge variant="default">En curso</Badge>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <Badge variant="default">En curso</Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-destructive"
+                          onClick={async () => {
+                            if (!confirm("¿Cancelar este proceso en curso?")) return;
+                            await cancelInstance(i.id);
+                            await reloadInstances();
+                            toast({ title: "Proceso cancelado" });
+                          }}
+                        >
+                          Cancelar
+                        </Button>
+                      </div>
                     </CardContent>
                   </Card>
                 );
@@ -214,7 +248,9 @@ const DepositoAlertas = () => {
             <Card><CardContent className="p-6 text-center text-sm text-muted-foreground">No hay plantillas activas. Pedile al admin que las configure.</CardContent></Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-              {templates.map((t) => (
+              {templates.map((t) => {
+                const abierto = openInstanceFor(t.id);
+                return (
                 <Card key={t.id} className="hover:border-primary cursor-pointer transition-colors" onClick={() => openLaunch(t)}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
@@ -223,10 +259,13 @@ const DepositoAlertas = () => {
                   </CardHeader>
                   <CardContent className="pt-0">
                     <p className="text-xs text-muted-foreground line-clamp-2">{t.descripcion}</p>
-                    <Button size="sm" className="mt-3 w-full"><Play className="w-3 h-3 mr-1" /> Iniciar</Button>
+                    <Button size="sm" variant={abierto ? "outline" : "default"} className="mt-3 w-full">
+                      <Play className="w-3 h-3 mr-1" /> {abierto ? "Continuar (en curso)" : "Iniciar"}
+                    </Button>
                   </CardContent>
                 </Card>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
