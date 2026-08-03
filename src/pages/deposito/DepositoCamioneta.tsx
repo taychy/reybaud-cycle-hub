@@ -299,9 +299,22 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     return g;
   }, [items]);
 
+  const variantText = (v: any): string => {
+    if (!v) return "";
+    if (typeof v === "string") return v;
+    try {
+      return Object.entries(v)
+        .filter(([, val]) => val !== null && val !== "" && val !== undefined)
+        .map(([k, val]) => `${k}: ${val}`)
+        .join(" · ");
+    } catch { return ""; }
+  };
+
   const loadCandidates = async () => {
     setAddLoading(true);
-    // Ítems de delivery_list_items abiertos + no preparados + no ya en otra carga activa
+    const cands: CandidateItem[] = [];
+
+    // 1) Ítems de listas de entrega abiertas, no preparados
     const { data: rows } = await supabase
       .from("delivery_list_items")
       .select("id,list_id,cliente_nombre,producto,variante,cantidad,preparado,list:delivery_lists!inner(id,titulo,estado)")
@@ -309,28 +322,70 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .order("cliente_nombre");
     const abiertos = ((rows as any[]) || []).filter((r) => r.list?.estado === "abierta");
 
-    // filtrar los ya cargados activos
-    const ids = abiertos.map((r: any) => r.id);
-    let ocupados = new Set<string>();
-    if (ids.length > 0) {
-      const { data: taken } = await (supabase as any)
-        .from("vehiculo_carga_items")
-        .select("source_id")
-        .eq("source_table", "delivery_list_items")
-        .eq("estado", "cargado")
-        .in("source_id", ids);
-      ocupados = new Set(((taken as any[]) || []).map((t) => t.source_id));
-    }
+    // 2) Pedidos de tienda preparados / en camioneta con retiro en sede
+    const { data: orders } = await supabase
+      .from("store_orders")
+      .select("id,customer_name,status,entrega_metodo,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
+      .in("status", ["pagado", "preparando", "en_camioneta"])
+      .order("created_at", { ascending: false });
+    const pedidos = ((orders as any[]) || []).filter(
+      (o) => o.entrega_metodo !== "envio_moto" && o.entrega_metodo !== "correo",
+    );
 
-    const cands: CandidateItem[] = abiertos
-      .filter((r: any) => !ocupados.has(r.id))
-      .map((r: any) => ({
-        id: r.id, list_id: r.list_id, cliente_nombre: r.cliente_nombre,
-        producto: r.producto, variante: r.variante, cantidad: r.cantidad,
-        list_titulo: r.list?.titulo || "",
-      }));
+    // Ítems ya cargados en alguna carga activa
+    const dliIds = abiertos.map((r: any) => r.id);
+    const soiIds = pedidos.flatMap((o: any) => (o.items || []).map((i: any) => i.id));
+    const { data: taken } = await (supabase as any)
+      .from("vehiculo_carga_items")
+      .select("source_table,source_id")
+      .eq("estado", "cargado")
+      .in("source_id", [...dliIds, ...soiIds].length ? [...dliIds, ...soiIds] : ["00000000-0000-0000-0000-000000000000"]);
+    const ocupados = new Set(((taken as any[]) || []).map((t) => `${t.source_table}:${t.source_id}`));
+
+    abiertos
+      .filter((r: any) => !ocupados.has(`delivery_list_items:${r.id}`))
+      .forEach((r: any) => {
+        cands.push({
+          id: `delivery_list_items:${r.id}`,
+          source_table: "delivery_list_items",
+          source_id: r.id,
+          cliente_nombre: r.cliente_nombre,
+          producto: r.producto,
+          variante: r.variante,
+          cantidad: r.cantidad,
+          list_titulo: r.list?.titulo || "Lista de entrega",
+          grupo: "sin_sede",
+        });
+      });
+
+    pedidos.forEach((o: any) => {
+      const grupo: CandidateItem["grupo"] =
+        o.sede_retiro_id && o.sede_retiro_id === carga?.sede_id
+          ? "sede"
+          : o.sede_retiro_id
+            ? "otra_sede"
+            : "sin_sede";
+      (o.items || [])
+        .filter((i: any) => !ocupados.has(`store_order_items:${i.id}`))
+        .forEach((i: any) => {
+          cands.push({
+            id: `store_order_items:${i.id}`,
+            source_table: "store_order_items",
+            source_id: i.id,
+            order_id: o.id,
+            cliente_nombre: o.customer_name || "Cliente",
+            producto: i.product_name,
+            variante: variantText(i.variant_selection) || null,
+            cantidad: i.quantity,
+            list_titulo: "Pedido de tienda",
+            grupo,
+          });
+        });
+    });
+
     setCandidates(cands);
-    setSelected(new Set());
+    // Preseleccionamos los que corresponden a la sede de esta carga
+    setSelected(new Set(cands.filter((c) => c.grupo === "sede").map((c) => c.id)));
     setAddLoading(false);
   };
 
@@ -345,19 +400,24 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const addSelected = async () => {
     if (selected.size === 0) return;
     setSaving(true);
-    const toInsert = candidates
-      .filter((c) => selected.has(c.id))
-      .map((c) => ({
-        carga_id: id,
-        source_table: "delivery_list_items",
-        source_id: c.id,
-        cliente_nombre: c.cliente_nombre,
-        producto: c.producto,
-        variante: c.variante,
-        cantidad: c.cantidad,
-        estado: "cargado",
-      }));
+    const picked = candidates.filter((c) => selected.has(c.id));
+    const toInsert = picked.map((c) => ({
+      carga_id: id,
+      source_table: c.source_table,
+      source_id: c.source_id,
+      cliente_nombre: c.cliente_nombre,
+      producto: c.producto,
+      variante: c.variante,
+      cantidad: c.cantidad,
+      estado: "cargado",
+    }));
     const { error } = await (supabase as any).from("vehiculo_carga_items").insert(toInsert);
+    if (!error) {
+      const orderIds = Array.from(new Set(picked.map((c) => c.order_id).filter(Boolean))) as string[];
+      if (orderIds.length > 0) {
+        await supabase.from("store_orders").update({ status: "en_camioneta" }).in("id", orderIds);
+      }
+    }
     setSaving(false);
     if (error) { toast.error(error.message); return; }
     toast.success(`${toInsert.length} ítem(s) agregados`);
@@ -367,7 +427,22 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   const removeItem = async (itemId: string) => {
     if (!confirm("¿Quitar este ítem de la carga?")) return;
+    const item = items.find((i) => i.id === itemId);
     await (supabase as any).from("vehiculo_carga_items").delete().eq("id", itemId);
+    if (item?.source_table === "store_order_items") {
+      const { data: soi } = await supabase
+        .from("store_order_items")
+        .select("order_id")
+        .eq("id", item.source_id)
+        .maybeSingle();
+      if (soi?.order_id) {
+        await supabase
+          .from("store_orders")
+          .update({ status: "preparando" })
+          .eq("id", soi.order_id)
+          .eq("status", "en_camioneta");
+      }
+    }
     load();
   };
 
