@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight, Tag } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
 
 interface Category { id: string; name: string; icon: string | null }
 interface Product {
@@ -19,6 +20,8 @@ interface Product {
   image_url: string | null;
   description: string | null;
   price: number | null;
+  currency: string | null;
+  status: string | null;
   proveedor: string | null;
   tag: string | null;
 }
@@ -30,6 +33,7 @@ interface Row {
   esperado: number;
   contado: string; // input text
 }
+
 
 interface Props {
   initialNota?: string | null;
@@ -68,6 +72,8 @@ const buildRows = (products: Product[]): Row[] => {
   return rows;
 };
 
+const ALL_CAT: Category = { id: "__all__", name: "Todos los productos", icon: "🗂️" };
+
 const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCats, setLoadingCats] = useState(true);
@@ -78,6 +84,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
+  const [labelProductId, setLabelProductId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -96,17 +103,19 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     setSelectedProductId(null);
     setSearch("");
     setLoadingProds(true);
-    const { data } = await supabase
+    let q = supabase
       .from("store_products")
-      .select("id, name, stock, variants, variant_stock, sku_base, image_url, description, price, proveedor, tag")
-      .eq("category_id", cat.id)
+      .select("id, name, stock, variants, variant_stock, sku_base, image_url, description, price, currency, status, proveedor, tag")
       .neq("status", "archived")
       .order("name", { ascending: true });
+    if (cat.id !== ALL_CAT.id) q = q.eq("category_id", cat.id);
+    const { data } = await q;
     const prods = (data || []) as Product[];
     setProducts(prods);
     setRows(buildRows(prods));
     setLoadingProds(false);
   };
+
 
   const summary = useMemo(() => {
     let coincide = 0, dif = 0, sin = 0, faltantes = 0, sobrantes = 0;
@@ -220,17 +229,23 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             <Loader2 className="w-5 h-5 animate-spin" />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {categories.map((c) => (
+              {[ALL_CAT, ...categories].map((c) => (
                 <button
                   key={c.id}
                   onClick={() => pickCategory(c)}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 text-left transition"
+                  className={`flex items-center gap-3 p-3 rounded-lg border text-left transition hover:border-primary hover:bg-primary/5 ${
+                    c.id === ALL_CAT.id ? "border-primary/50 sm:col-span-2" : "border-border"
+                  }`}
                 >
                   <span className="text-2xl">{c.icon || "📦"}</span>
                   <span className="font-medium">{c.name}</span>
+                  {c.id === ALL_CAT.id && (
+                    <span className="ml-auto text-[11px] text-muted-foreground">incluye ocultos y sin categoría</span>
+                  )}
                 </button>
               ))}
             </div>
+
           )}
           <div className="mt-4">
             <Button variant="ghost" size="sm" onClick={onCancel}>Cancelar proceso</Button>
@@ -241,6 +256,8 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   }
 
   const selectedProduct = products.find((p) => p.id === selectedProductId) || null;
+  const labelProduct = products.find((p) => p.id === labelProductId) || null;
+
 
   // ---------- Paso 3: detalle de producto ----------
   if (selectedProduct) {
@@ -249,10 +266,16 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       .filter(({ r }) => r.productId === selectedProduct.id);
     const st = perProduct[selectedProduct.id];
     return (
+      <>
       <Card className="border-primary/40">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between gap-2">
-            <CardTitle className="text-base truncate">{selectedProduct.name}</CardTitle>
+            <CardTitle className="text-base truncate flex items-center gap-2">
+              {selectedProduct.name}
+              {selectedProduct.status && selectedProduct.status !== "active" && (
+                <Badge variant="outline" className="text-[10px]">{selectedProduct.status === "hidden" ? "Oculto" : selectedProduct.status}</Badge>
+              )}
+            </CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setSelectedProductId(null)}>
               <ArrowLeft className="w-4 h-4 mr-1" /> Productos
             </Button>
@@ -283,6 +306,10 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             </div>
           </div>
 
+          <Button variant="outline" className="w-full" onClick={() => setLabelProductId(selectedProduct.id)}>
+            <Tag className="w-4 h-4 mr-1" /> Imprimir etiquetas (Niimbot / A4)
+          </Button>
+
           <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
             {prodRows.map(({ r, idx }) => renderRow(r, idx))}
           </div>
@@ -292,7 +319,14 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
           </Button>
         </CardContent>
       </Card>
+      <ProductLabelsDialog
+        open={!!labelProductId}
+        product={labelProduct as any}
+        onOpenChange={(o) => !o && setLabelProductId(null)}
+      />
+      </>
     );
+
   }
 
   // ---------- Paso 2: lista de productos ----------
@@ -327,7 +361,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
         {loadingProds ? (
           <Loader2 className="w-5 h-5 animate-spin mx-auto" />
         ) : products.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No hay productos activos en esta categoría.</p>
+          <p className="text-sm text-muted-foreground text-center py-6">No hay productos en esta categoría.</p>
         ) : (
           <>
             <div className="relative">
