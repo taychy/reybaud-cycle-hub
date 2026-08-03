@@ -51,6 +51,39 @@ interface CandidateItem {
   enCamioneta?: boolean;
 }
 
+interface Chequeo {
+  id: string;
+  carga_id: string;
+  ronda: number;
+  tipo: "inicial" | "control";
+  estado: "en_curso" | "cerrado";
+  responsable_nombre: string | null;
+  notas: string | null;
+  resumen: Record<string, number> | null;
+  started_at: string;
+  closed_at: string | null;
+}
+interface DiffRow {
+  item_id: string;
+  cliente_nombre: string;
+  producto: string | null;
+  variante: string | null;
+  cantidad: number;
+  source_table: string;
+  en_base: boolean;
+  escaneado: boolean;
+  informado_entregado: boolean;
+  resultado: "presente" | "nuevo" | "entregado_ok" | "faltante_sin_aviso" | "entregado_pero_presente" | "fuera_de_ronda";
+}
+
+const DIFF_SECTIONS = [
+  { key: "faltante_sin_aviso", label: "Faltan y nadie informó entrega", hint: "Estaban en la ronda anterior, no están en la camioneta y el entregador no los marcó como entregados.", tone: "text-red-500" },
+  { key: "entregado_pero_presente", label: "Informados como entregados pero siguen en la camioneta", hint: "El entregador los marcó entregados y sin embargo se escanearon acá.", tone: "text-amber-500" },
+  { key: "entregado_ok", label: "Entregas confirmadas", hint: "Ya no están en la camioneta y el entregador informó la entrega.", tone: "text-green-500" },
+  { key: "nuevo", label: "Nuevos en esta ronda", hint: "No estaban en la ronda anterior.", tone: "text-cyan-400" },
+  { key: "presente", label: "Siguen en la camioneta", hint: "Escaneados y pendientes de entrega.", tone: "text-muted-foreground" },
+] as const;
+
 const estadoBadge = (estado: string) => {
   const map: Record<string, { label: string; variant: any }> = {
     abierta: { label: "Abierta", variant: "default" },
@@ -218,6 +251,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const scanBusyRef = useRef(false);
+  // --- Rondas de chequeo (cruce con lo informado por el entregador) ---
+  const [chequeo, setChequeo] = useState<Chequeo | null>(null);
+  const [rondas, setRondas] = useState<Chequeo[]>([]);
+  const [scannedIds, setScannedIds] = useState<Set<string>>(new Set());
+  const [diff, setDiff] = useState<DiffRow[]>([]);
+  const [diffLoading, setDiffLoading] = useState(false);
+  const [closingRonda, setClosingRonda] = useState(false);
+  const [rondaNotas, setRondaNotas] = useState("");
 
   const parseClientCode = (code: string): { listId: string; cliente: string } | null => {
     if (!code.startsWith("RBDLV1:")) return null;
@@ -240,7 +281,10 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   /** Resuelve qué ítems de esta carga corresponden al código escaneado. */
   const resolveTargets = async (code: string): Promise<{ label: string; targets: CargaItem[]; dliIds: string[] } | null> => {
-    const pendientes = items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
+    // Durante una ronda activa, lo pendiente es lo que todavía no se escaneó en ESA ronda.
+    const pendientes = chequeo
+      ? items.filter((i) => i.estado !== "entregado" && !scannedIds.has(i.id))
+      : items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
 
     // Las etiquetas de pedidos codifican una URL de cobro. Resolver primero la
     // intención de esa URL evita confundir alumno, pedido y preventa por el UUID.
@@ -400,6 +444,13 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .from("vehiculo_carga_items")
       .update({ chequeado_at: now, chequeado_by: userRes.user?.id ?? null })
       .in("id", targetIds);
+    if (!error && chequeo) {
+      await (supabase as any).from("vehiculo_chequeo_scans").upsert(
+        targetIds.map((itemId) => ({ chequeo_id: chequeo.id, item_id: itemId, scanned_by: userRes.user?.id ?? null })),
+        { onConflict: "chequeo_id,item_id" },
+      );
+      setScannedIds((prev) => new Set([...prev, ...targetIds]));
+    }
     scanBusyRef.current = false;
     if (error) {
       toast.error("No se pudo registrar el chequeo");
@@ -411,7 +462,60 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   };
 
+  const loadRondas = async () => {
+    const { data } = await (supabase as any)
+      .from("vehiculo_chequeos")
+      .select("*")
+      .eq("carga_id", id)
+      .order("ronda", { ascending: false });
+    const list = ((data as any[]) || []) as Chequeo[];
+    setRondas(list);
+    const abierta = list.find((r) => r.estado === "en_curso") || null;
+    setChequeo(abierta);
+    if (abierta) {
+      const { data: scans } = await (supabase as any)
+        .from("vehiculo_chequeo_scans")
+        .select("item_id")
+        .eq("chequeo_id", abierta.id);
+      setScannedIds(new Set(((scans as any[]) || []).map((s) => s.item_id)));
+    } else {
+      setScannedIds(new Set());
+      setDiff([]);
+    }
+    return abierta;
+  };
 
+  const loadDiff = async (chequeoId: string) => {
+    setDiffLoading(true);
+    const { data, error } = await (supabase as any).rpc("get_vehiculo_chequeo_diff", { _chequeo_id: chequeoId });
+    setDiffLoading(false);
+    if (error) { toast.error(error.message); return; }
+    setDiff(((data as any[]) || []) as DiffRow[]);
+  };
+
+  const iniciarRonda = async () => {
+    const { data, error } = await (supabase as any).rpc("start_vehiculo_chequeo", { _carga_id: id, _responsable_nombre: null });
+    if (error) { toast.error(error.message); return; }
+    const row = (Array.isArray(data) ? data[0] : data) as Chequeo;
+    setChequeo(row);
+    await loadRondas();
+    setScanCount(0);
+    setScannerOpen(true);
+    toast.success(row.tipo === "inicial" ? `Ronda 1 · Registro inicial` : `Ronda ${row.ronda} · Control`);
+  };
+
+  const cerrarRonda = async () => {
+    if (!chequeo) return;
+    if (!confirm("¿Cerrar la ronda? Se aplicarán entregas y faltantes según el cruce.")) return;
+    setClosingRonda(true);
+    const { error } = await (supabase as any).rpc("close_vehiculo_chequeo", { _chequeo_id: chequeo.id, _notas: rondaNotas || null });
+    setClosingRonda(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Ronda cerrada y cruzada con lo informado por el entregador");
+    setRondaNotas("");
+    setDiff([]);
+    await Promise.all([load(), loadRondas()]);
+  };
 
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
@@ -422,9 +526,20 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setItems((iRes.data as any[]) || []);
     setLoading(false);
   };
-  useEffect(() => { load(); }, [id]);
+  useEffect(() => { load(); loadRondas(); }, [id]);
+
+  useEffect(() => {
+    if (chequeo && !scannerOpen) loadDiff(chequeo.id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chequeo?.id, scannerOpen, scannedIds.size]);
 
   const sede = sedes.find((s) => s.id === carga?.sede_id);
+
+  const diffCounts = useMemo(() => {
+    const c: Record<string, number> = { presente: 0, nuevo: 0, entregado_ok: 0, faltante_sin_aviso: 0, entregado_pero_presente: 0, fuera_de_ronda: 0 };
+    diff.forEach((d) => { c[d.resultado] = (c[d.resultado] || 0) + 1; });
+    return c as Record<DiffRow["resultado"], number>;
+  }, [diff]);
 
   const grouped = useMemo(() => {
     const g: Record<string, CargaItem[]> = {};
@@ -644,9 +759,15 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                 <Button variant="outline" size="sm" onClick={() => setEtiquetaOpen(true)}>
                   <Camera className="w-4 h-4 mr-1" /> Foto etiqueta (venta externa)
                 </Button>
-                <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-                  <ScanLine className="w-4 h-4 mr-1" /> Chequear camioneta
-                </Button>
+                {chequeo ? (
+                  <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+                    <ScanLine className="w-4 h-4 mr-1" /> Seguir ronda {chequeo.ronda}
+                  </Button>
+                ) : (
+                  <Button variant="gold" size="sm" onClick={iniciarRonda}>
+                    <ScanLine className="w-4 h-4 mr-1" /> {rondas.length === 0 ? "Iniciar registro de camioneta" : "Nueva ronda de control"}
+                  </Button>
+                )}
                 <Button variant="outline" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
               </>
             )}
@@ -661,6 +782,97 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <Metric label="Faltantes" value={faltantes} tone="danger" />
         </div>
       </div>
+
+      {chequeo && (
+        <div className="glass-card rounded-lg p-4 border border-primary/30 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <div className="font-heading font-bold uppercase tracking-wider text-sm">
+                Ronda {chequeo.ronda} · {chequeo.tipo === "inicial" ? "Registro inicial" : "Control contra ronda anterior"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {chequeo.tipo === "inicial"
+                  ? "Escaneá todo lo que hay físicamente en la camioneta. Eso queda como registro base."
+                  : "Escaneá lo que sigue en la camioneta. Se compara contra la ronda anterior y contra lo que el entregador informó como entregado."}
+              </p>
+            </div>
+            <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+              <ScanLine className="w-4 h-4 mr-1" /> Escanear
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+            <Metric label="Escaneados" value={diffCounts.presente + diffCounts.nuevo + diffCounts.entregado_pero_presente} />
+            <Metric label="Nuevos" value={diffCounts.nuevo} />
+            <Metric label="Entregas OK" value={diffCounts.entregado_ok} tone="ok" />
+            <Metric label="Faltan sin aviso" value={diffCounts.faltante_sin_aviso} tone="danger" />
+            <Metric label="Informado pero está" value={diffCounts.entregado_pero_presente} tone="warning" />
+          </div>
+
+          {diffLoading ? (
+            <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Cruzando datos...</div>
+          ) : (
+            <div className="space-y-3">
+              {DIFF_SECTIONS.map(({ key, label, hint, tone }) => {
+                const rows = diff.filter((d) => d.resultado === key);
+                if (rows.length === 0) return null;
+                return (
+                  <div key={key} className="rounded-lg border border-border p-2">
+                    <div className={`text-[11px] uppercase tracking-wider font-medium ${tone}`}>{label} · {rows.length}</div>
+                    <p className="text-[10px] text-muted-foreground mb-1">{hint}</p>
+                    <div className="space-y-1">
+                      {rows.map((d) => (
+                        <div key={d.item_id} className="text-xs flex gap-2">
+                          <span className="text-foreground font-medium truncate">{d.cliente_nombre}</span>
+                          <span className="text-muted-foreground truncate">
+                            {d.producto || "—"}{d.variante ? ` · ${d.variante}` : ""} × {Number(d.cantidad)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          <Textarea
+            rows={2}
+            placeholder="Observaciones de la ronda (opcional)"
+            value={rondaNotas}
+            onChange={(e) => setRondaNotas(e.target.value)}
+          />
+          <div className="flex justify-end">
+            <Button variant="gold" size="sm" onClick={cerrarRonda} disabled={closingRonda}>
+              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar ronda"}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {rondas.filter((r) => r.estado === "cerrado").length > 0 && (
+        <div className="glass-card rounded-lg p-3">
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Historial de chequeos</div>
+          <div className="space-y-1">
+            {rondas.filter((r) => r.estado === "cerrado").map((r) => (
+              <div key={r.id} className="text-xs flex flex-wrap items-center gap-2">
+                <Badge variant="outline">Ronda {r.ronda}</Badge>
+                <span className="text-muted-foreground">{r.tipo === "inicial" ? "Registro inicial" : "Control"}</span>
+                <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
+                {r.resumen && (
+                  <span className="text-muted-foreground">
+                    · {r.resumen.entregado_ok || 0} entregados · {r.resumen.faltante_sin_aviso || 0} faltantes
+                    {r.resumen.entregado_pero_presente ? ` · ${r.resumen.entregado_pero_presente} inconsistentes` : ""}
+                  </span>
+                )}
+                {r.notas && <span className="text-muted-foreground/80 italic">"{r.notas}"</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+
 
       {items.length === 0 ? (
         <div className="py-16 text-center">
