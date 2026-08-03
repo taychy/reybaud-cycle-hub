@@ -396,15 +396,22 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
           <p className="text-sm text-muted-foreground text-center py-6">No hay productos en esta categoría.</p>
         ) : (
           <>
-            <div className="relative">
-              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar producto, SKU o proveedor…"
-                className="pl-9"
-              />
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Buscar producto, SKU o proveedor…"
+                  className="pl-9"
+                />
+              </div>
+              <Button variant="outline" onClick={() => setScannerOpen(true)} title="Escanear etiqueta">
+                <Camera className="w-4 h-4 mr-1" /> Escanear
+              </Button>
             </div>
+            <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleScanned} />
+
 
             <div className="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
               {filtered.map((p) => {
