@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight, Tag } from "lucide-react";
+import { ArrowLeft, CheckCircle, AlertTriangle, Loader2, Package, Search, ChevronRight, Tag, Camera } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
+import CameraScanner from "@/components/deposito/CameraScanner";
+import { decodeProductQr, formatVariante } from "@/lib/productQr";
 
 interface Category { id: string; name: string; icon: string | null }
 interface Product {
