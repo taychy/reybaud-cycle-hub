@@ -272,11 +272,54 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       if (targets.length === 0) {
         targets = pendientes.filter((i) => i.source_table === "store_preorders" && i.source_id.toLowerCase() === uuid.toLowerCase());
       }
+      // d) es el id del ALUMNO (etiquetas Niimbot con QR /pagar-preventas-alumno/:alumnoId)
+      if (targets.length === 0) {
+        const [{ data: ordersOfAlumno }, { data: preordersOfAlumno }] = await Promise.all([
+          supabase.from("store_orders").select("id").eq("alumno_id", uuid),
+          supabase.from("store_preorders").select("id").eq("alumno_id", uuid),
+        ]);
+        const orderIds = ((ordersOfAlumno as any[]) || []).map((r) => r.id);
+        if (orderIds.length) {
+          const { data: soi2 } = await supabase
+            .from("store_order_items")
+            .select("id")
+            .in("order_id", orderIds);
+          const soiIds2 = ((soi2 as any[]) || []).map((r) => r.id);
+          targets = pendientes.filter(
+            (i) => i.source_table === "store_order_items" && soiIds2.includes(i.source_id),
+          );
+        }
+        const preIds = ((preordersOfAlumno as any[]) || []).map((r) => r.id.toLowerCase());
+        if (preIds.length) {
+          targets = [
+            ...targets,
+            ...pendientes.filter(
+              (i) => i.source_table === "store_preorders" && preIds.includes(i.source_id.toLowerCase()),
+            ),
+          ];
+        }
+        // e) sin ítems vinculados: probamos por nombre del alumno
+        if (targets.length === 0) {
+          const { data: al } = await supabase
+            .from("alumnos")
+            .select("nombre,apellido")
+            .eq("id", uuid)
+            .maybeSingle();
+          const full = norm(`${(al as any)?.nombre || ""} ${(al as any)?.apellido || ""}`);
+          if (full.length >= 4) {
+            targets = pendientes.filter((i) => {
+              const n = norm(i.cliente_nombre);
+              return n === full || n.includes(full) || full.includes(n);
+            });
+          }
+        }
+      }
       if (targets.length) {
         const dliIds = targets.filter((t) => t.source_table === "delivery_list_items").map((t) => t.source_id);
         return { label: targets[0].cliente_nombre, targets, dliIds };
       }
     }
+
 
     // 3) Último recurso: texto que coincide con el nombre del cliente
     const t = norm(code);
