@@ -6310,6 +6310,80 @@ export type Database = {
           },
         ]
       }
+      pedidos_externos: {
+        Row: {
+          cantidad: number
+          cliente_email: string | null
+          cliente_nombre: string
+          cliente_telefono: string | null
+          created_at: string
+          created_by: string | null
+          estado: string
+          externo_ref: string | null
+          foto_path: string | null
+          foto_url: string | null
+          id: string
+          notas: string | null
+          ocr_raw: Json | null
+          origen: string
+          producto: string | null
+          sede_id: string | null
+          ubicacion: string | null
+          updated_at: string
+          variante: string | null
+        }
+        Insert: {
+          cantidad?: number
+          cliente_email?: string | null
+          cliente_nombre: string
+          cliente_telefono?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          externo_ref?: string | null
+          foto_path?: string | null
+          foto_url?: string | null
+          id?: string
+          notas?: string | null
+          ocr_raw?: Json | null
+          origen?: string
+          producto?: string | null
+          sede_id?: string | null
+          ubicacion?: string | null
+          updated_at?: string
+          variante?: string | null
+        }
+        Update: {
+          cantidad?: number
+          cliente_email?: string | null
+          cliente_nombre?: string
+          cliente_telefono?: string | null
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          externo_ref?: string | null
+          foto_path?: string | null
+          foto_url?: string | null
+          id?: string
+          notas?: string | null
+          ocr_raw?: Json | null
+          origen?: string
+          producto?: string | null
+          sede_id?: string | null
+          ubicacion?: string | null
+          updated_at?: string
+          variante?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pedidos_externos_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       plan_mensual: {
         Row: {
           archivo_original_url: string | null
