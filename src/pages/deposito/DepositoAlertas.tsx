@@ -14,6 +14,7 @@ import {
   useProcessTemplates,
   useMyInstances,
   startProcessInstance,
+  cancelInstance,
   ProcessTemplate,
 } from "@/hooks/useProcesses";
 import DepositoPanelDia from "@/components/deposito/DepositoPanelDia";
