@@ -15,6 +15,7 @@ const STATUSES = [
   "pendiente_pago_efectivo",
   "pagado",
   "preparando",
+  "en_camioneta",
   "enviado",
   "entregado",
   "cancelado",
@@ -24,6 +25,7 @@ const statusColor = (s: string) => {
   switch (s) {
     case "pagado": return "bg-green-500/20 text-green-400";
     case "preparando": return "bg-cyan/20 text-cyan";
+    case "en_camioneta": return "bg-cyan-500/20 text-cyan-400";
     case "enviado": return "bg-primary/20 text-primary";
     case "entregado": return "bg-green-500/20 text-green-400";
     case "cancelado": return "bg-destructive/20 text-destructive";
@@ -176,7 +178,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       ? `${its.length} productos`
       : (first?.product_name || "Pedido");
     const total = Number(r.total || 0);
-    const pagado = r.status === "pagado" || r.status === "preparando" || r.status === "enviado" || r.status === "entregado";
+    const pagado = r.status === "pagado" || r.status === "preparando" || r.status === "en_camioneta" || r.status === "enviado" || r.status === "entregado";
     return {
       id: r.id,
       alumno_id: r.alumno_id || undefined,
