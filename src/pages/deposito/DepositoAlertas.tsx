@@ -106,7 +106,14 @@ const DepositoAlertas = () => {
       setLaunchTemplate(null);
       navigate(`/deposito/procesos/${id}`);
     } catch (e: any) {
-      toast({ title: "Error", description: e.message, variant: "destructive" });
+      const dup = /en curso de esta plantilla/i.test(e?.message || "");
+      toast({
+        title: dup ? "Ya tenés este proceso en curso" : "Error",
+        description: dup ? "Finalizá o cancelá el proceso abierto antes de iniciar otro." : e.message,
+        variant: "destructive",
+      });
+      if (dup) { setLaunchTemplate(null); await reloadInstances(); }
+    }
     } finally {
       setLaunching(false);
     }
