@@ -80,8 +80,12 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
   const [saving, setSaving] = useState(false);
   const [ocr, setOcr] = useState<any>(null);
   const [form, setForm] = useState({ ...emptyForm });
+  const [items, setItems] = useState<ItemForm[]>([{ ...emptyItem }]);
 
-  const reset = () => { setPhoto(null); setForm({ ...emptyForm }); setOcr(null); };
+  const reset = () => { setPhoto(null); setForm({ ...emptyForm }); setItems([{ ...emptyItem }]); setOcr(null); };
+
+  const updateItem = (idx: number, patch: Partial<ItemForm>) =>
+    setItems((prev) => prev.map((it, i) => (i === idx ? { ...it, ...patch } : it)));
 
   const handleFile = async (file?: File | null) => {
     if (!file) return;
@@ -103,10 +107,23 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
         cliente_nombre: d.cliente_nombre || f.cliente_nombre,
         cliente_telefono: d.cliente_telefono || f.cliente_telefono,
         cliente_email: d.cliente_email || f.cliente_email,
-        producto: d.producto || f.producto,
-        variante: d.variante || f.variante,
-        cantidad: Number(d.cantidad) > 0 ? Number(d.cantidad) : f.cantidad,
       }));
+      const detected: ItemForm[] = Array.isArray(d.items) && d.items.length
+        ? d.items.map((it: any) => ({
+            producto: String(it?.producto || "").trim(),
+            variante: String(it?.variante || "").trim(),
+            cantidad: Number(it?.cantidad) > 0 ? Number(it.cantidad) : 1,
+          })).filter((it: ItemForm) => it.producto || it.variante)
+        : [];
+      if (detected.length) setItems(detected);
+      else if (d.producto || d.variante) {
+        setItems([{
+          producto: d.producto || "",
+          variante: d.variante || "",
+          cantidad: Number(d.cantidad) > 0 ? Number(d.cantidad) : 1,
+        }]);
+      }
+
       if (d.cliente_nombre) toast.success("Etiqueta leída", { description: d.cliente_nombre });
     } catch (e) {
       setReading(false);
