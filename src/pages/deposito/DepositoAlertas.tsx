@@ -67,10 +67,20 @@ const DepositoAlertas = () => {
       });
   }, []);
 
-  const openLaunch = (t: ProcessTemplate) => {
+  const openLaunch = async (t: ProcessTemplate) => {
     setLaunchTemplate(t);
-    setLaunchEmail(admins[0]?.email || "");
+    let list = admins;
+    if (list.length === 0) {
+      const { data } = await sb.from("admin_profiles").select("email, first_name, last_name").in("status", ["active", "activo"]);
+      list = (data || []).map((a: any) => ({
+        email: a.email,
+        nombre: `${a.first_name || ""} ${a.last_name || ""}`.trim() || a.email,
+      }));
+      setAdmins(list);
+    }
+    setLaunchEmail(list[0]?.email || "");
   };
+
 
   const launch = async () => {
     if (!launchTemplate || !userId) return;
@@ -232,19 +242,30 @@ const DepositoAlertas = () => {
             <p className="text-sm text-muted-foreground">{launchTemplate?.descripcion}</p>
             <div>
               <Label>Destinatario del reporte final</Label>
-              {admins.length > 0 ? (
-                <Select value={launchEmail} onValueChange={setLaunchEmail}>
-                  <SelectTrigger><SelectValue placeholder="Elegí un admin" /></SelectTrigger>
-                  <SelectContent>
-                    {admins.map((a) => (
-                      <SelectItem key={a.email} value={a.email}>{a.nombre} ({a.email})</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input value={launchEmail} onChange={(e) => setLaunchEmail(e.target.value)} placeholder="email@ejemplo.com" />
+              {admins.length > 0 && (
+                <select
+                  value={admins.some((a) => a.email === launchEmail) ? launchEmail : "__otro__"}
+                  onChange={(e) => setLaunchEmail(e.target.value === "__otro__" ? "" : e.target.value)}
+                  className="mt-1 w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {admins.map((a) => (
+                    <option key={a.email} value={a.email}>{a.nombre} ({a.email})</option>
+                  ))}
+                  <option value="__otro__">Otro email…</option>
+                </select>
+              )}
+              {(admins.length === 0 || !admins.some((a) => a.email === launchEmail)) && (
+                <Input
+                  className="mt-2"
+                  type="email"
+                  inputMode="email"
+                  value={launchEmail}
+                  onChange={(e) => setLaunchEmail(e.target.value)}
+                  placeholder="email@ejemplo.com"
+                />
               )}
             </div>
+
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setLaunchTemplate(null)}>Cancelar</Button>
