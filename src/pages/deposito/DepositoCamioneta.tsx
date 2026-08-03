@@ -302,47 +302,30 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       toast.error("No encontramos este código en la carga", { description: clean.slice(0, 60) });
       return;
     }
-    const { label, targets, dliIds } = res;
+    const { label, targets } = res;
     if (targets.length === 0) {
-      toast.info(`${label} ya estaba entregado o no está en esta carga`);
+      toast.info(`${label} ya estaba chequeado o entregado`);
       return;
     }
     scanBusyRef.current = true;
     const targetIds = targets.map((t) => t.id);
-    setItems((prev) => prev.map((i) => (targetIds.includes(i.id) ? { ...i, estado: "entregado" } : i)));
+    const now = new Date().toISOString();
+    setItems((prev) => prev.map((i) => (targetIds.includes(i.id) ? { ...i, chequeado_at: now } : i)));
     const { data: userRes } = await supabase.auth.getUser();
 
-    const ops: PromiseLike<any>[] = [
-      (supabase as any).from("vehiculo_carga_items").update({ estado: "entregado" }).in("id", targetIds),
-    ];
-    if (dliIds.length) {
-      ops.push(
-        supabase
-          .from("delivery_list_items")
-          .update({ preparado: true, preparado_by: userRes.user?.id ?? null })
-          .in("id", dliIds)
-          .eq("preparado", false),
-      );
-    }
-    // Pedidos de tienda: pasan a entregado cuando todos sus ítems se entregaron
-    const soiIds = targets.filter((t) => t.source_table === "store_order_items").map((t) => t.source_id);
-    if (soiIds.length) {
-      const { data: soi } = await supabase.from("store_order_items").select("order_id").in("id", soiIds);
-      const orderIds = Array.from(new Set(((soi as any[]) || []).map((r) => r.order_id).filter(Boolean)));
-      if (orderIds.length) {
-        ops.push(supabase.from("store_orders").update({ status: "entregado" }).in("id", orderIds));
-      }
-    }
-
-    const results = await Promise.all(ops);
+    const { error } = await (supabase as any)
+      .from("vehiculo_carga_items")
+      .update({ chequeado_at: now, chequeado_by: userRes.user?.id ?? null })
+      .in("id", targetIds);
     scanBusyRef.current = false;
-    if (results.some((r: any) => r?.error)) {
-      toast.error("No se pudo marcar como entregado");
+    if (error) {
+      toast.error("No se pudo registrar el chequeo");
       load();
       return;
     }
     setScanCount((n) => n + 1);
-    toast.success(`✓ ${label}`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} entregado${targets.length !== 1 ? "s" : ""}` });
+    toast.success(`✓ ${label} en camioneta`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} chequeado${targets.length !== 1 ? "s" : ""}` });
+
   };
 
 
