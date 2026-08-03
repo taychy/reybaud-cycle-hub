@@ -273,7 +273,10 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   /** Resuelve qué ítems de esta carga corresponden al código escaneado. */
   const resolveTargets = async (code: string): Promise<{ label: string; targets: CargaItem[]; dliIds: string[] } | null> => {
-    const pendientes = items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
+    // Durante una ronda activa, lo pendiente es lo que todavía no se escaneó en ESA ronda.
+    const pendientes = chequeo
+      ? items.filter((i) => i.estado !== "entregado" && !scannedIds.has(i.id))
+      : items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
 
     // Las etiquetas de pedidos codifican una URL de cobro. Resolver primero la
     // intención de esa URL evita confundir alumno, pedido y preventa por el UUID.
