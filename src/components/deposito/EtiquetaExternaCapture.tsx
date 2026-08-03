@@ -278,18 +278,50 @@ const EtiquetaExternaCapture = ({ open, onOpenChange, cargaId, sedeId, onSaved }
               <Label>N° de orden</Label>
               <Input value={form.externo_ref} onChange={(e) => setForm({ ...form, externo_ref: e.target.value })} placeholder="#1234" />
             </div>
-            <div className="space-y-1.5 col-span-2">
-              <Label>Producto</Label>
-              <Input value={form.producto} onChange={(e) => setForm({ ...form, producto: e.target.value })} />
+            <div className="space-y-2 col-span-2">
+              <div className="flex items-center justify-between">
+                <Label>Productos ({items.length})</Label>
+                <Button type="button" variant="outline" size="sm" onClick={() => setItems((p) => [...p, { ...emptyItem }])}>
+                  <Plus className="w-3.5 h-3.5 mr-1" /> Agregar producto
+                </Button>
+              </div>
+              {items.map((it, idx) => (
+                <div key={idx} className="rounded-md border border-border p-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input
+                      value={it.producto}
+                      onChange={(e) => updateItem(idx, { producto: e.target.value })}
+                      placeholder={`Producto ${idx + 1}`}
+                    />
+                    {items.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setItems((p) => p.filter((_, i) => i !== idx))}
+                      >
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      value={it.variante}
+                      onChange={(e) => updateItem(idx, { variante: e.target.value })}
+                      placeholder="Talle / color"
+                    />
+                    <Input
+                      type="number"
+                      min={1}
+                      value={it.cantidad}
+                      onChange={(e) => updateItem(idx, { cantidad: Number(e.target.value) })}
+                      placeholder="Cantidad"
+                    />
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="space-y-1.5">
-              <Label>Variante</Label>
-              <Input value={form.variante} onChange={(e) => setForm({ ...form, variante: e.target.value })} placeholder="Talle / color" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Cantidad</Label>
-              <Input type="number" min={1} value={form.cantidad} onChange={(e) => setForm({ ...form, cantidad: Number(e.target.value) })} />
-            </div>
+
             <div className="space-y-1.5">
               <Label>Teléfono</Label>
               <Input value={form.cliente_telefono} onChange={(e) => setForm({ ...form, cliente_telefono: e.target.value })} />
