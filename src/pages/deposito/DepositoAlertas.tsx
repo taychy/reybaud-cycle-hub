@@ -67,7 +67,19 @@ const DepositoAlertas = () => {
       });
   }, []);
 
+  const openInstanceFor = (templateId: string) =>
+    instances.find((i) => i.template_id === templateId && (!userId || i.iniciado_por === userId));
+
   const openLaunch = async (t: ProcessTemplate) => {
+    const existing = openInstanceFor(t.id);
+    if (existing) {
+      toast({
+        title: "Ya tenés este proceso en curso",
+        description: "Te llevamos al proceso abierto. Finalizalo o cancelalo antes de iniciar otro.",
+      });
+      navigate(`/deposito/procesos/${existing.id}`);
+      return;
+    }
     setLaunchTemplate(t);
     let list = admins;
     if (list.length === 0) {
