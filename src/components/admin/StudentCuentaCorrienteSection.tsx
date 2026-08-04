@@ -750,6 +750,62 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         )}
       </div>
 
+      {/* Aplicar crédito a una suscripción */}
+      <Dialog open={!!applyCredit} onOpenChange={(o) => !o && setApplyCredit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aplicar pago a una suscripción</DialogTitle>
+            <DialogDescription>
+              {applyCredit
+                ? `${applyCredit.concepto} · ${formatPrice(applyCredit.monto, applyCredit.moneda)}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Suscripción pendiente</Label>
+            {applyTargets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hay suscripciones pendientes de pago para este alumno.
+              </p>
+            ) : (
+              <Select value={applySubId} onValueChange={setApplySubId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí la suscripción a saldar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {applyTargets.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label} · {formatDate(s.fecha)} · {formatPrice(Number(s.total) || 0, s.currency)} ({s.estado})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {applyCredit && applySubId && (() => {
+              const t = applyTargets.find((x) => x.id === applySubId);
+              if (!t) return null;
+              const diff = Number(applyCredit.monto) - (Number(t.total) || 0);
+              if (Math.abs(diff) < 0.5) return null;
+              return (
+                <p className="text-xs text-amber-400">
+                  {diff > 0
+                    ? `El pago supera el valor de la suscripción por ${formatPrice(diff, applyCredit.moneda)}.`
+                    : `El pago es menor al valor de la suscripción por ${formatPrice(-diff, applyCredit.moneda)}.`}{" "}
+                  Igual se marcará como paga.
+                </p>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApplyCredit(null)}>Cancelar</Button>
+            <Button onClick={handleApplyCredit} disabled={!applySubId || applyLoading}>
+              {applyLoading ? "Aplicando…" : "Aplicar pago"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <AjusteCuentaModal
         open={modalOpen}
         onOpenChange={setModalOpen}
