@@ -278,8 +278,24 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     setLoadingProds(false);
   };
 
+  const ensureCountId = async (): Promise<string | null> => {
+    if (countId) return countId;
+    const cat = selectedCategory;
+    if (!cat) return null;
+    const { data, error } = await (supabase as any).rpc("start_stock_count", { p_categoria: cat.name });
+    if (error) {
+      toast({ title: "No se pudo abrir el conteo", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const cid = (data as any)?.count_id as string;
+    setCountId(cid);
+    return cid;
+  };
+
   const confirmProduct = async (productId: string) => {
-    if (!countId) return toast({ title: "Conteo no iniciado", variant: "destructive" });
+    const cid = await ensureCountId();
+    if (!cid) return;
+
     const prodRows = rows.filter((r) => r.productId === productId);
     const pendientes = prodRows.filter((r) => r.contado === "" || Number.isNaN(Number(r.contado)));
     if (pendientes.length) {
