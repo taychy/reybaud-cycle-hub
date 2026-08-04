@@ -94,6 +94,7 @@ import DepositoEntregas from "./pages/deposito/DepositoEntregas";
 import DepositoEntregaDetail from "./pages/deposito/DepositoEntregaDetail";
 import DepositoCamioneta from "./pages/deposito/DepositoCamioneta";
 import DepositoExternos from "./pages/deposito/DepositoExternos";
+import DepositoConteos from "./pages/deposito/DepositoConteos";
 import PublicDeliveryList from "./pages/PublicDeliveryList";
 import SupplierOrders from "./pages/SupplierOrders";
 import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
@@ -295,6 +296,7 @@ const App = () => (
             <Route path="pedidos" element={<Navigate to="/deposito/ventas?tab=pedidos" replace />} />
             <Route path="preventas" element={<Navigate to="/deposito/ventas?tab=preventas" replace />} />
             <Route path="movimientos" element={<DepositoMovimientos />} />
+            <Route path="conteos" element={<DepositoConteos />} />
             <Route path="alertas" element={<DepositoAlertas />} />
             <Route path="cambios" element={<DepositoCambios />} />
             <Route path="pedidos-proveedor" element={<SupplierOrders />} />

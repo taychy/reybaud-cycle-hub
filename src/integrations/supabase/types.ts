@@ -8703,6 +8703,118 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_count_items: {
+        Row: {
+          contado: number | null
+          count_id: string
+          created_at: string
+          diferencia: number | null
+          esperado: number | null
+          id: string
+          movement_id: string | null
+          product_id: string | null
+          product_name: string | null
+          variante: string | null
+        }
+        Insert: {
+          contado?: number | null
+          count_id: string
+          created_at?: string
+          diferencia?: number | null
+          esperado?: number | null
+          id?: string
+          movement_id?: string | null
+          product_id?: string | null
+          product_name?: string | null
+          variante?: string | null
+        }
+        Update: {
+          contado?: number | null
+          count_id?: string
+          created_at?: string
+          diferencia?: number | null
+          esperado?: number | null
+          id?: string
+          movement_id?: string | null
+          product_id?: string | null
+          product_name?: string | null
+          variante?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_count_items_count_id_fkey"
+            columns: ["count_id"]
+            isOneToOne: false
+            referencedRelation: "stock_counts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_items_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_count_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_counts: {
+        Row: {
+          categoria: string | null
+          confirmado_por: string | null
+          confirmado_por_nombre: string | null
+          created_at: string
+          id: string
+          items_coinciden: number
+          items_diferencia: number
+          items_sin_contar: number
+          movimientos_generados: number
+          observaciones: string | null
+          reporte: string | null
+          total_items: number
+          unidades_faltantes: number
+          unidades_sobrantes: number
+        }
+        Insert: {
+          categoria?: string | null
+          confirmado_por?: string | null
+          confirmado_por_nombre?: string | null
+          created_at?: string
+          id?: string
+          items_coinciden?: number
+          items_diferencia?: number
+          items_sin_contar?: number
+          movimientos_generados?: number
+          observaciones?: string | null
+          reporte?: string | null
+          total_items?: number
+          unidades_faltantes?: number
+          unidades_sobrantes?: number
+        }
+        Update: {
+          categoria?: string | null
+          confirmado_por?: string | null
+          confirmado_por_nombre?: string | null
+          created_at?: string
+          id?: string
+          items_coinciden?: number
+          items_diferencia?: number
+          items_sin_contar?: number
+          movimientos_generados?: number
+          observaciones?: string | null
+          reporte?: string | null
+          total_items?: number
+          unidades_faltantes?: number
+          unidades_sobrantes?: number
+        }
+        Relationships: []
+      }
       stock_movements: {
         Row: {
           cambio_id: string | null
@@ -11145,7 +11257,17 @@ export type Database = {
         Args: { _historial_id: string }
         Returns: number
       }
-      apply_stock_count_adjustments: { Args: { p_items: Json }; Returns: Json }
+      apply_stock_count_adjustments:
+        | { Args: { p_items: Json }; Returns: Json }
+        | {
+            Args: {
+              p_categoria?: string
+              p_items: Json
+              p_observaciones?: string
+              p_reporte?: string
+            }
+            Returns: Json
+          }
       apply_supplier_shortage_to_delivery: {
         Args: { _list_id: string; _order_id: string }
         Returns: {
