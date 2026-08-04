@@ -288,7 +288,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       if (statusFilter !== "all" && (m.status ?? "") !== statusFilter) return false;
       const hasAssignment = !!(m.alumno_id || m.reservation_payment_id || m.suscripcion_id);
       if (assignFilter === "assigned" && !hasAssignment) return false;
-      if (assignFilter === "unassigned" && hasAssignment) return false;
+      // "Sin asignar" es cola de trabajo: sólo aprobados son asignables.
+      if (assignFilter === "unassigned" && (hasAssignment || (statusFilter === "all" && m.status !== "approved"))) return false;
       if (search) {
         const s = search.toLowerCase();
         const hay = [
