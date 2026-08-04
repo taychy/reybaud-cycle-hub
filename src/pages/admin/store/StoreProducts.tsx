@@ -327,8 +327,10 @@ const StoreProducts = () => {
           <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
         </div>
       </div>
+      <StoreFxConfig />
 
       <ExternalProductDialog open={externalOpen} onOpenChange={setExternalOpen} categories={categories} onSaved={load} />
+
 
 
       {/* Filters */}
