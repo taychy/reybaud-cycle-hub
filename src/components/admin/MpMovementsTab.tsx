@@ -719,6 +719,55 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                     ))}
                     <button
                       type="button"
+                      onClick={() => setTarget({ type: "nueva_suscripcion", id: null })}
+                      className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "nueva_suscripcion" ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                    >
+                      <div className="font-medium">🆕 Generar mensualidad y aplicar</div>
+                      <div className="text-xs text-muted-foreground">
+                        Si la mensualidad no existe todavía, se crea el período y queda paga con este pago.
+                      </div>
+                    </button>
+
+                    {target.type === "nueva_suscripcion" && (
+                      <div className="rounded border border-primary/40 bg-muted/30 p-2 space-y-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Plan</label>
+                          <select
+                            value={newSubPlan}
+                            onChange={(e) => setNewSubPlan(e.target.value)}
+                            className="mt-1 w-full rounded border border-border bg-background px-2 py-1.5 text-sm"
+                          >
+                            <option value="">Elegí el plan…</option>
+                            {(targets?.planes ?? []).map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.usado ? "★ " : ""}{p.label} — {formatPrice(Number(p.precio ?? 0), p.currency)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Período (mes)</label>
+                            <Input type="month" value={newSubMonth} onChange={(e) => setNewSubMonth(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Importe</label>
+                            <Input
+                              type="number"
+                              value={newSubPrice}
+                              onChange={(e) => setNewSubPrice(e.target.value)}
+                              placeholder="Precio del plan"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Se crea la mensualidad como paga con este movimiento de Mercado Pago (sin duplicar el saldo a favor).
+                        </p>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
                       onClick={() => setTarget({ type: "saldo", id: null })}
                       className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "saldo" ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
                     >
