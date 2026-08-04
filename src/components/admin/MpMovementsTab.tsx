@@ -44,7 +44,9 @@ type Movement = {
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
 
 type TargetRow = { id: string; label: string; currency: string; total: number; paid?: number; balance?: number; estado?: string; fecha?: string };
-type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[]; cargos?: TargetRow[] };
+type PlanRow = { id: string; label: string; currency: string; precio: number; usado?: boolean };
+type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[]; cargos?: TargetRow[]; planes?: PlanRow[] };
+
 
 
 const STATUS_COLORS: Record<string, string> = {
@@ -85,7 +87,10 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [assigning, setAssigning] = useState(false);
   const [targets, setTargets] = useState<PaymentTargets | null>(null);
   const [loadingTargets, setLoadingTargets] = useState(false);
-  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion" | "cargo"; id: string | null }>({ type: "saldo", id: null });
+  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion" | "cargo" | "nueva_suscripcion"; id: string | null }>({ type: "saldo", id: null });
+  const [newSubPlan, setNewSubPlan] = useState("");
+  const [newSubMonth, setNewSubMonth] = useState("");
+  const [newSubPrice, setNewSubPrice] = useState("");
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
 
@@ -95,6 +100,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   useEffect(() => {
     setTarget({ type: "saldo", id: null });
+    setNewSubPlan("");
+    setNewSubPrice("");
+    setNewSubMonth(assignDialog?.fecha_movimiento ? String(assignDialog.fecha_movimiento).slice(0, 7) : "");
     if (selectedAlumno) void loadTargets(selectedAlumno);
     else setTargets(null);
   }, [selectedAlumno]);
@@ -233,6 +241,42 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
     setAssigning(true);
+
+    if (target.type === "nueva_suscripcion") {
+      if (!newSubPlan || !newSubMonth) {
+        setAssigning(false);
+        toast({ title: "Faltan datos", description: "Elegí el plan y el mes de la mensualidad.", variant: "destructive" });
+        return;
+      }
+      const { error: errNew } = await supabase.rpc("assign_mp_movement_to_new_suscripcion" as any, {
+        _movement_id: assignDialog.id,
+        _alumno_id: selectedAlumno,
+        _plan_id: newSubPlan,
+        _fecha_inicio: `${newSubMonth}-01`,
+        _precio: newSubPrice ? Number(newSubPrice) : null,
+        _notes: assignNotes || null,
+      });
+      setAssigning(false);
+      if (errNew) {
+        const m = errNew.message || "";
+        let human = m;
+        if (m.includes("subscription_already_exists_for_period")) human = "Ese alumno ya tiene una mensualidad de ese plan para ese mes. Elegila en la lista de deudas.";
+        else if (m.includes("movement_already_linked_to_subscription")) human = "Este pago ya está vinculado a una mensualidad.";
+        else if (m.includes("already_assigned_to_other_student")) human = "Este movimiento ya fue asignado a otro alumno.";
+        else if (m.includes("not_authorized")) human = "No tenés permisos para esta acción.";
+        toast({ title: "No se pudo generar la mensualidad", description: human, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Mensualidad generada", description: "Se creó el período y quedó pago con este movimiento de Mercado Pago." });
+      setAssignDialog(null);
+      setSelectedAlumno(null);
+      setAssignNotes("");
+      setTargets(null);
+      setTarget({ type: "saldo", id: null });
+      await load();
+      return;
+    }
+
     const { data, error } = await supabase.rpc("assign_mp_movement_to_target", {
       _movement_id: assignDialog.id,
       _alumno_id: selectedAlumno,
@@ -719,6 +763,60 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                     ))}
                     <button
                       type="button"
+                      onClick={() => setTarget({ type: "nueva_suscripcion", id: null })}
+                      className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "nueva_suscripcion" ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                    >
+                      <div className="font-medium">🆕 Generar mensualidad y aplicar</div>
+                      <div className="text-xs text-muted-foreground">
+                        Si la mensualidad no existe todavía, se crea el período y queda paga con este pago.
+                      </div>
+                    </button>
+
+                    {target.type === "nueva_suscripcion" && (
+                      <div className="rounded border border-primary/40 bg-muted/30 p-2 space-y-2">
+                        <div>
+                          <label className="text-xs text-muted-foreground">Plan</label>
+                          <select
+                            value={newSubPlan}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setNewSubPlan(v);
+                              const p = (targets?.planes ?? []).find((x) => x.id === v);
+                              if (p && !newSubPrice) setNewSubPrice(String(p.precio ?? ""));
+                            }}
+                            className="mt-1 w-full rounded border border-border bg-background px-2 py-1.5 text-sm"
+                          >
+                            <option value="">Elegí el plan…</option>
+                            {(targets?.planes ?? []).map((p) => (
+                              <option key={p.id} value={p.id}>
+                                {p.usado ? "★ " : ""}{p.label} — {formatPrice(Number(p.precio ?? 0), p.currency)}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-xs text-muted-foreground">Período (mes)</label>
+                            <Input type="month" value={newSubMonth} onChange={(e) => setNewSubMonth(e.target.value)} />
+                          </div>
+                          <div>
+                            <label className="text-xs text-muted-foreground">Importe</label>
+                            <Input
+                              type="number"
+                              value={newSubPrice}
+                              onChange={(e) => setNewSubPrice(e.target.value)}
+                              placeholder="Precio del plan"
+                            />
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground">
+                          Se crea la mensualidad como paga con este movimiento de Mercado Pago (sin duplicar el saldo a favor).
+                        </p>
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
                       onClick={() => setTarget({ type: "saldo", id: null })}
                       className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "saldo" ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
                     >
@@ -742,8 +840,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                 {assigning ? "Dividiendo..." : `Dividir entre ${splitRows.length || 0} alumnos`}
               </Button>
             ) : (
-              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
-                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : "Dejar como saldo a favor"}
+              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type === "nueva_suscripcion" ? (!newSubPlan || !newSubMonth) : target.type !== "saldo" && !target.id)}>
+                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : target.type === "nueva_suscripcion" ? "Generar mensualidad y aplicar" : "Dejar como saldo a favor"}
               </Button>
             )}
           </DialogFooter>
