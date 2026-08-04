@@ -86,6 +86,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
+  const [zeroUncounted, setZeroUncounted] = useState(true);
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [countId, setCountId] = useState<string | null>(null);
@@ -436,6 +437,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       p_count_id: cid,
       p_observaciones: observaciones.trim() || null,
       p_reporte: reporte,
+      p_zero_uncounted: zeroUncounted,
     });
     if (error) {
       return toast({ title: "No se pudo cerrar el conteo", description: error.message, variant: "destructive" });
