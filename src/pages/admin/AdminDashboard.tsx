@@ -660,6 +660,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <k.icon className={`w-4 h-4 ${k.color}`} />
                   <span className="text-xs text-muted-foreground truncate">{k.label}</span>
+                  <PeriodBadge scope={k.scope} className="ml-auto" />
                 </div>
                 <p className="text-2xl font-heading font-bold tabular-nums">{k.value}</p>
                 <p className="text-[10px] text-muted-foreground mt-1 truncate">{k.hint}</p>
@@ -667,6 +668,7 @@ const AdminDashboard = () => {
             </Card>
           </Link>
         ))}
+
       </div>
 
       {/* Tareas por día + Pendientes de la semana */}
