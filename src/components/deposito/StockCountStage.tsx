@@ -89,12 +89,59 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
-  const handleScanned = (raw: string) => {
+  const sigMatchesVariante = (sig: string | null, variante: Record<string, string> | null) => {
+    if (!variante || Object.keys(variante).length === 0) return false;
+    if (!sig) return false;
+    const parts = sig.split("|").map((p) => {
+      const i = p.indexOf(":");
+      return [p.slice(0, i).trim().toLowerCase(), p.slice(i + 1).trim().toLowerCase()] as const;
+    });
+    const entries = Object.entries(variante).map(
+      ([k, v]) => [String(k).trim().toLowerCase(), String(v).trim().toLowerCase()] as const,
+    );
+    return entries.every(([k, v]) => parts.some(([pk, pv]) => pk === k && pv === v));
+  };
+
+  const bumpCount = (productId: string, variante: Record<string, string> | null) => {
+    let hitLabel: string | null = null;
+    let newValue = 0;
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => {
+        if (r.productId !== productId) return false;
+        if (!variante || Object.keys(variante).length === 0) return r.variantSig === null;
+        return sigMatchesVariante(r.variantSig, variante);
+      });
+      if (idx === -1) return prev;
+      const cur = prev[idx].contado === "" || Number.isNaN(Number(prev[idx].contado)) ? 0 : Number(prev[idx].contado);
+      newValue = cur + 1;
+      hitLabel = prev[idx].variantSig ? prev[idx].variantSig!.replace(/\|/g, " · ") : prev[idx].productName;
+      return prev.map((x, i) => (i === idx ? { ...x, contado: String(newValue) } : x));
+    });
+    return { hitLabel: () => hitLabel, value: () => newValue };
+  };
+
+  const handleScanned = async (raw: string) => {
     setScannerOpen(false);
     const code = (raw || "").trim();
     if (!code) return;
     const decoded = decodeProductQr(code);
     let prod = decoded ? products.find((p) => p.id === decoded.productId) : undefined;
+    let variante: Record<string, string> | null = decoded?.variante || null;
+
+    // Etiquetas Niimbot: el QR es el SKU registrado en product_barcodes (con variante)
+    if (!prod || !variante) {
+      const { data: bc } = await (supabase as any)
+        .from("product_barcodes")
+        .select("product_id, variante")
+        .eq("codigo", code)
+        .maybeSingle();
+      if (bc) {
+        const p = products.find((x) => x.id === bc.product_id);
+        if (p) prod = p;
+        if (!variante && bc.variante && typeof bc.variante === "object") variante = bc.variante;
+      }
+    }
+
     if (!prod) {
       const q = code.toLowerCase();
       prod = products.find(
@@ -112,11 +159,54 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       return;
     }
     setSelectedProductId(prod.id);
+
+    const prodRows = rows.filter((r) => r.productId === prod!.id);
+
+    const hasVariants = prodRows.some((r) => r.variantSig !== null);
+
+    if (!hasVariants) {
+      const res = bumpCount(prod.id, null);
+      toast({ title: prod.name, description: `Sumado 1 → total ${res.value()}` });
+      return;
+    }
+
+    // Fallback: deducir la variante desde el sufijo del SKU escaneado (ej. RYB-CALZA-M)
+    if (!variante) {
+      const tokens = code.toUpperCase().split(/[-_\s|/]+/).filter(Boolean);
+      const match = prodRows.find((r) => {
+        if (!r.variantSig) return false;
+        const opts = r.variantSig.split("|").map((p) => p.slice(p.indexOf(":") + 1).trim().toUpperCase());
+        return opts.every((o) => tokens.includes(o));
+      });
+      if (match && match.variantSig) {
+        variante = Object.fromEntries(
+          match.variantSig.split("|").map((p) => [p.slice(0, p.indexOf(":")), p.slice(p.indexOf(":") + 1)]),
+        );
+      }
+    }
+
+
+    if (variante) {
+      const target = prodRows.find((r) => sigMatchesVariante(r.variantSig, variante));
+      if (target) {
+        const res = bumpCount(prod.id, variante);
+        toast({ title: prod.name, description: `${formatVariante(variante)} · sumado 1 → total ${res.value()}` });
+        return;
+      }
+      toast({
+        title: prod.name,
+        description: `La variante ${formatVariante(variante)} no existe en este producto. Cargala a mano.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: prod.name,
-      description: decoded?.variante ? `Variante: ${formatVariante(decoded.variante)}` : "Cargá el conteo por variante.",
+      description: "La etiqueta no trae talle/variante. Elegí la variante y cargá el conteo.",
     });
   };
+
 
   useEffect(() => {
     (async () => {
