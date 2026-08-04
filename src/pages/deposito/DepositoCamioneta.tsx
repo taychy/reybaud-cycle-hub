@@ -131,6 +131,20 @@ const DepositoCamioneta = () => {
   const handleCreate = async () => {
     if (!form.sede_id) { toast.error("Elegí la sede destino"); return; }
     setCreating(true);
+    // Una sola caja activa por sede: si ya existe, la reutilizamos
+    const { data: existente } = await (supabase as any)
+      .from("vehiculo_cargas")
+      .select("id")
+      .eq("sede_id", form.sede_id)
+      .in("estado", ["abierta", "en_ruta"])
+      .maybeSingle();
+    if (existente?.id) {
+      setCreating(false);
+      setShowCreate(false);
+      toast.info("Esa sede ya tiene una caja activa. Te llevamos a esa.");
+      navigate(`/deposito/camioneta/${existente.id}`);
+      return;
+    }
     const { data: userRes } = await supabase.auth.getUser();
     const { data, error } = await (supabase as any)
       .from("vehiculo_cargas")
@@ -144,12 +158,16 @@ const DepositoCamioneta = () => {
       .select()
       .single();
     setCreating(false);
-    if (error || !data) { toast.error(error?.message || "Error al crear"); return; }
+    if (error || !data) {
+      toast.error(error?.message?.includes("una_activa_por_sede") ? "Esa sede ya tiene una caja activa" : (error?.message || "Error al crear"));
+      return;
+    }
     toast.success("Carga creada");
     setShowCreate(false);
     setForm({ sede_id: "", fecha_salida: new Date().toISOString().slice(0, 10), entregador: "", notas: "" });
     navigate(`/deposito/camioneta/${data.id}`);
   };
+
 
   if (id) return <CargaDetail id={id} sedes={sedes} onBack={() => navigate("/deposito/camioneta")} />;
 
