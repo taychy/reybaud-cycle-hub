@@ -84,6 +84,12 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [targets, setTargets] = useState<PaymentTargets | null>(null);
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion"; id: string | null }>({ type: "saldo", id: null });
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
+
+  function addSplitAlumno(a: Alumno) {
+    setSplitRows((prev) => (prev.some((r) => r.alumno.id === a.id) ? prev : [...prev, { alumno: a, monto: "" }]));
+  }
 
   useEffect(() => {
     setTarget({ type: "saldo", id: null });
