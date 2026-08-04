@@ -280,7 +280,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
 
   const ensureCountId = async (): Promise<string | null> => {
     if (countId) return countId;
-    const cat = selectedCategory;
+    const cat = selectedCat;
     if (!cat) return null;
     const { data, error } = await (supabase as any).rpc("start_stock_count", { p_categoria: cat.name });
     if (error) {
