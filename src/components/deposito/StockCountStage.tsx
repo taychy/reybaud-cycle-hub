@@ -271,7 +271,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
 
   const allFilled = rows.length > 0 && summary.sin === 0;
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     if (!selectedCat) return;
     if (rows.length === 0) {
       return toast({ title: "Sin productos", description: "Esta categoría no tiene productos para contar.", variant: "destructive" });
@@ -280,12 +280,35 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       const ok = confirm(`Quedan ${summary.sin} ítems sin contar. ¿Confirmar de todas formas?`);
       if (!ok) return;
     }
+    if (summary.dif > 0) {
+      const ok = confirm(
+        `Se van a ajustar ${summary.dif} ítems para que el stock del sistema quede igual al conteo (motivo: "ajuste por conteo"). ¿Continuar?`,
+      );
+      if (!ok) return;
+    }
+
+    // Aplicar ajustes reales de stock
+    const items = rows
+      .filter((r) => r.contado !== "" && !Number.isNaN(Number(r.contado)) && Number(r.contado) !== r.esperado)
+      .map((r) => ({ product_id: r.productId, variant_sig: r.variantSig, contado: Number(r.contado) }));
+
+    let ajustados = 0;
+    if (items.length > 0) {
+      const { data, error } = await supabase.rpc("apply_stock_count_adjustments", { p_items: items as any });
+      if (error) {
+        return toast({ title: "No se pudo ajustar el stock", description: error.message, variant: "destructive" });
+      }
+      ajustados = (data as any)?.ajustes ?? items.length;
+      toast({ title: "Stock ajustado", description: `${ajustados} ítems actualizados según el conteo.` });
+    }
+
     // Construir nota detallada
     const lineas: string[] = [];
     lineas.push(`Categoría: ${selectedCat.name}`);
     lineas.push(`Resumen: ${summary.coincide} coinciden · ${summary.dif} con diferencia · ${summary.sin} sin contar`);
     if (summary.faltantes) lineas.push(`Faltantes totales: ${summary.faltantes} u.`);
     if (summary.sobrantes) lineas.push(`Sobrantes totales: ${summary.sobrantes} u.`);
+    lineas.push(`Ajustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)`);
     lineas.push("");
     lineas.push("Detalle:");
     for (const r of rows) {
@@ -301,6 +324,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
     onConfirm({ nota: lineas.join("\n"), entidad_ref_texto: selectedCat.name });
   };
+
 
   const renderRow = (r: Row, idx: number) => {
     const c = r.contado === "" ? null : Number(r.contado);

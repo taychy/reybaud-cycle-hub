@@ -11145,6 +11145,7 @@ export type Database = {
         Args: { _historial_id: string }
         Returns: number
       }
+      apply_stock_count_adjustments: { Args: { p_items: Json }; Returns: Json }
       apply_supplier_shortage_to_delivery: {
         Args: { _list_id: string; _order_id: string }
         Returns: {
