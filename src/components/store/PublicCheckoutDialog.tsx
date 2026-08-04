@@ -64,6 +64,30 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
     return typeof product.stock === "number" ? product.stock : null;
   }, [product, specs.length, variantSig]);
 
+  /** Stock disponible por opción de cada variante (según variant_stock del conteo). */
+  const optionStock = useMemo(() => {
+    const map: Record<string, Record<string, number>> = {};
+    const vs = (product?.variant_stock || null) as Record<string, number> | null;
+    if (!vs || typeof vs !== "object") return null;
+    for (const s of specs) {
+      map[s.name] = {};
+      for (const o of s.options) map[s.name][o] = 0;
+    }
+    for (const [sig, qty] of Object.entries(vs)) {
+      const n = Number(qty) || 0;
+      if (n <= 0) continue;
+      for (const part of sig.split("|")) {
+        const idx = part.indexOf(":");
+        if (idx < 0) continue;
+        const name = part.slice(0, idx);
+        const val = part.slice(idx + 1);
+        if (map[name] && val in map[name]) map[name][val] += n;
+      }
+    }
+    return map;
+  }, [product, specs]);
+
+
   if (!product) return null;
 
   const moneda = product.currency || "ARS";
