@@ -66,6 +66,20 @@ interface SubTarget {
   fecha: string;
 }
 
+interface DebtTarget {
+  key: string;
+  type: "suscripcion" | "reservation" | "cargo";
+  id: string;
+  label: string;
+  currency: string;
+  amount: number;
+  fecha?: string;
+  extra?: string;
+  icon: string;
+}
+
+
+
 interface SaldoRow {
 
   moneda: string;
@@ -118,7 +132,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
 
   // Aplicar crédito (pago) a una suscripción
   const [applyCredit, setApplyCredit] = useState<{ id: string; concepto: string; monto: number; moneda: string } | null>(null);
-  const [applyTargets, setApplyTargets] = useState<SubTarget[]>([]);
+  const [applyTargets, setApplyTargets] = useState<DebtTarget[]>([]);
   const [applySubId, setApplySubId] = useState<string>("");
   const [applyLoading, setApplyLoading] = useState(false);
 
@@ -390,37 +404,60 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
     setDeletingId(null);
   };
 
-  // ---- Aplicar crédito a una suscripción ----
+  // ---- Aplicar crédito (saldo a favor) a cualquier deuda del alumno ----
   const openApplyCredit = async (m: Movimiento) => {
     setApplyCredit({ id: m.fuente_id, concepto: m.concepto, monto: Number(m.haber) || 0, moneda: m.moneda });
     setApplySubId("");
     setApplyTargets([]);
     const { data, error } = await supabase.rpc("get_alumno_payment_targets" as any, { _alumno_id: alumnoId });
     if (error) {
-      toast.error("No se pudieron cargar las suscripciones pendientes");
+      toast.error("No se pudieron cargar las deudas pendientes");
       return;
     }
-    setApplyTargets(((data as any)?.subscriptions ?? []) as SubTarget[]);
+    const d = (data as any) ?? {};
+    const rows: DebtTarget[] = [
+      ...((d.subscriptions ?? []) as any[]).map((s) => ({
+        key: `suscripcion:${s.id}`, type: "suscripcion" as const, id: s.id,
+        label: s.label, currency: s.currency, amount: Number(s.total) || 0,
+        fecha: s.fecha, extra: s.estado, icon: "📅",
+      })),
+      ...((d.reservations ?? []) as any[]).map((r) => ({
+        key: `reservation:${r.id}`, type: "reservation" as const, id: r.id,
+        label: r.label, currency: r.currency, amount: Number(r.balance) || 0,
+        fecha: r.fecha, extra: "evento", icon: "🎟️",
+      })),
+      ...((d.cargos ?? []) as any[]).map((c) => ({
+        key: `cargo:${c.id}`, type: "cargo" as const, id: c.id,
+        label: c.label, currency: c.currency, amount: Number(c.balance) || 0,
+        fecha: c.fecha, extra: "cargo en cuenta", icon: "🧾",
+      })),
+    ];
+    setApplyTargets(rows);
   };
 
   const handleApplyCredit = async () => {
     if (!applyCredit || !applySubId) return;
+    const t = applyTargets.find((x) => x.key === applySubId);
+    if (!t) return;
     setApplyLoading(true);
-    const { error } = await supabase.rpc("apply_credit_ajuste_to_suscripcion" as any, {
+    const { error } = await supabase.rpc("apply_credit_ajuste_to_target" as any, {
       _ajuste_id: applyCredit.id,
-      _suscripcion_id: applySubId,
+      _target_type: t.type,
+      _target_id: t.id,
     });
     setApplyLoading(false);
     if (error) {
       const map: Record<string, string> = {
-        credit_already_applied: "Este crédito ya fue aplicado a otra suscripción.",
+        credit_already_applied: "Este crédito ya fue aplicado a otra deuda.",
         subscription_already_paid: "Esa suscripción ya figura como paga.",
         only_credit_can_be_applied: "Solo se pueden aplicar movimientos de crédito.",
+        reservation_of_other_student: "Esa reserva es de otro alumno.",
+        charge_of_other_student: "Ese cargo es de otro alumno.",
       };
       toast.error(map[error.message?.replace(/^.*:\s*/, "") ?? ""] || error.message || "No se pudo aplicar el pago");
       return;
     }
-    toast.success("Pago aplicado a la suscripción");
+    toast.success("Pago imputado a la deuda seleccionada");
     setApplyCredit(null);
     fetchData();
     onSubscriptionsChanged?.();
