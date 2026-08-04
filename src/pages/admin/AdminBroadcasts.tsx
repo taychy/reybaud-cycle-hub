@@ -130,6 +130,16 @@ export default function AdminBroadcasts() {
     })();
   }, []);
 
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("broadcast_templates" as any)
+        .select("id, name, description, subject, content_html")
+        .order("updated_at", { ascending: false });
+      setTemplates((data as any) || []);
+    })();
+  }, []);
+
   const loadAll = async () => {
     const [bres, sres, cfg, alumnosRes, coachesRes] = await Promise.all([
       supabase.from("broadcasts" as any).select("*").order("created_at", { ascending: false }).limit(100),
