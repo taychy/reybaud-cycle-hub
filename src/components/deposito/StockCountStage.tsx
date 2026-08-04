@@ -573,9 +573,21 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             {prodRows.map(({ r, idx }) => renderRow(r, idx))}
           </div>
 
-          <Button className="w-full" variant="secondary" onClick={() => setSelectedProductId(null)}>
-            Listo, volver a productos
+          <Button
+            className="w-full"
+            onClick={() => confirmProduct(selectedProduct.id)}
+            disabled={savingProduct}
+          >
+            {savingProduct ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1" />}
+            Confirmar producto y actualizar stock
           </Button>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Al confirmar, el stock del sistema queda igual a lo contado y se guarda aunque salgas del proceso.
+          </p>
+          <Button className="w-full" variant="ghost" onClick={() => setSelectedProductId(null)}>
+            Volver sin confirmar
+          </Button>
+
         </CardContent>
       </Card>
       <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleScanned} />
