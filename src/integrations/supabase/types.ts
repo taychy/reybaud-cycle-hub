@@ -8770,6 +8770,8 @@ export type Database = {
           confirmado_por: string | null
           confirmado_por_nombre: string | null
           created_at: string
+          estado: string
+          finalizado_at: string | null
           id: string
           items_coinciden: number
           items_diferencia: number
@@ -8786,6 +8788,8 @@ export type Database = {
           confirmado_por?: string | null
           confirmado_por_nombre?: string | null
           created_at?: string
+          estado?: string
+          finalizado_at?: string | null
           id?: string
           items_coinciden?: number
           items_diferencia?: number
@@ -8802,6 +8806,8 @@ export type Database = {
           confirmado_por?: string | null
           confirmado_por_nombre?: string | null
           created_at?: string
+          estado?: string
+          finalizado_at?: string | null
           id?: string
           items_coinciden?: number
           items_diferencia?: number
@@ -11268,6 +11274,10 @@ export type Database = {
             }
             Returns: Json
           }
+      apply_stock_count_product: {
+        Args: { p_count_id: string; p_items: Json }
+        Returns: Json
+      }
       apply_supplier_shortage_to_delivery: {
         Args: { _list_id: string; _order_id: string }
         Returns: {
@@ -11526,6 +11536,14 @@ export type Database = {
       expire_stale_subscriptions_for_alumno: {
         Args: { p_alumno_id: string; p_plan_id?: string }
         Returns: number
+      }
+      finalize_stock_count: {
+        Args: {
+          p_count_id: string
+          p_observaciones?: string
+          p_reporte?: string
+        }
+        Returns: Json
       }
       finalize_supplier_order_entry: {
         Args: { _order_id: string }
@@ -12264,6 +12282,7 @@ export type Database = {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
         Returns: Json
       }
+      start_stock_count: { Args: { p_categoria: string }; Returns: Json }
       start_vehiculo_chequeo: {
         Args: { _carga_id: string; _responsable_nombre?: string }
         Returns: {
