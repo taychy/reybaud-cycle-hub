@@ -407,9 +407,9 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
     const reporte = lineas.join("\n");
 
-    if (!countId) {
-      return toast({ title: "Conteo no iniciado", variant: "destructive" });
-    }
+    const cid = await ensureCountId();
+    if (!cid) return;
+
 
     // Guardar cualquier producto contado que todavía no se haya confirmado
     const pendientes = rows.filter(
