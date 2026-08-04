@@ -1,5 +1,7 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { formatPrice } from "@/lib/currency";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -885,27 +887,40 @@ const SuperAdminGastos = () => {
       {/* KPIs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">Total previsto</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">Total previsto</div>
+            <PeriodBadge scope="mes" label={monthLabel(mes)} className="ml-auto" />
+          </div>
           <div className="text-xl font-heading font-bold mt-1">{fmt(kpis.total)}</div>
           <div className="text-[11px] text-muted-foreground mt-1">{monthLabel(mes)}</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">Pagado</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">Pagado</div>
+            <PeriodBadge scope="mes" label={monthLabel(mes)} className="ml-auto" />
+          </div>
           <div className="text-xl font-heading font-bold mt-1 text-green-500">{fmt(kpis.pagado)}</div>
           <div className="text-[11px] text-muted-foreground mt-1">{kpis.total > 0 ? Math.round((kpis.pagado / kpis.total) * 100) : 0}% del mes</div>
         </CardContent></Card>
         <Card><CardContent className="p-4">
-          <div className="text-xs text-muted-foreground uppercase tracking-wider">Pendiente</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs text-muted-foreground uppercase tracking-wider">Pendiente</div>
+            <PeriodBadge scope="mes" label={monthLabel(mes)} className="ml-auto" />
+          </div>
           <div className="text-xl font-heading font-bold mt-1 text-orange-500">{fmt(kpis.pendiente)}</div>
           <div className="text-[11px] text-muted-foreground mt-1">{kpis.proximosCount} vencen en 7 días</div>
         </CardContent></Card>
         <Card className={kpis.vencidoCount > 0 ? "border-destructive" : ""}>
           <CardContent className="p-4">
-            <div className="text-xs text-muted-foreground uppercase tracking-wider">Vencido</div>
+            <div className="flex items-center gap-2">
+              <div className="text-xs text-muted-foreground uppercase tracking-wider">Vencido</div>
+              <PeriodBadge scope="acumulado" label="Arrastre" className="ml-auto" />
+            </div>
             <div className="text-xl font-heading font-bold mt-1 text-destructive">{fmt(kpis.vencido)}</div>
-            <div className="text-[11px] text-muted-foreground mt-1">{kpis.vencidoCount} item{kpis.vencidoCount !== 1 ? "s" : ""}</div>
+            <div className="text-[11px] text-muted-foreground mt-1">{kpis.vencidoCount} item{kpis.vencidoCount !== 1 ? "s" : ""} · incluye meses anteriores</div>
           </CardContent>
         </Card>
+
       </div>
 
       {/* Personal vs Empresa */}

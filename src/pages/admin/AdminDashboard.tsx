@@ -22,6 +22,8 @@ import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
 import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 import {
   AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
   tasksFromDatedItems,
@@ -627,11 +629,12 @@ const AdminDashboard = () => {
 
   const criticas = alerts.filter((a) => a.type === "danger").reduce((s, a) => s + a.count, 0);
   const kpis = [
-    { label: "Críticas", value: criticas, hint: "Requieren atención", icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido" },
-    { label: "Cobros pendientes", value: `$${Math.round(cuotasEventos.monto).toLocaleString("es-AR")}`, hint: `${cuotasEventos.count} cuotas de eventos`, icon: DollarSign, color: "text-yellow-500", to: "/admin/eventos" },
-    { label: "Facturas por emitir", value: chequeoAlerts.facturas, hint: "Pagos cobrados hoy", icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia" },
-    { label: "Pagos por conciliar", value: chequeoAlerts.pagos, hint: "Registrados hoy", icon: CreditCard, color: "text-emerald-500", to: "/admin/pagos/por-dia" },
+    { label: "Críticas", value: criticas, hint: "Requieren atención", icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", scope: "acumulado" as const },
+    { label: "Cobros pendientes", value: `$${Math.round(cuotasEventos.monto).toLocaleString("es-AR")}`, hint: `${cuotasEventos.count} cuotas de eventos`, icon: DollarSign, color: "text-yellow-500", to: "/admin/eventos", scope: "acumulado" as const },
+    { label: "Facturas por emitir", value: chequeoAlerts.facturas, hint: "Pagos cobrados hoy", icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia", scope: "hoy" as const },
+    { label: "Pagos por conciliar", value: chequeoAlerts.pagos, hint: "Registrados hoy", icon: CreditCard, color: "text-emerald-500", to: "/admin/pagos/por-dia", scope: "hoy" as const },
   ];
+
 
   return (
     <div className="space-y-6">
@@ -659,6 +662,7 @@ const AdminDashboard = () => {
                 <div className="flex items-center gap-2 mb-2">
                   <k.icon className={`w-4 h-4 ${k.color}`} />
                   <span className="text-xs text-muted-foreground truncate">{k.label}</span>
+                  <PeriodBadge scope={k.scope} className="ml-auto" />
                 </div>
                 <p className="text-2xl font-heading font-bold tabular-nums">{k.value}</p>
                 <p className="text-[10px] text-muted-foreground mt-1 truncate">{k.hint}</p>
@@ -666,6 +670,7 @@ const AdminDashboard = () => {
             </Card>
           </Link>
         ))}
+
       </div>
 
       {/* Tareas por día + Pendientes de la semana */}

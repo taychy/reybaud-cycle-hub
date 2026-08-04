@@ -1,4 +1,6 @@
 import { FileText, AlertCircle, CheckCircle2, Building2 } from "lucide-react";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 
 interface Factura {
   estado: string;
@@ -36,9 +38,9 @@ export function BillingKPIs({ facturas, emisores }: Props) {
   }));
 
   const kpis = [
-    { label: "Pagos del día", value: pagosHoy, icon: FileText, color: "text-primary" },
-    { label: "Sin facturar", value: sinFacturar, icon: AlertCircle, color: "text-orange-500" },
-    { label: "Emitidas hoy", value: emitidasHoy, icon: CheckCircle2, color: "text-emerald-500" },
+    { label: "Pagos del día", value: pagosHoy, icon: FileText, color: "text-primary", scope: "hoy" as const },
+    { label: "Sin facturar", value: sinFacturar, icon: AlertCircle, color: "text-orange-500", scope: "acumulado" as const },
+    { label: "Emitidas hoy", value: emitidasHoy, icon: CheckCircle2, color: "text-emerald-500", scope: "hoy" as const },
   ];
 
   return (
@@ -48,6 +50,7 @@ export function BillingKPIs({ facturas, emisores }: Props) {
           <div className="flex items-center gap-2">
             <k.icon className={`w-4 h-4 ${k.color}`} />
             <span className="text-xs text-muted-foreground">{k.label}</span>
+            <PeriodBadge scope={k.scope} className="ml-auto" />
           </div>
           <p className="text-2xl font-heading font-bold text-foreground">{k.value}</p>
         </div>
@@ -57,6 +60,7 @@ export function BillingKPIs({ facturas, emisores }: Props) {
           <div className="flex items-center gap-2">
             <Building2 className="w-4 h-4 text-muted-foreground" />
             <span className="text-xs text-muted-foreground truncate">{e.nombre}</span>
+            <PeriodBadge scope="acumulado" className="ml-auto" />
           </div>
           <p className="text-2xl font-heading font-bold text-foreground">{e.count}</p>
         </div>
@@ -64,3 +68,4 @@ export function BillingKPIs({ facturas, emisores }: Props) {
     </div>
   );
 }
+
