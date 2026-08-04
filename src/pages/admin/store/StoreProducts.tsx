@@ -12,6 +12,7 @@ import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
 import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
 import ExternalProductDialog from "@/components/store/ExternalProductDialog";
+import StoreFxConfig from "@/components/store/StoreFxConfig";
 import { effectiveStock, hasStockMismatch } from "@/lib/stock";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
@@ -326,8 +327,10 @@ const StoreProducts = () => {
           <Button onClick={openCreate}><Plus className="w-4 h-4 mr-1" /> Crear producto</Button>
         </div>
       </div>
+      <StoreFxConfig />
 
       <ExternalProductDialog open={externalOpen} onOpenChange={setExternalOpen} categories={categories} onSaved={load} />
+
 
 
       {/* Filters */}

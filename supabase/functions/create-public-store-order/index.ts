@@ -72,7 +72,30 @@ Deno.serve(async (req) => {
     }
 
     const unit = Number(product.price) || 0;
-    const total = unit * cantidad;
+
+    // Mercado Pago sólo cobra en ARS: convertimos precios en USD/EUR con el tipo de cambio fijo.
+    const moneda = String(product.currency || "ARS").toUpperCase();
+    let fxRate = 1;
+    if (moneda !== "ARS") {
+      const fxKey = moneda === "USD" ? "fx_usd_ars" : moneda === "EUR" ? "fx_eur_ars" : null;
+      if (!fxKey) return json({ error: "Moneda no soportada para el pago online" }, 400);
+      const { data: cfg } = await supabase
+        .from("app_config")
+        .select("value")
+        .eq("key", fxKey)
+        .maybeSingle();
+      const raw = (cfg as any)?.value;
+      fxRate = Number(typeof raw === "string" ? raw.replace(/[^\d.]/g, "") : raw) || 0;
+      if (fxRate <= 0) {
+        return json({ error: "El tipo de cambio no está configurado. Escribinos por WhatsApp para completar la compra." }, 400);
+      }
+    }
+    const unitArs = Math.round(unit * fxRate * 100) / 100;
+    const totalArs = Math.round(unitArs * cantidad * 100) / 100;
+    const fxNota = moneda !== "ARS"
+      ? `Precio original: ${moneda} ${unit} x ${cantidad} (TC ${fxRate}).`
+      : "";
+
 
     // Vincular el pedido al alumno si el email (principal o adicional) coincide,
     // para que la compra impacte en su cuenta corriente.
@@ -108,8 +131,8 @@ Deno.serve(async (req) => {
         customer_name: nombre,
         customer_email: email,
         customer_phone: telefono,
-        total,
-        currency: product.currency || "ARS",
+        total: totalArs,
+        currency: "ARS",
         status: "pendiente_pago",
         metodo_pago: "mp",
         origen_registro: "tienda_publica",
@@ -117,9 +140,9 @@ Deno.serve(async (req) => {
         entrega_metodo: entrega,
         envio_direccion: entrega === "moto" ? direccion : null,
         envio_contacto: telefono,
-        envio_notas: observaciones || null,
+        envio_notas: [observaciones, fxNota].filter(Boolean).join(" ") || null,
         envio_estado: entrega === "moto" ? "a_cotizar" : null,
-        notes: observaciones || null,
+        notes: [observaciones, fxNota].filter(Boolean).join(" ") || null,
       })
       .select("id, order_number")
       .single();
@@ -180,8 +203,8 @@ Deno.serve(async (req) => {
         items: [{
           title: product.name,
           quantity: cantidad,
-          unit_price: unit,
-          currency_id: product.currency || "ARS",
+          unit_price: unitArs,
+          currency_id: "ARS",
         }],
         payer: { name: nombre, email },
         back_urls: {
@@ -210,6 +233,8 @@ Deno.serve(async (req) => {
     return json({
       order_id: order.id,
       order_number: order.order_number,
+      total_ars: totalArs,
+      fx_rate: fxRate,
       init_point: pref.init_point || pref.sandbox_init_point,
     });
   } catch (err) {
