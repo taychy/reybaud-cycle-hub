@@ -22,6 +22,8 @@ import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
 import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 import {
   AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
   tasksFromDatedItems,
