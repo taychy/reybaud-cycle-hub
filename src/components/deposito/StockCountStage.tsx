@@ -120,12 +120,28 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     return { hitLabel: () => hitLabel, value: () => newValue };
   };
 
-  const handleScanned = (raw: string) => {
+  const handleScanned = async (raw: string) => {
     setScannerOpen(false);
     const code = (raw || "").trim();
     if (!code) return;
     const decoded = decodeProductQr(code);
     let prod = decoded ? products.find((p) => p.id === decoded.productId) : undefined;
+    let variante: Record<string, string> | null = decoded?.variante || null;
+
+    // Etiquetas Niimbot: el QR es el SKU registrado en product_barcodes (con variante)
+    if (!prod || !variante) {
+      const { data: bc } = await (supabase as any)
+        .from("product_barcodes")
+        .select("product_id, variante")
+        .eq("codigo", code)
+        .maybeSingle();
+      if (bc) {
+        const p = products.find((x) => x.id === bc.product_id);
+        if (p) prod = p;
+        if (!variante && bc.variante && typeof bc.variante === "object") variante = bc.variante;
+      }
+    }
+
     if (!prod) {
       const q = code.toLowerCase();
       prod = products.find(
@@ -144,8 +160,8 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
     setSelectedProductId(prod.id);
 
-    const variante = decoded?.variante || null;
     const prodRows = rows.filter((r) => r.productId === prod!.id);
+
     const hasVariants = prodRows.some((r) => r.variantSig !== null);
 
     if (!hasVariants) {
