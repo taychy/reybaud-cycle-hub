@@ -11537,14 +11537,24 @@ export type Database = {
         Args: { p_alumno_id: string; p_plan_id?: string }
         Returns: number
       }
-      finalize_stock_count: {
-        Args: {
-          p_count_id: string
-          p_observaciones?: string
-          p_reporte?: string
-        }
-        Returns: Json
-      }
+      finalize_stock_count:
+        | {
+            Args: {
+              p_count_id: string
+              p_observaciones?: string
+              p_reporte?: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_count_id: string
+              p_observaciones?: string
+              p_reporte?: string
+              p_zero_uncounted?: boolean
+            }
+            Returns: Json
+          }
       finalize_supplier_order_entry: {
         Args: { _order_id: string }
         Returns: Json
