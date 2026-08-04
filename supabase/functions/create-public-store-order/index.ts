@@ -74,6 +74,30 @@ Deno.serve(async (req) => {
     const unit = Number(product.price) || 0;
     const total = unit * cantidad;
 
+    // Mercado Pago sólo cobra en ARS: convertimos precios en USD/EUR con el tipo de cambio fijo.
+    const moneda = String(product.currency || "ARS").toUpperCase();
+    let fxRate = 1;
+    if (moneda !== "ARS") {
+      const fxKey = moneda === "USD" ? "fx_usd_ars" : moneda === "EUR" ? "fx_eur_ars" : null;
+      if (!fxKey) return json({ error: "Moneda no soportada para el pago online" }, 400);
+      const { data: cfg } = await supabase
+        .from("app_config")
+        .select("value")
+        .eq("key", fxKey)
+        .maybeSingle();
+      const raw = (cfg as any)?.value;
+      fxRate = Number(typeof raw === "string" ? raw.replace(/[^\d.]/g, "") : raw) || 0;
+      if (fxRate <= 0) {
+        return json({ error: "El tipo de cambio no está configurado. Escribinos por WhatsApp para completar la compra." }, 400);
+      }
+    }
+    const unitArs = Math.round(unit * fxRate * 100) / 100;
+    const totalArs = Math.round(unitArs * cantidad * 100) / 100;
+    const fxNota = moneda !== "ARS"
+      ? `Precio original: ${moneda} ${unit} x ${cantidad} (TC ${fxRate}).`
+      : "";
+
+
     // Vincular el pedido al alumno si el email (principal o adicional) coincide,
     // para que la compra impacte en su cuenta corriente.
     let alumnoId: string | null = null;
