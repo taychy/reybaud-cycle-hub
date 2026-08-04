@@ -311,7 +311,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       contado: r.contado === "" || Number.isNaN(Number(r.contado)) ? null : Number(r.contado),
     }));
     const { data, error } = await (supabase as any).rpc("apply_stock_count_product", {
-      p_count_id: countId,
+      p_count_id: cid,
       p_items: items,
     });
     setSavingProduct(false);
@@ -443,7 +443,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     const ajustados = (data as any)?.ajustes ?? 0;
     toast({ title: "Conteo finalizado", description: `${ajustados} ítems ajustados según el conteo.` });
 
-    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${countId}`;
+    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${cid}`;
 
     onConfirm({ nota: notaFinal, entidad_ref_texto: selectedCat.name });
   };
