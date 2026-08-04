@@ -16,6 +16,8 @@ import CuentaPublicLinkDialog from "@/components/admin/CuentaPublicLinkDialog";
 import { StudentCuentaCorrienteSection } from "@/components/admin/StudentCuentaCorrienteSection";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 
 
 interface Saldo {
