@@ -24,6 +24,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
+import { StudentPriceAuditSection } from "@/components/admin/StudentPriceAuditSection";
+
 
 import { StudentSaldoChip } from "@/components/admin/StudentSaldoChip";
 import { MedicalCertificateSection } from "@/components/admin/MedicalCertificateSection";
