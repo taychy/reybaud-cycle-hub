@@ -173,7 +173,7 @@ const DepositoConteos = () => {
             className="w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors"
           >
             <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center justify-between gap-2">
+
               <span className="font-medium text-sm truncate flex items-center gap-2">
                 {c.categoria || "Conteo"}
                 {(c as any).estado === "en_curso" && (
