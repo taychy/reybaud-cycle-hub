@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Loader2, ShieldCheck, AlertTriangle, ChevronDown, RefreshCw } from "lucide-react";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 
 interface AuditRow {
   suscripcion_id: string;
@@ -109,17 +109,17 @@ export function StudentPriceAuditSection({ alumnoId }: { alumnoId: string }) {
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs sm:grid-cols-3">
                   <div>
                     <span className="text-muted-foreground">Cobrado</span>
-                    <div className="font-medium">{formatCurrency(Number(r.precio_base ?? 0), r.moneda || "ARS")}</div>
+                    <div className="font-medium">{formatPrice(Number(r.precio_base ?? 0), r.moneda || "ARS")}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Esperado (historial)</span>
                     <div className={`font-medium ${r.desalineada ? "text-destructive" : ""}`}>
-                      {r.precio_esperado == null ? "—" : formatCurrency(Number(r.precio_esperado), r.moneda || "ARS")}
+                      {r.precio_esperado == null ? "—" : formatPrice(Number(r.precio_esperado), r.moneda || "ARS")}
                     </div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Plan hoy</span>
-                    <div className="font-medium">{formatCurrency(Number(r.precio_plan_actual ?? 0), r.moneda || "ARS")}</div>
+                    <div className="font-medium">{formatPrice(Number(r.precio_plan_actual ?? 0), r.moneda || "ARS")}</div>
                   </div>
                   <div>
                     <span className="text-muted-foreground">Vigencia origen</span>
