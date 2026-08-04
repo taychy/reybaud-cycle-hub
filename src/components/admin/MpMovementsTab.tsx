@@ -743,7 +743,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               </Button>
             ) : (
               <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
-                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
+                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : "Dejar como saldo a favor"}
               </Button>
             )}
           </DialogFooter>
