@@ -241,6 +241,42 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
     setAssigning(true);
+
+    if (target.type === "nueva_suscripcion") {
+      if (!newSubPlan || !newSubMonth) {
+        setAssigning(false);
+        toast({ title: "Faltan datos", description: "Elegí el plan y el mes de la mensualidad.", variant: "destructive" });
+        return;
+      }
+      const { error: errNew } = await supabase.rpc("assign_mp_movement_to_new_suscripcion" as any, {
+        _movement_id: assignDialog.id,
+        _alumno_id: selectedAlumno,
+        _plan_id: newSubPlan,
+        _fecha_inicio: `${newSubMonth}-01`,
+        _precio: newSubPrice ? Number(newSubPrice) : null,
+        _notes: assignNotes || null,
+      });
+      setAssigning(false);
+      if (errNew) {
+        const m = errNew.message || "";
+        let human = m;
+        if (m.includes("subscription_already_exists_for_period")) human = "Ese alumno ya tiene una mensualidad de ese plan para ese mes. Elegila en la lista de deudas.";
+        else if (m.includes("movement_already_linked_to_subscription")) human = "Este pago ya está vinculado a una mensualidad.";
+        else if (m.includes("already_assigned_to_other_student")) human = "Este movimiento ya fue asignado a otro alumno.";
+        else if (m.includes("not_authorized")) human = "No tenés permisos para esta acción.";
+        toast({ title: "No se pudo generar la mensualidad", description: human, variant: "destructive" });
+        return;
+      }
+      toast({ title: "Mensualidad generada", description: "Se creó el período y quedó pago con este movimiento de Mercado Pago." });
+      setAssignDialog(null);
+      setSelectedAlumno(null);
+      setAssignNotes("");
+      setTargets(null);
+      setTarget({ type: "saldo", id: null });
+      await load();
+      return;
+    }
+
     const { data, error } = await supabase.rpc("assign_mp_movement_to_target", {
       _movement_id: assignDialog.id,
       _alumno_id: selectedAlumno,
