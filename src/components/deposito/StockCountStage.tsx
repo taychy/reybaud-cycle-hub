@@ -424,7 +424,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
         contado: Number(r.contado),
       }));
       const { error: pendErr } = await (supabase as any).rpc("apply_stock_count_product", {
-        p_count_id: countId,
+        p_count_id: cid,
         p_items: items,
       });
       if (pendErr) {
@@ -433,7 +433,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
 
     const { data, error } = await (supabase as any).rpc("finalize_stock_count", {
-      p_count_id: countId,
+      p_count_id: cid,
       p_observaciones: observaciones.trim() || null,
       p_reporte: reporte,
     });
