@@ -327,7 +327,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
         <div>
           <h3 className="text-lg font-semibold">Movimientos de cuentas Mercado Pago</h3>
           <p className="text-sm text-muted-foreground">
-            Todos los cobros recibidos en las cuentas MP. Asigná un alumno cuando no lo identifiquemos automáticamente.
+            Cobros recibidos en las cuentas MP {periodo && periodo !== "all" ? <span className="text-foreground font-medium">· período {periodo}</span> : <span className="text-foreground font-medium">· todos los meses</span>}. Asigná un alumno cuando no lo identifiquemos automáticamente.
           </p>
         </div>
         <div className="flex gap-2">
