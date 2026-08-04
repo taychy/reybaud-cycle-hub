@@ -166,7 +166,7 @@ Deno.serve(async (req) => {
       source_url: canonical,
       name,
       description,
-      image_url: image_url?.startsWith("//") ? `https:${image_url}` : image_url,
+      image_url: (() => { const i = image_url || ldImage; return i?.startsWith("//") ? `https:${i}` : i; })(),
       brand,
       sku,
       precio_oficial: price,
