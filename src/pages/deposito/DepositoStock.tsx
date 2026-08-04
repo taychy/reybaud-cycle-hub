@@ -16,6 +16,7 @@ import StockImportDialog from "@/components/deposito/StockImportDialog";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
 import { sortVariantSpecs } from "@/lib/variantSort";
+import { effectiveStock } from "@/lib/stock";
 
 interface VariantSpec {
   name: string;
@@ -98,7 +99,7 @@ const DepositoStock = () => {
   const dialogVariantKey = buildVariantKey(dialogSpecs, movVariant);
   const dialogVariantStock: number | null = dialogHasVariants
     ? (dialogVariantKey ? (movDialog?.variant_stock?.[dialogVariantKey] ?? 0) : null)
-    : (movDialog?.stock ?? 0);
+    : (effectiveStock(movDialog ?? {}) ?? 0);
 
   const filtered = products.filter((p) =>
     p.name.toLowerCase().includes(search.toLowerCase())
@@ -123,7 +124,7 @@ const DepositoStock = () => {
     // Trabajamos sobre el stock de la VARIANTE si existe; si no, sobre el total.
     const stockAnterior = dialogHasVariants
       ? (movDialog.variant_stock?.[dialogVariantKey] ?? 0)
-      : movDialog.stock;
+      : effectiveStock(movDialog);
     const stockNuevo = movTipo === "ingreso"
       ? stockAnterior + cantidad
       : stockAnterior - cantidad;
@@ -249,7 +250,7 @@ const DepositoStock = () => {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Stock bajo</p>
             <p className="text-xl font-bold font-heading text-destructive">
-              {products.filter((p) => p.stock <= p.min_stock).length}
+              {products.filter((p) => effectiveStock(p) <= p.min_stock).length}
             </p>
           </CardContent>
         </Card>
@@ -257,7 +258,7 @@ const DepositoStock = () => {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Sin stock</p>
             <p className="text-xl font-bold font-heading text-destructive">
-              {products.filter((p) => p.stock === 0).length}
+              {products.filter((p) => effectiveStock(p) === 0).length}
             </p>
           </CardContent>
         </Card>
@@ -265,7 +266,7 @@ const DepositoStock = () => {
           <CardContent className="p-4">
             <p className="text-xs text-muted-foreground">Stock total</p>
             <p className="text-xl font-bold font-heading">
-              {products.reduce((sum, p) => sum + p.stock, 0)}
+              {products.reduce((sum, p) => sum + effectiveStock(p), 0)}
             </p>
           </CardContent>
         </Card>
@@ -345,15 +346,15 @@ const DepositoStock = () => {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      <span className={p.stock <= p.min_stock ? "text-destructive font-bold" : ""}>
-                        {p.stock}
+                      <span className={effectiveStock(p) <= p.min_stock ? "text-destructive font-bold" : ""}>
+                        {effectiveStock(p)}
                       </span>
                     </TableCell>
                     <TableCell className="text-center text-muted-foreground">{p.min_stock}</TableCell>
                     <TableCell className="text-center">
-                      {p.stock === 0 ? (
+                      {effectiveStock(p) === 0 ? (
                         <Badge variant="destructive">Sin stock</Badge>
-                      ) : p.stock <= p.min_stock ? (
+                      ) : effectiveStock(p) <= p.min_stock ? (
                         <Badge variant="outline" className="border-yellow-500 text-yellow-500">Bajo</Badge>
                       ) : (
                         <Badge variant="secondary">OK</Badge>
@@ -411,8 +412,8 @@ const DepositoStock = () => {
             </DialogTitle>
             <DialogDescription>
               {movDialog?.name}
-              {!dialogHasVariants && ` — Stock actual: ${movDialog?.stock ?? 0}`}
-              {dialogHasVariants && ` — Stock total: ${movDialog?.stock ?? 0}`}
+              {!dialogHasVariants && movDialog && ` — Stock actual: ${effectiveStock(movDialog)}`}
+              {dialogHasVariants && movDialog && ` — Stock total: ${effectiveStock(movDialog)}`}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
