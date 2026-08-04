@@ -710,10 +710,17 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignDialog(null)}>Cancelar</Button>
-            <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
-              {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
-            </Button>
+            {splitMode ? (
+              <Button onClick={handleSplit} disabled={assigning || splitRows.length === 0}>
+                {assigning ? "Dividiendo..." : `Dividir entre ${splitRows.length || 0} alumnos`}
+              </Button>
+            ) : (
+              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
+                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
+              </Button>
+            )}
           </DialogFooter>
+
 
         </DialogContent>
       </Dialog>
