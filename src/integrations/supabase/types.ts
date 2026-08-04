@@ -9605,6 +9605,7 @@ export type Database = {
           image_url: string | null
           is_combo: boolean
           is_preorder: boolean
+          marca: string | null
           min_stock: number
           name: string
           no_admite_cambio: boolean
@@ -9657,6 +9658,7 @@ export type Database = {
           image_url?: string | null
           is_combo?: boolean
           is_preorder?: boolean
+          marca?: string | null
           min_stock?: number
           name: string
           no_admite_cambio?: boolean
@@ -9709,6 +9711,7 @@ export type Database = {
           image_url?: string | null
           is_combo?: boolean
           is_preorder?: boolean
+          marca?: string | null
           min_stock?: number
           name?: string
           no_admite_cambio?: boolean
