@@ -132,8 +132,8 @@ Deno.serve(async (req) => {
         customer_name: nombre,
         customer_email: email,
         customer_phone: telefono,
-        total,
-        currency: product.currency || "ARS",
+        total: totalArs,
+        currency: "ARS",
         status: "pendiente_pago",
         metodo_pago: "mp",
         origen_registro: "tienda_publica",
@@ -141,9 +141,9 @@ Deno.serve(async (req) => {
         entrega_metodo: entrega,
         envio_direccion: entrega === "moto" ? direccion : null,
         envio_contacto: telefono,
-        envio_notas: observaciones || null,
+        envio_notas: [observaciones, fxNota].filter(Boolean).join(" ") || null,
         envio_estado: entrega === "moto" ? "a_cotizar" : null,
-        notes: observaciones || null,
+        notes: [observaciones, fxNota].filter(Boolean).join(" ") || null,
       })
       .select("id, order_number")
       .single();
@@ -204,8 +204,8 @@ Deno.serve(async (req) => {
         items: [{
           title: product.name,
           quantity: cantidad,
-          unit_price: unit,
-          currency_id: product.currency || "ARS",
+          unit_price: unitArs,
+          currency_id: "ARS",
         }],
         payer: { name: nombre, email },
         back_urls: {
@@ -234,6 +234,8 @@ Deno.serve(async (req) => {
     return json({
       order_id: order.id,
       order_number: order.order_number,
+      total_ars: totalArs,
+      fx_rate: fxRate,
       init_point: pref.init_point || pref.sandbox_init_point,
     });
   } catch (err) {
