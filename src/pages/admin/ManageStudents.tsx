@@ -1649,6 +1649,11 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
+                    {/* Auditoría de precios (origen de cada mensualidad) */}
+                    <StudentPriceAuditSection alumnoId={drawerAlumno.id} />
+                    <Separator />
+
+
                     {/* Descuentos y grupo familiar */}
 
                     <StudentDiscountSection alumno={drawerAlumno} />
