@@ -44,7 +44,9 @@ type Movement = {
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
 
 type TargetRow = { id: string; label: string; currency: string; total: number; paid?: number; balance?: number; estado?: string; fecha?: string };
-type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[]; cargos?: TargetRow[] };
+type PlanRow = { id: string; label: string; currency: string; precio: number; usado?: boolean };
+type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[]; cargos?: TargetRow[]; planes?: PlanRow[] };
+
 
 
 const STATUS_COLORS: Record<string, string> = {
@@ -85,7 +87,10 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [assigning, setAssigning] = useState(false);
   const [targets, setTargets] = useState<PaymentTargets | null>(null);
   const [loadingTargets, setLoadingTargets] = useState(false);
-  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion" | "cargo"; id: string | null }>({ type: "saldo", id: null });
+  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion" | "cargo" | "nueva_suscripcion"; id: string | null }>({ type: "saldo", id: null });
+  const [newSubPlan, setNewSubPlan] = useState("");
+  const [newSubMonth, setNewSubMonth] = useState("");
+  const [newSubPrice, setNewSubPrice] = useState("");
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
 
