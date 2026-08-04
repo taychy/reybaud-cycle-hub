@@ -12,6 +12,8 @@ import { toast } from "@/hooks/use-toast";
 import { RefreshCw, Search, UserPlus, ExternalLink, Link2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 
 type Movement = {
   id: string;
