@@ -278,8 +278,24 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     setLoadingProds(false);
   };
 
+  const ensureCountId = async (): Promise<string | null> => {
+    if (countId) return countId;
+    const cat = selectedCat;
+    if (!cat) return null;
+    const { data, error } = await (supabase as any).rpc("start_stock_count", { p_categoria: cat.name });
+    if (error) {
+      toast({ title: "No se pudo abrir el conteo", description: error.message, variant: "destructive" });
+      return null;
+    }
+    const cid = (data as any)?.count_id as string;
+    setCountId(cid);
+    return cid;
+  };
+
   const confirmProduct = async (productId: string) => {
-    if (!countId) return toast({ title: "Conteo no iniciado", variant: "destructive" });
+    const cid = await ensureCountId();
+    if (!cid) return;
+
     const prodRows = rows.filter((r) => r.productId === productId);
     const pendientes = prodRows.filter((r) => r.contado === "" || Number.isNaN(Number(r.contado)));
     if (pendientes.length) {
@@ -295,7 +311,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       contado: r.contado === "" || Number.isNaN(Number(r.contado)) ? null : Number(r.contado),
     }));
     const { data, error } = await (supabase as any).rpc("apply_stock_count_product", {
-      p_count_id: countId,
+      p_count_id: cid,
       p_items: items,
     });
     setSavingProduct(false);
@@ -391,9 +407,9 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
     const reporte = lineas.join("\n");
 
-    if (!countId) {
-      return toast({ title: "Conteo no iniciado", variant: "destructive" });
-    }
+    const cid = await ensureCountId();
+    if (!cid) return;
+
 
     // Guardar cualquier producto contado que todavía no se haya confirmado
     const pendientes = rows.filter(
@@ -408,7 +424,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
         contado: Number(r.contado),
       }));
       const { error: pendErr } = await (supabase as any).rpc("apply_stock_count_product", {
-        p_count_id: countId,
+        p_count_id: cid,
         p_items: items,
       });
       if (pendErr) {
@@ -417,7 +433,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
 
     const { data, error } = await (supabase as any).rpc("finalize_stock_count", {
-      p_count_id: countId,
+      p_count_id: cid,
       p_observaciones: observaciones.trim() || null,
       p_reporte: reporte,
     });
@@ -427,7 +443,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     const ajustados = (data as any)?.ajustes ?? 0;
     toast({ title: "Conteo finalizado", description: `${ajustados} ítems ajustados según el conteo.` });
 
-    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${countId}`;
+    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${cid}`;
 
     onConfirm({ nota: notaFinal, entidad_ref_texto: selectedCat.name });
   };
