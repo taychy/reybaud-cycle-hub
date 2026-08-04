@@ -189,14 +189,29 @@ Deno.serve(async (req) => {
     }
 
     // Regla de descuentos en renovación (política manual-por-admin):
-    //  - Precio base SIEMPRE = precio vigente del plan (no se copia el precio_final anterior).
+    //  - Precio base = precio aplicable al inicio del nuevo período.
     //  - Se hereda EL MISMO descuento_id de la sub anterior SÓLO si:
     //      a) el descuento sigue globalmente activo,
     //      b) el alumno lo tiene asignado y activo en descuentos_alumno,
     //      c) cubre el nuevo período completo (vigencia_hasta >= newFechaFin) — o no tiene vencimiento.
     //  - Si no cubre todo el período, no se aplica en esta renovación (evitamos prorrateo).
     //  - `precio_final` se RECALCULA sobre el nuevo precio_base, nunca se copia literal.
-    const newPrecioBase = old.planes?.precio ?? old.precio_base ?? null;
+    const { data: applicablePriceChange, error: priceChangeError } = await supabase
+      .from("precio_historial")
+      .select("precio_nuevo")
+      .eq("plan_id", old.plan_id)
+      .lte("fecha_vigencia", newFechaIni)
+      .order("fecha_vigencia", { ascending: false })
+      .order("fecha_cambio", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (priceChangeError) {
+      skipped.push({ old_sub_id: old.id, reason: "price_resolution_failed", detail: priceChangeError.message });
+      continue;
+    }
+
+    const newPrecioBase = applicablePriceChange?.precio_nuevo ?? old.planes?.precio ?? old.precio_base ?? null;
     let inheritDesc: string | null = null;
     let inheritPrecio: number | null = newPrecioBase;
     let discountDecision: "kept_recalculated" | "dropped_expired" | "dropped_inactive_on_student" | "dropped_inactive_global" | "no_previous_discount" | "dropped_no_base_price" = "no_previous_discount";
