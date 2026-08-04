@@ -93,13 +93,13 @@ Deno.serve(async (req) => {
 
   console.log("[renew-monthly-subs] start", { target, dryRun, maxAgeMonths, cutoffISO });
 
-  // 1) Candidatas: subs 'activa' o 'vencida' con fecha_fin < target, pagadas, no canceladas.
-  //    Ambos estados representan períodos cerrados: 'activa' = aún no procesada por este cron;
-  //    'vencida' = ya marcada como finalizada. Ambas pueden necesitar renovación.
+  // 1) Candidatas: subs 'activa', 'vencida' o 'finalizada' con fecha_fin < target, pagadas, no canceladas.
+  //    Los tres estados representan períodos cerrados: 'activa' = aún no procesada por este cron;
+  //    'vencida' = impaga marcada; 'finalizada' = paga y vencida. Todas pueden necesitar renovación.
   const { data: candidates, error: candErr } = await supabase
     .from("suscripciones")
     .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, categoria, vigencia_hasta, activo)")
-    .in("estado", ["activa", "vencida"])
+    .in("estado", ["activa", "vencida", "finalizada"])
     .lt("fecha_fin", target)
     .gte("fecha_fin", cutoffISO)
     .is("cancelada_at", null);
