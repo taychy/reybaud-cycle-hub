@@ -1,4 +1,6 @@
 import { FileText, AlertCircle, CheckCircle2, Building2 } from "lucide-react";
+import { PeriodBadge } from "@/components/admin/PeriodBadge";
+
 
 interface Factura {
   estado: string;
