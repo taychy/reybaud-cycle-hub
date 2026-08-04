@@ -420,7 +420,7 @@ export default function AdminCuentaCorriente() {
                 </TableCell>
               </TableRow>
             ) : (
-              filtered.map((r) => {
+              ordered.map(({ row: r, isRepeat, multiMoneda }) => {
                 const saldo = Number(r.saldo) || 0;
                 const isDeuda = saldo > 0.01;
                 const isCredito = saldo < -0.01;
@@ -430,14 +430,30 @@ export default function AdminCuentaCorriente() {
                 return (
                   <TableRow
                     key={`${r.alumno_id}-${r.moneda}`}
-                    className="border-border hover:bg-muted/30 cursor-pointer"
+                    className={`border-border hover:bg-muted/30 cursor-pointer ${isRepeat ? "border-t-0" : ""}`}
                     onClick={() => navigate(`/admin/cuenta-corriente?alumno=${r.alumno_id}`)}
 
                   >
                     <TableCell>
-                      <div className="font-medium text-sm text-foreground">{r.apellido}, {r.nombre}</div>
-                      <div className="text-[10px] text-muted-foreground">{r.email || "—"}</div>
+                      {isRepeat ? (
+                        <div className="pl-4 text-[11px] text-muted-foreground italic">
+                          ↳ mismo alumno · saldo en {r.moneda}
+                        </div>
+                      ) : (
+                        <>
+                          <div className="font-medium text-sm text-foreground flex items-center gap-2">
+                            {r.apellido}, {r.nombre}
+                            {multiMoneda && (
+                              <Badge variant="secondary" className="text-[9px] font-normal">
+                                varias monedas
+                              </Badge>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-muted-foreground">{r.email || "—"}</div>
+                        </>
+                      )}
                     </TableCell>
+
                     <TableCell className="text-xs text-muted-foreground">{r.grupo || "—"}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{r.moneda}</Badge></TableCell>
                     <TableCell className="text-right font-mono text-xs text-destructive whitespace-nowrap">
