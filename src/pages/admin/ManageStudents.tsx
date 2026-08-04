@@ -24,7 +24,7 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
-import { StudentPriceAuditSection } from "@/components/admin/StudentPriceAuditSection";
+
 
 
 import { StudentSaldoChip } from "@/components/admin/StudentSaldoChip";
@@ -1651,9 +1651,6 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
-                    {/* Auditoría de precios (origen de cada mensualidad) */}
-                    <StudentPriceAuditSection alumnoId={drawerAlumno.id} />
-                    <Separator />
 
 
                     {/* Descuentos y grupo familiar */}
