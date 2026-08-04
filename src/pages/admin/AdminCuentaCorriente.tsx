@@ -150,6 +150,29 @@ export default function AdminCuentaCorriente() {
     });
   }, [rows, search, monedaFilter, sedeFilter, grupoFilter, saldoFilter, bancariosMap]);
 
+  // Ordena las filas agrupando por alumno: un alumno con saldos en varias monedas
+  // aparece en filas consecutivas (no son alumnos duplicados).
+  const ordered = useMemo(() => {
+    const monedasPorAlumno: Record<string, number> = {};
+    filtered.forEach((r) => {
+      monedasPorAlumno[r.alumno_id] = (monedasPorAlumno[r.alumno_id] || 0) + 1;
+    });
+    const sorted = [...filtered].sort((a, b) => {
+      const na = `${a.apellido} ${a.nombre}`.toLowerCase();
+      const nb = `${b.apellido} ${b.nombre}`.toLowerCase();
+      if (na !== nb) return na.localeCompare(nb);
+      if (a.alumno_id !== b.alumno_id) return a.alumno_id.localeCompare(b.alumno_id);
+      return a.moneda.localeCompare(b.moneda);
+    });
+    return sorted.map((r, i) => ({
+      row: r,
+      isRepeat: i > 0 && sorted[i - 1].alumno_id === r.alumno_id,
+      multiMoneda: (monedasPorAlumno[r.alumno_id] || 0) > 1,
+    }));
+  }, [filtered]);
+
+
+
 
   // KPIs por moneda (sobre TODOS los rows, no los filtrados)
   const kpis = useMemo(() => {
