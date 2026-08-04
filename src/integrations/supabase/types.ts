@@ -11238,6 +11238,10 @@ export type Database = {
         }
         Returns: Json
       }
+      apply_credit_ajuste_to_suscripcion: {
+        Args: { _ajuste_id: string; _suscripcion_id: string }
+        Returns: Json
+      }
       apply_mp_payment_to_gasto: {
         Args: {
           p_external_reference: string

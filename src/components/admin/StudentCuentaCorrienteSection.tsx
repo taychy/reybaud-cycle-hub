@@ -57,7 +57,17 @@ interface Movimiento {
   referencia_extra: any;
 }
 
+interface SubTarget {
+  id: string;
+  label: string;
+  currency: string;
+  total: number;
+  estado: string;
+  fecha: string;
+}
+
 interface SaldoRow {
+
   moneda: string;
   total_cargos: number;
   total_pagos: number;
@@ -105,6 +115,13 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [changeNewPlanId, setChangeNewPlanId] = useState<string>("");
   const [changeLoading, setChangeLoading] = useState(false);
   const [absorbCredit, setAbsorbCredit] = useState(true);
+
+  // Aplicar crédito (pago) a una suscripción
+  const [applyCredit, setApplyCredit] = useState<{ id: string; concepto: string; monto: number; moneda: string } | null>(null);
+  const [applyTargets, setApplyTargets] = useState<SubTarget[]>([]);
+  const [applySubId, setApplySubId] = useState<string>("");
+  const [applyLoading, setApplyLoading] = useState(false);
+
 
   const PREVIEW_LIMIT = 5;
 
@@ -373,6 +390,43 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
     setDeletingId(null);
   };
 
+  // ---- Aplicar crédito a una suscripción ----
+  const openApplyCredit = async (m: Movimiento) => {
+    setApplyCredit({ id: m.fuente_id, concepto: m.concepto, monto: Number(m.haber) || 0, moneda: m.moneda });
+    setApplySubId("");
+    setApplyTargets([]);
+    const { data, error } = await supabase.rpc("get_alumno_payment_targets" as any, { _alumno_id: alumnoId });
+    if (error) {
+      toast.error("No se pudieron cargar las suscripciones pendientes");
+      return;
+    }
+    setApplyTargets(((data as any)?.subscriptions ?? []) as SubTarget[]);
+  };
+
+  const handleApplyCredit = async () => {
+    if (!applyCredit || !applySubId) return;
+    setApplyLoading(true);
+    const { error } = await supabase.rpc("apply_credit_ajuste_to_suscripcion" as any, {
+      _ajuste_id: applyCredit.id,
+      _suscripcion_id: applySubId,
+    });
+    setApplyLoading(false);
+    if (error) {
+      const map: Record<string, string> = {
+        credit_already_applied: "Este crédito ya fue aplicado a otra suscripción.",
+        subscription_already_paid: "Esa suscripción ya figura como paga.",
+        only_credit_can_be_applied: "Solo se pueden aplicar movimientos de crédito.",
+      };
+      toast.error(map[error.message?.replace(/^.*:\s*/, "") ?? ""] || error.message || "No se pudo aplicar el pago");
+      return;
+    }
+    toast.success("Pago aplicado a la suscripción");
+    setApplyCredit(null);
+    fetchData();
+    onSubscriptionsChanged?.();
+  };
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -544,6 +598,17 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                           )}
                           {isAjuste ? (
                             <>
+                              {m.tipo === "ajuste_credito" && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-emerald-400 hover:text-emerald-300"
+                                  onClick={() => openApplyCredit(m)}
+                                  title="Aplicar este pago a una suscripción"
+                                >
+                                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -563,6 +628,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </>
+
                           ) : m.tipo === "cargo_suscripcion" && m.estado !== "cancelada" ? (
                             <>
                               <Button
@@ -683,6 +749,62 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           </div>
         )}
       </div>
+
+      {/* Aplicar crédito a una suscripción */}
+      <Dialog open={!!applyCredit} onOpenChange={(o) => !o && setApplyCredit(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Aplicar pago a una suscripción</DialogTitle>
+            <DialogDescription>
+              {applyCredit
+                ? `${applyCredit.concepto} · ${formatPrice(applyCredit.monto, applyCredit.moneda)}`
+                : ""}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label>Suscripción pendiente</Label>
+            {applyTargets.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No hay suscripciones pendientes de pago para este alumno.
+              </p>
+            ) : (
+              <Select value={applySubId} onValueChange={setApplySubId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí la suscripción a saldar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {applyTargets.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.label} · {formatDate(s.fecha)} · {formatPrice(Number(s.total) || 0, s.currency)} ({s.estado})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {applyCredit && applySubId && (() => {
+              const t = applyTargets.find((x) => x.id === applySubId);
+              if (!t) return null;
+              const diff = Number(applyCredit.monto) - (Number(t.total) || 0);
+              if (Math.abs(diff) < 0.5) return null;
+              return (
+                <p className="text-xs text-amber-400">
+                  {diff > 0
+                    ? `El pago supera el valor de la suscripción por ${formatPrice(diff, applyCredit.moneda)}.`
+                    : `El pago es menor al valor de la suscripción por ${formatPrice(-diff, applyCredit.moneda)}.`}{" "}
+                  Igual se marcará como paga.
+                </p>
+              );
+            })()}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApplyCredit(null)}>Cancelar</Button>
+            <Button onClick={handleApplyCredit} disabled={!applySubId || applyLoading}>
+              {applyLoading ? "Aplicando…" : "Aplicar pago"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <AjusteCuentaModal
         open={modalOpen}
