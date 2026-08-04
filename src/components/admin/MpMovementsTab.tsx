@@ -44,7 +44,7 @@ type Movement = {
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
 
 type TargetRow = { id: string; label: string; currency: string; total: number; paid?: number; balance?: number; estado?: string; fecha?: string };
-type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[] };
+type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[]; cargos?: TargetRow[] };
 
 
 const STATUS_COLORS: Record<string, string> = {
@@ -85,7 +85,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [assigning, setAssigning] = useState(false);
   const [targets, setTargets] = useState<PaymentTargets | null>(null);
   const [loadingTargets, setLoadingTargets] = useState(false);
-  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion"; id: string | null }>({ type: "saldo", id: null });
+  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion" | "cargo"; id: string | null }>({ type: "saldo", id: null });
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
 
@@ -227,7 +227,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       toast({ title: "No se pudieron cargar los destinos", description: error.message, variant: "destructive" });
       return;
     }
-    setTargets((data as any) ?? { reservations: [], subscriptions: [] });
+    setTargets((data as any) ?? { reservations: [], subscriptions: [], cargos: [] });
   }
 
   async function handleAssign() {
@@ -261,7 +261,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
           ? (created ? "Se registró el pago en la reserva del evento y se imputó a la cuota más antigua." : "Este pago ya estaba vinculado a la reserva.")
           : target.type === "suscripcion"
             ? "El plan quedó marcado como pagado con este movimiento."
-            : (created ? "Se registró un saldo a favor en la cuenta corriente del alumno." : "Ya existía un saldo a favor vinculado a este pago."),
+            : target.type === "cargo"
+              ? "El pago se imputó a la deuda de la cuenta corriente."
+              : (created ? "Se registró un saldo a favor en la cuenta corriente del alumno." : "Ya existía un saldo a favor vinculado a este pago."),
     });
     setAssignDialog(null);
     setSelectedAlumno(null);
@@ -701,6 +703,20 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                         </div>
                       </button>
                     ))}
+                    {(targets?.cargos ?? []).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setTarget({ type: "cargo", id: c.id })}
+                        className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "cargo" && target.id === c.id ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                      >
+                        <div className="font-medium">🧾 {c.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Deuda en cuenta corriente · Pendiente {formatPrice(Number(c.balance ?? c.total ?? 0), c.currency)}
+                          {c.fecha ? ` · ${c.fecha}` : ""}
+                        </div>
+                      </button>
+                    ))}
                     <button
                       type="button"
                       onClick={() => setTarget({ type: "saldo", id: null })}
@@ -727,7 +743,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               </Button>
             ) : (
               <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
-                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
+                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : "Dejar como saldo a favor"}
               </Button>
             )}
           </DialogFooter>
