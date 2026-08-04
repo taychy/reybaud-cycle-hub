@@ -112,7 +112,11 @@ const StoreProducts = () => {
   useEffect(() => { load(); }, []);
 
   const filtered = products.filter((p) => {
-    if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search) {
+      const q = search.toLowerCase();
+      const hay = `${p.name} ${(p as any).marca || ""} ${(p as any).proveedor || ""}`.toLowerCase();
+      if (!hay.includes(q)) return false;
+    }
     if (filterCat !== "all" && p.category_id !== filterCat) return false;
     if (filterStatus !== "all" && p.status !== filterStatus) return false;
     return true;
