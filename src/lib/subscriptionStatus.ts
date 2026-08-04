@@ -154,7 +154,13 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
   // Still within the plan period
   if (today <= fin) return "activa";
 
+  // Período vencido pero YA PAGADO (mp_status approved / cargado por admin):
+  // es un período contable cerrado → "finalizada", nunca "pago_pendiente".
+  // (El estado crudo puede seguir en 'activa' si el job de expiración no corrió.)
+  if (isSubPaid(sub)) return "finalizada";
+
   // Plan expired — calculate how many days past expiry
+
   const dayOfMonth = today.getDate();
   const expMonth = fin.getMonth();
   const expYear = fin.getFullYear();
