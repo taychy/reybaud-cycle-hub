@@ -674,7 +674,12 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-sm font-medium truncate flex items-center gap-1">
+                        {p.name}
+                        {confirmedProducts[p.id] && (
+                          <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-500">guardado</Badge>
+                        )}
+                      </div>
                       <div className="text-[11px] text-muted-foreground truncate">
                         {p.sku_base ? `${p.sku_base} · ` : ""}{st.total} ítem(s) · esp. {st.esperado} u.
                       </div>
@@ -682,6 +687,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
                     <span className={`text-[11px] shrink-0 ${st.dif > 0 ? "text-orange-500" : done ? "text-green-500" : "text-muted-foreground"}`}>
                       {st.contados}/{st.total}
                     </span>
+
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
                 );
