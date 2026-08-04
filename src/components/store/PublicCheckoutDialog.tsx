@@ -94,6 +94,20 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
   const total = Number(product.price) * cantidad;
 
   const submit = async () => {
+    // Validación local para no depender del error genérico de la función
+    const faltaVariante = specs.find((s) => !variante[s.name]);
+    const local =
+      faltaVariante ? `Elegí ${faltaVariante.name.toLowerCase()}`
+      : nombre.trim().length < 3 ? "Ingresá tu nombre y apellido"
+      : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) ? "Ingresá un email válido"
+      : telefono.replace(/\D/g, "").length < 8 ? "Ingresá un WhatsApp válido"
+      : entrega === "moto" && direccion.trim().length < 8 ? "Ingresá la dirección de envío"
+      : null;
+    if (local) {
+      toast({ title: "Faltan datos", description: local, variant: "destructive" });
+      return;
+    }
+
     setLoading(true);
     const { data, error } = await supabase.functions.invoke("create-public-store-order", {
       body: {
@@ -109,7 +123,15 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
         opt_in_marketing: optIn,
       },
     });
-    const err = (data as any)?.error || error?.message;
+    let err = (data as any)?.error as string | undefined;
+    if (!err && error) {
+      // La función devuelve el detalle en el body aunque el status sea 4xx/5xx
+      try {
+        const body = await (error as any)?.context?.json?.();
+        err = body?.error;
+      } catch { /* sin body legible */ }
+      err = err || error.message;
+    }
     if (err || !(data as any)?.init_point) {
       setLoading(false);
       toast({ title: "No pudimos completar la compra", description: err || "Intentá de nuevo.", variant: "destructive" });
