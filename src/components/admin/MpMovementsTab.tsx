@@ -342,10 +342,11 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Movimientos</div><div className="text-2xl font-bold">{totals.total}</div></CardContent></Card>
         <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Aprobados</div><div className="text-2xl font-bold text-green-500">{totals.approved}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Sin asignar</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Rechazados / cancelados</div><div className="text-2xl font-bold text-red-500">{totals.rejected}</div></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Sin asignar (aprobados)</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total (aprobados)</div>
           <div className="text-sm font-bold">
