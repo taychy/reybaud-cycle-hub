@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.audit_alumno_precios(uuid) TO postgres;
