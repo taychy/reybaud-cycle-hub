@@ -269,6 +269,41 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     await load();
   }
 
+  async function handleSplit() {
+    if (!assignDialog || splitRows.length === 0) return;
+    const splits = splitRows.map((r) => ({ alumno_id: r.alumno.id, monto: Number(r.monto) }));
+    if (splits.some((s) => !s.monto || s.monto <= 0)) {
+      toast({ title: "Faltan montos", description: "Poné un importe mayor a cero para cada alumno.", variant: "destructive" });
+      return;
+    }
+    setAssigning(true);
+    const { data, error } = await supabase.rpc("split_mp_movement_among_alumnos" as any, {
+      _movement_id: assignDialog.id,
+      _splits: splits as any,
+      _notes: assignNotes || null,
+    });
+    setAssigning(false);
+    if (error) {
+      const msg = error.message || "";
+      let human = msg;
+      if (msg.includes("splits_exceed_movement_amount")) human = "La suma de las partes supera el monto del pago.";
+      else if (msg.includes("already_assigned_to_other_student")) human = "Este movimiento ya está asignado a otro alumno.";
+      else if (msg.includes("not_authorized")) human = "No tenés permisos para asignar movimientos.";
+      toast({ title: "No se pudo dividir el pago", description: human, variant: "destructive" });
+      return;
+    }
+    const restante = Number((data as any)?.restante ?? 0);
+    toast({
+      title: "Pago familiar dividido",
+      description: `Se generó un saldo a favor para ${splitRows.length} alumnos.` + (restante > 0.01 ? ` Quedaron sin asignar ${formatPrice(restante, assignDialog.currency)}.` : ""),
+    });
+    setAssignDialog(null);
+    setSplitMode(false);
+    setSplitRows([]);
+    setSelectedAlumno(null);
+    setAssignNotes("");
+    await load();
+  }
 
 
   async function handleUnassign(m: Movement) {
