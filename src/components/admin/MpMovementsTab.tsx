@@ -387,12 +387,18 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Movimientos</div><div className="text-2xl font-bold">{totals.total}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Aprobados</div><div className="text-2xl font-bold text-green-500">{totals.approved}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Rechazados / cancelados</div><div className="text-2xl font-bold text-red-500">{totals.rejected}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Sin asignar (aprobados)</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
-        <Card><CardContent className="pt-4">
-          <div className="text-xs text-muted-foreground">Total (aprobados)</div>
+        {(() => {
+          const isMes = !!periodo && periodo !== "all";
+          const badge = <PeriodBadge scope={isMes ? "mes" : "acumulado"} label={isMes ? periodo : "Todos los meses"} className="ml-auto" />;
+          return (
+            <>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Movimientos</div>{badge}</div><div className="text-2xl font-bold">{totals.total}</div></CardContent></Card>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Aprobados</div>{badge}</div><div className="text-2xl font-bold text-green-500">{totals.approved}</div></CardContent></Card>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Rechazados / cancelados</div>{badge}</div><div className="text-2xl font-bold text-red-500">{totals.rejected}</div></CardContent></Card>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Sin asignar (aprobados)</div>{badge}</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
+              <Card><CardContent className="pt-4">
+                <div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Total (aprobados)</div>{badge}</div>
+
           <div className="text-sm font-bold">
             {Object.entries(totals.totalByCurrency).map(([cur, val]) => (
               <div key={cur}>{formatPrice(val, cur)}</div>
