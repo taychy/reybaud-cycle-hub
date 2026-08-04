@@ -95,7 +95,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   useEffect(() => {
     void load();
     void loadCuentas();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodo]);
 
   async function loadCuentas() {
     const { data } = await supabase.from("cuentas_mp").select("id, nombre, slug").eq("activa", true).order("nombre");
@@ -104,7 +105,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("mp_account_movements")
       .select(`
         id, cuenta_mp_id, mp_payment_id, status, status_detail, payment_method, payment_type,
@@ -114,9 +115,18 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug ),
         alumnos:alumnos!alumno_id ( id, nombre, apellido, email )
       `)
-      .eq("direccion", "ingreso")
+      .eq("direccion", "ingreso");
+
+    if (periodo && periodo !== "all" && /^\d{4}-\d{2}$/.test(periodo)) {
+      const [y, m] = periodo.split("-").map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+      const end = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1)).toISOString();
+      query = query.gte("fecha_movimiento", start).lt("fecha_movimiento", end);
+    }
+
+    const { data, error } = await query
       .order("fecha_movimiento", { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
