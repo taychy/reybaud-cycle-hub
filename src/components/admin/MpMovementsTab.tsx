@@ -835,8 +835,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                 {assigning ? "Dividiendo..." : `Dividir entre ${splitRows.length || 0} alumnos`}
               </Button>
             ) : (
-              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
-                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : "Dejar como saldo a favor"}
+              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type === "nueva_suscripcion" ? (!newSubPlan || !newSubMonth) : target.type !== "saldo" && !target.id)}>
+                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : target.type === "nueva_suscripcion" ? "Generar mensualidad y aplicar" : "Dejar como saldo a favor"}
               </Button>
             )}
           </DialogFooter>
