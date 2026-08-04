@@ -86,7 +86,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
-  const [zeroUncounted, setZeroUncounted] = useState(true);
+  const zeroUncounted = false;
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [countId, setCountId] = useState<string | null>(null);
@@ -298,11 +298,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     if (!cid) return;
 
     const prodRows = rows.filter((r) => r.productId === productId);
-    const pendientes = prodRows.filter((r) => r.contado === "" || Number.isNaN(Number(r.contado)));
-    if (pendientes.length) {
-      const ok = confirm(`Quedan ${pendientes.length} variante(s) sin contar en este producto. ¿Confirmar igual?`);
-      if (!ok) return;
-    }
+
     setSavingProduct(true);
     const items = prodRows.map((r) => ({
       product_id: r.productId,
@@ -369,16 +365,16 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     return map;
   }, [rows]);
 
-  const allFilled = rows.length > 0 && summary.sin === 0;
+  
 
   const handleConfirm = async () => {
     if (!selectedCat) return;
     if (rows.length === 0) {
       return toast({ title: "Sin productos", description: "Esta categoría no tiene productos para contar.", variant: "destructive" });
     }
-    if (!allFilled) {
-      const ok = confirm(`Quedan ${summary.sin} ítems sin contar. ¿Confirmar de todas formas?`);
-      if (!ok) return;
+    const contadas = rows.filter((r) => r.contado !== "" && !Number.isNaN(Number(r.contado)));
+    if (contadas.length === 0) {
+      return toast({ title: "Nada contado", description: "Cargá al menos un producto para cerrar el conteo.", variant: "destructive" });
     }
     if (summary.dif > 0) {
       const ok = confirm(
@@ -387,16 +383,15 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       if (!ok) return;
     }
 
-    // Reporte final
+    // Reporte final: sólo lo efectivamente contado
     const lineas: string[] = [];
     lineas.push(`Categoría: ${selectedCat.name}`);
-    lineas.push(`Resumen: ${summary.coincide} coinciden · ${summary.dif} con diferencia · ${summary.sin} sin contar`);
+    lineas.push(`Contados: ${contadas.length} ítems · ${summary.coincide} coinciden · ${summary.dif} con diferencia`);
     if (summary.faltantes) lineas.push(`Faltantes totales: ${summary.faltantes} u.`);
     if (summary.sobrantes) lineas.push(`Sobrantes totales: ${summary.sobrantes} u.`);
     lineas.push("");
-    lineas.push("Detalle:");
-    for (const r of rows) {
-      if (r.contado === "") continue;
+    lineas.push("Detalle (sólo contado):");
+    for (const r of contadas) {
       const c = Number(r.contado);
       const dif = c - r.esperado;
       const tag = dif === 0 ? "OK" : dif > 0 ? `+${dif}` : `${dif}`;
@@ -407,6 +402,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       lineas.push("Observaciones: " + observaciones.trim());
     }
     const reporte = lineas.join("\n");
+
 
     const cid = await ensureCountId();
     if (!cid) return;
@@ -743,22 +739,12 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
         )}
 
         {rows.length > 0 && (
-          <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={zeroUncounted}
-              onChange={(e) => setZeroUncounted(e.target.checked)}
-              className="mt-1"
-            />
-            <span className="text-sm">
-              Poner en <b>0</b> los talles/variantes que no conté
-              <span className="block text-xs text-muted-foreground">
-                Recomendado: el stock queda exactamente igual a lo contado. Si lo destildás, las variantes sin contar
-                conservan la cantidad anterior del sistema.
-              </span>
-            </span>
-          </label>
+          <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs text-muted-foreground">
+            Conteo parcial permitido: sólo se ajustan y se informan los productos/talles que hayas contado. Lo que no
+            cuentes mantiene su stock actual y no aparece en el reporte.
+          </div>
         )}
+
 
         <div className="flex gap-2 pt-1">
           <Button onClick={handleConfirm} disabled={saving || rows.length === 0} className="flex-1">
