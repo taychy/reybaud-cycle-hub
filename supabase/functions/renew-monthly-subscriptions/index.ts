@@ -14,7 +14,7 @@
 //       estado       = 'pendiente'
 //       origen_registro = 'renovacion_pendiente'
 //       auto_renovacion = old.auto_renovacion (heredado)
-//       precio_base   = precio VIGENTE del plan (nunca copia el precio_final anterior).
+//       precio_base   = precio vigente para la fecha de inicio del nuevo período.
 //       descuento_id / precio_final = heredamos el MISMO descuento sólo si sigue vigente
 //                                     globalmente, sigue activo en descuentos_alumno para
 //                                     ese alumno, y cubre el nuevo período COMPLETO
