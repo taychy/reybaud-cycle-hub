@@ -238,9 +238,88 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     const { data } = await q;
     const prods = (data || []) as Product[];
     setProducts(prods);
-    setRows(buildRows(prods));
+    let baseRows = buildRows(prods);
+
+    // Abrir o retomar el conteo de esta categoría
+    const { data: started, error: startErr } = await (supabase as any).rpc("start_stock_count", {
+      p_categoria: cat.name,
+    });
+    if (startErr) {
+      toast({ title: "No se pudo abrir el conteo", description: startErr.message, variant: "destructive" });
+    } else {
+      const cid = (started as any)?.count_id as string;
+      setCountId(cid);
+      if ((started as any)?.resumed) {
+        const { data: prev } = await (supabase as any)
+          .from("stock_count_items")
+          .select("product_id, variante, contado")
+          .eq("count_id", cid);
+        const map = new Map<string, number>();
+        const done: Record<string, number> = {};
+        (prev || []).forEach((it: any) => {
+          if (it.contado === null || it.contado === undefined) return;
+          map.set(`${it.product_id}::${it.variante || ""}`, it.contado);
+          done[it.product_id] = (done[it.product_id] || 0) + 1;
+        });
+        if (map.size) {
+          baseRows = baseRows.map((r) => {
+            const v = map.get(`${r.productId}::${r.variantSig || ""}`);
+            return v === undefined ? r : { ...r, contado: String(v) };
+          });
+          setConfirmedProducts(done);
+          toast({ title: "Conteo retomado", description: `Recuperamos ${map.size} ítem(s) ya contados.` });
+        }
+      } else {
+        setConfirmedProducts({});
+      }
+    }
+
+    setRows(baseRows);
     setLoadingProds(false);
   };
+
+  const confirmProduct = async (productId: string) => {
+    if (!countId) return toast({ title: "Conteo no iniciado", variant: "destructive" });
+    const prodRows = rows.filter((r) => r.productId === productId);
+    const pendientes = prodRows.filter((r) => r.contado === "" || Number.isNaN(Number(r.contado)));
+    if (pendientes.length) {
+      const ok = confirm(`Quedan ${pendientes.length} variante(s) sin contar en este producto. ¿Confirmar igual?`);
+      if (!ok) return;
+    }
+    setSavingProduct(true);
+    const items = prodRows.map((r) => ({
+      product_id: r.productId,
+      product_name: r.productName,
+      variant_sig: r.variantSig,
+      esperado: r.esperado,
+      contado: r.contado === "" || Number.isNaN(Number(r.contado)) ? null : Number(r.contado),
+    }));
+    const { data, error } = await (supabase as any).rpc("apply_stock_count_product", {
+      p_count_id: countId,
+      p_items: items,
+    });
+    setSavingProduct(false);
+    if (error) {
+      return toast({ title: "No se pudo guardar", description: error.message, variant: "destructive" });
+    }
+    const ajustes = (data as any)?.ajustes ?? 0;
+    // El stock del sistema ahora coincide con lo contado
+    setRows((prev) =>
+      prev.map((r) =>
+        r.productId === productId && r.contado !== "" && !Number.isNaN(Number(r.contado))
+          ? { ...r, esperado: Number(r.contado) }
+          : r,
+      ),
+    );
+    setConfirmedProducts((prev) => ({ ...prev, [productId]: items.filter((i) => i.contado !== null).length }));
+    toast({
+      title: "Stock actualizado",
+      description: ajustes ? `${ajustes} ajuste(s) aplicados al stock.` : "Sin diferencias: el conteo quedó guardado.",
+    });
+    setSelectedProductId(null);
+  };
+
+
 
 
   const summary = useMemo(() => {
