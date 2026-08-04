@@ -64,6 +64,30 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
     return typeof product.stock === "number" ? product.stock : null;
   }, [product, specs.length, variantSig]);
 
+  /** Stock disponible por opción de cada variante (según variant_stock del conteo). */
+  const optionStock = useMemo(() => {
+    const map: Record<string, Record<string, number>> = {};
+    const vs = (product?.variant_stock || null) as Record<string, number> | null;
+    if (!vs || typeof vs !== "object") return null;
+    for (const s of specs) {
+      map[s.name] = {};
+      for (const o of s.options) map[s.name][o] = 0;
+    }
+    for (const [sig, qty] of Object.entries(vs)) {
+      const n = Number(qty) || 0;
+      if (n <= 0) continue;
+      for (const part of sig.split("|")) {
+        const idx = part.indexOf(":");
+        if (idx < 0) continue;
+        const name = part.slice(0, idx);
+        const val = part.slice(idx + 1);
+        if (map[name] && val in map[name]) map[name][val] += n;
+      }
+    }
+    return map;
+  }, [product, specs]);
+
+
   if (!product) return null;
 
   const moneda = product.currency || "ARS";
@@ -103,23 +127,49 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
         </DialogHeader>
 
         <div className="space-y-3 py-1">
-          {specs.map((s) => (
-            <div key={s.name} className="space-y-1">
-              <Label className="text-xs">{s.name}</Label>
-              <Select value={variante[s.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [s.name]: v }))}>
-                <SelectTrigger><SelectValue placeholder={`Elegí ${s.name.toLowerCase()}`} /></SelectTrigger>
-                <SelectContent>
-                  {s.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+          {specs.map((s) => {
+            const opts = optionStock
+              ? s.options.filter((o) => (optionStock[s.name]?.[o] ?? 0) > 0)
+              : s.options;
+            return (
+              <div key={s.name} className="space-y-1">
+                <Label className="text-xs">{s.name}</Label>
+                <Select value={variante[s.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [s.name]: v }))}>
+                  <SelectTrigger><SelectValue placeholder={`Elegí ${s.name.toLowerCase()}`} /></SelectTrigger>
+                  <SelectContent>
+                    {opts.map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {o}{optionStock ? ` · ${optionStock[s.name][o]}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {opts.length === 0 && (
+                  <p className="text-[11px] text-destructive">Sin stock disponible.</p>
+                )}
+              </div>
+            );
+          })}
 
           <div className="space-y-1">
             <Label className="text-xs">Cantidad</Label>
-            <Input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(Math.max(1, Number(e.target.value) || 1))} />
-            {stockDisp != null && <p className="text-[11px] text-muted-foreground">{stockDisp} disponibles</p>}
+            <Input
+              type="number"
+              min={1}
+              max={stockDisp ?? undefined}
+              value={cantidad}
+              onChange={(e) => {
+                const n = Math.max(1, Number(e.target.value) || 1);
+                setCantidad(stockDisp != null && stockDisp > 0 ? Math.min(n, stockDisp) : n);
+              }}
+            />
+            {stockDisp != null && (
+              <p className={`text-[11px] ${stockDisp <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                {stockDisp <= 0 ? "Sin stock en este talle" : `${stockDisp} disponibles`}
+              </p>
+            )}
           </div>
+
 
           <div className="space-y-1">
             <Label className="text-xs">Nombre y apellido</Label>
@@ -169,7 +219,7 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
             <span className="text-lg font-heading font-bold">{formatPrice(total, moneda)}</span>
           </div>
 
-          <Button className="w-full" disabled={loading} onClick={submit}>
+          <Button className="w-full" disabled={loading || (stockDisp != null && stockDisp <= 0)} onClick={submit}>
             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
             Pagar con Mercado Pago
           </Button>
