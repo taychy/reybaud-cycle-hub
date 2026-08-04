@@ -114,6 +114,8 @@ export default function AdminBroadcasts() {
   const [showDetail, setShowDetail] = useState<Broadcast | null>(null);
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
   const [promoProducts, setPromoProducts] = useState<Array<{ id: string; name: string; price: number; old_price: number | null; currency: string | null; image_url: string | null; promo_activa?: boolean | null; es_externo?: boolean | null }>>([]);
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; description: string | null; subject: string; content_html: string }>>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
     (async () => {
