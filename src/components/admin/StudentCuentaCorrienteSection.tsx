@@ -799,36 +799,38 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <Label>Suscripción pendiente</Label>
+            <Label>Deuda a saldar</Label>
             {applyTargets.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No hay suscripciones pendientes de pago para este alumno.
+                Este alumno no tiene deudas pendientes (planes, eventos o cargos de cuenta corriente).
               </p>
             ) : (
               <Select value={applySubId} onValueChange={setApplySubId}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Elegí la suscripción a saldar" />
+                  <SelectValue placeholder="Elegí la deuda a saldar" />
                 </SelectTrigger>
                 <SelectContent>
                   {applyTargets.map((s) => (
-                    <SelectItem key={s.id} value={s.id}>
-                      {s.label} · {formatDate(s.fecha)} · {formatPrice(Number(s.total) || 0, s.currency)} ({s.estado})
+                    <SelectItem key={s.key} value={s.key}>
+                      {s.icon} {s.label} · {s.fecha ? formatDate(s.fecha) + " · " : ""}
+                      {formatPrice(s.amount, s.currency)}
+                      {s.extra ? ` (${s.extra})` : ""}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             )}
             {applyCredit && applySubId && (() => {
-              const t = applyTargets.find((x) => x.id === applySubId);
+              const t = applyTargets.find((x) => x.key === applySubId);
               if (!t) return null;
-              const diff = Number(applyCredit.monto) - (Number(t.total) || 0);
+              const diff = Number(applyCredit.monto) - (Number(t.amount) || 0);
               if (Math.abs(diff) < 0.5) return null;
               return (
                 <p className="text-xs text-amber-400">
                   {diff > 0
-                    ? `El pago supera el valor de la suscripción por ${formatPrice(diff, applyCredit.moneda)}.`
-                    : `El pago es menor al valor de la suscripción por ${formatPrice(-diff, applyCredit.moneda)}.`}{" "}
-                  Igual se marcará como paga.
+                    ? `El pago supera la deuda por ${formatPrice(diff, applyCredit.moneda)}.`
+                    : `El pago es menor a la deuda por ${formatPrice(-diff, applyCredit.moneda)}.`}{" "}
+                  Igual se imputará el crédito completo.
                 </p>
               );
             })()}
