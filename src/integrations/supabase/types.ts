@@ -11303,6 +11303,17 @@ export type Database = {
         Args: { _alumno_id: string; _movement_id: string; _notes?: string }
         Returns: Json
       }
+      assign_mp_movement_to_new_suscripcion: {
+        Args: {
+          _alumno_id: string
+          _fecha_inicio?: string
+          _movement_id: string
+          _notes?: string
+          _plan_id: string
+          _precio?: number
+        }
+        Returns: Json
+      }
       assign_mp_movement_to_target: {
         Args: {
           _alumno_id: string
