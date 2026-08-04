@@ -617,7 +617,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             <span className="text-xl">{selectedCat.icon || "📦"}</span>
             {selectedCat.name}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => { setSelectedCat(null); setRows([]); setProducts([]); }}>
+          <Button variant="ghost" size="sm" onClick={() => { setSelectedCat(null); setRows([]); setProducts([]); setCountId(null); setConfirmedProducts({}); }}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Cambiar
           </Button>
         </div>
