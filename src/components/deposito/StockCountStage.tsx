@@ -88,6 +88,10 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [observaciones, setObservaciones] = useState("");
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [countId, setCountId] = useState<string | null>(null);
+  const [confirmedProducts, setConfirmedProducts] = useState<Record<string, number>>({});
+  const [savingProduct, setSavingProduct] = useState(false);
+
 
   const sigMatchesVariante = (sig: string | null, variante: Record<string, string> | null) => {
     if (!variante || Object.keys(variante).length === 0) return false;
@@ -234,9 +238,88 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     const { data } = await q;
     const prods = (data || []) as Product[];
     setProducts(prods);
-    setRows(buildRows(prods));
+    let baseRows = buildRows(prods);
+
+    // Abrir o retomar el conteo de esta categoría
+    const { data: started, error: startErr } = await (supabase as any).rpc("start_stock_count", {
+      p_categoria: cat.name,
+    });
+    if (startErr) {
+      toast({ title: "No se pudo abrir el conteo", description: startErr.message, variant: "destructive" });
+    } else {
+      const cid = (started as any)?.count_id as string;
+      setCountId(cid);
+      if ((started as any)?.resumed) {
+        const { data: prev } = await (supabase as any)
+          .from("stock_count_items")
+          .select("product_id, variante, contado")
+          .eq("count_id", cid);
+        const map = new Map<string, number>();
+        const done: Record<string, number> = {};
+        (prev || []).forEach((it: any) => {
+          if (it.contado === null || it.contado === undefined) return;
+          map.set(`${it.product_id}::${it.variante || ""}`, it.contado);
+          done[it.product_id] = (done[it.product_id] || 0) + 1;
+        });
+        if (map.size) {
+          baseRows = baseRows.map((r) => {
+            const v = map.get(`${r.productId}::${r.variantSig || ""}`);
+            return v === undefined ? r : { ...r, contado: String(v) };
+          });
+          setConfirmedProducts(done);
+          toast({ title: "Conteo retomado", description: `Recuperamos ${map.size} ítem(s) ya contados.` });
+        }
+      } else {
+        setConfirmedProducts({});
+      }
+    }
+
+    setRows(baseRows);
     setLoadingProds(false);
   };
+
+  const confirmProduct = async (productId: string) => {
+    if (!countId) return toast({ title: "Conteo no iniciado", variant: "destructive" });
+    const prodRows = rows.filter((r) => r.productId === productId);
+    const pendientes = prodRows.filter((r) => r.contado === "" || Number.isNaN(Number(r.contado)));
+    if (pendientes.length) {
+      const ok = confirm(`Quedan ${pendientes.length} variante(s) sin contar en este producto. ¿Confirmar igual?`);
+      if (!ok) return;
+    }
+    setSavingProduct(true);
+    const items = prodRows.map((r) => ({
+      product_id: r.productId,
+      product_name: r.productName,
+      variant_sig: r.variantSig,
+      esperado: r.esperado,
+      contado: r.contado === "" || Number.isNaN(Number(r.contado)) ? null : Number(r.contado),
+    }));
+    const { data, error } = await (supabase as any).rpc("apply_stock_count_product", {
+      p_count_id: countId,
+      p_items: items,
+    });
+    setSavingProduct(false);
+    if (error) {
+      return toast({ title: "No se pudo guardar", description: error.message, variant: "destructive" });
+    }
+    const ajustes = (data as any)?.ajustes ?? 0;
+    // El stock del sistema ahora coincide con lo contado
+    setRows((prev) =>
+      prev.map((r) =>
+        r.productId === productId && r.contado !== "" && !Number.isNaN(Number(r.contado))
+          ? { ...r, esperado: Number(r.contado) }
+          : r,
+      ),
+    );
+    setConfirmedProducts((prev) => ({ ...prev, [productId]: items.filter((i) => i.contado !== null).length }));
+    toast({
+      title: "Stock actualizado",
+      description: ajustes ? `${ajustes} ajuste(s) aplicados al stock.` : "Sin diferencias: el conteo quedó guardado.",
+    });
+    setSelectedProductId(null);
+  };
+
+
 
 
   const summary = useMemo(() => {
@@ -308,28 +391,44 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
     const reporte = lineas.join("\n");
 
-    // Registrar conteo completo + aplicar ajustes de stock
-    const items = rows.map((r) => ({
-      product_id: r.productId,
-      product_name: r.productName,
-      variant_sig: r.variantSig,
-      esperado: r.esperado,
-      contado: r.contado === "" || Number.isNaN(Number(r.contado)) ? null : Number(r.contado),
-    }));
+    if (!countId) {
+      return toast({ title: "Conteo no iniciado", variant: "destructive" });
+    }
 
-    const { data, error } = await supabase.rpc("apply_stock_count_adjustments", {
-      p_items: items as any,
-      p_categoria: selectedCat.name,
+    // Guardar cualquier producto contado que todavía no se haya confirmado
+    const pendientes = rows.filter(
+      (r) => r.contado !== "" && !Number.isNaN(Number(r.contado)) && !confirmedProducts[r.productId],
+    );
+    if (pendientes.length) {
+      const items = pendientes.map((r) => ({
+        product_id: r.productId,
+        product_name: r.productName,
+        variant_sig: r.variantSig,
+        esperado: r.esperado,
+        contado: Number(r.contado),
+      }));
+      const { error: pendErr } = await (supabase as any).rpc("apply_stock_count_product", {
+        p_count_id: countId,
+        p_items: items,
+      });
+      if (pendErr) {
+        return toast({ title: "No se pudo guardar el conteo", description: pendErr.message, variant: "destructive" });
+      }
+    }
+
+    const { data, error } = await (supabase as any).rpc("finalize_stock_count", {
+      p_count_id: countId,
       p_observaciones: observaciones.trim() || null,
       p_reporte: reporte,
     });
     if (error) {
-      return toast({ title: "No se pudo registrar el conteo", description: error.message, variant: "destructive" });
+      return toast({ title: "No se pudo cerrar el conteo", description: error.message, variant: "destructive" });
     }
     const ajustados = (data as any)?.ajustes ?? 0;
-    toast({ title: "Conteo registrado", description: `${ajustados} ítems ajustados según el conteo.` });
+    toast({ title: "Conteo finalizado", description: `${ajustados} ítems ajustados según el conteo.` });
 
-    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${(data as any)?.count_id ?? ""}`;
+    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${countId}`;
+
     onConfirm({ nota: notaFinal, entidad_ref_texto: selectedCat.name });
   };
 
@@ -474,9 +573,21 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             {prodRows.map(({ r, idx }) => renderRow(r, idx))}
           </div>
 
-          <Button className="w-full" variant="secondary" onClick={() => setSelectedProductId(null)}>
-            Listo, volver a productos
+          <Button
+            className="w-full"
+            onClick={() => confirmProduct(selectedProduct.id)}
+            disabled={savingProduct}
+          >
+            {savingProduct ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1" />}
+            Confirmar producto y actualizar stock
           </Button>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Al confirmar, el stock del sistema queda igual a lo contado y se guarda aunque salgas del proceso.
+          </p>
+          <Button className="w-full" variant="ghost" onClick={() => setSelectedProductId(null)}>
+            Volver sin confirmar
+          </Button>
+
         </CardContent>
       </Card>
       <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleScanned} />
@@ -506,7 +617,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
             <span className="text-xl">{selectedCat.icon || "📦"}</span>
             {selectedCat.name}
           </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => { setSelectedCat(null); setRows([]); setProducts([]); }}>
+          <Button variant="ghost" size="sm" onClick={() => { setSelectedCat(null); setRows([]); setProducts([]); setCountId(null); setConfirmedProducts({}); }}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Cambiar
           </Button>
         </div>
@@ -563,7 +674,12 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">{p.name}</div>
+                      <div className="text-sm font-medium truncate flex items-center gap-1">
+                        {p.name}
+                        {confirmedProducts[p.id] && (
+                          <Badge variant="outline" className="text-[10px] border-green-500/50 text-green-500">guardado</Badge>
+                        )}
+                      </div>
                       <div className="text-[11px] text-muted-foreground truncate">
                         {p.sku_base ? `${p.sku_base} · ` : ""}{st.total} ítem(s) · esp. {st.esperado} u.
                       </div>
@@ -571,6 +687,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
                     <span className={`text-[11px] shrink-0 ${st.dif > 0 ? "text-orange-500" : done ? "text-green-500" : "text-muted-foreground"}`}>
                       {st.contados}/{st.total}
                     </span>
+
                     <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
                   </button>
                 );
