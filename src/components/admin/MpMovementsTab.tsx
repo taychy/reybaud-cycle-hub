@@ -63,7 +63,7 @@ const isOwnMpEmail = (slug: string | undefined, email: string | null) => {
   return (OWN_MP_EMAILS_BY_SLUG[slug] ?? []).includes(email.toLowerCase());
 };
 
-export default function MpMovementsTab() {
+export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [enriching, setEnriching] = useState(false);
