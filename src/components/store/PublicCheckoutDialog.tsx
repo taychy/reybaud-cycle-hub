@@ -123,7 +123,15 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
         opt_in_marketing: optIn,
       },
     });
-    const err = (data as any)?.error || error?.message;
+    let err = (data as any)?.error as string | undefined;
+    if (!err && error) {
+      // La función devuelve el detalle en el body aunque el status sea 4xx/5xx
+      try {
+        const body = await (error as any)?.context?.json?.();
+        err = body?.error;
+      } catch { /* sin body legible */ }
+      err = err || error.message;
+    }
     if (err || !(data as any)?.init_point) {
       setLoading(false);
       toast({ title: "No pudimos completar la compra", description: err || "Intentá de nuevo.", variant: "destructive" });
