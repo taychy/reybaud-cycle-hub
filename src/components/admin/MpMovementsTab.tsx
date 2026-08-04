@@ -100,6 +100,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   useEffect(() => {
     setTarget({ type: "saldo", id: null });
+    setNewSubPlan("");
+    setNewSubPrice("");
+    setNewSubMonth(assignDialog?.fecha_movimiento ? String(assignDialog.fecha_movimiento).slice(0, 7) : "");
     if (selectedAlumno) void loadTargets(selectedAlumno);
     else setTargets(null);
   }, [selectedAlumno]);
