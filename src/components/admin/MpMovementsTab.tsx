@@ -596,7 +596,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               </div>
             )}
             <div>
-              <label className="text-sm font-medium">Alumno</label>
+              <label className="text-sm font-medium">{splitMode ? "Agregar integrantes de la familia" : "Alumno"}</label>
               <Command className="border rounded-md" shouldFilter={false}>
                 <CommandInput placeholder="Buscar por nombre, email (incl. adicionales) o DNI..." onValueChange={loadAlumnosQuery} />
 
@@ -607,8 +607,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                       <CommandItem
                         key={a.id}
                         value={a.id}
-                        onSelect={() => setSelectedAlumno(a.id)}
-                        className={selectedAlumno === a.id ? "bg-accent" : ""}
+                        onSelect={() => (splitMode ? addSplitAlumno(a) : setSelectedAlumno(a.id))}
+                        className={!splitMode && selectedAlumno === a.id ? "bg-accent" : ""}
                       >
                         <div>
                           <div>{a.nombre} {a.apellido ?? ""}</div>
@@ -620,7 +620,45 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                 </CommandList>
               </Command>
             </div>
-            {selectedAlumno && (
+
+            {splitMode && (
+              <div className="space-y-2">
+                {splitRows.length === 0 && (
+                  <div className="text-xs text-muted-foreground">Buscá y tocá a cada alumno para agregarlo al reparto.</div>
+                )}
+                {splitRows.map((r, i) => (
+                  <div key={r.alumno.id} className="flex items-center gap-2">
+                    <div className="flex-1 text-sm truncate">
+                      {r.alumno.nombre} {r.alumno.apellido ?? ""}
+                      {i === 0 && <span className="ml-1 text-[10px] text-muted-foreground">(pagador)</span>}
+                    </div>
+                    <Input
+                      className="w-32 h-8"
+                      inputMode="decimal"
+                      placeholder="Monto"
+                      value={r.monto}
+                      onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, monto: e.target.value } : p))}
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setSplitRows((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
+                  </div>
+                ))}
+                {splitRows.length > 0 && assignDialog && (() => {
+                  const suma = splitRows.reduce((s, r) => s + (Number(r.monto) || 0), 0);
+                  const total = Number(assignDialog.amount) || 0;
+                  const resto = total - suma;
+                  return (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Repartido: {formatPrice(suma, assignDialog.currency)} de {formatPrice(total, assignDialog.currency)}</span>
+                      <span className={resto < -0.01 ? "text-destructive" : Math.abs(resto) < 0.01 ? "text-emerald-400" : "text-amber-400"}>
+                        {resto < -0.01 ? `Excede por ${formatPrice(Math.abs(resto), assignDialog.currency)}` : Math.abs(resto) < 0.01 ? "Exacto ✓" : `Resta ${formatPrice(resto, assignDialog.currency)}`}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {!splitMode && selectedAlumno && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">¿A qué se aplica este pago?</label>
                 {loadingTargets && <div className="text-xs text-muted-foreground">Buscando deudas abiertas...</div>}
