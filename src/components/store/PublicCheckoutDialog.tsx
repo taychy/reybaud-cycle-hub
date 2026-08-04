@@ -219,7 +219,7 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
             <span className="text-lg font-heading font-bold">{formatPrice(total, moneda)}</span>
           </div>
 
-          <Button className="w-full" disabled={loading} onClick={submit}>
+          <Button className="w-full" disabled={loading || (stockDisp != null && stockDisp <= 0)} onClick={submit}>
             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
             Pagar con Mercado Pago
           </Button>
