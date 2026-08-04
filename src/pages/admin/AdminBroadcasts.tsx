@@ -524,6 +524,36 @@ export default function AdminBroadcasts() {
         {/* COMPOSER */}
         <TabsContent value="composer" className="space-y-4">
           <Card className="p-4 space-y-4">
+            {templates.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Cargar plantilla guardada</Label>
+                <Select
+                  value={selectedTemplateId}
+                  onValueChange={(value) => {
+                    setSelectedTemplateId(value);
+                    const tpl = templates.find((t) => t.id === value);
+                    if (tpl) {
+                      setComposer({
+                        ...composer,
+                        subject: tpl.subject,
+                        content_html: tpl.content_html,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar plantilla..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}{t.description ? ` — ${t.description}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Asunto *</Label>
               <Input value={composer.subject}
