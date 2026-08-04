@@ -398,15 +398,18 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Sin asignar (aprobados)</div>{badge}</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
               <Card><CardContent className="pt-4">
                 <div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Total (aprobados)</div>{badge}</div>
-
-          <div className="text-sm font-bold">
-            {Object.entries(totals.totalByCurrency).map(([cur, val]) => (
-              <div key={cur}>{formatPrice(val, cur)}</div>
-            ))}
-            {Object.keys(totals.totalByCurrency).length === 0 && "—"}
-          </div>
-        </CardContent></Card>
+                <div className="text-sm font-bold">
+                  {Object.entries(totals.totalByCurrency).map(([cur, val]) => (
+                    <div key={cur}>{formatPrice(val, cur)}</div>
+                  ))}
+                  {Object.keys(totals.totalByCurrency).length === 0 && "—"}
+                </div>
+              </CardContent></Card>
+            </>
+          );
+        })()}
       </div>
+
 
       <Card>
         <CardContent className="pt-4 space-y-3">
