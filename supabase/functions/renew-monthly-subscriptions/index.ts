@@ -175,12 +175,16 @@ Deno.serve(async (req) => {
     const newFechaIni = nextMonthStart > targetMonthStart ? nextMonthStart : targetMonthStart;
     const newFechaFin = endOfMonthISO(newFechaIni);
 
+    // Idempotencia: sólo cuentan renovaciones NO canceladas. Una sub cancelada
+    // (o con cancelada_at) no representa una renovación vigente y no debe bloquear.
     const { data: existing } = await supabase
       .from("suscripciones")
       .select("id")
       .eq("alumno_id", old.alumno_id)
       .eq("plan_id", old.plan_id)
       .gt("fecha_inicio", old.fecha_fin)
+      .neq("estado", "cancelada")
+      .is("cancelada_at", null)
       .limit(1);
 
     if (existing && existing.length) {
