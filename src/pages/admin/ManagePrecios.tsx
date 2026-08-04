@@ -41,7 +41,8 @@ const noSpinnerClass = "[appearance:textfield] [&::-webkit-outer-spin-button]:ap
 
 const firstDayOfNextMonth = () => {
   const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, "0")}-01`.replace(/-(13)-/, `-${String(1).padStart(2, "0")}-`).replace(String(now.getFullYear()), String(now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()));
+  const next = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}-01`;
 };
 
 const ManagePrecios = () => {
