@@ -12,6 +12,7 @@ import VariantsEditor from "@/components/store/VariantsEditor";
 import VariantStockEditor from "@/components/store/VariantStockEditor";
 import ComboItemsEditor, { ComboItem } from "@/components/store/ComboItemsEditor";
 import ExternalProductDialog from "@/components/store/ExternalProductDialog";
+import StoreFxConfig from "@/components/store/StoreFxConfig";
 import { effectiveStock, hasStockMismatch } from "@/lib/stock";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 

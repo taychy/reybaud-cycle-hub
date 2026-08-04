@@ -72,7 +72,6 @@ Deno.serve(async (req) => {
     }
 
     const unit = Number(product.price) || 0;
-    const total = unit * cantidad;
 
     // Mercado Pago sólo cobra en ARS: convertimos precios en USD/EUR con el tipo de cambio fijo.
     const moneda = String(product.currency || "ARS").toUpperCase();

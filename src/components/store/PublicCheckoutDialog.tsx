@@ -219,6 +219,12 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
             <span className="text-lg font-heading font-bold">{formatPrice(total, moneda)}</span>
           </div>
 
+          {moneda !== "ARS" && (
+            <p className="text-[11px] text-muted-foreground -mt-1">
+              El pago se cobra en pesos argentinos, convertido al tipo de cambio vigente de la tienda.
+            </p>
+          )}
+
           <Button className="w-full" disabled={loading || (stockDisp != null && stockDisp <= 0)} onClick={submit}>
             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
             Pagar con Mercado Pago
