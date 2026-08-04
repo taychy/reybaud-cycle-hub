@@ -555,8 +555,25 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
           </DialogHeader>
 
           <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-200">
-            Paso 1: elegí el alumno. Paso 2: elegí <b>a qué se aplica</b> el pago (evento, plan o saldo a favor).
+            {splitMode
+              ? <>Pago familiar: agregá a cada integrante y el monto que le corresponde. Cada uno recibe su saldo a favor y después lo aplicás a su plan.</>
+              : <>Paso 1: elegí el alumno. Paso 2: elegí <b>a qué se aplica</b> el pago (evento, plan o saldo a favor).</>}
           </div>
+
+          <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+            <div className="text-xs">
+              <div className="font-medium">Un solo pago para varios alumnos (familia)</div>
+              <div className="text-muted-foreground">Ej: el papá paga su plan y el de sus hijos.</div>
+            </div>
+            <Button
+              size="sm"
+              variant={splitMode ? "default" : "outline"}
+              onClick={() => { setSplitMode((v) => !v); setSplitRows([]); setSelectedAlumno(null); }}
+            >
+              {splitMode ? "Volver a asignación simple" : "Dividir pago"}
+            </Button>
+          </div>
+
 
 
           <div className="space-y-3">
