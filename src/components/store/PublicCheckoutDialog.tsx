@@ -127,23 +127,49 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
         </DialogHeader>
 
         <div className="space-y-3 py-1">
-          {specs.map((s) => (
-            <div key={s.name} className="space-y-1">
-              <Label className="text-xs">{s.name}</Label>
-              <Select value={variante[s.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [s.name]: v }))}>
-                <SelectTrigger><SelectValue placeholder={`Elegí ${s.name.toLowerCase()}`} /></SelectTrigger>
-                <SelectContent>
-                  {s.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
+          {specs.map((s) => {
+            const opts = optionStock
+              ? s.options.filter((o) => (optionStock[s.name]?.[o] ?? 0) > 0)
+              : s.options;
+            return (
+              <div key={s.name} className="space-y-1">
+                <Label className="text-xs">{s.name}</Label>
+                <Select value={variante[s.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [s.name]: v }))}>
+                  <SelectTrigger><SelectValue placeholder={`Elegí ${s.name.toLowerCase()}`} /></SelectTrigger>
+                  <SelectContent>
+                    {opts.map((o) => (
+                      <SelectItem key={o} value={o}>
+                        {o}{optionStock ? ` · ${optionStock[s.name][o]}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {opts.length === 0 && (
+                  <p className="text-[11px] text-destructive">Sin stock disponible.</p>
+                )}
+              </div>
+            );
+          })}
 
           <div className="space-y-1">
             <Label className="text-xs">Cantidad</Label>
-            <Input type="number" min={1} value={cantidad} onChange={(e) => setCantidad(Math.max(1, Number(e.target.value) || 1))} />
-            {stockDisp != null && <p className="text-[11px] text-muted-foreground">{stockDisp} disponibles</p>}
+            <Input
+              type="number"
+              min={1}
+              max={stockDisp ?? undefined}
+              value={cantidad}
+              onChange={(e) => {
+                const n = Math.max(1, Number(e.target.value) || 1);
+                setCantidad(stockDisp != null && stockDisp > 0 ? Math.min(n, stockDisp) : n);
+              }}
+            />
+            {stockDisp != null && (
+              <p className={`text-[11px] ${stockDisp <= 0 ? "text-destructive" : "text-muted-foreground"}`}>
+                {stockDisp <= 0 ? "Sin stock en este talle" : `${stockDisp} disponibles`}
+              </p>
+            )}
           </div>
+
 
           <div className="space-y-1">
             <Label className="text-xs">Nombre y apellido</Label>
