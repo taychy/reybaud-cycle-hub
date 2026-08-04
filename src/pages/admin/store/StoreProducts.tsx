@@ -82,6 +82,7 @@ const StoreProducts = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+  const [suppliers, setSuppliers] = useState<{ id: string; nombre: string }[]>([]);
   const [search, setSearch] = useState("");
   const [filterCat, setFilterCat] = useState("all");
   const [filterStatus, setFilterStatus] = useState("all");
@@ -171,7 +172,11 @@ const StoreProducts = () => {
         : ["retiro_sede"],
       pickup_sede_ids: Array.isArray(editProduct.pickup_sede_ids) ? editProduct.pickup_sede_ids : [],
       no_admite_cambio: (editProduct as any).no_admite_cambio || false,
+      marca: (editProduct as any).marca || null,
+      supplier_id: (editProduct as any).supplier_id || null,
+      proveedor: (editProduct as any).proveedor || null,
     };
+
     if (editProduct.id) {
       await supabase.from("store_products").update(payload as any).eq("id", editProduct.id);
       toast({ title: "Producto actualizado" });
@@ -368,6 +373,16 @@ const StoreProducts = () => {
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-medium text-foreground">{p.name}</span>
+                    {(p as any).marca && (
+                      <span className="text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary/15 text-primary">
+                        {(p as any).marca}
+                      </span>
+                    )}
+                    {(p as any).proveedor && !(p as any).es_externo && (
+                      <span className="text-[10px] uppercase px-2 py-0.5 rounded bg-muted text-muted-foreground">
+                        {(p as any).proveedor}
+                      </span>
+                    )}
                     {p.featured && <Star className="w-3.5 h-3.5 text-gold fill-gold" />}
                     {(p as any).es_externo && (
                       <Tooltip>
@@ -381,6 +396,7 @@ const StoreProducts = () => {
                     )}
                   </div>
                 </td>
+
                 <td className="px-4 py-2 hidden md:table-cell text-muted-foreground">{getCategoryName(p.category_id)}</td>
                 <td className="px-4 py-2 text-right">
                   <span className="font-heading font-bold">${p.price.toLocaleString("es-AR")}</span>
@@ -456,6 +472,36 @@ const StoreProducts = () => {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
+                <label className="text-xs font-heading uppercase text-muted-foreground">Marca</label>
+                <Input
+                  placeholder="Ej: Santini"
+                  value={(editProduct as any)?.marca || ""}
+                  onChange={(e) => setEditProduct((p) => ({ ...(p as any), marca: e.target.value }))}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-heading uppercase text-muted-foreground">Proveedor</label>
+                <Select
+                  value={(editProduct as any)?.supplier_id || "none"}
+                  onValueChange={(v) => {
+                    const sup = suppliers.find((s) => s.id === v);
+                    setEditProduct((p) => ({
+                      ...(p as any),
+                      supplier_id: v === "none" ? null : v,
+                      proveedor: sup ? sup.nombre : null,
+                    }));
+                  }}
+                >
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin proveedor</SelectItem>
+                    {suppliers.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
                 <label className="text-xs font-heading uppercase text-muted-foreground">Categoría</label>
                 <Select value={editProduct?.category_id || "none"} onValueChange={(v) => setEditProduct((p) => ({ ...p, category_id: v === "none" ? null : v }))}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
@@ -476,6 +522,7 @@ const StoreProducts = () => {
                 </Select>
               </div>
             </div>
+
             <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="text-xs font-heading uppercase text-muted-foreground">Precio *</label>
