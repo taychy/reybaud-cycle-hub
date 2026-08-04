@@ -114,6 +114,8 @@ export default function AdminBroadcasts() {
   const [showDetail, setShowDetail] = useState<Broadcast | null>(null);
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
   const [promoProducts, setPromoProducts] = useState<Array<{ id: string; name: string; price: number; old_price: number | null; currency: string | null; image_url: string | null; promo_activa?: boolean | null; es_externo?: boolean | null }>>([]);
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; description: string | null; subject: string; content_html: string }>>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
     (async () => {
@@ -125,6 +127,16 @@ export default function AdminBroadcasts() {
         .order("name")
         .limit(200);
       setPromoProducts((data as any) || []);
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("broadcast_templates" as any)
+        .select("id, name, description, subject, content_html")
+        .order("updated_at", { ascending: false });
+      setTemplates((data as any) || []);
     })();
   }, []);
 
@@ -512,6 +524,36 @@ export default function AdminBroadcasts() {
         {/* COMPOSER */}
         <TabsContent value="composer" className="space-y-4">
           <Card className="p-4 space-y-4">
+            {templates.length > 0 && (
+              <div className="space-y-1.5">
+                <Label>Cargar plantilla guardada</Label>
+                <Select
+                  value={selectedTemplateId}
+                  onValueChange={(value) => {
+                    setSelectedTemplateId(value);
+                    const tpl = templates.find((t) => t.id === value);
+                    if (tpl) {
+                      setComposer({
+                        ...composer,
+                        subject: tpl.subject,
+                        content_html: tpl.content_html,
+                      });
+                    }
+                  }}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar plantilla..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {templates.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}{t.description ? ` — ${t.description}` : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label>Asunto *</Label>
               <Input value={composer.subject}
