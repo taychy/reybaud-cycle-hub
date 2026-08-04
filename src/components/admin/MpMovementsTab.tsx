@@ -304,6 +304,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   const totals = useMemo(() => {
     const approved = filtered.filter((m) => m.status === "approved");
+    const rejected = filtered.filter((m) => m.status && m.status !== "approved" && m.status !== "pending" && m.status !== "in_process");
     const totalByCurrency = approved.reduce<Record<string, number>>((acc, m) => {
       acc[m.currency] = (acc[m.currency] ?? 0) + Number(m.amount);
       return acc;
@@ -311,7 +312,11 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     return {
       total: filtered.length,
       approved: approved.length,
-      unassigned: filtered.filter((m) => !m.alumno_id && !m.reservation_payment_id && !m.suscripcion_id).length,
+      rejected: rejected.length,
+      // Sólo cuentan los asignables: un pago rechazado/cancelado nunca se asigna.
+      unassigned: filtered.filter(
+        (m) => m.status === "approved" && !m.alumno_id && !m.reservation_payment_id && !m.suscripcion_id
+      ).length,
       totalByCurrency,
     };
   }, [filtered]);
