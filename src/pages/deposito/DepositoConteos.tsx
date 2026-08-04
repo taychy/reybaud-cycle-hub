@@ -173,12 +173,19 @@ const DepositoConteos = () => {
             className="w-full text-left p-3 rounded-lg border border-border bg-card hover:bg-accent/40 transition-colors"
           >
             <div className="flex items-center justify-between gap-2">
-              <span className="font-medium text-sm truncate">{c.categoria || "Conteo"}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate flex items-center gap-2">
+                {c.categoria || "Conteo"}
+                {(c as any).estado === "en_curso" && (
+                  <Badge variant="outline" className="text-[10px] border-orange-500/50 text-orange-500">en curso</Badge>
+                )}
+              </span>
               <span className="text-[11px] text-muted-foreground shrink-0">{fmtFecha(c.created_at)}</span>
             </div>
             <div className="text-[11px] text-muted-foreground mt-1">
               Por {c.confirmado_por_nombre || "—"} · {c.items_diferencia} diferencias · {c.movimientos_generados} movimientos
             </div>
+
           </button>
         ))
       )}
