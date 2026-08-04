@@ -44,7 +44,7 @@ type Movement = {
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
 
 type TargetRow = { id: string; label: string; currency: string; total: number; paid?: number; balance?: number; estado?: string; fecha?: string };
-type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[] };
+type PaymentTargets = { reservations: TargetRow[]; subscriptions: TargetRow[]; cargos?: TargetRow[] };
 
 
 const STATUS_COLORS: Record<string, string> = {
@@ -85,7 +85,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [assigning, setAssigning] = useState(false);
   const [targets, setTargets] = useState<PaymentTargets | null>(null);
   const [loadingTargets, setLoadingTargets] = useState(false);
-  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion"; id: string | null }>({ type: "saldo", id: null });
+  const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion" | "cargo"; id: string | null }>({ type: "saldo", id: null });
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
 
@@ -227,7 +227,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       toast({ title: "No se pudieron cargar los destinos", description: error.message, variant: "destructive" });
       return;
     }
-    setTargets((data as any) ?? { reservations: [], subscriptions: [] });
+    setTargets((data as any) ?? { reservations: [], subscriptions: [], cargos: [] });
   }
 
   async function handleAssign() {
@@ -261,7 +261,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
           ? (created ? "Se registró el pago en la reserva del evento y se imputó a la cuota más antigua." : "Este pago ya estaba vinculado a la reserva.")
           : target.type === "suscripcion"
             ? "El plan quedó marcado como pagado con este movimiento."
-            : (created ? "Se registró un saldo a favor en la cuenta corriente del alumno." : "Ya existía un saldo a favor vinculado a este pago."),
+            : target.type === "cargo"
+              ? "El pago se imputó a la deuda de la cuenta corriente."
+              : (created ? "Se registró un saldo a favor en la cuenta corriente del alumno." : "Ya existía un saldo a favor vinculado a este pago."),
     });
     setAssignDialog(null);
     setSelectedAlumno(null);
