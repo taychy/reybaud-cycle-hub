@@ -742,6 +742,24 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
           </div>
         )}
 
+        {rows.length > 0 && (
+          <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={zeroUncounted}
+              onChange={(e) => setZeroUncounted(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm">
+              Poner en <b>0</b> los talles/variantes que no conté
+              <span className="block text-xs text-muted-foreground">
+                Recomendado: el stock queda exactamente igual a lo contado. Si lo destildás, las variantes sin contar
+                conservan la cantidad anterior del sistema.
+              </span>
+            </span>
+          </label>
+        )}
+
         <div className="flex gap-2 pt-1">
           <Button onClick={handleConfirm} disabled={saving || rows.length === 0} className="flex-1">
             {saving ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-1" />}
