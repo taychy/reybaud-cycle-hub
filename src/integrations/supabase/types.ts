@@ -11309,6 +11309,36 @@ export type Database = {
         }
         Returns: Json
       }
+      audit_alumno_precios: {
+        Args: { _alumno_id: string }
+        Returns: {
+          aplicado_antes_de_vigencia: boolean
+          desalineada: boolean
+          diagnostico: string
+          diferencia: number
+          estado: string
+          fecha_fin: string
+          fecha_inicio: string
+          moneda: string
+          origen_aplicado_at: string
+          origen_aplicar_a: string
+          origen_fecha_cambio: string
+          origen_fecha_vigencia: string
+          origen_historial_id: string
+          origen_modificado_por: string
+          plan_id: string
+          plan_nombre: string
+          precio_base: number
+          precio_esperado: number
+          precio_final: number
+          precio_plan_actual: number
+          reproceso_fuera_de_orden: boolean
+          sub_updated_at: string
+          suscripcion_id: string
+          ultimo_job_aplicado_at: string
+          ultimo_job_vigencia: string
+        }[]
+      }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
       cancel_store_order:
