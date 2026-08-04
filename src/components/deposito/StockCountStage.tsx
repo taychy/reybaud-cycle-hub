@@ -170,6 +170,22 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       return;
     }
 
+    // Fallback: deducir la variante desde el sufijo del SKU escaneado (ej. RYB-CALZA-M)
+    if (!variante) {
+      const tokens = code.toUpperCase().split(/[-_\s|/]+/).filter(Boolean);
+      const match = prodRows.find((r) => {
+        if (!r.variantSig) return false;
+        const opts = r.variantSig.split("|").map((p) => p.slice(p.indexOf(":") + 1).trim().toUpperCase());
+        return opts.every((o) => tokens.includes(o));
+      });
+      if (match && match.variantSig) {
+        variante = Object.fromEntries(
+          match.variantSig.split("|").map((p) => [p.slice(0, p.indexOf(":")), p.slice(p.indexOf(":") + 1)]),
+        );
+      }
+    }
+
+
     if (variante) {
       const target = prodRows.find((r) => sigMatchesVariante(r.variantSig, variante));
       if (target) {
