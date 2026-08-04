@@ -63,7 +63,7 @@ const isOwnMpEmail = (slug: string | undefined, email: string | null) => {
   return (OWN_MP_EMAILS_BY_SLUG[slug] ?? []).includes(email.toLowerCase());
 };
 
-export default function MpMovementsTab() {
+export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }) {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [enriching, setEnriching] = useState(false);
@@ -95,7 +95,8 @@ export default function MpMovementsTab() {
   useEffect(() => {
     void load();
     void loadCuentas();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [periodo]);
 
   async function loadCuentas() {
     const { data } = await supabase.from("cuentas_mp").select("id, nombre, slug").eq("activa", true).order("nombre");
@@ -104,7 +105,7 @@ export default function MpMovementsTab() {
 
   async function load() {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from("mp_account_movements")
       .select(`
         id, cuenta_mp_id, mp_payment_id, status, status_detail, payment_method, payment_type,
@@ -114,9 +115,18 @@ export default function MpMovementsTab() {
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug ),
         alumnos:alumnos!alumno_id ( id, nombre, apellido, email )
       `)
-      .eq("direccion", "ingreso")
+      .eq("direccion", "ingreso");
+
+    if (periodo && periodo !== "all" && /^\d{4}-\d{2}$/.test(periodo)) {
+      const [y, m] = periodo.split("-").map(Number);
+      const start = new Date(Date.UTC(y, m - 1, 1)).toISOString();
+      const end = new Date(Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1)).toISOString();
+      query = query.gte("fecha_movimiento", start).lt("fecha_movimiento", end);
+    }
+
+    const { data, error } = await query
       .order("fecha_movimiento", { ascending: false })
-      .limit(500);
+      .limit(1000);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
@@ -278,7 +288,8 @@ export default function MpMovementsTab() {
       if (statusFilter !== "all" && (m.status ?? "") !== statusFilter) return false;
       const hasAssignment = !!(m.alumno_id || m.reservation_payment_id || m.suscripcion_id);
       if (assignFilter === "assigned" && !hasAssignment) return false;
-      if (assignFilter === "unassigned" && hasAssignment) return false;
+      // "Sin asignar" es cola de trabajo: sólo aprobados son asignables.
+      if (assignFilter === "unassigned" && (hasAssignment || (statusFilter === "all" && m.status !== "approved"))) return false;
       if (search) {
         const s = search.toLowerCase();
         const hay = [
@@ -294,6 +305,7 @@ export default function MpMovementsTab() {
 
   const totals = useMemo(() => {
     const approved = filtered.filter((m) => m.status === "approved");
+    const rejected = filtered.filter((m) => m.status && m.status !== "approved" && m.status !== "pending" && m.status !== "in_process");
     const totalByCurrency = approved.reduce<Record<string, number>>((acc, m) => {
       acc[m.currency] = (acc[m.currency] ?? 0) + Number(m.amount);
       return acc;
@@ -301,7 +313,11 @@ export default function MpMovementsTab() {
     return {
       total: filtered.length,
       approved: approved.length,
-      unassigned: filtered.filter((m) => !m.alumno_id && !m.reservation_payment_id && !m.suscripcion_id).length,
+      rejected: rejected.length,
+      // Sólo cuentan los asignables: un pago rechazado/cancelado nunca se asigna.
+      unassigned: filtered.filter(
+        (m) => m.status === "approved" && !m.alumno_id && !m.reservation_payment_id && !m.suscripcion_id
+      ).length,
       totalByCurrency,
     };
   }, [filtered]);
@@ -312,7 +328,7 @@ export default function MpMovementsTab() {
         <div>
           <h3 className="text-lg font-semibold">Movimientos de cuentas Mercado Pago</h3>
           <p className="text-sm text-muted-foreground">
-            Todos los cobros recibidos en las cuentas MP. Asigná un alumno cuando no lo identifiquemos automáticamente.
+            Cobros recibidos en las cuentas MP {periodo && periodo !== "all" ? <span className="text-foreground font-medium">· período {periodo}</span> : <span className="text-foreground font-medium">· todos los meses</span>}. Asigná un alumno cuando no lo identifiquemos automáticamente.
           </p>
         </div>
         <div className="flex gap-2">
@@ -327,10 +343,11 @@ export default function MpMovementsTab() {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
         <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Movimientos</div><div className="text-2xl font-bold">{totals.total}</div></CardContent></Card>
         <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Aprobados</div><div className="text-2xl font-bold text-green-500">{totals.approved}</div></CardContent></Card>
-        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Sin asignar</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Rechazados / cancelados</div><div className="text-2xl font-bold text-red-500">{totals.rejected}</div></CardContent></Card>
+        <Card><CardContent className="pt-4"><div className="text-xs text-muted-foreground">Sin asignar (aprobados)</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
         <Card><CardContent className="pt-4">
           <div className="text-xs text-muted-foreground">Total (aprobados)</div>
           <div className="text-sm font-bold">
