@@ -791,7 +791,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
       <Dialog open={!!applyCredit} onOpenChange={(o) => !o && setApplyCredit(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Aplicar pago a una suscripción</DialogTitle>
+            <DialogTitle>Aplicar saldo a favor a una deuda</DialogTitle>
             <DialogDescription>
               {applyCredit
                 ? `${applyCredit.concepto} · ${formatPrice(applyCredit.monto, applyCredit.moneda)}`
