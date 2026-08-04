@@ -39,6 +39,11 @@ const aplicarOptions = [
 
 const noSpinnerClass = "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none";
 
+const firstDayOfNextMonth = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 2).padStart(2, "0")}-01`.replace(/-(13)-/, `-${String(1).padStart(2, "0")}-`).replace(String(now.getFullYear()), String(now.getMonth() === 11 ? now.getFullYear() + 1 : now.getFullYear()));
+};
+
 const ManagePrecios = () => {
   const [planes, setPlanes] = useState<Plan[]>([]);
   const [historial, setHistorial] = useState<PrecioHistorial[]>([]);
@@ -52,7 +57,7 @@ const ManagePrecios = () => {
   const [form, setForm] = useState({
     precio_nuevo: "",
     fecha_vigencia: "",
-    aplicar_a: "nuevos",
+    aplicar_a: "todos",
     notas: "",
   });
 
@@ -70,7 +75,7 @@ const ManagePrecios = () => {
 
   const openUpdatePrice = (plan: Plan) => {
     setSelectedPlan(plan);
-    setForm({ precio_nuevo: "", fecha_vigencia: "", aplicar_a: "nuevos", notas: "" });
+    setForm({ precio_nuevo: "", fecha_vigencia: firstDayOfNextMonth(), aplicar_a: "todos", notas: "" });
     setModo("monto");
     setPorcentaje("");
     setDialogOpen(true);
@@ -122,17 +127,22 @@ const ManagePrecios = () => {
         return;
       }
 
-      // Update plan price
-      const { error: updateError } = await supabase.from("planes").update({ precio: newPrice } as any).eq("id", selectedPlan.id);
+      const today = new Date().toISOString().slice(0, 10);
+      const effectiveDate = form.fecha_vigencia || today;
+      const isFutureChange = effectiveDate > today;
 
-      if (updateError) {
-        toast({ title: "Error al actualizar precio", description: updateError.message, variant: "destructive" });
-        return;
+      // El precio visible del plan cambia recién al comenzar el período de vigencia.
+      if (!isFutureChange) {
+        const { error: updateError } = await supabase.from("planes").update({ precio: newPrice } as any).eq("id", selectedPlan.id);
+        if (updateError) {
+          toast({ title: "Error al actualizar precio", description: updateError.message, variant: "destructive" });
+          return;
+        }
       }
 
       // Propagar a las suscripciones existentes cuando corresponde ("Todos")
       let propagadas = 0;
-      if (form.aplicar_a === "todos" && histRow?.id) {
+      if (form.aplicar_a === "todos" && histRow?.id && !isFutureChange) {
         const { data: count, error: applyError } = await supabase.rpc("apply_price_change_to_subscriptions" as any, {
           _historial_id: histRow.id,
         });
@@ -150,9 +160,11 @@ const ManagePrecios = () => {
       }
 
       toast({
-        title: "Precio actualizado",
+        title: isFutureChange ? "Aumento programado" : "Precio actualizado",
         description:
-          form.aplicar_a === "todos"
+          isFutureChange
+            ? `Se aplicará desde el ${effectiveDate}; las mensualidades anteriores conservarán su precio.`
+            : form.aplicar_a === "todos"
             ? `${propagadas} suscripción(es) desde la fecha de vigencia quedaron actualizadas.`
             : "Se aplicará solo a nuevas suscripciones.",
       });
@@ -357,7 +369,7 @@ const ManagePrecios = () => {
             <div>
               <label className="text-sm font-medium">Fecha de entrada en vigencia</label>
               <Input type="date" value={form.fecha_vigencia} onChange={(e) => setForm({ ...form, fecha_vigencia: e.target.value })} />
-              <p className="text-xs text-muted-foreground mt-1">Dejá vacío para que aplique inmediatamente</p>
+              <p className="text-xs text-muted-foreground mt-1">Por defecto se aplica desde la próxima mensualidad; los períodos anteriores no cambian.</p>
             </div>
             <div>
               <label className="text-sm font-medium">¿A quién aplica?</label>

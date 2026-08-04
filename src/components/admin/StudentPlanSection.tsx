@@ -51,6 +51,14 @@ interface SuscripcionData {
   descuentos: { id: string; nombre: string; valor: number; tipo: string } | null;
 }
 
+interface PriceChangeData {
+  plan_id: string;
+  precio_anterior: number;
+  precio_nuevo: number;
+  fecha_vigencia: string | null;
+  fecha_cambio: string;
+}
+
 interface Props {
   alumno: Alumno;
   isSuperAdmin: boolean;
@@ -121,6 +129,7 @@ const nextPeriodStart = (fechaFin: string | null, todayStr: string) => {
 export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUpdate, openOverduePreviewToken }: Props) {
   const [subs, setSubs] = useState<SuscripcionData[]>([]);
   const [planes, setPlanes] = useState<Plan[]>([]);
+  const [priceChanges, setPriceChanges] = useState<PriceChangeData[]>([]);
   const [loading, setLoading] = useState(true);
   const [duplicateAlert, setDuplicateAlert] = useState<{ plan_nombre: string; fecha_fin: string }[]>([]);
   const { discounts, applyDiscount, loading: discountsLoading, isSubSecondary } = useStudentDiscounts(alumno.id);
@@ -205,17 +214,19 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
   const fetchData = async () => {
     setLoading(true);
-    const [subsRes, planesRes, discountsRes] = await Promise.all([
+    const [subsRes, planesRes, discountsRes, priceChangesRes] = await Promise.all([
       supabase.from("suscripciones").select("id, alumno_id, plan_id, estado, fecha_inicio, fecha_fin, cancelada_at, cancelada_motivo, mp_status, metodo_pago, origen_registro, created_at, descuento_id, precio_base, precio_final, auto_cobro_activo, mp_preapproval_id, clases_totales, clases_consumidas, clases_vencimiento, planes(id, nombre, precio, moneda, tipo_consumo), descuentos(id, nombre, valor, tipo)")
         .eq("alumno_id", alumno.id)
         .order("created_at", { ascending: false }),
       supabase.from("planes").select("*").eq("activo", true).order("nombre"),
       supabase.from("descuentos").select("id, nombre, valor, tipo, categoria").eq("activo", true).eq("categoria", "segunda_actividad"),
+      supabase.from("precio_historial").select("plan_id, precio_anterior, precio_nuevo, fecha_vigencia, fecha_cambio").order("fecha_cambio", { ascending: false }),
     ]);
     const allSubs = (subsRes.data as any) || [];
     setSubs(allSubs);
     setPlanes(planesRes.data || []);
     setAvailableDiscounts((discountsRes.data as any) || []);
+    setPriceChanges(((priceChangesRes.data as any) || []) as PriceChangeData[]);
 
     // Detect duplicates client-side from fetched data
     const operationalOnly = allSubs.filter((s: SuscripcionData) => ACTIVE_STATES.has(getEffStatus(s)) && !s.cancelada_at);
@@ -743,8 +754,17 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
       ? `${sub.descuentos!.nombre} (${sub.descuentos!.tipo === "fijo" ? `$${sub.descuentos!.valor}` : `${sub.descuentos!.valor}%`})`
       : hasLiveDiscount ? `${liveDiscount.discount!.nombre} (${liveDiscount.discount!.tipo === "fijo" ? `$${liveDiscount.discount!.valor}` : `${liveDiscount.discount!.valor}%`})` : "";
     const savings = displayBase - displayFinal;
-    // Aviso si el plan tiene hoy otro precio distinto al guardado en la sub (sin descuentos)
-    const planPriceMismatch = !hasAnyDiscount && sub.precio_base != null && planPrice > 0 && Number(sub.precio_base) !== Number(planPrice);
+    // Un cambio con vigencia posterior al inicio del período no vuelve incorrecto
+    // el precio histórico de esa suscripción (ej.: aumento de agosto vs. cuota de julio).
+    const subStart = (sub.fecha_inicio || "").slice(0, 10);
+    const applicableChange = priceChanges
+      .filter((change) => change.plan_id === sub.plan_id)
+      .filter((change) => (change.fecha_vigencia || change.fecha_cambio.slice(0, 10)) <= subStart)
+      .sort((a, b) => (b.fecha_vigencia || b.fecha_cambio).localeCompare(a.fecha_vigencia || a.fecha_cambio))[0];
+    const expectedPeriodPrice = applicableChange?.precio_nuevo ?? sub.precio_base ?? planPrice;
+    const planPriceMismatch = !hasAnyDiscount
+      && sub.precio_base != null
+      && Number(sub.precio_base) !== Number(expectedPeriodPrice);
 
     // Etiqueta de período (sólo para activas)
     const fiISO = (sub.fecha_inicio || "").slice(0, 10);
@@ -853,7 +873,7 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           {planPriceMismatch && !isHistoric && (
             <div className="flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] text-amber-300">
               <span>
-                Precio actual del plan: <span className="font-mono">{moneda} {planPrice}</span> (la sub se generó con {moneda} {sub.precio_base})
+                Precio correspondiente al período: <span className="font-mono">{moneda} {expectedPeriodPrice}</span> (la sub se generó con {moneda} {sub.precio_base})
               </span>
               <Button
                 variant="outline"
