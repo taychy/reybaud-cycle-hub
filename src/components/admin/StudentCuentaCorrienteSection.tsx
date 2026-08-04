@@ -57,7 +57,17 @@ interface Movimiento {
   referencia_extra: any;
 }
 
+interface SubTarget {
+  id: string;
+  label: string;
+  currency: string;
+  total: number;
+  estado: string;
+  fecha: string;
+}
+
 interface SaldoRow {
+
   moneda: string;
   total_cargos: number;
   total_pagos: number;
