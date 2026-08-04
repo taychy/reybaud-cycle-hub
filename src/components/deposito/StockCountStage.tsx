@@ -391,28 +391,44 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     }
     const reporte = lineas.join("\n");
 
-    // Registrar conteo completo + aplicar ajustes de stock
-    const items = rows.map((r) => ({
-      product_id: r.productId,
-      product_name: r.productName,
-      variant_sig: r.variantSig,
-      esperado: r.esperado,
-      contado: r.contado === "" || Number.isNaN(Number(r.contado)) ? null : Number(r.contado),
-    }));
+    if (!countId) {
+      return toast({ title: "Conteo no iniciado", variant: "destructive" });
+    }
 
-    const { data, error } = await supabase.rpc("apply_stock_count_adjustments", {
-      p_items: items as any,
-      p_categoria: selectedCat.name,
+    // Guardar cualquier producto contado que todavía no se haya confirmado
+    const pendientes = rows.filter(
+      (r) => r.contado !== "" && !Number.isNaN(Number(r.contado)) && !confirmedProducts[r.productId],
+    );
+    if (pendientes.length) {
+      const items = pendientes.map((r) => ({
+        product_id: r.productId,
+        product_name: r.productName,
+        variant_sig: r.variantSig,
+        esperado: r.esperado,
+        contado: Number(r.contado),
+      }));
+      const { error: pendErr } = await (supabase as any).rpc("apply_stock_count_product", {
+        p_count_id: countId,
+        p_items: items,
+      });
+      if (pendErr) {
+        return toast({ title: "No se pudo guardar el conteo", description: pendErr.message, variant: "destructive" });
+      }
+    }
+
+    const { data, error } = await (supabase as any).rpc("finalize_stock_count", {
+      p_count_id: countId,
       p_observaciones: observaciones.trim() || null,
       p_reporte: reporte,
     });
     if (error) {
-      return toast({ title: "No se pudo registrar el conteo", description: error.message, variant: "destructive" });
+      return toast({ title: "No se pudo cerrar el conteo", description: error.message, variant: "destructive" });
     }
     const ajustados = (data as any)?.ajustes ?? 0;
-    toast({ title: "Conteo registrado", description: `${ajustados} ítems ajustados según el conteo.` });
+    toast({ title: "Conteo finalizado", description: `${ajustados} ítems ajustados según el conteo.` });
 
-    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${(data as any)?.count_id ?? ""}`;
+    const notaFinal = `${reporte}\n\nAjustes aplicados al stock: ${ajustados} (motivo: ajuste por conteo)\nConteo registrado: ${countId}`;
+
     onConfirm({ nota: notaFinal, entidad_ref_texto: selectedCat.name });
   };
 
