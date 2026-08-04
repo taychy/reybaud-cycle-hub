@@ -86,7 +86,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
-  const [zeroUncounted, setZeroUncounted] = useState(true);
+  const zeroUncounted = false;
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [countId, setCountId] = useState<string | null>(null);
@@ -365,7 +365,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
     return map;
   }, [rows]);
 
-  const allFilled = rows.length > 0 && summary.sin === 0;
+  
 
   const handleConfirm = async () => {
     if (!selectedCat) return;
