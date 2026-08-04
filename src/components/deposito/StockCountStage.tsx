@@ -88,6 +88,10 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [observaciones, setObservaciones] = useState("");
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
+  const [countId, setCountId] = useState<string | null>(null);
+  const [confirmedProducts, setConfirmedProducts] = useState<Record<string, number>>({});
+  const [savingProduct, setSavingProduct] = useState(false);
+
 
   const sigMatchesVariante = (sig: string | null, variante: Record<string, string> | null) => {
     if (!variante || Object.keys(variante).length === 0) return false;
