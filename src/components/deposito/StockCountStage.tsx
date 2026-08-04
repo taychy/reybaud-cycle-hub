@@ -86,6 +86,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [search, setSearch] = useState("");
   const [rows, setRows] = useState<Row[]>([]);
   const [observaciones, setObservaciones] = useState("");
+  const [zeroUncounted, setZeroUncounted] = useState(true);
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
   const [countId, setCountId] = useState<string | null>(null);
@@ -436,6 +437,7 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       p_count_id: cid,
       p_observaciones: observaciones.trim() || null,
       p_reporte: reporte,
+      p_zero_uncounted: zeroUncounted,
     });
     if (error) {
       return toast({ title: "No se pudo cerrar el conteo", description: error.message, variant: "destructive" });
@@ -738,6 +740,24 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
               placeholder="Anotá cualquier irregularidad. Ej: caja de calzado todavía cerrada, conteo pendiente..."
             />
           </div>
+        )}
+
+        {rows.length > 0 && (
+          <label className="flex items-start gap-2 rounded-lg border border-border bg-muted/20 p-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={zeroUncounted}
+              onChange={(e) => setZeroUncounted(e.target.checked)}
+              className="mt-1"
+            />
+            <span className="text-sm">
+              Poner en <b>0</b> los talles/variantes que no conté
+              <span className="block text-xs text-muted-foreground">
+                Recomendado: el stock queda exactamente igual a lo contado. Si lo destildás, las variantes sin contar
+                conservan la cantidad anterior del sistema.
+              </span>
+            </span>
+          </label>
         )}
 
         <div className="flex gap-2 pt-1">
