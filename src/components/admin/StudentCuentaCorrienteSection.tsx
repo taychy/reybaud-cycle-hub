@@ -373,6 +373,43 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
     setDeletingId(null);
   };
 
+  // ---- Aplicar crédito a una suscripción ----
+  const openApplyCredit = async (m: Movimiento) => {
+    setApplyCredit({ id: m.fuente_id, concepto: m.concepto, monto: Number(m.haber) || 0, moneda: m.moneda });
+    setApplySubId("");
+    setApplyTargets([]);
+    const { data, error } = await supabase.rpc("get_alumno_payment_targets" as any, { _alumno_id: alumnoId });
+    if (error) {
+      toast.error("No se pudieron cargar las suscripciones pendientes");
+      return;
+    }
+    setApplyTargets(((data as any)?.subscriptions ?? []) as SubTarget[]);
+  };
+
+  const handleApplyCredit = async () => {
+    if (!applyCredit || !applySubId) return;
+    setApplyLoading(true);
+    const { error } = await supabase.rpc("apply_credit_ajuste_to_suscripcion" as any, {
+      _ajuste_id: applyCredit.id,
+      _suscripcion_id: applySubId,
+    });
+    setApplyLoading(false);
+    if (error) {
+      const map: Record<string, string> = {
+        credit_already_applied: "Este crédito ya fue aplicado a otra suscripción.",
+        subscription_already_paid: "Esa suscripción ya figura como paga.",
+        only_credit_can_be_applied: "Solo se pueden aplicar movimientos de crédito.",
+      };
+      toast.error(map[error.message?.replace(/^.*:\s*/, "") ?? ""] || error.message || "No se pudo aplicar el pago");
+      return;
+    }
+    toast.success("Pago aplicado a la suscripción");
+    setApplyCredit(null);
+    fetchData();
+    onSubscriptionsChanged?.();
+  };
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
