@@ -89,6 +89,37 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
   const [labelProductId, setLabelProductId] = useState<string | null>(null);
   const [scannerOpen, setScannerOpen] = useState(false);
 
+  const sigMatchesVariante = (sig: string | null, variante: Record<string, string> | null) => {
+    if (!variante || Object.keys(variante).length === 0) return false;
+    if (!sig) return false;
+    const parts = sig.split("|").map((p) => {
+      const i = p.indexOf(":");
+      return [p.slice(0, i).trim().toLowerCase(), p.slice(i + 1).trim().toLowerCase()] as const;
+    });
+    const entries = Object.entries(variante).map(
+      ([k, v]) => [String(k).trim().toLowerCase(), String(v).trim().toLowerCase()] as const,
+    );
+    return entries.every(([k, v]) => parts.some(([pk, pv]) => pk === k && pv === v));
+  };
+
+  const bumpCount = (productId: string, variante: Record<string, string> | null) => {
+    let hitLabel: string | null = null;
+    let newValue = 0;
+    setRows((prev) => {
+      const idx = prev.findIndex((r) => {
+        if (r.productId !== productId) return false;
+        if (!variante || Object.keys(variante).length === 0) return r.variantSig === null;
+        return sigMatchesVariante(r.variantSig, variante);
+      });
+      if (idx === -1) return prev;
+      const cur = prev[idx].contado === "" || Number.isNaN(Number(prev[idx].contado)) ? 0 : Number(prev[idx].contado);
+      newValue = cur + 1;
+      hitLabel = prev[idx].variantSig ? prev[idx].variantSig!.replace(/\|/g, " · ") : prev[idx].productName;
+      return prev.map((x, i) => (i === idx ? { ...x, contado: String(newValue) } : x));
+    });
+    return { hitLabel: () => hitLabel, value: () => newValue };
+  };
+
   const handleScanned = (raw: string) => {
     setScannerOpen(false);
     const code = (raw || "").trim();
@@ -112,11 +143,38 @@ const StockCountStage = ({ saving, isLast, onConfirm, onCancel }: Props) => {
       return;
     }
     setSelectedProductId(prod.id);
+
+    const variante = decoded?.variante || null;
+    const prodRows = rows.filter((r) => r.productId === prod!.id);
+    const hasVariants = prodRows.some((r) => r.variantSig !== null);
+
+    if (!hasVariants) {
+      const res = bumpCount(prod.id, null);
+      toast({ title: prod.name, description: `Sumado 1 → total ${res.value()}` });
+      return;
+    }
+
+    if (variante) {
+      const target = prodRows.find((r) => sigMatchesVariante(r.variantSig, variante));
+      if (target) {
+        const res = bumpCount(prod.id, variante);
+        toast({ title: prod.name, description: `${formatVariante(variante)} · sumado 1 → total ${res.value()}` });
+        return;
+      }
+      toast({
+        title: prod.name,
+        description: `La variante ${formatVariante(variante)} no existe en este producto. Cargala a mano.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     toast({
       title: prod.name,
-      description: decoded?.variante ? `Variante: ${formatVariante(decoded.variante)}` : "Cargá el conteo por variante.",
+      description: "La etiqueta no trae talle/variante. Elegí la variante y cargá el conteo.",
     });
   };
+
 
   useEffect(() => {
     (async () => {
