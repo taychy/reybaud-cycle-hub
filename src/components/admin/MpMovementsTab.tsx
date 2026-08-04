@@ -586,8 +586,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                   <button
                     key={a.id}
                     type="button"
-                    onClick={() => setSelectedAlumno(a.id)}
-                    className={`w-full text-left rounded px-2 py-1.5 text-sm ${selectedAlumno === a.id ? "bg-accent" : "hover:bg-muted"}`}
+                    onClick={() => (splitMode ? addSplitAlumno(a) : setSelectedAlumno(a.id))}
+                    className={`w-full text-left rounded px-2 py-1.5 text-sm ${!splitMode && selectedAlumno === a.id ? "bg-accent" : "hover:bg-muted"}`}
                   >
                     <div>{a.nombre} {a.apellido ?? ""}</div>
                     <div className="text-xs text-muted-foreground">{a.email}</div>
