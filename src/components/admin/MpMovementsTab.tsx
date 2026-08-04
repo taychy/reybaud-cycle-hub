@@ -778,7 +778,12 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                           <label className="text-xs text-muted-foreground">Plan</label>
                           <select
                             value={newSubPlan}
-                            onChange={(e) => setNewSubPlan(e.target.value)}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setNewSubPlan(v);
+                              const p = (targets?.planes ?? []).find((x) => x.id === v);
+                              if (p && !newSubPrice) setNewSubPrice(String(p.precio ?? ""));
+                            }}
                             className="mt-1 w-full rounded border border-border bg-background px-2 py-1.5 text-sm"
                           >
                             <option value="">Elegí el plan…</option>
