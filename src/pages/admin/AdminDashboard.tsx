@@ -627,11 +627,12 @@ const AdminDashboard = () => {
 
   const criticas = alerts.filter((a) => a.type === "danger").reduce((s, a) => s + a.count, 0);
   const kpis = [
-    { label: "Críticas", value: criticas, hint: "Requieren atención", icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido" },
-    { label: "Cobros pendientes", value: `$${Math.round(cuotasEventos.monto).toLocaleString("es-AR")}`, hint: `${cuotasEventos.count} cuotas de eventos`, icon: DollarSign, color: "text-yellow-500", to: "/admin/eventos" },
-    { label: "Facturas por emitir", value: chequeoAlerts.facturas, hint: "Pagos cobrados hoy", icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia" },
-    { label: "Pagos por conciliar", value: chequeoAlerts.pagos, hint: "Registrados hoy", icon: CreditCard, color: "text-emerald-500", to: "/admin/pagos/por-dia" },
+    { label: "Críticas", value: criticas, hint: "Requieren atención", icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", scope: "acumulado" as const },
+    { label: "Cobros pendientes", value: `$${Math.round(cuotasEventos.monto).toLocaleString("es-AR")}`, hint: `${cuotasEventos.count} cuotas de eventos`, icon: DollarSign, color: "text-yellow-500", to: "/admin/eventos", scope: "acumulado" as const },
+    { label: "Facturas por emitir", value: chequeoAlerts.facturas, hint: "Pagos cobrados hoy", icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia", scope: "hoy" as const },
+    { label: "Pagos por conciliar", value: chequeoAlerts.pagos, hint: "Registrados hoy", icon: CreditCard, color: "text-emerald-500", to: "/admin/pagos/por-dia", scope: "hoy" as const },
   ];
+
 
   return (
     <div className="space-y-6">
