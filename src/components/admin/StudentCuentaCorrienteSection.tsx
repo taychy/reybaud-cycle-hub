@@ -544,6 +544,17 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                           )}
                           {isAjuste ? (
                             <>
+                              {m.tipo === "ajuste_credito" && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-7 w-7 text-emerald-400 hover:text-emerald-300"
+                                  onClick={() => openApplyCredit(m)}
+                                  title="Aplicar este pago a una suscripción"
+                                >
+                                  <ArrowRightLeft className="h-3.5 w-3.5" />
+                                </Button>
+                              )}
                               <Button
                                 size="icon"
                                 variant="ghost"
@@ -563,6 +574,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                                 <Trash2 className="h-3.5 w-3.5" />
                               </Button>
                             </>
+
                           ) : m.tipo === "cargo_suscripcion" && m.estado !== "cancelada" ? (
                             <>
                               <Button
