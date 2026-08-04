@@ -734,7 +734,7 @@ const AdminPayments = () => {
         </TabsContent>
 
         <TabsContent value="mp" className="space-y-6">
-          <MpMovementsTab />
+          <MpMovementsTab periodo={filterPeriodo} />
         </TabsContent>
 
 
