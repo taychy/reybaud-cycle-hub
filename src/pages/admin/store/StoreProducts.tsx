@@ -96,14 +96,16 @@ const StoreProducts = () => {
   const { toast } = useToast();
 
   const load = async () => {
-    const [pRes, cRes, sRes] = await Promise.all([
+    const [pRes, cRes, sRes, supRes] = await Promise.all([
       supabase.from("store_products").select("*").order("created_at", { ascending: false }),
       supabase.from("store_categories").select("id, name").order("sort_order"),
       supabase.from("sedes").select("id, nombre").eq("activa", true).order("nombre"),
+      supabase.from("store_suppliers" as any).select("id, nombre").eq("activo", true).order("nombre"),
     ]);
     setProducts((pRes.data as any[]) || []);
     setCategories((cRes.data as any[]) || []);
     setSedes((sRes.data as any[]) || []);
+    setSuppliers((supRes.data as any[]) || []);
     setLoading(false);
   };
 
