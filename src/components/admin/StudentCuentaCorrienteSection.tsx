@@ -106,6 +106,13 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [changeLoading, setChangeLoading] = useState(false);
   const [absorbCredit, setAbsorbCredit] = useState(true);
 
+  // Aplicar crédito (pago) a una suscripción
+  const [applyCredit, setApplyCredit] = useState<{ id: string; concepto: string; monto: number; moneda: string } | null>(null);
+  const [applyTargets, setApplyTargets] = useState<SubTarget[]>([]);
+  const [applySubId, setApplySubId] = useState<string>("");
+  const [applyLoading, setApplyLoading] = useState(false);
+
+
   const PREVIEW_LIMIT = 5;
 
   const fetchData = useCallback(async () => {
