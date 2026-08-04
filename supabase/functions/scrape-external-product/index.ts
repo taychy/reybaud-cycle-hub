@@ -99,20 +99,42 @@ Deno.serve(async (req) => {
       sku = variantRows[0]?.sku ?? null;
     }
 
-    // --- schema.org JSON-LD (fallback y complemento) ---
+    // --- schema.org JSON-LD (fallback y complemento, soporta @graph) ---
     const canonical = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i)?.[1] || target.toString();
+    let ldImage: string | null = null;
+    const isType = (t: any, want: string) => t === want || (Array.isArray(t) && t.includes(want));
     for (const raw of html.matchAll(/<script[^>]*application\/ld\+json[^>]*>([\s\S]*?)<\/script>/gi)) {
-      try {
-        const d = JSON.parse(raw[1].trim());
-        const isProduct = d?.["@type"] === "Product";
-        const id = d?.mainEntityOfPage?.["@id"] || d?.offers?.url;
-        if (!isProduct || (id && !canonical.includes(new URL(id).pathname))) continue;
+      let parsed: any;
+      try { parsed = JSON.parse(raw[1].trim()); } catch { continue; }
+      const nodes: any[] = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.["@graph"]) ? parsed["@graph"] : [parsed]);
+      for (const d of nodes) {
+        if (!d || !isType(d["@type"], "Product")) continue;
+        const offer = Array.isArray(d.offers) ? d.offers[0] : d.offers;
         sku = sku || d.sku || null;
-        brand = brand || d.brand?.name || null;
-        if (!price && d.offers?.price) price = Number(d.offers.price);
-        if (d.offers?.priceCurrency) currency = d.offers.priceCurrency;
-      } catch { /* ignorar bloques inválidos */ }
+        brand = brand || (typeof d.brand === "string" ? d.brand : d.brand?.name) || null;
+        if (!name) name = d.name || name;
+        if (!price && offer?.price) price = Number(offer.price);
+        if (!price && offer?.priceSpecification?.price) price = Number(offer.priceSpecification.price);
+        if (offer?.priceCurrency) currency = offer.priceCurrency;
+        if (!ldImage) {
+          const img = Array.isArray(d.image) ? d.image[0] : d.image;
+          ldImage = typeof img === "string" ? img : (img?.url ?? null);
+        }
+      }
     }
+
+    // --- WooCommerce: precio en el markup como fallback ---
+    if (!price) {
+      const wooMeta = html.match(/<meta[^>]+property=["']product:price:amount["'][^>]*content=["']([\d.,]+)["']/i)?.[1]
+        || html.match(/"price"\s*:\s*"?([\d.]+)"?/)?.[1]
+        || html.match(/woocommerce-Price-amount[^>]*>\s*<bdi>[^\d]*([\d.,]+)/i)?.[1];
+      if (wooMeta) {
+        const normalized = wooMeta.includes(",") ? wooMeta.replace(/\./g, "").replace(",", ".") : wooMeta;
+        const n = Number(normalized);
+        if (n > 0) price = n;
+      }
+    }
+
 
     // --- Variantes normalizadas ---
     const optionCols = [0, 1, 2]
