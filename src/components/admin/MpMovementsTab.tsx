@@ -84,6 +84,12 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [targets, setTargets] = useState<PaymentTargets | null>(null);
   const [loadingTargets, setLoadingTargets] = useState(false);
   const [target, setTarget] = useState<{ type: "saldo" | "reservation" | "suscripcion"; id: string | null }>({ type: "saldo", id: null });
+  const [splitMode, setSplitMode] = useState(false);
+  const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
+
+  function addSplitAlumno(a: Alumno) {
+    setSplitRows((prev) => (prev.some((r) => r.alumno.id === a.id) ? prev : [...prev, { alumno: a, monto: "" }]));
+  }
 
   useEffect(() => {
     setTarget({ type: "saldo", id: null });
@@ -263,6 +269,41 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     await load();
   }
 
+  async function handleSplit() {
+    if (!assignDialog || splitRows.length === 0) return;
+    const splits = splitRows.map((r) => ({ alumno_id: r.alumno.id, monto: Number(r.monto) }));
+    if (splits.some((s) => !s.monto || s.monto <= 0)) {
+      toast({ title: "Faltan montos", description: "Poné un importe mayor a cero para cada alumno.", variant: "destructive" });
+      return;
+    }
+    setAssigning(true);
+    const { data, error } = await supabase.rpc("split_mp_movement_among_alumnos" as any, {
+      _movement_id: assignDialog.id,
+      _splits: splits as any,
+      _notes: assignNotes || null,
+    });
+    setAssigning(false);
+    if (error) {
+      const msg = error.message || "";
+      let human = msg;
+      if (msg.includes("splits_exceed_movement_amount")) human = "La suma de las partes supera el monto del pago.";
+      else if (msg.includes("already_assigned_to_other_student")) human = "Este movimiento ya está asignado a otro alumno.";
+      else if (msg.includes("not_authorized")) human = "No tenés permisos para asignar movimientos.";
+      toast({ title: "No se pudo dividir el pago", description: human, variant: "destructive" });
+      return;
+    }
+    const restante = Number((data as any)?.restante ?? 0);
+    toast({
+      title: "Pago familiar dividido",
+      description: `Se generó un saldo a favor para ${splitRows.length} alumnos.` + (restante > 0.01 ? ` Quedaron sin asignar ${formatPrice(restante, assignDialog.currency)}.` : ""),
+    });
+    setAssignDialog(null);
+    setSplitMode(false);
+    setSplitRows([]);
+    setSelectedAlumno(null);
+    setAssignNotes("");
+    await load();
+  }
 
 
   async function handleUnassign(m: Movement) {
@@ -514,8 +555,25 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
           </DialogHeader>
 
           <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-200">
-            Paso 1: elegí el alumno. Paso 2: elegí <b>a qué se aplica</b> el pago (evento, plan o saldo a favor).
+            {splitMode
+              ? <>Pago familiar: agregá a cada integrante y el monto que le corresponde. Cada uno recibe su saldo a favor y después lo aplicás a su plan.</>
+              : <>Paso 1: elegí el alumno. Paso 2: elegí <b>a qué se aplica</b> el pago (evento, plan o saldo a favor).</>}
           </div>
+
+          <div className="flex items-center justify-between rounded-md border border-border px-3 py-2">
+            <div className="text-xs">
+              <div className="font-medium">Un solo pago para varios alumnos (familia)</div>
+              <div className="text-muted-foreground">Ej: el papá paga su plan y el de sus hijos.</div>
+            </div>
+            <Button
+              size="sm"
+              variant={splitMode ? "default" : "outline"}
+              onClick={() => { setSplitMode((v) => !v); setSplitRows([]); setSelectedAlumno(null); }}
+            >
+              {splitMode ? "Volver a asignación simple" : "Dividir pago"}
+            </Button>
+          </div>
+
 
 
           <div className="space-y-3">
@@ -528,8 +586,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                   <button
                     key={a.id}
                     type="button"
-                    onClick={() => setSelectedAlumno(a.id)}
-                    className={`w-full text-left rounded px-2 py-1.5 text-sm ${selectedAlumno === a.id ? "bg-accent" : "hover:bg-muted"}`}
+                    onClick={() => (splitMode ? addSplitAlumno(a) : setSelectedAlumno(a.id))}
+                    className={`w-full text-left rounded px-2 py-1.5 text-sm ${!splitMode && selectedAlumno === a.id ? "bg-accent" : "hover:bg-muted"}`}
                   >
                     <div>{a.nombre} {a.apellido ?? ""}</div>
                     <div className="text-xs text-muted-foreground">{a.email}</div>
@@ -538,7 +596,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               </div>
             )}
             <div>
-              <label className="text-sm font-medium">Alumno</label>
+              <label className="text-sm font-medium">{splitMode ? "Agregar integrantes de la familia" : "Alumno"}</label>
               <Command className="border rounded-md" shouldFilter={false}>
                 <CommandInput placeholder="Buscar por nombre, email (incl. adicionales) o DNI..." onValueChange={loadAlumnosQuery} />
 
@@ -549,8 +607,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                       <CommandItem
                         key={a.id}
                         value={a.id}
-                        onSelect={() => setSelectedAlumno(a.id)}
-                        className={selectedAlumno === a.id ? "bg-accent" : ""}
+                        onSelect={() => (splitMode ? addSplitAlumno(a) : setSelectedAlumno(a.id))}
+                        className={!splitMode && selectedAlumno === a.id ? "bg-accent" : ""}
                       >
                         <div>
                           <div>{a.nombre} {a.apellido ?? ""}</div>
@@ -562,7 +620,45 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                 </CommandList>
               </Command>
             </div>
-            {selectedAlumno && (
+
+            {splitMode && (
+              <div className="space-y-2">
+                {splitRows.length === 0 && (
+                  <div className="text-xs text-muted-foreground">Buscá y tocá a cada alumno para agregarlo al reparto.</div>
+                )}
+                {splitRows.map((r, i) => (
+                  <div key={r.alumno.id} className="flex items-center gap-2">
+                    <div className="flex-1 text-sm truncate">
+                      {r.alumno.nombre} {r.alumno.apellido ?? ""}
+                      {i === 0 && <span className="ml-1 text-[10px] text-muted-foreground">(pagador)</span>}
+                    </div>
+                    <Input
+                      className="w-32 h-8"
+                      inputMode="decimal"
+                      placeholder="Monto"
+                      value={r.monto}
+                      onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, monto: e.target.value } : p))}
+                    />
+                    <Button size="sm" variant="ghost" onClick={() => setSplitRows((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
+                  </div>
+                ))}
+                {splitRows.length > 0 && assignDialog && (() => {
+                  const suma = splitRows.reduce((s, r) => s + (Number(r.monto) || 0), 0);
+                  const total = Number(assignDialog.amount) || 0;
+                  const resto = total - suma;
+                  return (
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Repartido: {formatPrice(suma, assignDialog.currency)} de {formatPrice(total, assignDialog.currency)}</span>
+                      <span className={resto < -0.01 ? "text-destructive" : Math.abs(resto) < 0.01 ? "text-emerald-400" : "text-amber-400"}>
+                        {resto < -0.01 ? `Excede por ${formatPrice(Math.abs(resto), assignDialog.currency)}` : Math.abs(resto) < 0.01 ? "Exacto ✓" : `Resta ${formatPrice(resto, assignDialog.currency)}`}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+
+            {!splitMode && selectedAlumno && (
               <div className="space-y-2">
                 <label className="text-sm font-medium">¿A qué se aplica este pago?</label>
                 {loadingTargets && <div className="text-xs text-muted-foreground">Buscando deudas abiertas...</div>}
@@ -614,10 +710,17 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignDialog(null)}>Cancelar</Button>
-            <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
-              {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
-            </Button>
+            {splitMode ? (
+              <Button onClick={handleSplit} disabled={assigning || splitRows.length === 0}>
+                {assigning ? "Dividiendo..." : `Dividir entre ${splitRows.length || 0} alumnos`}
+              </Button>
+            ) : (
+              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type !== "saldo" && !target.id)}>
+                {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : "Dejar como saldo a favor"}
+              </Button>
+            )}
           </DialogFooter>
+
 
         </DialogContent>
       </Dialog>

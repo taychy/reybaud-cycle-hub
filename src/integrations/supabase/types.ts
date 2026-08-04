@@ -12295,6 +12295,10 @@ export type Database = {
         Returns: string
       }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
+      split_mp_movement_among_alumnos: {
+        Args: { _movement_id: string; _notes?: string; _splits: Json }
+        Returns: Json
+      }
       start_pausa_alumno: {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
         Returns: Json
