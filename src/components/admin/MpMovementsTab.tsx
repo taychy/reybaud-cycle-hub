@@ -703,6 +703,20 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                         </div>
                       </button>
                     ))}
+                    {(targets?.cargos ?? []).map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setTarget({ type: "cargo", id: c.id })}
+                        className={`w-full text-left rounded border px-2 py-1.5 text-sm ${target.type === "cargo" && target.id === c.id ? "border-primary bg-accent" : "border-border hover:bg-muted"}`}
+                      >
+                        <div className="font-medium">🧾 {c.label}</div>
+                        <div className="text-xs text-muted-foreground">
+                          Deuda en cuenta corriente · Pendiente {formatPrice(Number(c.balance ?? c.total ?? 0), c.currency)}
+                          {c.fecha ? ` · ${c.fecha}` : ""}
+                        </div>
+                      </button>
+                    ))}
                     <button
                       type="button"
                       onClick={() => setTarget({ type: "saldo", id: null })}
