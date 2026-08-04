@@ -313,10 +313,14 @@ export default function AdminCuentaCorriente() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           {kpis.map((k) => (
             <Card key={k.moneda} className="p-4 bg-card border-border">
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-3 gap-2">
                 <span className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{k.moneda}</span>
-                <Badge variant="outline" className="text-[10px]">{k.cantDeudores + k.cantCredito} alumnos</Badge>
+                <div className="flex items-center gap-1.5">
+                  <PeriodBadge scope="acumulado" label="Histórico" />
+                  <Badge variant="outline" className="text-[10px]">{k.cantDeudores + k.cantCredito} alumnos</Badge>
+                </div>
               </div>
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
