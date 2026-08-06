@@ -29,6 +29,7 @@ import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
 import MpMovementsTab from "@/components/admin/MpMovementsTab";
 import DeudoresTab from "@/components/admin/DeudoresTab";
 import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
+import TurneraPaymentsTab from "@/components/admin/TurneraPaymentsTab";
 
 
 type Suscripcion = {
@@ -659,15 +660,32 @@ const AdminPayments = () => {
     setFilterFechaHasta("");
   };
 
-  // Summary counts (scoped to selected period)
+  // Summary counts + montos (scoped to selected period), coherente con Tienda/Eventos
+  const AUTO_METODOS_SUB = ["mercadopago", "mp", "tarjeta"];
+  const subMonto = (s: Suscripcion) =>
+    Number((s as any).precio_final ?? (s as any).precio_base ?? s.planes?.precio ?? 0) || 0;
+
   const summary = useMemo(() => {
     const counts = { pagado: 0, por_cobrar: 0, informado: 0, conciliado: 0, vencido: 0 };
+    const cobrado: Record<string, number> = {};
+    const pendiente: Record<string, number> = {};
+    let porVerificar = 0;
     suscripciones.forEach((s) => {
       if (!subInPeriod(s, filterPeriodo)) return;
       const st = getPaymentStatus(s);
       if (st in counts) counts[st as keyof typeof counts]++;
+      const moneda = s.planes?.moneda || "ARS";
+      const monto = subMonto(s);
+      if (st === "pagado" || st === "conciliado") {
+        cobrado[moneda] = (cobrado[moneda] || 0) + monto;
+        const metodo = (s.metodo_pago || "").toLowerCase();
+        if (!AUTO_METODOS_SUB.includes(metodo) && !s.chequeado_admin) porVerificar++;
+      } else if (st === "por_cobrar" || st === "vencido" || st === "informado") {
+        pendiente[moneda] = (pendiente[moneda] || 0) + monto;
+        if (st === "informado" && !s.chequeado_admin) porVerificar++;
+      }
     });
-    return counts;
+    return { ...counts, cobrado, pendiente, porVerificar };
   }, [suscripciones, filterPeriodo]);
 
   // Period selector options: last 12 months + "all"
@@ -726,6 +744,7 @@ const AdminPayments = () => {
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
           <TabsTrigger value="tienda">Tienda</TabsTrigger>
+          <TabsTrigger value="turnera">Turnera</TabsTrigger>
         </TabsList>
 
         <TabsContent value="deudores" className="space-y-6">
@@ -734,6 +753,10 @@ const AdminPayments = () => {
 
         <TabsContent value="tienda" className="space-y-6">
           <StorePaymentsTab />
+        </TabsContent>
+
+        <TabsContent value="turnera" className="space-y-6">
+          <TurneraPaymentsTab />
         </TabsContent>
 
         <TabsContent value="eventos" className="space-y-6">
@@ -748,36 +771,43 @@ const AdminPayments = () => {
 
         <TabsContent value="suscripciones" className="space-y-6">
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="cursor-pointer hover:border-emerald-500/50 transition-colors" onClick={() => setFilterEstado("pagado")}>
+      {/* KPIs (misma lógica que Tienda / Eventos / Turnera) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-emerald-600"><CheckCircle className="w-4 h-4" /><span className="text-xs font-medium">Pagados</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.pagado}</p>
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Cobrado
+            </span>
+            {Object.entries(summary.cobrado).length === 0
+              ? <p className="text-2xl font-bold mt-1">—</p>
+              : Object.entries(summary.cobrado).map(([m, v]) => (
+                <p key={m} className="text-lg font-bold font-mono text-emerald-500 leading-tight mt-1">{formatPrice(v, m)}</p>
+              ))}
+            <p className="text-[10px] text-muted-foreground">{summary.pagado + summary.conciliado} mensualidades</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("por_cobrar")}>
+        <Card className="cursor-pointer hover:border-destructive/50 transition-colors" onClick={() => setFilterEstado("por_cobrar")}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Por cobrar</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.por_cobrar}</p>
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-destructive" /> Pendiente de cobro
+            </span>
+            {Object.entries(summary.pendiente).length === 0
+              ? <p className="text-2xl font-bold mt-1">—</p>
+              : Object.entries(summary.pendiente).map(([m, v]) => (
+                <p key={m} className="text-lg font-bold font-mono text-destructive leading-tight mt-1">{formatPrice(v, m)}</p>
+              ))}
+            <p className="text-[10px] text-muted-foreground">
+              {summary.por_cobrar} por cobrar · {summary.vencido} vencidas · {summary.informado} informadas
+            </p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-blue-500/50 transition-colors" onClick={() => setFilterEstado("informado")}>
+        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterChequeo("pendientes")}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-blue-600"><FileText className="w-4 h-4" /><span className="text-xs font-medium">Informados</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.informado}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:border-teal-500/50 transition-colors" onClick={() => setFilterEstado("conciliado")}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-teal-600"><CheckCheck className="w-4 h-4" /><span className="text-xs font-medium">Conciliados</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.conciliado}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:border-red-500/50 transition-colors" onClick={() => setFilterEstado("vencido")}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="text-xs font-medium">Vencidos</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.vencido}</p>
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <CheckCheck className="w-3.5 h-3.5 text-amber-500" /> Por verificar
+            </span>
+            <p className="text-2xl font-bold mt-1 text-amber-500">{summary.porVerificar}</p>
+            <p className="text-[10px] text-muted-foreground">Efectivo y transferencia</p>
           </CardContent>
         </Card>
       </div>
