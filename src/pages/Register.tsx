@@ -187,6 +187,12 @@ const Register = () => {
               </div>
             )}
 
+            {dupWarning && (
+              <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3">
+                {dupWarning}
+              </div>
+            )}
+
             <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
               {loading ? "Creando cuenta..." : "Continuar"}
               <ChevronRight className="w-4 h-4" />
