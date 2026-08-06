@@ -659,15 +659,32 @@ const AdminPayments = () => {
     setFilterFechaHasta("");
   };
 
-  // Summary counts (scoped to selected period)
+  // Summary counts + montos (scoped to selected period), coherente con Tienda/Eventos
+  const AUTO_METODOS_SUB = ["mercadopago", "mp", "tarjeta"];
+  const subMonto = (s: Suscripcion) =>
+    Number((s as any).precio_final ?? (s as any).precio_base ?? s.planes?.precio ?? 0) || 0;
+
   const summary = useMemo(() => {
     const counts = { pagado: 0, por_cobrar: 0, informado: 0, conciliado: 0, vencido: 0 };
+    const cobrado: Record<string, number> = {};
+    const pendiente: Record<string, number> = {};
+    let porVerificar = 0;
     suscripciones.forEach((s) => {
       if (!subInPeriod(s, filterPeriodo)) return;
       const st = getPaymentStatus(s);
       if (st in counts) counts[st as keyof typeof counts]++;
+      const moneda = s.planes?.moneda || "ARS";
+      const monto = subMonto(s);
+      if (st === "pagado" || st === "conciliado") {
+        cobrado[moneda] = (cobrado[moneda] || 0) + monto;
+        const metodo = (s.metodo_pago || "").toLowerCase();
+        if (!AUTO_METODOS_SUB.includes(metodo) && !s.chequeado_admin) porVerificar++;
+      } else if (st === "por_cobrar" || st === "vencido" || st === "informado") {
+        pendiente[moneda] = (pendiente[moneda] || 0) + monto;
+        if (st === "informado" && !s.chequeado_admin) porVerificar++;
+      }
     });
-    return counts;
+    return { ...counts, cobrado, pendiente, porVerificar };
   }, [suscripciones, filterPeriodo]);
 
   // Period selector options: last 12 months + "all"
