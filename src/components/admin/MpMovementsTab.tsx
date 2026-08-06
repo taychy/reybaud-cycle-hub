@@ -833,6 +833,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               <Input value={assignNotes} onChange={(e) => setAssignNotes(e.target.value)} placeholder="Ej: transferencia por seña evento X" />
             </div>
           </div>
+          </div>
+
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignDialog(null)}>Cancelar</Button>
