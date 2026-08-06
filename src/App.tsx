@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PlanSelection from "./pages/PlanSelection";
 import Reingreso from "./pages/Reingreso";
+import VincularEmail from "./pages/VincularEmail";
 
 import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
