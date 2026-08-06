@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +35,8 @@ const AdminLogin = () => {
   const [checkingSession, setCheckingSession] = useState(true);
   const [otpCode, setOtpCode] = useState("");
   const [verifyingOtp, setVerifyingOtp] = useState(false);
+  const verifyingOtpRef = useRef(false);
+
   const [linkSent, setLinkSent] = useState(false);
   const [showResendFromError, setShowResendFromError] = useState(false);
   const navigate = useNavigate();
@@ -275,9 +277,12 @@ const AdminLogin = () => {
   }
 
   const handleVerifyOtp = async () => {
-    if (verifyingOtp) return;
+    // Guard sincrónico: el código OTP es de un solo uso y un doble toque
+    // rápido pasa el chequeo de estado de React.
+    if (verifyingOtpRef.current) return;
     const normalizedCode = normalizeOtpCode(otpCode);
     if (normalizedCode.length < OTP_LENGTH) return;
+    verifyingOtpRef.current = true;
     setVerifyingOtp(true);
     setError(null);
 
@@ -287,20 +292,28 @@ const AdminLogin = () => {
       type: "email",
     });
 
-    setVerifyingOtp(false);
     if (verifyError) {
-      setError(getOtpErrorMessage(verifyError));
-      setOtpCode("");
-      return;
+      // Código ya consumido por un intento exitoso previo: hay sesión, no es error.
+      const { data: { session: existing } } = await supabase.auth.getSession();
+      if (!existing) {
+        verifyingOtpRef.current = false;
+        setVerifyingOtp(false);
+        setError(getOtpErrorMessage(verifyError));
+        setOtpCode("");
+        return;
+      }
     }
     clearPendingOtpState();
     toast.success("Sesión iniciada correctamente.");
     const { data: { session } } = await supabase.auth.getSession();
     const redirected = await redirectByRole(session);
     if (!redirected) {
+      verifyingOtpRef.current = false;
+      setVerifyingOtp(false);
       setError("Sesión iniciada, pero no se pudo confirmar el permiso de staff.");
     }
   };
+
 
   // OTP sent — show code entry
   if (linkSent) {
@@ -353,7 +366,7 @@ const AdminLogin = () => {
               disabled={verifyingOtp || otpCode.length < OTP_LENGTH}
               onClick={handleVerifyOtp}
             >
-              {verifyingOtp ? "Verificando..." : "Ingresar"}
+              {verifyingOtp ? "Ingresando…" : "Ingresar"}
             </Button>
           </div>
 
