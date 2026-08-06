@@ -12094,7 +12094,7 @@ export type Database = {
         Returns: number
       }
       merge_alumnos: {
-        Args: { _ganador: string; _perdedor: string }
+        Args: { _duplicado_id: string; _principal_id: string }
         Returns: Json
       }
       move_to_dlq: {
@@ -12146,6 +12146,10 @@ export type Database = {
           p_monto: number
         }
         Returns: undefined
+      }
+      preview_merge_alumnos: {
+        Args: { _duplicado_id: string; _principal_id: string }
+        Returns: Json
       }
       preview_package_change: {
         Args: {
