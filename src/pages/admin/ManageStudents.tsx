@@ -19,6 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
 import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
+import { MergeDuplicatesDialog } from "@/components/admin/MergeDuplicatesDialog";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -189,6 +190,7 @@ const ManageStudents = () => {
 
   // Create dialog
   const [showCreate, setShowCreate] = useState(false);
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
   const [creating, setCreating] = useState(false);
 
@@ -237,7 +239,7 @@ const ManageStudents = () => {
 
   const fetchAlumnos = async () => {
     const { data } = await supabase.from("alumnos").select("*").order("nombre");
-    setAlumnos(data || []);
+    setAlumnos((data || []).filter((a: any) => a.estado !== "fusionada" && !a.fusionada_en));
     setLoading(false);
   };
 
@@ -1102,6 +1104,18 @@ const ManageStudents = () => {
               </Button>
             ))}
           </div>
+
+          {duplicadosCount > 0 && statusFilter === "duplicados" && (
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
+              <p className="text-xs text-muted-foreground">
+                Detectamos fichas repetidas de la misma persona. Podés fusionarlas conservando la más antigua.
+              </p>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowMergeDialog(true)}>
+                <Copy className="w-3.5 h-3.5 mr-1.5" /> Fusionar duplicados
+              </Button>
+            </div>
+          )}
+
 
           {/* ===== Specialized Pausados board ===== */}
           {statusFilter === "vacaciones" ? (
@@ -2039,6 +2053,22 @@ const ManageStudents = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <MergeDuplicatesDialog
+        open={showMergeDialog}
+        onOpenChange={setShowMergeDialog}
+        alumnos={alumnos.map((a) => ({
+          id: a.id,
+          nombre: a.nombre,
+          apellido: getApellido(a),
+          email: a.email,
+          telefono: (a as any).telefono ?? null,
+          documento: (a as any).documento ?? null,
+          created_at: (a as any).created_at ?? null,
+          estado: a.estado,
+        }))}
+        onMerged={() => { setShowMergeDialog(false); fetchAlumnos(); }}
+      />
     </div>
   );
 };
