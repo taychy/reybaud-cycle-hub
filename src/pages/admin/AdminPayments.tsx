@@ -765,36 +765,43 @@ const AdminPayments = () => {
 
         <TabsContent value="suscripciones" className="space-y-6">
 
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <Card className="cursor-pointer hover:border-emerald-500/50 transition-colors" onClick={() => setFilterEstado("pagado")}>
+      {/* KPIs (misma lógica que Tienda / Eventos / Turnera) */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-emerald-600"><CheckCircle className="w-4 h-4" /><span className="text-xs font-medium">Pagados</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.pagado}</p>
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <CheckCircle className="w-3.5 h-3.5 text-emerald-500" /> Cobrado
+            </span>
+            {Object.entries(summary.cobrado).length === 0
+              ? <p className="text-2xl font-bold mt-1">—</p>
+              : Object.entries(summary.cobrado).map(([m, v]) => (
+                <p key={m} className="text-lg font-bold font-mono text-emerald-500 leading-tight mt-1">{formatPrice(v, m)}</p>
+              ))}
+            <p className="text-[10px] text-muted-foreground">{summary.pagado + summary.conciliado} mensualidades</p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterEstado("por_cobrar")}>
+        <Card className="cursor-pointer hover:border-destructive/50 transition-colors" onClick={() => setFilterEstado("por_cobrar")}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-amber-600"><Clock className="w-4 h-4" /><span className="text-xs font-medium">Por cobrar</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.por_cobrar}</p>
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <Clock className="w-3.5 h-3.5 text-destructive" /> Pendiente de cobro
+            </span>
+            {Object.entries(summary.pendiente).length === 0
+              ? <p className="text-2xl font-bold mt-1">—</p>
+              : Object.entries(summary.pendiente).map(([m, v]) => (
+                <p key={m} className="text-lg font-bold font-mono text-destructive leading-tight mt-1">{formatPrice(v, m)}</p>
+              ))}
+            <p className="text-[10px] text-muted-foreground">
+              {summary.por_cobrar} por cobrar · {summary.vencido} vencidas · {summary.informado} informadas
+            </p>
           </CardContent>
         </Card>
-        <Card className="cursor-pointer hover:border-blue-500/50 transition-colors" onClick={() => setFilterEstado("informado")}>
+        <Card className="cursor-pointer hover:border-amber-500/50 transition-colors" onClick={() => setFilterChequeo("pendientes")}>
           <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-blue-600"><FileText className="w-4 h-4" /><span className="text-xs font-medium">Informados</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.informado}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:border-teal-500/50 transition-colors" onClick={() => setFilterEstado("conciliado")}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-teal-600"><CheckCheck className="w-4 h-4" /><span className="text-xs font-medium">Conciliados</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.conciliado}</p>
-          </CardContent>
-        </Card>
-        <Card className="cursor-pointer hover:border-red-500/50 transition-colors" onClick={() => setFilterEstado("vencido")}>
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-red-600"><AlertTriangle className="w-4 h-4" /><span className="text-xs font-medium">Vencidos</span></div>
-            <p className="text-2xl font-bold mt-1">{summary.vencido}</p>
+            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+              <CheckCheck className="w-3.5 h-3.5 text-amber-500" /> Por verificar
+            </span>
+            <p className="text-2xl font-bold mt-1 text-amber-500">{summary.porVerificar}</p>
+            <p className="text-[10px] text-muted-foreground">Efectivo y transferencia</p>
           </CardContent>
         </Card>
       </div>
