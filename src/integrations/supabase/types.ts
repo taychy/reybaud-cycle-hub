@@ -220,6 +220,53 @@ export type Database = {
           },
         ]
       }
+      alumno_email_links: {
+        Row: {
+          alumno_id: string
+          confirmed_at: string | null
+          created_at: string
+          estado: string
+          expires_at: string
+          id: string
+          motivo: string
+          nuevo_email: string
+          token: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          estado?: string
+          expires_at?: string
+          id?: string
+          motivo: string
+          nuevo_email: string
+          token: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          estado?: string
+          expires_at?: string
+          id?: string
+          motivo?: string
+          nuevo_email?: string
+          token?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_email_links_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alumno_evaluaciones_coach: {
         Row: {
           actitud: number | null
@@ -11385,6 +11432,16 @@ export type Database = {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
       }
+      confirm_alumno_email_link: {
+        Args: { p_token: string }
+        Returns: {
+          email_principal: string
+          email_vinculado: string
+          mensaje: string
+          nombre_completo: string
+          ok: boolean
+        }[]
+      }
       confirm_baja_alumno: {
         Args: {
           p_email_notificar?: boolean
@@ -12287,6 +12344,21 @@ export type Database = {
           precio_base: number
           precio_final: number
           suscripcion_id: string
+        }[]
+      }
+      request_alumno_email_link: {
+        Args: {
+          p_documento?: string
+          p_nuevo_email: string
+          p_telefono?: string
+        }
+        Returns: {
+          alumno_id: string
+          destino_email: string
+          destino_enmascarado: string
+          motivo: string
+          nombre_completo: string
+          token: string
         }[]
       }
       request_baja_alumno: {

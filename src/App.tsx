@@ -7,6 +7,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import PlanSelection from "./pages/PlanSelection";
 import Reingreso from "./pages/Reingreso";
+import VincularEmail from "./pages/VincularEmail";
 
 import PaymentResult from "./pages/PaymentResult";
 import AdminLogin from "./pages/AdminLogin";
@@ -163,6 +164,7 @@ const App = () => (
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/reingreso" element={<Reingreso />} />
+          <Route path="/vincular-email" element={<VincularEmail />} />
 
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/interes/:eventId" element={<EventInterest />} />
