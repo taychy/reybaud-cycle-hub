@@ -74,7 +74,6 @@ const Register = () => {
         (d) => d.motivo === "documento" || d.motivo === "telefono"
       );
       if (hit) {
-        setDupMotivo(hit.motivo);
         setDupWarning(
           `Encontramos una ficha existente asociada a estos datos (${hit.nombre_parcial} · ${hit.email_enmascarado}, coincide el ${hit.motivo === "documento" ? "documento" : "teléfono"}). Podés vincular este nuevo email a tu ficha actual en lugar de crear una cuenta duplicada.`
         );
