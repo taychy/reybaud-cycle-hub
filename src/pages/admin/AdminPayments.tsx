@@ -25,9 +25,11 @@ import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLaunche
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import AllOperationsTab from "@/components/admin/AllOperationsTab";
 import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
 import MpMovementsTab from "@/components/admin/MpMovementsTab";
+import DeudoresTab from "@/components/admin/DeudoresTab";
+import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
+
 
 type Suscripcion = {
   id: string;
@@ -717,21 +719,27 @@ const AdminPayments = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="mp" className="space-y-6">
+      <Tabs defaultValue="deudores" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="deudores">Deudores</TabsTrigger>
           <TabsTrigger value="mp">Cuentas MP sin vincular</TabsTrigger>
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
-          <TabsTrigger value="todas">Todas las operaciones</TabsTrigger>
+          <TabsTrigger value="tienda">Tienda</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="todas" className="space-y-6">
-          <AllOperationsTab />
+        <TabsContent value="deudores" className="space-y-6">
+          <DeudoresTab />
+        </TabsContent>
+
+        <TabsContent value="tienda" className="space-y-6">
+          <StorePaymentsTab />
         </TabsContent>
 
         <TabsContent value="eventos" className="space-y-6">
           <EventPaymentsTab />
         </TabsContent>
+
 
         <TabsContent value="mp" className="space-y-6">
           <MpMovementsTab periodo={filterPeriodo} />
