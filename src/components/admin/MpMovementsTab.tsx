@@ -602,7 +602,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       </Card>
 
       <Dialog open={!!assignDialog} onOpenChange={(o) => !o && setAssignDialog(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] flex flex-col overflow-hidden">
           <DialogHeader>
             <DialogTitle>Asignar movimiento a un alumno</DialogTitle>
             <DialogDescription>
