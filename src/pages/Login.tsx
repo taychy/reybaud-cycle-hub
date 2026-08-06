@@ -410,7 +410,7 @@ const Login = () => {
               disabled={verifyingOtp || otpCode.length < OTP_LENGTH}
               onClick={handleVerifyOtp}
             >
-              {verifyingOtp ? "Verificando..." : "Ingresar"}
+              {verifyingOtp ? "Ingresando…" : "Ingresar"}
             </Button>
           </div>
 
