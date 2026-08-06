@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
             Ya podés ingresar a la app para ver tus entrenamientos semanales.
           </p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Abrir la app
             </a>
           </div>
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
             Ya podés acceder a la app e ingresar con tu email para ver tus entrenamientos.
           </p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Ingresar a la app
             </a>
           </div>
@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
             Ya podés acceder a la app y ver tus entrenamientos normalmente.
           </p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Abrir la app
             </a>
           </div>
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
             Por favor, revisalo o contactá a administración para más información.
           </p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Ir a la app
             </a>
           </div>
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
             Para que sigas con acceso completo a la app y tus entrenamientos sin interrupciones, podés abonar tu mensualidad de ${mes || "este mes"} directamente acá:
           </p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app/alumno/pagos" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="https://reybaud-app.com/alumno/pagos" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Abonar mensualidad de ${mes || "este mes"}
             </a>
           </div>
@@ -196,7 +196,7 @@ Deno.serve(async (req) => {
             Si tenés alguna duda, no dudes en contactarnos.
           </p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">
               Ir a la app
             </a>
           </div>
@@ -216,7 +216,7 @@ Deno.serve(async (req) => {
           <p style="color: #333; margin-bottom: 12px;">Durante este tiempo seguís en la comunidad de WhatsApp y podés ver eventos. No tenés acceso a entrenamientos, clases, Pista ni Asesoría.</p>
           <p style="color: #333; margin-bottom: 16px;">Cuando quieras volver antes, abrí la app y reactivá tu plan en un toque.</p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Abrir la app</a>
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Abrir la app</a>
           </div>
           <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">Ciclismo Reybaud — Escuela de ciclismo</p>
         </div>
@@ -230,7 +230,7 @@ Deno.serve(async (req) => {
           <p style="color: #333; margin-bottom: 12px;">Hola <strong>${firstName}</strong>, tu pausa vence el <strong>${fechaTxt}</strong>.</p>
           <p style="color: #333; margin-bottom: 12px;">Si querés volver a entrenar, abrí la app y elegí tu plan. Si no reactivás antes de esa fecha, tu cuenta pasa a inactiva y vas a tener que contratar un plan nuevo.</p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Reactivar mi plan</a>
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Reactivar mi plan</a>
           </div>
           <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">Ciclismo Reybaud — Escuela de ciclismo</p>
         </div>
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
           <p style="color: #333; margin-bottom: 12px;">Hola <strong>${firstName}</strong>, llegó la fecha de regreso y tu pausa quedó cerrada. Tu cuenta está inactiva.</p>
           <p style="color: #333; margin-bottom: 16px;">Te esperamos. Elegí tu plan y volvemos a rodar.</p>
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://reybaud-cycle-hub.lovable.app" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Elegir un plan</a>
+            <a href="https://reybaud-app.com" style="display: inline-block; padding: 12px 28px; background: #d4820a; color: white; text-decoration: none; border-radius: 8px; font-weight: 600;">Elegir un plan</a>
           </div>
           <p style="color: #999; font-size: 12px; margin-top: 24px; text-align: center;">Ciclismo Reybaud — Escuela de ciclismo</p>
         </div>

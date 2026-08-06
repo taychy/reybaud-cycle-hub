@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
       .eq("id", preorder.alumno_id)
       .maybeSingle();
 
-    const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
+    const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const sena = Number(preorder.sena_monto);
     if (!sena || sena <= 0) {
       return new Response(JSON.stringify({ error: "Seña inválida" }), {

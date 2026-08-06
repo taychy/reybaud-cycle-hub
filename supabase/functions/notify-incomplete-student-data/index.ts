@@ -127,7 +127,7 @@ Deno.serve(async (req) => {
         return `
           <tr>
             <td style="padding:10px 12px;border-bottom:1px solid #eee;">
-              <a href="https://reybaud-cycle-hub.lovable.app/admin/alumnos?focus=${a.id}" style="color:#d4820a;text-decoration:none;font-weight:600;">${nombre}</a>
+              <a href="https://reybaud-app.com/admin/alumnos?focus=${a.id}" style="color:#d4820a;text-decoration:none;font-weight:600;">${nombre}</a>
               <div style="color:#888;font-size:11px;">${a.email}</div>
             </td>
             <td style="padding:10px 12px;border-bottom:1px solid #eee;color:#555;font-size:13px;">${faltantes}</td>
@@ -152,7 +152,7 @@ Deno.serve(async (req) => {
           <tbody>${rows}</tbody>
         </table>
         <div style="text-align:center;margin-top:24px;">
-          <a href="https://reybaud-cycle-hub.lovable.app/admin/alumnos" style="display:inline-block;padding:12px 28px;background:#d4820a;color:white;text-decoration:none;border-radius:8px;font-weight:600;">
+          <a href="https://reybaud-app.com/admin/alumnos" style="display:inline-block;padding:12px 28px;background:#d4820a;color:white;text-decoration:none;border-radius:8px;font-weight:600;">
             Ver alumnos
           </a>
         </div>

@@ -53,7 +53,7 @@ function buildHtml(opts: {
       <ul style="margin:0;padding-left:20px;font-size:14px;line-height:1.5;color:#333;">${lista}</ul>
     </div>
     <div style="text-align:center;margin:26px 0;">
-      <a href="https://reybaud-cycle-hub.lovable.app/alumno?tab=more"
+      <a href="https://reybaud-app.com/alumno?tab=more"
         style="display:inline-block;padding:13px 30px;background:#d4820a;color:#fff;text-decoration:none;border-radius:8px;font-weight:600;font-size:15px;">
         Completar mis datos
       </a>

@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
     // Determine redirect URL (always prefer public app URL to avoid auth-bridge/preview login)
     const origin = req.headers.get("origin") || req.headers.get("referer")?.replace(/\/+$/, "") || "";
     const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
-    const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
+    const defaultPublicAppUrl = "https://reybaud-app.com";
     const isPreviewOrPrivateUrl = /-preview--|\.lovableproject\.com/.test(origin);
     const baseAppUrl = configuredAppUrl || (origin && !isPreviewOrPrivateUrl ? origin : defaultPublicAppUrl);
     // Todos los roles entran directo a la app vía OTP magic link; la clave es opcional desde el perfil.

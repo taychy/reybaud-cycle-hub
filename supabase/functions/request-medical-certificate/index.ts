@@ -69,7 +69,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    const appUrl = Deno.env.get("APP_URL") || "https://reybaud-cycle-hub.lovable.app";
+    const appUrl = Deno.env.get("APP_URL") || "https://reybaud-app.com";
     const dashboardLink = `${appUrl}/alumno?section=apto-fisico`;
 
     const html = `

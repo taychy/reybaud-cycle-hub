@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
 
     // Build the base URL for redirects
-    const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
+    const origin = req.headers.get("origin") || "https://reybaud-app.com";
 
     // Precio final: prioriza el de la suscripción (incluye becas/descuentos), con fallback al plan
     const unitPrice = Number(sub.precio_final ?? sub.precio_base ?? plan.precio);
