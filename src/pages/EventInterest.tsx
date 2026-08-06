@@ -63,7 +63,7 @@ export default function EventInterest() {
             </p>
             <Button asChild variant="gold" className="w-full">
               <a
-                href={`https://wa.me/5491140312299?text=${encodeURIComponent(
+                href={`https://wa.me/5491140311122?text=${encodeURIComponent(
                   `Hola! Soy ${nombre || "(nombre)"}. Vi el mail del Training Camp San Luis 2026 y quiero info sobre ${titulo.toLowerCase()}.`
                 )}`}
                 target="_blank"

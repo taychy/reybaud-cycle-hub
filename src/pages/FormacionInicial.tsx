@@ -402,7 +402,7 @@ export default function FormacionInicial() {
           <p className="text-lg font-semibold">Formamos ciclistas.</p>
           <div className="flex gap-3 mt-6">
             <a
-              href="https://wa.me/5491100000000"
+              href="https://wa.me/5491140311122"
               className="w-10 h-10 rounded-full bg-cyan flex items-center justify-center hover:scale-110 transition"
               target="_blank" rel="noreferrer" aria-label="WhatsApp"
             >

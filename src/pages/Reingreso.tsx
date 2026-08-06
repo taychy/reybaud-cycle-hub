@@ -11,7 +11,7 @@ interface DeudaItem {
   monto: number;
 }
 
-const WHATSAPP = "5491140312299";
+const WHATSAPP = "5491140311122";
 
 export default function Reingreso() {
   const navigate = useNavigate();
