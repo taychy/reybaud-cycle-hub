@@ -26,6 +26,8 @@ import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AllOperationsTab from "@/components/admin/AllOperationsTab";
+import ConciliacionTab from "@/components/admin/ConciliacionTab";
+
 import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
 import MpMovementsTab from "@/components/admin/MpMovementsTab";
 
@@ -717,17 +719,23 @@ const AdminPayments = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="mp" className="space-y-6">
+      <Tabs defaultValue="conciliacion" className="space-y-6">
         <TabsList>
+          <TabsTrigger value="conciliacion">Por verificar</TabsTrigger>
           <TabsTrigger value="mp">Cuentas MP sin vincular</TabsTrigger>
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
           <TabsTrigger value="todas">Todas las operaciones</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="conciliacion" className="space-y-6">
+          <ConciliacionTab />
+        </TabsContent>
+
         <TabsContent value="todas" className="space-y-6">
           <AllOperationsTab />
         </TabsContent>
+
 
         <TabsContent value="eventos" className="space-y-6">
           <EventPaymentsTab />
