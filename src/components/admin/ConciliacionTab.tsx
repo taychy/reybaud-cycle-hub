@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Loader2, CheckCircle2, RotateCcw, ShieldCheck, AlertTriangle } from "lucide-react";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice } from "@/lib/currency";
 
 type Fuente = "suscripcion" | "evento" | "tienda";
 
@@ -193,7 +193,7 @@ export function ConciliacionTab() {
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="font-semibold whitespace-nowrap">
-                    {formatCurrency(Number(r.monto || 0), (r.moneda as any) || "ARS")}
+                    {formatPrice(Number(r.monto || 0), r.moneda || "ARS")}
                   </span>
                   {r.estado_conciliacion !== "auto_conciliado" && (
                     <Button
