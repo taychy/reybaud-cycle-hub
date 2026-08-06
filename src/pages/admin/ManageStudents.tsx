@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { buildDuplicateIndex, DUPLICATE_REASON_LABEL } from "@/lib/duplicateStudents";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Button } from "@/components/ui/button";
@@ -1307,7 +1308,7 @@ const ManageStudents = () => {
                               <span title={alumno.user_id ? "Tiene acceso a la app" : "Sin acceso a la app"}>
                                 <Smartphone className={`w-3.5 h-3.5 shrink-0 ${alumno.user_id ? "text-emerald-500" : "text-muted-foreground/40"}`} />
                               </span>
-                              {isDuplicate(alumno) && <span title="Posible duplicado"><Copy className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                              {isDuplicate(alumno) && <span title={duplicateTitle(alumno)}><Copy className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                               {missing.length > 0 && !inconsistency && (
                                 <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title={`Faltan: ${missing.join(", ")}`} />
                               )}
