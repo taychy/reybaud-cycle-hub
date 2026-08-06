@@ -318,9 +318,12 @@ const Login = () => {
   }
 
   const handleVerifyOtp = async () => {
-    if (verifyingOtp) return;
+    // Guard sincrónico: el estado de React no se actualiza a tiempo para
+    // frenar un doble toque rápido, y el código OTP es de un solo uso.
+    if (verifyingOtpRef.current) return;
     const normalizedCode = normalizeOtpCode(otpCode);
     if (normalizedCode.length < OTP_LENGTH) return;
+    verifyingOtpRef.current = true;
     setVerifyingOtp(true);
     setLoginError(null);
 
@@ -330,16 +333,26 @@ const Login = () => {
       type: "email",
     });
 
-    setVerifyingOtp(false);
     if (verifyError) {
+      // Si el código ya fue consumido por un intento anterior exitoso, la sesión
+      // existe: no es un error real, sólo falta que termine el redirect.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        clearPendingOtpState();
+        return; // seguimos en "Ingresando..." hasta que navegue
+      }
+      verifyingOtpRef.current = false;
+      setVerifyingOtp(false);
       setLoginError(getOtpErrorMessage(verifyError));
       setOtpCode("");
       return;
     }
     clearPendingOtpState();
     toast.success("Sesión iniciada correctamente.");
-    // onAuthStateChange will handle redirect
+    // Mantenemos el botón bloqueado en "Ingresando...": el redirect lo maneja
+    // onAuthStateChange y puede tardar 1-2 s en conexiones lentas.
   };
+
 
   if (magicLinkSent) {
     return (
