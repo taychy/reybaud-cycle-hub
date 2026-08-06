@@ -18,6 +18,27 @@ const Register = () => {
   };
 
   const [dupWarning, setDupWarning] = useState<string | null>(null);
+  const [dupMotivo, setDupMotivo] = useState<"documento" | "telefono" | null>(null);
+  const [linkSent, setLinkSent] = useState<string | null>(null);
+  const [linking, setLinking] = useState(false);
+
+  const handleLinkEmail = async () => {
+    setLinking(true);
+    setError(null);
+    const { data, error: fnError } = await supabase.functions.invoke("request-email-link", {
+      body: {
+        email: form.email.toLowerCase().trim(),
+        telefono: form.telefono.trim() || null,
+        documento: form.documento.trim() || null,
+      },
+    });
+    if (fnError || (data as any)?.error) {
+      setError("No pudimos enviar el email de confirmación. Escribinos a administración.");
+    } else {
+      setLinkSent((data as any)?.destino_enmascarado || null);
+    }
+    setLinking(false);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,15 +71,19 @@ const Register = () => {
         p_telefono: form.telefono.trim() || null,
         p_documento: form.documento.trim() || null,
       });
-      const hit = (dups as any[] | null)?.[0];
+      const hit = (dups as any[] | null)?.find(
+        (d) => d.motivo === "documento" || d.motivo === "telefono"
+      );
       if (hit) {
+        setDupMotivo(hit.motivo);
         setDupWarning(
-          `Ya existe una ficha de ${hit.nombre_parcial} con ese ${hit.motivo === "documento" ? "documento" : "teléfono"} (${hit.email_enmascarado}). Si sos vos, iniciá sesión con ese email o escribinos a administración. Si querés continuar igual, presioná "Registrarme" de nuevo.`
+          `Encontramos una ficha existente asociada a estos datos (${hit.nombre_parcial} · ${hit.email_enmascarado}, coincide el ${hit.motivo === "documento" ? "documento" : "teléfono"}). Podés vincular este nuevo email a tu ficha actual en lugar de crear una cuenta duplicada.`
         );
         setLoading(false);
         return;
       }
     }
+
 
 
     // Create new student (inactive, sin grupo)
