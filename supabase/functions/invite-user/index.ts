@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Always use the public app URL to avoid auth-bridge redirects
-    const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
+    const defaultPublicAppUrl = "https://reybaud-app.com";
     const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
     const redirectTo = `${baseAppUrl}/auth/callback`;

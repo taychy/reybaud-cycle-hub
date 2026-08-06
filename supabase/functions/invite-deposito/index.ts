@@ -80,7 +80,7 @@ Deno.serve(async (req) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) throw new Error("El formato del email es inválido");
 
-    const defaultPublicAppUrl = "https://reybaud-cycle-hub.lovable.app";
+    const defaultPublicAppUrl = "https://reybaud-app.com";
     const configuredAppUrl = Deno.env.get("PUBLIC_APP_URL")?.replace(/\/+$/, "");
     const baseAppUrl = configuredAppUrl || defaultPublicAppUrl;
     const redirectTo = `${baseAppUrl}/auth/callback`;

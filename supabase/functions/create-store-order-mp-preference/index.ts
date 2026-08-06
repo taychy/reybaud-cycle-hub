@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
       .select("product_name, quantity, unit_price")
       .eq("order_id", order.id);
 
-    const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
+    const origin = req.headers.get("origin") || "https://reybaud-app.com";
 
     const preferenceBody = {
       items: (items || []).map((it: any) => ({

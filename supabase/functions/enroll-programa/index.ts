@@ -457,7 +457,7 @@ Deno.serve(async (req) => {
     const cuenta = await resolveCuentaMP(admin, { unidad_negocio: "suscripcion_escuela" });
     if (!cuenta.access_token) return jsonResp({ error: "Mercado Pago no está configurado" }, 500);
 
-    const origin = req.headers.get("origin") || "https://reybaud-cycle-hub.lovable.app";
+    const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const itemTitle = esCuotas
       ? `${plan.nombre} — ${currentStage.stage_nombre} (Cuota 1 de ${cuotasCantidad})`
       : `${plan.nombre} — ${currentStage.stage_nombre}`;
