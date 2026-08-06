@@ -337,22 +337,32 @@ export default function DeudoresTab() {
         </Card>
         <Card>
           <CardContent className="p-4">
-            <span className="text-xs text-muted-foreground font-medium">Sin gestionar</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground font-medium">Sin gestionar</span>
+              <PeriodBadge scope="acumulado" label="Histórico" />
+            </div>
             <p className="text-2xl font-bold mt-1">{kpis.sinGestionar}</p>
           </CardContent>
         </Card>
         <Card className={kpis.promesasVencidas > 0 ? "border-destructive/40" : ""}>
           <CardContent className="p-4">
-            <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
-              <AlertTriangle className="w-3.5 h-3.5 text-destructive" /> Promesas vencidas
-            </span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground font-medium flex items-center gap-1">
+                <AlertTriangle className="w-3.5 h-3.5 text-destructive" /> Promesas vencidas
+              </span>
+              <PeriodBadge scope="acumulado" label="Histórico" />
+            </div>
             <p className="text-2xl font-bold mt-1 text-destructive">{kpis.promesasVencidas}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
-            <span className="text-xs text-muted-foreground font-medium">Total a cobrar</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-xs text-muted-foreground font-medium">Total a cobrar</span>
+              <PeriodBadge scope="acumulado" label="Histórico" />
+            </div>
             <div className="mt-1 space-y-0.5">
+
               {Object.entries(kpis.porMoneda).length === 0 ? (
                 <p className="text-2xl font-bold">—</p>
               ) : Object.entries(kpis.porMoneda).map(([m, v]) => (
