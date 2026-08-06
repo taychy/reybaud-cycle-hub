@@ -1103,6 +1103,18 @@ const ManageStudents = () => {
             ))}
           </div>
 
+          {duplicadosCount > 0 && statusFilter === "duplicados" && (
+            <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
+              <p className="text-xs text-muted-foreground">
+                Detectamos fichas repetidas de la misma persona. Podés fusionarlas conservando la más antigua.
+              </p>
+              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowMergeDialog(true)}>
+                <Copy className="w-3.5 h-3.5 mr-1.5" /> Fusionar duplicados
+              </Button>
+            </div>
+          )}
+
+
           {/* ===== Specialized Pausados board ===== */}
           {statusFilter === "vacaciones" ? (
             <div className="space-y-3">
