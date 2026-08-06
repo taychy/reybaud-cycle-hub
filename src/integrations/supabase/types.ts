@@ -9348,10 +9348,6 @@ export type Database = {
           tienda_emisor_id: string | null
           total: number
           updated_at: string
-          verificado_admin: boolean
-          verificado_admin_at: string | null
-          verificado_admin_by: string | null
-          verificado_nota: string | null
         }
         Insert: {
           alumno_id?: string | null
@@ -9396,10 +9392,6 @@ export type Database = {
           tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
-          verificado_admin?: boolean
-          verificado_admin_at?: string | null
-          verificado_admin_by?: string | null
-          verificado_nota?: string | null
         }
         Update: {
           alumno_id?: string | null
@@ -9444,10 +9436,6 @@ export type Database = {
           tienda_emisor_id?: string | null
           total?: number
           updated_at?: string
-          verificado_admin?: boolean
-          verificado_admin_at?: string | null
-          verificado_admin_by?: string | null
-          verificado_nota?: string | null
         }
         Relationships: [
           {
@@ -11158,27 +11146,6 @@ export type Database = {
         }
         Relationships: []
       }
-      vw_conciliacion_pagos: {
-        Row: {
-          alumno_id: string | null
-          alumno_nombre: string | null
-          descripcion: string | null
-          estado_conciliacion: string | null
-          estado_origen: string | null
-          fecha: string | null
-          fuente: string | null
-          metodo_pago: string | null
-          moneda: string | null
-          monto: number | null
-          mp_payment_id: string | null
-          origen: string | null
-          registro_id: string | null
-          verificado: boolean | null
-          verificado_at: string | null
-          verificado_by: string | null
-        }
-        Relationships: []
-      }
       vw_cuenta_corriente_movimientos: {
         Row: {
           alumno_id: string | null
@@ -12072,10 +12039,6 @@ export type Database = {
         Args: { p_reservation_id: string }
         Returns: Json
       }
-      is_metodo_auto_conciliado: {
-        Args: { _metodo: string; _mp_payment_id: string }
-        Returns: boolean
-      }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       list_event_participants_for_roommate: {
         Args: { _event_id: string }
@@ -12106,15 +12069,6 @@ export type Database = {
       }
       marcar_baja_evitada: {
         Args: { p_motivo: string; p_solicitud_id: string }
-        Returns: undefined
-      }
-      marcar_pago_verificado: {
-        Args: {
-          _fuente: string
-          _nota?: string
-          _registro_id: string
-          _verificado?: boolean
-        }
         Returns: undefined
       }
       mark_admin_section_seen: {
