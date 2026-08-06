@@ -29,6 +29,7 @@ import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
 import MpMovementsTab from "@/components/admin/MpMovementsTab";
 import DeudoresTab from "@/components/admin/DeudoresTab";
 import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
+import TurneraPaymentsTab from "@/components/admin/TurneraPaymentsTab";
 
 
 type Suscripcion = {
@@ -743,6 +744,7 @@ const AdminPayments = () => {
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
           <TabsTrigger value="tienda">Tienda</TabsTrigger>
+          <TabsTrigger value="turnera">Turnera</TabsTrigger>
         </TabsList>
 
         <TabsContent value="deudores" className="space-y-6">
@@ -751,6 +753,10 @@ const AdminPayments = () => {
 
         <TabsContent value="tienda" className="space-y-6">
           <StorePaymentsTab />
+        </TabsContent>
+
+        <TabsContent value="turnera" className="space-y-6">
+          <TurneraPaymentsTab />
         </TabsContent>
 
         <TabsContent value="eventos" className="space-y-6">
