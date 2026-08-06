@@ -12001,6 +12001,15 @@ export type Database = {
           nombre: string
         }[]
       }
+      lookup_alumno_duplicate: {
+        Args: { p_documento?: string; p_email?: string; p_telefono?: string }
+        Returns: {
+          email_enmascarado: string
+          estado: string
+          motivo: string
+          nombre_parcial: string
+        }[]
+      }
       marcar_baja_evitada: {
         Args: { p_motivo: string; p_solicitud_id: string }
         Returns: undefined

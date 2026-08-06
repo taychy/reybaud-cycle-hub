@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { buildDuplicateIndex, DUPLICATE_REASON_LABEL } from "@/lib/duplicateStudents";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Button } from "@/components/ui/button";
@@ -331,31 +332,21 @@ const ManageStudents = () => {
   const thirtyDaysAgoIso = new Date(Date.now() - 30 * 86400000).toISOString();
   const nuevosCount = alumnos.filter(a => a.created_at && a.created_at >= thirtyDaysAgoIso).length;
 
-  // --- Duplicates detection (by email) ---
-  const duplicateEmailSet = new Set<string>();
-  const emailCount: Record<string, number> = {};
-  alumnos.forEach(a => {
-    const e = a.email.toLowerCase().trim();
-    emailCount[e] = (emailCount[e] || 0) + 1;
-  });
-  Object.entries(emailCount).forEach(([email, count]) => {
-    if (count > 1) duplicateEmailSet.add(email);
-  });
-  // Also detect by nombre+apellido
-  const nameCount: Record<string, number> = {};
-  alumnos.forEach(a => {
-    const key = `${a.nombre.toLowerCase().trim()}|${(getApellido(a) || "").toLowerCase().trim()}`;
-    if (key !== "|") nameCount[key] = (nameCount[key] || 0) + 1;
-  });
-  const duplicateNameSet = new Set<string>();
-  Object.entries(nameCount).forEach(([key, count]) => {
-    if (count > 1) duplicateNameSet.add(key);
-  });
-  const isDuplicate = (a: Alumno) => {
-    const emailDup = duplicateEmailSet.has(a.email.toLowerCase().trim());
-    const nameKey = `${a.nombre.toLowerCase().trim()}|${(getApellido(a) || "").toLowerCase().trim()}`;
-    const nameDup = duplicateNameSet.has(nameKey);
-    return emailDup || nameDup;
+  // --- Duplicates detection: email + teléfono normalizado + documento + nombre canónico ---
+  const duplicateIndex = buildDuplicateIndex(
+    alumnos.map(a => ({
+      id: a.id,
+      nombre: a.nombre,
+      apellido: getApellido(a),
+      email: a.email,
+      telefono: (a as any).telefono ?? null,
+      documento: (a as any).documento ?? null,
+    }))
+  );
+  const isDuplicate = (a: Alumno) => duplicateIndex.ids.has(a.id);
+  const duplicateTitle = (a: Alumno) => {
+    const r = duplicateIndex.reasons.get(a.id) || [];
+    return r.length ? `Posible duplicado (${r.map(x => DUPLICATE_REASON_LABEL[x]).join(", ")})` : "Posible duplicado";
   };
   const duplicadosCount = alumnos.filter(isDuplicate).length;
 
@@ -1317,7 +1308,7 @@ const ManageStudents = () => {
                               <span title={alumno.user_id ? "Tiene acceso a la app" : "Sin acceso a la app"}>
                                 <Smartphone className={`w-3.5 h-3.5 shrink-0 ${alumno.user_id ? "text-emerald-500" : "text-muted-foreground/40"}`} />
                               </span>
-                              {isDuplicate(alumno) && <span title="Posible duplicado"><Copy className="w-3 h-3 text-amber-500 shrink-0" /></span>}
+                              {isDuplicate(alumno) && <span title={duplicateTitle(alumno)}><Copy className="w-3 h-3 text-amber-500 shrink-0" /></span>}
                               {missing.length > 0 && !inconsistency && (
                                 <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" title={`Faltan: ${missing.join(", ")}`} />
                               )}

@@ -17,6 +17,8 @@ const Register = () => {
     setError(null);
   };
 
+  const [dupWarning, setDupWarning] = useState<string | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -40,6 +42,24 @@ const Register = () => {
       setLoading(false);
       return;
     }
+
+    // Anti-duplicado: misma persona con otro email (teléfono o documento ya cargados)
+    if (!dupWarning) {
+      const { data: dups } = await supabase.rpc("lookup_alumno_duplicate", {
+        p_email: email,
+        p_telefono: form.telefono.trim() || null,
+        p_documento: form.documento.trim() || null,
+      });
+      const hit = (dups as any[] | null)?.[0];
+      if (hit) {
+        setDupWarning(
+          `Ya existe una ficha de ${hit.nombre_parcial} con ese ${hit.motivo === "documento" ? "documento" : "teléfono"} (${hit.email_enmascarado}). Si sos vos, iniciá sesión con ese email o escribinos a administración. Si querés continuar igual, presioná "Registrarme" de nuevo.`
+        );
+        setLoading(false);
+        return;
+      }
+    }
+
 
     // Create new student (inactive, sin grupo)
     const newId = crypto.randomUUID();
@@ -164,6 +184,12 @@ const Register = () => {
             {error && (
               <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
                 {error}
+              </div>
+            )}
+
+            {dupWarning && (
+              <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3">
+                {dupWarning}
               </div>
             )}
 
