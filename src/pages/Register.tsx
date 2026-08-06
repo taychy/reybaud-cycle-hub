@@ -18,7 +18,6 @@ const Register = () => {
   };
 
   const [dupWarning, setDupWarning] = useState<string | null>(null);
-  const [dupMotivo, setDupMotivo] = useState<"documento" | "telefono" | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
 
