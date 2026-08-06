@@ -164,6 +164,7 @@ const App = () => (
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
           <Route path="/planes" element={<PlanSelection />} />
           <Route path="/reingreso" element={<Reingreso />} />
+          <Route path="/vincular-email" element={<VincularEmail />} />
 
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/interes/:eventId" element={<EventInterest />} />
