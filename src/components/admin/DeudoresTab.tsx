@@ -507,7 +507,7 @@ export default function DeudoresTab() {
                       </Badge>
                     </TableCell>
 
-                    <TableCell className="align-top">
+                    <TableCell className="align-top max-w-[220px]">
                       <Badge
                         variant="outline"
                         className={`text-[10px] ${
@@ -526,11 +526,15 @@ export default function DeudoresTab() {
                         </div>
                       )}
                       {g.tarea?.nota_cierre && (
-                        <div className="text-[10px] text-muted-foreground mt-0.5 line-clamp-2">
+                        <p
+                          title={g.tarea.nota_cierre}
+                          className="text-[11px] leading-snug text-muted-foreground mt-1 line-clamp-2 break-words [overflow-wrap:anywhere] whitespace-pre-wrap"
+                        >
                           {g.tarea.nota_cierre}
-                        </div>
+                        </p>
                       )}
                     </TableCell>
+
 
                     <TableCell className="align-top text-right">
                       <div className="flex items-center justify-end gap-1">
