@@ -397,7 +397,7 @@ const StudentDashboard = () => {
           )}
         </div>
         <a
-          href="https://wa.me/5491140312299?text=Hola%2C%20necesito%20ayuda%20con%20mi%20pago"
+          href="https://wa.me/5491140311122?text=Hola%2C%20necesito%20ayuda%20con%20mi%20pago"
           target="_blank"
           rel="noopener noreferrer"
           className="block text-center text-xs text-muted-foreground hover:text-foreground underline"

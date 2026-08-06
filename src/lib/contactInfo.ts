@@ -1,7 +1,7 @@
 // Centraliza datos de contacto de la escuela.
 // Si el número cambia, actualizar acá únicamente.
 
-export const SCHOOL_WHATSAPP_NUMBER = "5491140312299";
+export const SCHOOL_WHATSAPP_NUMBER = "5491140311122";
 
 /**
  * Construye un link wa.me con texto precargado.
