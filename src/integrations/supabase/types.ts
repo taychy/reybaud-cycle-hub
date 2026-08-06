@@ -11801,6 +11801,27 @@ export type Database = {
           por_pagar: number
         }[]
       }
+      get_deudores_cobranzas: {
+        Args: never
+        Returns: {
+          alumno_id: string
+          apellido: string
+          concepto: string
+          credito_disponible: number
+          dias_mora: number
+          email: string
+          estado_alumno: string
+          fecha: string
+          fuente_id: string
+          fuente_tabla: string
+          grupo: string
+          moneda: string
+          nombre: string
+          saldo_item: number
+          sede_id: string
+          telefono: string
+        }[]
+      }
       get_disponibilidad_ajustada_publica: {
         Args: { p_desde: string; p_hasta: string }
         Returns: {
