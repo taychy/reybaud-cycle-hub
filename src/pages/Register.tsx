@@ -213,10 +213,33 @@ const Register = () => {
             )}
 
             {dupWarning && (
-              <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3">
-                {dupWarning}
+              <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3 space-y-3">
+                <p>{dupWarning}</p>
+                {linkSent ? (
+                  <p className="text-emerald-400">
+                    Te enviamos un email a {linkSent} para confirmar la vinculación. Abrilo y confirmá:
+                    tu ficha, suscripciones y pagos se mantienen.
+                  </p>
+                ) : (
+                  <>
+                    <Button
+                      type="button"
+                      variant="gold"
+                      className="w-full"
+                      disabled={linking}
+                      onClick={handleLinkEmail}
+                    >
+                      {linking ? "Enviando..." : "Vincular este email a mi ficha"}
+                    </Button>
+                    <p className="text-xs text-amber-400/80">
+                      Enviaremos un email de confirmación a la casilla principal de esa ficha.
+                      Si no sos vos, presioná "Continuar" de nuevo para crear una cuenta nueva.
+                    </p>
+                  </>
+                )}
               </div>
             )}
+
 
             <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
               {loading ? "Creando cuenta..." : "Continuar"}
