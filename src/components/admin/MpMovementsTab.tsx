@@ -611,6 +611,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
             </DialogDescription>
           </DialogHeader>
 
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 space-y-3">
           <div className="rounded-md border border-blue-500/30 bg-blue-500/5 p-3 text-xs text-blue-200">
             {splitMode
               ? <>Pago familiar: agregá a cada integrante y el monto que le corresponde. Cada uno recibe su saldo a favor y después lo aplicás a su plan.</>
