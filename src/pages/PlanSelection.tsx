@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
+import { calendarMonthPeriod } from "@/lib/subscriptionPeriod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
@@ -583,10 +584,11 @@ const PlanSelection = () => {
         fechaInicio = pausaNextStart.fechaInicio;
         fechaFin = pausaNextStart.fechaFin;
       } else {
-        const now = new Date();
-        fechaInicio = now.toISOString().split("T")[0];
-        const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-        fechaFin = lastDay.toISOString().split("T")[0];
+        // Toda mensualidad arranca el día 1 del mes calendario, sin importar
+        // el día de la compra (evita el corrimiento permanente del período).
+        const period = calendarMonthPeriod();
+        fechaInicio = period.fechaInicio;
+        fechaFin = period.fechaFin;
       }
 
 

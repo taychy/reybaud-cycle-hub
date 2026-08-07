@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { calendarMonthPeriod } from "@/lib/subscriptionPeriod";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -192,10 +193,7 @@ const CardPaymentForm = ({
               if (reused) {
                 subId = reused.id;
               } else {
-                const now = new Date();
-                const fechaInicio = now.toISOString().split("T")[0];
-                const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                const fechaFin = lastDay.toISOString().split("T")[0];
+                const { fechaInicio, fechaFin } = calendarMonthPeriod();
 
                 const { data: sub, error: subError } = await supabase
                   .from("suscripciones")

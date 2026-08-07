@@ -32,8 +32,11 @@ export function computeNextPeriodFromFechaFin(fechaFin: string): {
   fechaInicio: string;
   fechaFin: string;
 } {
-  const [y, m, d] = fechaFin.substring(0, 10).split("-").map(Number);
-  const inicio = new Date(y, m - 1, d + 1); // día siguiente al actual fin
+  // Regla de negocio: el período nuevo SIEMPRE arranca el día 1 del mes
+  // siguiente al del período vigente (nunca se encadena "fin + 1 día", que
+  // arrastraría para siempre el corrimiento de la primera compra).
+  const [y, m] = fechaFin.substring(0, 10).split("-").map(Number);
+  const inicio = new Date(y, m, 1); // día 1 del mes siguiente
   const fin = new Date(inicio.getFullYear(), inicio.getMonth() + 1, 0); // último día de ese mes
   return { fechaInicio: toISO(inicio), fechaFin: toISO(fin) };
 }
