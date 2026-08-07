@@ -18,7 +18,6 @@ import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
 import WhatsAppConciliador from "./pages/admin/WhatsAppConciliador";
 import WhatsAppHistorial from "./pages/admin/WhatsAppHistorial";
-import AdminContactosWhatsapp from "./pages/admin/AdminContactosWhatsapp";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
 import Unsubscribe from "./pages/Unsubscribe";
@@ -130,7 +129,6 @@ import TurneraConfirmacion from "./pages/booking/TurneraConfirmacion";
 import TurneraTransferencia from "./pages/booking/TurneraTransferencia";
 import BookingLanding from "./pages/booking/BookingLanding";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
-import AdminNovedades from "./pages/admin/AdminNovedades";
 import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
 import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests";
@@ -217,7 +215,6 @@ const App = () => (
             <Route path="alumnos" element={<ManageStudents />} />
             <Route path="whatsapp-conciliador" element={<WhatsAppConciliador />} />
             <Route path="whatsapp-historial" element={<WhatsAppHistorial />} />
-            <Route path="contactos-whatsapp" element={<AdminContactosWhatsapp />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
@@ -236,7 +233,6 @@ const App = () => (
             <Route path="sedes" element={<ManageSedes />} />
             <Route path="admins" element={<ManageAdmins />} />
             <Route path="eventos" element={<EventsList />} />
-            <Route path="novedades" element={<AdminNovedades />} />
             <Route path="programas" element={<AdminProgramas />} />
             <Route path="programas/:cohortId" element={<AdminProgramaDetalle />} />
             <Route path="programas/:cohortId/flujo/:instanceId" element={<AdminProgramaFlujoRunner />} />
