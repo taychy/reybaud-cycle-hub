@@ -57,6 +57,9 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
   const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [targets, setTargets] = useState<DebtTarget[]>([]);
+  const [targetKey, setTargetKey] = useState<string>(NONE);
+  const [loadingTargets, setLoadingTargets] = useState(false);
 
   useEffect(() => {
     if (open) {
