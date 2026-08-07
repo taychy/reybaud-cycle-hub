@@ -84,8 +84,41 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
       setReferenciaExterna(initialValue?.referencia_externa || "");
       setComprobanteUrl(initialValue?.comprobante_url || null);
       setFile(null);
+      setTargetKey(NONE);
     }
   }, [open, initialValue, today]);
+
+  // Cargar deudas pendientes para imputar el pago (solo alta de crédito)
+  useEffect(() => {
+    if (!open || tipo !== "credito" || initialValue?.id) {
+      setTargets([]);
+      return;
+    }
+    let cancel = false;
+    setLoadingTargets(true);
+    supabase.rpc("get_alumno_payment_targets" as any, { _alumno_id: alumnoId }).then(({ data, error }) => {
+      if (cancel) return;
+      setLoadingTargets(false);
+      if (error) return;
+      const d = (data as any) ?? {};
+      const rows: DebtTarget[] = [
+        ...((d.subscriptions ?? []) as any[]).map((s) => ({
+          key: `suscripcion:${s.id}`, type: "suscripcion" as const, id: s.id,
+          label: s.label, currency: s.currency, amount: Number(s.total) || 0, icon: "📅",
+        })),
+        ...((d.reservations ?? []) as any[]).map((r) => ({
+          key: `reservation:${r.id}`, type: "reservation" as const, id: r.id,
+          label: r.label, currency: r.currency, amount: Number(r.balance) || 0, icon: "🎟️",
+        })),
+        ...((d.cargos ?? []) as any[]).map((c) => ({
+          key: `cargo:${c.id}`, type: "cargo" as const, id: c.id,
+          label: c.label, currency: c.currency, amount: Number(c.balance) || 0, icon: "🧾",
+        })),
+      ];
+      setTargets(rows);
+    });
+    return () => { cancel = true; };
+  }, [open, tipo, alumnoId, initialValue?.id]);
 
   // Load MP accounts once
   useEffect(() => {
