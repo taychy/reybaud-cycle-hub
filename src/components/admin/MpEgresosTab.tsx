@@ -185,8 +185,31 @@ export default function MpEgresosTab() {
         saldo: Number(e.monto_previsto || 0) - Number(e.monto_pagado || 0),
       }));
 
+      // Historial: cómo se categorizaron antes movimientos MP parecidos
+      const { data: histRows } = await supabase
+        .from("mp_account_movements")
+        .select("description, raw, gastos:gasto_id ( categoria, subcategoria, descripcion, proveedor, unidad_negocio )")
+        .not("gasto_id", "is", null)
+        .order("categorizado_at", { ascending: false, nullsFirst: false })
+        .limit(150);
+
+      const historial = ((histRows as any[]) ?? [])
+        .filter((h) => h.gastos)
+        .map((h) => {
+          const d = getMpMovementDetail(h as any);
+          return {
+            texto_mp: d.concepto ?? h.description,
+            contraparte_mp: d.contraparte,
+            categoria: h.gastos.categoria,
+            subcategoria: h.gastos.subcategoria,
+            descripcion: h.gastos.descripcion,
+            proveedor: h.gastos.proveedor,
+            unidad_negocio: h.gastos.unidad_negocio,
+          };
+        });
+
       const { data, error } = await supabase.functions.invoke("sugerir-categorias-gastos", {
-        body: { movimientos, catalogo, categorias: CATEGORIAS, unidades: UNIDADES.map(u => u.value) },
+        body: { movimientos, catalogo, historial, categorias: CATEGORIAS, unidades: UNIDADES.map(u => u.value) },
       });
       if (error) throw error;
       if ((data as any)?.error) throw new Error((data as any).error);
