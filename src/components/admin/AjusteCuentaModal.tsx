@@ -284,6 +284,29 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
             </div>
           </div>
 
+          {/* Imputar a una deuda existente (solo créditos nuevos) */}
+          {tipo === "credito" && !initialValue?.id && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Aplicar a una deuda <span className="text-muted-foreground">(opcional)</span></Label>
+              <Select value={targetKey} onValueChange={setTargetKey} disabled={loadingTargets}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingTargets ? "Cargando deudas…" : "No imputar (queda saldo a favor)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>No imputar (queda saldo a favor)</SelectItem>
+                  {targets.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.icon} {t.label} · {t.currency} {t.amount.toLocaleString("es-AR")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!loadingTargets && targets.length === 0 && (
+                <p className="text-[10px] text-muted-foreground">Este alumno no tiene deudas pendientes.</p>
+              )}
+            </div>
+          )}
+
           {/* Medio de pago / cuenta (opcional, aplica a ambos tipos) */}
           <div className="space-y-1.5">
             <Label className="text-xs">
