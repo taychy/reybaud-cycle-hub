@@ -52,9 +52,7 @@ const modules: NavModule[] = [
       {
         label: "Comunicación",
         items: [
-          { to: "/admin/novedades", label: "Novedades", icon: Megaphone },
           { to: "/admin/whatsapp-conciliador", label: "WhatsApp", icon: MessageCircle },
-          { to: "/admin/contactos-whatsapp", label: "Contactos WhatsApp", icon: MessageCircle },
           { to: "/admin/comunicaciones", label: "Plantillas email", icon: Megaphone },
           { to: "/admin/email-masivo", label: "Email masivo", icon: Megaphone },
         ],
