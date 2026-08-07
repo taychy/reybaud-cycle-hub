@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { calendarMonthPeriod, startOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -76,14 +77,12 @@ const ManualPaymentConfirm = ({
       fechaInicio = earlyRenewal.fechaInicio;
       fechaFin = earlyRenewal.fechaFin;
     } else if (overrideFechaFin) {
-      const now = new Date();
-      fechaInicio = now.toISOString().split("T")[0];
+      fechaInicio = startOfCalendarMonth();
       fechaFin = overrideFechaFin;
     } else {
-      const now = new Date();
-      fechaInicio = now.toISOString().split("T")[0];
-      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      fechaFin = lastDay.toISOString().split("T")[0];
+      const period = calendarMonthPeriod();
+      fechaInicio = period.fechaInicio;
+      fechaFin = period.fechaFin;
     }
 
     const canonicalMethod = toCanonicalMethod(metodoPago);

@@ -23,7 +23,7 @@ import {
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
 import { BillingInvoiceLauncher } from "@/components/admin/BillingInvoiceLauncher";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
-import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
+import { endOfCalendarMonth, startOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
 import MpMovementsTab from "@/components/admin/MpMovementsTab";
@@ -399,7 +399,7 @@ const AdminPayments = () => {
     const fechaFinStr = endOfCalendarMonth(todayStr);
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
-      fecha_inicio: todayStr,
+      fecha_inicio: startOfCalendarMonth(todayStr),
       fecha_fin: fechaFinStr,
       mp_status: sub.mp_status || "manual",
       origen_registro: "cargado_admin",
@@ -549,7 +549,7 @@ const AdminPayments = () => {
 
     const { error } = await supabase.from("suscripciones").update({
       estado: "activa",
-      fecha_inicio: manualPayData.fecha_pago,
+      fecha_inicio: startOfCalendarMonth(manualPayData.fecha_pago),
       fecha_fin: fechaFinNorm,
       mp_status: manualPayData.metodo,
       metodo_pago: manualPayData.metodo,

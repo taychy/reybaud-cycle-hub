@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { buildDuplicateIndex, DUPLICATE_REASON_LABEL } from "@/lib/duplicateStudents";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
-import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
+import { endOfCalendarMonth, startOfCalendarMonth, calendarMonthPeriod } from "@/lib/subscriptionPeriod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -888,9 +888,9 @@ const ManageStudents = () => {
     const hasPendingPayment = pendingSubs && pendingSubs.length > 0;
     await supabase.from("suscripciones").update({ estado: "vencida" }).eq("alumno_id", manualSubAlumno.id).eq("estado", "activa").lt("fecha_fin", todayStr);
     if (hasPendingPayment) {
-      await supabase.from("suscripciones").update({ estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin }).eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
+      await supabase.from("suscripciones").update({ estado: "activa", fecha_inicio: startOfCalendarMonth(todayStr), fecha_fin: manualFechaFin }).eq("alumno_id", manualSubAlumno.id).eq("estado", "pendiente_verificacion");
     } else {
-      const { error } = await supabase.from("suscripciones").insert({ alumno_id: manualSubAlumno.id, plan_id: planId, estado: "activa", fecha_inicio: todayStr, fecha_fin: manualFechaFin, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
+      const { error } = await supabase.from("suscripciones").insert({ alumno_id: manualSubAlumno.id, plan_id: planId, estado: "activa", fecha_inicio: startOfCalendarMonth(todayStr), fecha_fin: manualFechaFin, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
       if (error) { 
         toast.error(isDuplicateSubError(error) ? DUPLICATE_SUB_MSG : "Error al crear la suscripción."); 
         setSavingManual(false); 
@@ -950,10 +950,7 @@ const ManageStudents = () => {
         const { error } = await supabase.from("suscripciones").update({ plan_id: newPlanId } as any).eq("id", activeSub.id);
         if (error) throw error;
       } else {
-        const today = new Date();
-        const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
-        const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        const endStr = lastDay.toISOString().split("T")[0];
+        const { fechaInicio: todayStr, fechaFin: endStr } = calendarMonthPeriod();
         const { error } = await supabase.from("suscripciones").insert({ alumno_id: changePlanAlumno.id, plan_id: newPlanId, estado: "activa", fecha_inicio: todayStr, fecha_fin: endStr, mp_status: "manual", metodo_pago: "efectivo", origen_registro: "cargado_admin" } as any);
         if (error) { 
           if (isDuplicateSubError(error)) toast.error(DUPLICATE_SUB_MSG);
