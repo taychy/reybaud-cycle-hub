@@ -38,6 +38,16 @@ interface Props {
 
 const NONE = "__none__";
 
+interface DebtTarget {
+  key: string;
+  type: "suscripcion" | "reservation" | "cargo";
+  id: string;
+  label: string;
+  currency: string;
+  amount: number;
+  icon: string;
+}
+
 // Auto-resolve cuenta_mp_id from PaymentMethodKey when slug matches
 const MP_KEYS: PaymentMethodKey[] = ["mp_externo_josi", "mp_externo_scarlett", "mp_externo_claudio", "mercadopago"];
 
