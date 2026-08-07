@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
+import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
 
 interface Props {
   alumnoId: string;
@@ -120,6 +121,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [showAll, setShowAll] = useState(false);
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [cuentasMp, setCuentasMp] = useState<Record<string, string>>({});
+  const [ajusteComprobantes, setAjusteComprobantes] = useState<Record<string, string>>({});
 
   // Subscription actions (cancel & change plan) launched from cargo_suscripcion rows
   const [planes, setPlanes] = useState<PlanOption[]>([]);
@@ -141,14 +143,25 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const [movRes, saldoRes] = await Promise.all([
+    const [movRes, saldoRes, ajustesRes] = await Promise.all([
       supabase
         .from("vw_cuenta_corriente_movimientos" as any)
         .select("*")
         .eq("alumno_id", alumnoId)
         .order("fecha", { ascending: false }),
       supabase.rpc("get_saldo_alumno" as any, { p_alumno_id: alumnoId }),
+      supabase
+        .from("cuenta_ajustes")
+        .select("id, comprobante_url")
+        .eq("alumno_id", alumnoId)
+        .not("comprobante_url", "is", null),
     ]);
+
+    const compMap: Record<string, string> = {};
+    ((ajustesRes as any)?.data || []).forEach((a: any) => {
+      if (a.comprobante_url) compMap[a.id] = a.comprobante_url;
+    });
+    setAjusteComprobantes(compMap);
 
     if (movRes.error) {
       console.error(movRes.error);
@@ -388,6 +401,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
       medio_pago: m.referencia_extra?.medio_pago || null,
       cuenta_mp_id: m.referencia_extra?.cuenta_mp_id || null,
       referencia_externa: m.referencia_extra?.referencia_externa || null,
+      comprobante_url: ajusteComprobantes[m.fuente_id] || null,
     });
     setModalOpen(true);
   };
@@ -578,11 +592,12 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 const referencia = rx.referencia_externa || rx.mp_payment_id || null;
                 const cuentaMpNombre = rx.cuenta_mp_id ? (cuentasMp[rx.cuenta_mp_id] || "Cuenta MP") : null;
                 const fechaPago = rx.fecha_pago ? String(rx.fecha_pago).slice(0, 10) : null;
-                const comprobante: string | null = rx.comprobante_url || rx.proof_url || null;
+                const comprobante: string | null =
+                  rx.comprobante_url || rx.proof_url || (isAjuste ? ajusteComprobantes[m.fuente_id] : null) || null;
                 const notas = rx.notas || rx.notes || null;
                 const rowKey = `${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`;
                 const isPago = m.haber > 0;
-                const hasDetalle = isPago && (medioRaw || referencia || cuentaMpNombre || fechaPago || comprobante || notas);
+                const hasDetalle = (isPago || isAjuste) && (medioRaw || referencia || cuentaMpNombre || fechaPago || comprobante || notas);
                 const isExpanded = expandedRow === rowKey;
                 return (
                   <Fragment key={rowKey}>
@@ -746,7 +761,17 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                                 <FileText className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
                                 <div>
                                   <div className="text-muted-foreground text-[10px] uppercase">Comprobante</div>
-                                  <a href={comprobante} target="_blank" rel="noreferrer" className="text-primary hover:underline">Ver archivo</a>
+                                  <button
+                                    type="button"
+                                    className="text-primary hover:underline"
+                                    onClick={async () => {
+                                      const url = await getPaymentProofSignedUrl(comprobante);
+                                      if (url) window.open(url, "_blank", "noopener");
+                                      else toast.error("No se pudo abrir el comprobante");
+                                    }}
+                                  >
+                                    Ver archivo
+                                  </button>
                                 </div>
                               </div>
                             )}
