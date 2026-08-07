@@ -38,6 +38,16 @@ interface Props {
 
 const NONE = "__none__";
 
+interface DebtTarget {
+  key: string;
+  type: "suscripcion" | "reservation" | "cargo";
+  id: string;
+  label: string;
+  currency: string;
+  amount: number;
+  icon: string;
+}
+
 // Auto-resolve cuenta_mp_id from PaymentMethodKey when slug matches
 const MP_KEYS: PaymentMethodKey[] = ["mp_externo_josi", "mp_externo_scarlett", "mp_externo_claudio", "mercadopago"];
 
@@ -57,6 +67,9 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
   const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [targets, setTargets] = useState<DebtTarget[]>([]);
+  const [targetKey, setTargetKey] = useState<string>(NONE);
+  const [loadingTargets, setLoadingTargets] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -71,8 +84,41 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
       setReferenciaExterna(initialValue?.referencia_externa || "");
       setComprobanteUrl(initialValue?.comprobante_url || null);
       setFile(null);
+      setTargetKey(NONE);
     }
   }, [open, initialValue, today]);
+
+  // Cargar deudas pendientes para imputar el pago (solo alta de crédito)
+  useEffect(() => {
+    if (!open || tipo !== "credito" || initialValue?.id) {
+      setTargets([]);
+      return;
+    }
+    let cancel = false;
+    setLoadingTargets(true);
+    supabase.rpc("get_alumno_payment_targets" as any, { _alumno_id: alumnoId }).then(({ data, error }) => {
+      if (cancel) return;
+      setLoadingTargets(false);
+      if (error) return;
+      const d = (data as any) ?? {};
+      const rows: DebtTarget[] = [
+        ...((d.subscriptions ?? []) as any[]).map((s) => ({
+          key: `suscripcion:${s.id}`, type: "suscripcion" as const, id: s.id,
+          label: s.label, currency: s.currency, amount: Number(s.total) || 0, icon: "📅",
+        })),
+        ...((d.reservations ?? []) as any[]).map((r) => ({
+          key: `reservation:${r.id}`, type: "reservation" as const, id: r.id,
+          label: r.label, currency: r.currency, amount: Number(r.balance) || 0, icon: "🎟️",
+        })),
+        ...((d.cargos ?? []) as any[]).map((c) => ({
+          key: `cargo:${c.id}`, type: "cargo" as const, id: c.id,
+          label: c.label, currency: c.currency, amount: Number(c.balance) || 0, icon: "🧾",
+        })),
+      ];
+      setTargets(rows);
+    });
+    return () => { cancel = true; };
+  }, [open, tipo, alumnoId, initialValue?.id]);
 
   // Load MP accounts once
   useEffect(() => {
@@ -147,25 +193,51 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
     };
 
     let error;
+    let newId: string | null = null;
     if (initialValue?.id) {
       ({ error } = await supabase.from("cuenta_ajustes").update(payload).eq("id", initialValue.id));
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      ({ error } = await supabase.from("cuenta_ajustes").insert({
+      const res = await supabase.from("cuenta_ajustes").insert({
         ...payload,
         created_by: user?.id || null,
-      }));
+      }).select("id").single();
+      error = res.error as any;
+      newId = (res.data as any)?.id ?? null;
     }
-    setSaving(false);
 
     if (error) {
+      setSaving(false);
       console.error(error);
       toast.error("No se pudo guardar el ajuste");
       return;
     }
+
+    // Imputar el pago a la deuda elegida
+    const target = targets.find((t) => t.key === targetKey);
+    if (newId && tipo === "credito" && target) {
+      const { error: applyErr } = await supabase.rpc("apply_credit_ajuste_to_target" as any, {
+        _ajuste_id: newId,
+        _target_type: target.type,
+        _target_id: target.id,
+      });
+      setSaving(false);
+      if (applyErr) {
+        console.error(applyErr);
+        toast.warning("Pago registrado, pero no se pudo imputar a la deuda seleccionada");
+        onSaved();
+        return;
+      }
+      toast.success("Pago registrado e imputado a la deuda");
+      onSaved();
+      return;
+    }
+
+    setSaving(false);
     toast.success(initialValue?.id ? "Ajuste actualizado" : "Ajuste registrado");
     onSaved();
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -211,6 +283,29 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
               <Input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
             </div>
           </div>
+
+          {/* Imputar a una deuda existente (solo créditos nuevos) */}
+          {tipo === "credito" && !initialValue?.id && (
+            <div className="space-y-1.5">
+              <Label className="text-xs">Aplicar a una deuda <span className="text-muted-foreground">(opcional)</span></Label>
+              <Select value={targetKey} onValueChange={setTargetKey} disabled={loadingTargets}>
+                <SelectTrigger>
+                  <SelectValue placeholder={loadingTargets ? "Cargando deudas…" : "No imputar (queda saldo a favor)"} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NONE}>No imputar (queda saldo a favor)</SelectItem>
+                  {targets.map((t) => (
+                    <SelectItem key={t.key} value={t.key}>
+                      {t.icon} {t.label} · {t.currency} {t.amount.toLocaleString("es-AR")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!loadingTargets && targets.length === 0 && (
+                <p className="text-[10px] text-muted-foreground">Este alumno no tiene deudas pendientes.</p>
+              )}
+            </div>
+          )}
 
           {/* Medio de pago / cuenta (opcional, aplica a ambos tipos) */}
           <div className="space-y-1.5">
