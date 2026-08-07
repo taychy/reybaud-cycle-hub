@@ -11,8 +11,9 @@ const SYSTEM = `Sos un contador experto en categorización automática de egreso
 Recibís:
 1. "movimientos": egresos de MP sin categorizar (concepto, contraparte, operación, medio, monto, fecha).
 2. "catalogo": gastos recurrentes planificados (concepto, categoría, proveedor, ámbito) con sus ejecuciones abiertas (id, mes, previsto, pagado, saldo).
-3. "categorias": categorías válidas para gastos nuevos.
-4. "unidades": unidades de negocio válidas.
+3. "historial": categorizaciones ANTERIORES ya confirmadas por el humano (texto_mp, contraparte_mp -> categoria, subcategoria, descripcion, proveedor, unidad_negocio). Es tu fuente de verdad principal: si un movimiento nuevo se parece a uno del historial (mismo proveedor/contraparte o texto similar), replicá EXACTAMENTE esa categoría, proveedor y unidad de negocio, y subí la confianza (>= 0.9). Solo apartate del historial si hay evidencia clara en contra, y explicalo en el motivo.
+4. "categorias": categorías válidas para gastos nuevos.
+5. "unidades": unidades de negocio válidas.
 
 Tu trabajo:
 A) Para CADA movimiento devolver una sugerencia:
@@ -40,6 +41,7 @@ serve(async (req) => {
     const body = await req.json().catch(() => null);
     const movimientos = Array.isArray(body?.movimientos) ? body.movimientos.slice(0, 60) : [];
     const catalogo = Array.isArray(body?.catalogo) ? body.catalogo.slice(0, 200) : [];
+    const historial = Array.isArray(body?.historial) ? body.historial.slice(0, 150) : [];
     const categorias = Array.isArray(body?.categorias) ? body.categorias : [];
     const unidades = Array.isArray(body?.unidades) ? body.unidades : [];
 
@@ -59,7 +61,7 @@ serve(async (req) => {
           { role: "system", content: SYSTEM },
           {
             role: "user",
-            content: JSON.stringify({ movimientos, catalogo, categorias, unidades }),
+            content: JSON.stringify({ movimientos, catalogo, historial, categorias, unidades }),
           },
         ],
         response_format: { type: "json_object" },
