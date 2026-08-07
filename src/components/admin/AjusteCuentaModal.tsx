@@ -25,6 +25,7 @@ export interface AjusteCuentaValue {
   medio_pago?: string | null;
   cuenta_mp_id?: string | null;
   referencia_externa?: string | null;
+  comprobante_url?: string | null;
 }
 
 interface Props {
@@ -53,6 +54,9 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
   const [referenciaExterna, setReferenciaExterna] = useState("");
   const [cuentasMp, setCuentasMp] = useState<Array<{ id: string; slug: string; alias: string | null; titular: string | null }>>([]);
   const [saving, setSaving] = useState(false);
+  const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -65,6 +69,8 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
       setMedioPago(initialValue?.medio_pago || NONE);
       setCuentaMpId(initialValue?.cuenta_mp_id || null);
       setReferenciaExterna(initialValue?.referencia_externa || "");
+      setComprobanteUrl(initialValue?.comprobante_url || null);
+      setFile(null);
     }
   }, [open, initialValue, today]);
 
@@ -106,6 +112,26 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
     }
 
     setSaving(true);
+
+    // Subir comprobante (factura / recibo) si se adjuntó uno
+    let proofPath = comprobanteUrl;
+    if (file) {
+      setUploading(true);
+      const ext = file.name.split(".").pop()?.toLowerCase() || "pdf";
+      const path = `${alumnoId}/ajustes/${Date.now()}.${ext}`;
+      const { error: upErr } = await supabase.storage
+        .from("payment-proofs")
+        .upload(path, file, { upsert: true, contentType: file.type || undefined });
+      setUploading(false);
+      if (upErr) {
+        console.error(upErr);
+        setSaving(false);
+        toast.error("No se pudo subir el comprobante");
+        return;
+      }
+      proofPath = path;
+    }
+
     const payload: any = {
       alumno_id: alumnoId,
       tipo,
@@ -117,6 +143,7 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
       medio_pago: medioPago === NONE ? null : medioPago,
       cuenta_mp_id: cuentaMpId,
       referencia_externa: referenciaExterna.trim() || null,
+      comprobante_url: proofPath,
     };
 
     let error;
@@ -216,6 +243,21 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
           </div>
 
           <div className="space-y-1.5">
+            <Label className="text-xs">Factura / comprobante <span className="text-muted-foreground">(opcional)</span></Label>
+            <Input
+              type="file"
+              accept="image/*,application/pdf"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+              className="text-xs file:text-xs"
+            />
+            {file ? (
+              <p className="text-[10px] text-muted-foreground">Se subirá: {file.name}</p>
+            ) : comprobanteUrl ? (
+              <p className="text-[10px] text-emerald-400">✓ Ya tiene un comprobante adjunto</p>
+            ) : null}
+          </div>
+
+          <div className="space-y-1.5">
             <Label className="text-xs">Notas (opcional)</Label>
             <Textarea value={notas} onChange={(e) => setNotas(e.target.value)} rows={2} />
           </div>
@@ -223,7 +265,7 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
           <Button onClick={handleSave} disabled={saving}>
-            {saving ? "Guardando…" : "Guardar"}
+            {uploading ? "Subiendo comprobante…" : saving ? "Guardando…" : "Guardar"}
           </Button>
         </DialogFooter>
       </DialogContent>

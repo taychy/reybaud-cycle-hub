@@ -1,0 +1,1 @@
+ALTER TABLE public.cuenta_ajustes ADD COLUMN IF NOT EXISTS comprobante_url text;

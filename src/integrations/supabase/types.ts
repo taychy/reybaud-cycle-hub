@@ -1625,6 +1625,7 @@ export type Database = {
           alumno_id: string
           aplicado_a_fuente_id: string | null
           aplicado_a_fuente_tabla: string | null
+          comprobante_url: string | null
           concepto: string
           created_at: string
           created_by: string | null
@@ -1643,6 +1644,7 @@ export type Database = {
           alumno_id: string
           aplicado_a_fuente_id?: string | null
           aplicado_a_fuente_tabla?: string | null
+          comprobante_url?: string | null
           concepto: string
           created_at?: string
           created_by?: string | null
@@ -1661,6 +1663,7 @@ export type Database = {
           alumno_id?: string
           aplicado_a_fuente_id?: string | null
           aplicado_a_fuente_tabla?: string | null
+          comprobante_url?: string | null
           concepto?: string
           created_at?: string
           created_by?: string | null
