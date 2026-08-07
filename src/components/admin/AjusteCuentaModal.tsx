@@ -193,25 +193,51 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
     };
 
     let error;
+    let newId: string | null = null;
     if (initialValue?.id) {
       ({ error } = await supabase.from("cuenta_ajustes").update(payload).eq("id", initialValue.id));
     } else {
       const { data: { user } } = await supabase.auth.getUser();
-      ({ error } = await supabase.from("cuenta_ajustes").insert({
+      const res = await supabase.from("cuenta_ajustes").insert({
         ...payload,
         created_by: user?.id || null,
-      }));
+      }).select("id").single();
+      error = res.error as any;
+      newId = (res.data as any)?.id ?? null;
     }
-    setSaving(false);
 
     if (error) {
+      setSaving(false);
       console.error(error);
       toast.error("No se pudo guardar el ajuste");
       return;
     }
+
+    // Imputar el pago a la deuda elegida
+    const target = targets.find((t) => t.key === targetKey);
+    if (newId && tipo === "credito" && target) {
+      const { error: applyErr } = await supabase.rpc("apply_credit_ajuste_to_target" as any, {
+        _ajuste_id: newId,
+        _target_type: target.type,
+        _target_id: target.id,
+      });
+      setSaving(false);
+      if (applyErr) {
+        console.error(applyErr);
+        toast.warning("Pago registrado, pero no se pudo imputar a la deuda seleccionada");
+        onSaved();
+        return;
+      }
+      toast.success("Pago registrado e imputado a la deuda");
+      onSaved();
+      return;
+    }
+
+    setSaving(false);
     toast.success(initialValue?.id ? "Ajuste actualizado" : "Ajuste registrado");
     onSaved();
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
