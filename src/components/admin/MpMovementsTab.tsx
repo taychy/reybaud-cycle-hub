@@ -92,11 +92,33 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [newSubMonth, setNewSubMonth] = useState("");
   const [newSubPrice, setNewSubPrice] = useState("");
   const [splitMode, setSplitMode] = useState(false);
-  const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
+  const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string; targetId: string; subs: TargetRow[]; loading?: boolean }>>([]);
 
-  function addSplitAlumno(a: Alumno) {
-    setSplitRows((prev) => (prev.some((r) => r.alumno.id === a.id) ? prev : [...prev, { alumno: a, monto: "" }]));
+  async function addSplitAlumno(a: Alumno) {
+    let shouldLoad = false;
+    setSplitRows((prev) => {
+      if (prev.some((r) => r.alumno.id === a.id)) return prev;
+      shouldLoad = true;
+      return [...prev, { alumno: a, monto: "", targetId: "", subs: [], loading: true }];
+    });
+    if (!shouldLoad) return;
+    const { data } = await supabase.rpc("get_alumno_payment_targets", { _alumno_id: a.id });
+    const subs = (((data as any)?.subscriptions ?? []) as TargetRow[]).filter((s) => (s.balance ?? s.total ?? 0) > 0);
+    setSplitRows((prev) =>
+      prev.map((r) =>
+        r.alumno.id === a.id
+          ? {
+              ...r,
+              subs,
+              loading: false,
+              targetId: subs.length === 1 ? subs[0].id : r.targetId,
+              monto: r.monto || (subs.length === 1 ? String(subs[0].balance ?? subs[0].total ?? "") : ""),
+            }
+          : r,
+      ),
+    );
   }
+
 
   useEffect(() => {
     setTarget({ type: "saldo", id: null });
@@ -319,7 +341,13 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   async function handleSplit() {
     if (!assignDialog || splitRows.length === 0) return;
-    const splits = splitRows.map((r) => ({ alumno_id: r.alumno.id, monto: Number(r.monto) }));
+    const splits = splitRows.map((r) => ({
+      alumno_id: r.alumno.id,
+      monto: Number(r.monto),
+      target_type: r.targetId ? "suscripcion" : null,
+      target_id: r.targetId || null,
+    }));
+
     if (splits.some((s) => !s.monto || s.monto <= 0)) {
       toast({ title: "Faltan montos", description: "Poné un importe mayor a cero para cada alumno.", variant: "destructive" });
       return;
@@ -341,10 +369,16 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       return;
     }
     const restante = Number((data as any)?.restante ?? 0);
+    const imputados = splitRows.filter((r) => r.targetId).length;
     toast({
       title: "Pago familiar dividido",
-      description: `Se generó un saldo a favor para ${splitRows.length} alumnos.` + (restante > 0.01 ? ` Quedaron sin asignar ${formatPrice(restante, assignDialog.currency)}.` : ""),
+      description:
+        (imputados > 0
+          ? `${imputados} de ${splitRows.length} partes quedaron imputadas a su mensualidad.`
+          : `Se generó un saldo a favor para ${splitRows.length} alumnos.`) +
+        (restante > 0.01 ? ` Quedaron sin asignar ${formatPrice(restante, assignDialog.currency)}.` : ""),
     });
+
     setAssignDialog(null);
     setSplitMode(false);
     setSplitRows([]);
@@ -685,21 +719,38 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                   <div className="text-xs text-muted-foreground">Buscá y tocá a cada alumno para agregarlo al reparto.</div>
                 )}
                 {splitRows.map((r, i) => (
-                  <div key={r.alumno.id} className="flex items-center gap-2">
-                    <div className="flex-1 text-sm truncate">
-                      {r.alumno.nombre} {r.alumno.apellido ?? ""}
-                      {i === 0 && <span className="ml-1 text-[10px] text-muted-foreground">(pagador)</span>}
+                  <div key={r.alumno.id} className="space-y-1 rounded-md border border-border/50 p-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 text-sm truncate">
+                        {r.alumno.nombre} {r.alumno.apellido ?? ""}
+                        {i === 0 && <span className="ml-1 text-[10px] text-muted-foreground">(pagador)</span>}
+                      </div>
+                      <Input
+                        className="w-32 h-8"
+                        inputMode="decimal"
+                        placeholder="Monto"
+                        value={r.monto}
+                        onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, monto: e.target.value } : p))}
+                      />
+                      <Button size="sm" variant="ghost" onClick={() => setSplitRows((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
                     </div>
-                    <Input
-                      className="w-32 h-8"
-                      inputMode="decimal"
-                      placeholder="Monto"
-                      value={r.monto}
-                      onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, monto: e.target.value } : p))}
-                    />
-                    <Button size="sm" variant="ghost" onClick={() => setSplitRows((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
+                    <select
+                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                      value={r.targetId}
+                      onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, targetId: e.target.value } : p))}
+                    >
+                      <option value="">
+                        {r.loading ? "Buscando deudas…" : r.subs.length === 0 ? "Sin deudas abiertas — queda como saldo a favor" : "Dejar como saldo a favor"}
+                      </option>
+                      {r.subs.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          Imputar a: {s.label} — {formatPrice(s.balance ?? s.total, s.currency)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 ))}
+
                 {splitRows.length > 0 && assignDialog && (() => {
                   const suma = splitRows.reduce((s, r) => s + (Number(r.monto) || 0), 0);
                   const total = Number(assignDialog.amount) || 0;
