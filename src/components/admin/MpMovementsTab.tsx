@@ -93,6 +93,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [newSubPrice, setNewSubPrice] = useState("");
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string; targetId: string; subs: TargetRow[]; loading?: boolean }>>([]);
+  const [planesList, setPlanesList] = useState<Array<{ id: string; nombre: string; precio: number; moneda: string }>>([]);
+
 
   async function addSplitAlumno(a: Alumno) {
     let shouldLoad = false;
