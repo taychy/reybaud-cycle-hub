@@ -775,7 +775,15 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                           Imputar a: {s.label} — {formatPrice(s.balance ?? s.total, s.currency)}
                         </option>
                       ))}
+                      <optgroup label="🆕 Generar mensualidad y aplicar">
+                        {planesList.map((p) => (
+                          <option key={p.id} value={`new:${p.id}`}>
+                            Generar {p.nombre} ({String(assignDialog?.fecha_movimiento ?? "").slice(0, 7)}) y aplicar
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
+
                   </div>
                 ))}
 
