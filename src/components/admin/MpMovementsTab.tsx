@@ -141,7 +141,10 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   async function loadCuentas() {
     const { data } = await supabase.from("cuentas_mp").select("id, nombre, slug").eq("activa", true).order("nombre");
     setCuentas(data ?? []);
+    const { data: pl } = await supabase.from("planes").select("id, nombre, precio, moneda").eq("activo", true).order("nombre");
+    setPlanesList((pl as any) ?? []);
   }
+
 
   async function load() {
     setLoading(true);
