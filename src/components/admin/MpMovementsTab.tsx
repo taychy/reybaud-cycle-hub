@@ -92,11 +92,33 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [newSubMonth, setNewSubMonth] = useState("");
   const [newSubPrice, setNewSubPrice] = useState("");
   const [splitMode, setSplitMode] = useState(false);
-  const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string }>>([]);
+  const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string; targetId: string; subs: TargetRow[]; loading?: boolean }>>([]);
 
-  function addSplitAlumno(a: Alumno) {
-    setSplitRows((prev) => (prev.some((r) => r.alumno.id === a.id) ? prev : [...prev, { alumno: a, monto: "" }]));
+  async function addSplitAlumno(a: Alumno) {
+    let shouldLoad = false;
+    setSplitRows((prev) => {
+      if (prev.some((r) => r.alumno.id === a.id)) return prev;
+      shouldLoad = true;
+      return [...prev, { alumno: a, monto: "", targetId: "", subs: [], loading: true }];
+    });
+    if (!shouldLoad) return;
+    const { data } = await supabase.rpc("get_alumno_payment_targets", { _alumno_id: a.id });
+    const subs = (((data as any)?.subscriptions ?? []) as TargetRow[]).filter((s) => (s.balance ?? s.total ?? 0) > 0);
+    setSplitRows((prev) =>
+      prev.map((r) =>
+        r.alumno.id === a.id
+          ? {
+              ...r,
+              subs,
+              loading: false,
+              targetId: subs.length === 1 ? subs[0].id : r.targetId,
+              monto: r.monto || (subs.length === 1 ? String(subs[0].balance ?? subs[0].total ?? "") : ""),
+            }
+          : r,
+      ),
+    );
   }
+
 
   useEffect(() => {
     setTarget({ type: "saldo", id: null });
