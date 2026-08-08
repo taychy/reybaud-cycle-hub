@@ -93,6 +93,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [newSubPrice, setNewSubPrice] = useState("");
   const [splitMode, setSplitMode] = useState(false);
   const [splitRows, setSplitRows] = useState<Array<{ alumno: Alumno; monto: string; targetId: string; subs: TargetRow[]; loading?: boolean }>>([]);
+  const [planesList, setPlanesList] = useState<Array<{ id: string; nombre: string; precio: number; moneda: string }>>([]);
+
 
   async function addSplitAlumno(a: Alumno) {
     let shouldLoad = false;
@@ -139,7 +141,10 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   async function loadCuentas() {
     const { data } = await supabase.from("cuentas_mp").select("id, nombre, slug").eq("activa", true).order("nombre");
     setCuentas(data ?? []);
+    const { data: pl } = await supabase.from("planes").select("id, nombre, precio, moneda").eq("activo", true).order("nombre");
+    setPlanesList((pl as any) ?? []);
   }
+
 
   async function load() {
     setLoading(true);
@@ -341,18 +346,41 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   async function handleSplit() {
     if (!assignDialog || splitRows.length === 0) return;
-    const splits = splitRows.map((r) => ({
-      alumno_id: r.alumno.id,
-      monto: Number(r.monto),
-      target_type: r.targetId ? "suscripcion" : null,
-      target_id: r.targetId || null,
-    }));
-
-    if (splits.some((s) => !s.monto || s.monto <= 0)) {
+    if (splitRows.some((r) => !Number(r.monto) || Number(r.monto) <= 0)) {
       toast({ title: "Faltan montos", description: "Poné un importe mayor a cero para cada alumno.", variant: "destructive" });
       return;
     }
     setAssigning(true);
+
+    // Generar las mensualidades faltantes elegidas en el reparto
+    const mes = String(assignDialog.fecha_movimiento ?? "").slice(0, 7);
+    const resolved: Array<{ alumno_id: string; monto: number; target_type: string | null; target_id: string | null }> = [];
+    for (const r of splitRows) {
+      let targetId = r.targetId || null;
+      if (targetId?.startsWith("new:")) {
+        const planId = targetId.slice(4);
+        const { data: newSubId, error: errNew } = await supabase.rpc("crear_suscripcion_para_imputar" as any, {
+          _alumno_id: r.alumno.id,
+          _plan_id: planId,
+          _fecha_inicio: `${mes || new Date().toISOString().slice(0, 7)}-01`,
+          _precio: Number(r.monto) || null,
+        });
+        if (errNew) {
+          setAssigning(false);
+          toast({ title: "No se pudo generar la mensualidad", description: errNew.message, variant: "destructive" });
+          return;
+        }
+        targetId = newSubId as any as string;
+      }
+      resolved.push({
+        alumno_id: r.alumno.id,
+        monto: Number(r.monto),
+        target_type: targetId ? "suscripcion" : null,
+        target_id: targetId,
+      });
+    }
+    const splits = resolved;
+
     const { data, error } = await supabase.rpc("split_mp_movement_among_alumnos" as any, {
       _movement_id: assignDialog.id,
       _splits: splits as any,
@@ -747,7 +775,15 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                           Imputar a: {s.label} — {formatPrice(s.balance ?? s.total, s.currency)}
                         </option>
                       ))}
+                      <optgroup label="🆕 Generar mensualidad y aplicar">
+                        {planesList.map((p) => (
+                          <option key={p.id} value={`new:${p.id}`}>
+                            Generar {p.nombre} ({String(assignDialog?.fecha_movimiento ?? "").slice(0, 7)}) y aplicar
+                          </option>
+                        ))}
+                      </optgroup>
                     </select>
+
                   </div>
                 ))}
 

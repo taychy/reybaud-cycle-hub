@@ -11516,6 +11516,15 @@ export type Database = {
       count_new_turnera_reservations: { Args: never; Returns: number }
       count_new_waitlist_entries: { Args: never; Returns: number }
       count_pending_waitlist_requests: { Args: never; Returns: number }
+      crear_suscripcion_para_imputar: {
+        Args: {
+          _alumno_id: string
+          _fecha_inicio: string
+          _plan_id: string
+          _precio?: number
+        }
+        Returns: string
+      }
       create_gasto_from_mp: {
         Args: {
           p_descripcion: string
