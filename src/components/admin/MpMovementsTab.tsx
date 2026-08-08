@@ -341,7 +341,13 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   async function handleSplit() {
     if (!assignDialog || splitRows.length === 0) return;
-    const splits = splitRows.map((r) => ({ alumno_id: r.alumno.id, monto: Number(r.monto) }));
+    const splits = splitRows.map((r) => ({
+      alumno_id: r.alumno.id,
+      monto: Number(r.monto),
+      target_type: r.targetId ? "suscripcion" : null,
+      target_id: r.targetId || null,
+    }));
+
     if (splits.some((s) => !s.monto || s.monto <= 0)) {
       toast({ title: "Faltan montos", description: "Poné un importe mayor a cero para cada alumno.", variant: "destructive" });
       return;
