@@ -11704,6 +11704,14 @@ export type Database = {
         Args: { _order_id: string }
         Returns: Json
       }
+      fn_imputar_credito_a_suscripcion: {
+        Args: { _ajuste_id: string; _suscripcion_id: string }
+        Returns: undefined
+      }
+      fn_mp_pago_ya_registrado: {
+        Args: { _alumno_id: string; _mp_payment_id: string }
+        Returns: boolean
+      }
       generate_gastos_ejecuciones_month: {
         Args: { p_mes: string }
         Returns: number
