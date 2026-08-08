@@ -369,10 +369,16 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       return;
     }
     const restante = Number((data as any)?.restante ?? 0);
+    const imputados = splitRows.filter((r) => r.targetId).length;
     toast({
       title: "Pago familiar dividido",
-      description: `Se generó un saldo a favor para ${splitRows.length} alumnos.` + (restante > 0.01 ? ` Quedaron sin asignar ${formatPrice(restante, assignDialog.currency)}.` : ""),
+      description:
+        (imputados > 0
+          ? `${imputados} de ${splitRows.length} partes quedaron imputadas a su mensualidad.`
+          : `Se generó un saldo a favor para ${splitRows.length} alumnos.`) +
+        (restante > 0.01 ? ` Quedaron sin asignar ${formatPrice(restante, assignDialog.currency)}.` : ""),
     });
+
     setAssignDialog(null);
     setSplitMode(false);
     setSplitRows([]);
