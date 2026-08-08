@@ -62,6 +62,7 @@ const modules: NavModule[] = [
         items: [
           { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
           { to: "/admin/programas", label: "Programas", icon: GraduationCap },
+          { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
         ],
       },
     ],
@@ -142,7 +143,7 @@ const modules: NavModule[] = [
         label: "Configuración",
         items: [
           { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-          { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
+          
           { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
           { to: "/admin/historial", label: "Historial", icon: ScrollText },
         ],
