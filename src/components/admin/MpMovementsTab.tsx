@@ -713,21 +713,38 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                   <div className="text-xs text-muted-foreground">Buscá y tocá a cada alumno para agregarlo al reparto.</div>
                 )}
                 {splitRows.map((r, i) => (
-                  <div key={r.alumno.id} className="flex items-center gap-2">
-                    <div className="flex-1 text-sm truncate">
-                      {r.alumno.nombre} {r.alumno.apellido ?? ""}
-                      {i === 0 && <span className="ml-1 text-[10px] text-muted-foreground">(pagador)</span>}
+                  <div key={r.alumno.id} className="space-y-1 rounded-md border border-border/50 p-2">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 text-sm truncate">
+                        {r.alumno.nombre} {r.alumno.apellido ?? ""}
+                        {i === 0 && <span className="ml-1 text-[10px] text-muted-foreground">(pagador)</span>}
+                      </div>
+                      <Input
+                        className="w-32 h-8"
+                        inputMode="decimal"
+                        placeholder="Monto"
+                        value={r.monto}
+                        onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, monto: e.target.value } : p))}
+                      />
+                      <Button size="sm" variant="ghost" onClick={() => setSplitRows((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
                     </div>
-                    <Input
-                      className="w-32 h-8"
-                      inputMode="decimal"
-                      placeholder="Monto"
-                      value={r.monto}
-                      onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, monto: e.target.value } : p))}
-                    />
-                    <Button size="sm" variant="ghost" onClick={() => setSplitRows((prev) => prev.filter((_, idx) => idx !== i))}>✕</Button>
+                    <select
+                      className="w-full h-8 rounded-md border border-input bg-background px-2 text-xs"
+                      value={r.targetId}
+                      onChange={(e) => setSplitRows((prev) => prev.map((p, idx) => idx === i ? { ...p, targetId: e.target.value } : p))}
+                    >
+                      <option value="">
+                        {r.loading ? "Buscando deudas…" : r.subs.length === 0 ? "Sin deudas abiertas — queda como saldo a favor" : "Dejar como saldo a favor"}
+                      </option>
+                      {r.subs.map((s) => (
+                        <option key={s.id} value={s.id}>
+                          Imputar a: {s.label} — {formatPrice(s.balance ?? s.total, s.currency)}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                 ))}
+
                 {splitRows.length > 0 && assignDialog && (() => {
                   const suma = splitRows.reduce((s, r) => s + (Number(r.monto) || 0), 0);
                   const total = Number(assignDialog.amount) || 0;
