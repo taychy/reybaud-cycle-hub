@@ -379,6 +379,40 @@ const AdminEntregaDetail = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [listId]);
 
+  // Pedidos a proveedor (para cruzar remanente)
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("supplier_orders")
+        .select("id, numero, proveedor_nombre, fecha_pedido, moneda")
+        .order("fecha_pedido", { ascending: false });
+      const rows = (data as any[]) || [];
+      setSupplierOrders(rows as any);
+      if (rows.length && !selectedOrderId) {
+        const prov = (list?.proveedor_nombre || "").toLowerCase();
+        const titulo = (list?.titulo || "").toLowerCase();
+        const match = rows.find((o) => {
+          const p = (o.proveedor_nombre || "").toLowerCase();
+          return (prov && p && (p.includes(prov) || prov.includes(p))) || (p && titulo.includes(p));
+        });
+        setSelectedOrderId((match || rows[0]).id);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list?.id]);
+
+  useEffect(() => {
+    if (!selectedOrderId) { setOrderItems([]); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("supplier_order_items")
+        .select("id, producto_nombre, variante, cantidad_pedida, cantidad_recibida, precio_unitario")
+        .eq("supplier_order_id", selectedOrderId);
+      setOrderItems(((data as any[]) || []) as any);
+    })();
+  }, [selectedOrderId]);
+
+
   const cajaAbierta = list?.caja_estado === "abierta";
 
   const grouped = useMemo(() => {
