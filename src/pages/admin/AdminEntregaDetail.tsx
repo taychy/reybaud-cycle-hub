@@ -174,6 +174,10 @@ const AdminEntregaDetail = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [items, setItems] = useState<Item[]>([]);
   const [tab, setTab] = useState<"resumen" | "productos" | "items" | "remanente" | "cobros" | "proveedor" | "cierre">("resumen");
+  const [supplierOrders, setSupplierOrders] = useState<{ id: string; numero: string; proveedor_nombre: string; fecha_pedido: string; moneda: string }[]>([]);
+  const [selectedOrderId, setSelectedOrderId] = useState<string>("");
+  const [orderItems, setOrderItems] = useState<{ id: string; producto_nombre: string; variante: any; cantidad_pedida: number; cantidad_recibida: number; precio_unitario: number | null }[]>([]);
+
   const [storeProducts, setStoreProducts] = useState<StoreProductLite[]>([]);
   const [productEdits, setProductEdits] = useState<Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }>>({});
   const [loading, setLoading] = useState(true);
