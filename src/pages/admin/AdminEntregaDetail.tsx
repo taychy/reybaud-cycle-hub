@@ -1211,13 +1211,14 @@ const AdminEntregaDetail = () => {
             const monedaPedido = (order?.moneda || "ARS") as any;
 
             // Asignado a clientes en esta lista (toda la mercadería con dueño)
-            const asignado: Record<string, { qty: number; clientes: string[]; venta: number; monedaVenta: string }> = {};
+            const asignado: Record<string, { qty: number; clientes: string[]; venta: number; lineas: number; monedaVenta: string }> = {};
             items.forEach((it) => {
               const key = `${norm(it.producto)}||${norm(it.variante || "")}`;
               const qty = Number(it.cantidad || 0);
-              if (!asignado[key]) asignado[key] = { qty: 0, clientes: [], venta: 0, monedaVenta: it.moneda || "ARS" };
+              if (!asignado[key]) asignado[key] = { qty: 0, clientes: [], venta: 0, lineas: 0, monedaVenta: it.moneda || "ARS" };
               asignado[key].qty += qty;
               asignado[key].venta += Number(it.precio_venta || 0);
+              asignado[key].lineas += 1;
               if (it.cliente_nombre && !asignado[key].clientes.includes(it.cliente_nombre)) asignado[key].clientes.push(it.cliente_nombre);
             });
 
@@ -1232,8 +1233,7 @@ const AdminEntregaDetail = () => {
               const asignadoQty = asg?.qty || 0;
               const recibido = Number(oi.cantidad_recibida || 0);
               const pedido = Number(oi.cantidad_pedida || 0);
-              const cantVentas = asg && asg.qty > 0 ? asg.qty : 0;
-              const precioUnit = asg && cantVentas > 0 ? asg.venta / (asg.clientes.length ? cantVentas : 1) : 0;
+              const precioUnit = asg && asg.lineas > 0 ? asg.venta / asg.lineas : 0;
               return {
                 producto: oi.producto_nombre,
                 variante,
