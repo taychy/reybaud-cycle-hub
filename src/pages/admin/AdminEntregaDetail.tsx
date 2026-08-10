@@ -1201,29 +1201,76 @@ const AdminEntregaDetail = () => {
         {/* REMANENTE */}
         <TabsContent value="remanente" className="space-y-3 pt-4">
           {(() => {
-            const pendientes = items.filter((it) => !it.preparado);
-            const map: Record<string, { producto: string; variante: string; unidades: number; costo: number; venta: number; moneda: string; clientes: string[] }> = {};
-            pendientes.forEach((it) => {
-              const key = `${it.producto}||${it.variante ?? ""}`;
+            const norm = (s: string) => (s || "").toLowerCase().replace(/\s+/g, "");
+            const varOf = (v: any): string => {
+              if (v == null) return "";
+              if (typeof v === "string") return v;
+              return v.talle || v.variante || v.nombre || "";
+            };
+            const order = supplierOrders.find((o) => o.id === selectedOrderId);
+            const monedaPedido = (order?.moneda || "ARS") as any;
+
+            // Asignado a clientes en esta lista (toda la mercadería con dueño)
+            const asignado: Record<string, { qty: number; clientes: string[]; venta: number; monedaVenta: string }> = {};
+            items.forEach((it) => {
+              const key = `${norm(it.producto)}||${norm(it.variante || "")}`;
               const qty = Number(it.cantidad || 0);
-              if (!map[key]) map[key] = { producto: it.producto, variante: it.variante ?? "", unidades: 0, costo: 0, venta: 0, moneda: it.moneda || "ARS", clientes: [] };
-              map[key].unidades += qty;
-              map[key].costo += Number(it.costo_unitario || 0) * qty;
-              map[key].venta += Number(it.precio_venta || 0) * qty;
-              if (it.cliente_nombre && !map[key].clientes.includes(it.cliente_nombre)) map[key].clientes.push(it.cliente_nombre);
+              if (!asignado[key]) asignado[key] = { qty: 0, clientes: [], venta: 0, monedaVenta: it.moneda || "ARS" };
+              asignado[key].qty += qty;
+              asignado[key].venta += Number(it.precio_venta || 0);
+              if (it.cliente_nombre && !asignado[key].clientes.includes(it.cliente_nombre)) asignado[key].clientes.push(it.cliente_nombre);
             });
-            const rows = Object.values(map).sort((a, b) => b.unidades - a.unidades || a.producto.localeCompare(b.producto));
-            const totalUnidades = rows.reduce((a, r) => a + r.unidades, 0);
-            const monedas = Array.from(new Set(rows.map((r) => r.moneda)));
+
+            type Row = {
+              producto: string; variante: string; pedido: number; recibido: number; asignado: number;
+              libre: number; faltanteProveedor: number; costoUnit: number; precioUnit: number; monedaVenta: string; clientes: string[];
+            };
+            const rows: Row[] = orderItems.map((oi) => {
+              const variante = varOf(oi.variante);
+              const key = `${norm(oi.producto_nombre)}||${norm(variante)}`;
+              const asg = asignado[key];
+              const asignadoQty = asg?.qty || 0;
+              const recibido = Number(oi.cantidad_recibida || 0);
+              const pedido = Number(oi.cantidad_pedida || 0);
+              const cantVentas = asg && asg.qty > 0 ? asg.qty : 0;
+              const precioUnit = asg && cantVentas > 0 ? asg.venta / (asg.clientes.length ? cantVentas : 1) : 0;
+              return {
+                producto: oi.producto_nombre,
+                variante,
+                pedido,
+                recibido,
+                asignado: asignadoQty,
+                libre: recibido - asignadoQty,
+                faltanteProveedor: Math.max(0, pedido - recibido),
+                costoUnit: Number(oi.precio_unitario || 0),
+                precioUnit,
+                monedaVenta: asg?.monedaVenta || "ARS",
+                clientes: asg?.clientes || [],
+              };
+            }).sort((a, b) => b.libre - a.libre || a.producto.localeCompare(b.producto) || compareVariantValues(a.variante, b.variante));
+
+            const libres = rows.filter((r) => r.libre > 0);
+            const sobreasignados = rows.filter((r) => r.libre < 0);
+            const totalLibre = libres.reduce((a, r) => a + r.libre, 0);
+            const totalPedido = rows.reduce((a, r) => a + r.pedido, 0);
+            const totalRecibido = rows.reduce((a, r) => a + r.recibido, 0);
+            const totalAsignado = rows.reduce((a, r) => a + r.asignado, 0);
+            const totalFaltante = rows.reduce((a, r) => a + r.faltanteProveedor, 0);
+            const costoLibre = libres.reduce((a, r) => a + r.libre * r.costoUnit, 0);
+            const ventaLibre = libres.reduce((a, r) => a + r.libre * r.precioUnit, 0);
+
+            // Ítems de la lista que no existen en el pedido (posible carga suelta)
+            const orderKeys = new Set(orderItems.map((oi) => `${norm(oi.producto_nombre)}||${norm(varOf(oi.variante))}`));
+            const huerfanos = Object.entries(asignado).filter(([k]) => !orderKeys.has(k));
 
             const exportCsv = () => {
-              const header = ["Producto", "Variante", "Unidades", "Costo total", "Venta potencial", "Moneda", "Clientes"];
-              const body = rows.map((r) => [r.producto, r.variante, r.unidades, r.costo, r.venta, r.moneda, r.clientes.join(" / ")]);
+              const header = ["Producto", "Variante", "Pedido", "Recibido", "Asignado a clientes", "Remanente libre", "Falta del proveedor", "Costo unit.", "Costo remanente", "Clientes"];
+              const body = rows.map((r) => [r.producto, r.variante, r.pedido, r.recibido, r.asignado, r.libre, r.faltanteProveedor, r.costoUnit, r.libre > 0 ? r.libre * r.costoUnit : 0, r.clientes.join(" / ")]);
               const csv = [header, ...body].map((l) => l.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
               const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
               const a = document.createElement("a");
               a.href = url;
-              a.download = `remanente-${list.titulo.replace(/\s+/g, "_")}.csv`;
+              a.download = `remanente-${(list?.titulo || "entrega").replace(/\s+/g, "_")}.csv`;
               a.click();
               URL.revokeObjectURL(url);
             };
@@ -1232,76 +1279,107 @@ const AdminEntregaDetail = () => {
               <>
                 <div className="flex items-start justify-between gap-2 flex-wrap">
                   <p className="text-xs text-muted-foreground max-w-2xl">
-                    Mercadería que <strong>todavía no se entregó/vendió</strong> y sigue en depósito (ítems sin marcar como entregados).
+                    <strong>Remanente = mercadería del pedido al proveedor que no está asignada a ningún cliente.</strong> Se cruza lo recibido del pedido contra lo cargado en esta lista de entrega. No mira el stock físico.
                   </p>
-                  <Button size="sm" variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
-                    Exportar CSV
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    <Select value={selectedOrderId} onValueChange={setSelectedOrderId}>
+                      <SelectTrigger className="h-8 w-[240px] text-xs"><SelectValue placeholder="Elegí el pedido" /></SelectTrigger>
+                      <SelectContent>
+                        {supplierOrders.map((o) => (
+                          <SelectItem key={o.id} value={o.id} className="text-xs">
+                            {o.numero} · {o.proveedor_nombre}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <Button size="sm" variant="outline" onClick={exportCsv} disabled={rows.length === 0}>Exportar CSV</Button>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  <Card><CardContent className="p-3">
-                    <div className="text-[10px] uppercase text-muted-foreground">Unidades en depósito</div>
-                    <div className="text-xl font-heading">{totalUnidades}</div>
-                  </CardContent></Card>
-                  <Card><CardContent className="p-3">
-                    <div className="text-[10px] uppercase text-muted-foreground">Modelos distintos</div>
-                    <div className="text-xl font-heading">{rows.length}</div>
-                  </CardContent></Card>
-                  {monedas.map((m) => (
-                    <Card key={m}><CardContent className="p-3">
-                      <div className="text-[10px] uppercase text-muted-foreground">Costo inmovilizado ({m})</div>
-                      <div className="text-xl font-heading">
-                        {formatPrice(rows.filter((r) => r.moneda === m).reduce((a, r) => a + r.costo, 0), m as any)}
-                      </div>
-                    </CardContent></Card>
-                  ))}
-                  {monedas.map((m) => (
-                    <Card key={`v-${m}`}><CardContent className="p-3">
-                      <div className="text-[10px] uppercase text-muted-foreground">Venta potencial ({m})</div>
-                      <div className="text-xl font-heading">
-                        {formatPrice(rows.filter((r) => r.moneda === m).reduce((a, r) => a + r.venta, 0), m as any)}
-                      </div>
-                    </CardContent></Card>
-                  ))}
-                </div>
-
-                {rows.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-6">No queda remanente: todos los ítems fueron entregados.</p>
+                {!selectedOrderId ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">Elegí un pedido a proveedor para cruzar los datos.</p>
                 ) : (
-                  <Card>
-                    <CardContent className="p-0 overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b border-border text-muted-foreground">
-                            <th className="px-3 py-2 text-left text-[10px] uppercase">Producto</th>
-                            <th className="px-3 py-2 text-left text-[10px] uppercase">Variante</th>
-                            <th className="px-3 py-2 text-center text-[10px] uppercase">Unid.</th>
-                            <th className="px-3 py-2 text-right text-[10px] uppercase">Costo</th>
-                            <th className="px-3 py-2 text-right text-[10px] uppercase">Venta pot.</th>
-                            <th className="px-3 py-2 text-left text-[10px] uppercase">Reservado por</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border">
-                          {rows.map((r) => (
-                            <tr key={`${r.producto}||${r.variante}`} className="hover:bg-muted/30">
-                              <td className="px-3 py-2 font-medium">{r.producto}</td>
-                              <td className="px-3 py-2 text-muted-foreground">{r.variante || "—"}</td>
-                              <td className="px-3 py-2 text-center font-bold">{r.unidades}</td>
-                              <td className="px-3 py-2 text-right">{formatPrice(r.costo, r.moneda as any)}</td>
-                              <td className="px-3 py-2 text-right">{formatPrice(r.venta, r.moneda as any)}</td>
-                              <td className="px-3 py-2 text-xs text-muted-foreground">{r.clientes.join(" · ") || "—"}</td>
+                  <>
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
+                      <Card><CardContent className="p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground">Remanente libre</div>
+                        <div className="text-xl font-heading text-primary">{totalLibre}</div>
+                        <div className="text-[10px] text-muted-foreground">sin cliente asignado</div>
+                      </CardContent></Card>
+                      <Card><CardContent className="p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground">Pedido / Recibido</div>
+                        <div className="text-xl font-heading">{totalRecibido}<span className="text-sm text-muted-foreground">/{totalPedido}</span></div>
+                      </CardContent></Card>
+                      <Card><CardContent className="p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground">Asignado a clientes</div>
+                        <div className="text-xl font-heading">{totalAsignado}</div>
+                      </CardContent></Card>
+                      <Card><CardContent className="p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground">Costo inmovilizado</div>
+                        <div className="text-xl font-heading">{formatPrice(costoLibre, monedaPedido)}</div>
+                      </CardContent></Card>
+                      <Card><CardContent className="p-3">
+                        <div className="text-[10px] uppercase text-muted-foreground">Venta potencial</div>
+                        <div className="text-xl font-heading">{formatPrice(ventaLibre, (libres[0]?.monedaVenta || "ARS") as any)}</div>
+                      </CardContent></Card>
+                    </div>
+
+                    {totalFaltante > 0 && (
+                      <p className="text-xs text-amber-500">⚠️ Faltan {totalFaltante} unidades que se pidieron y el proveedor nunca entregó (no cuentan como remanente).</p>
+                    )}
+                    {sobreasignados.length > 0 && (
+                      <p className="text-xs text-destructive">
+                        ⚠️ {sobreasignados.length} variante(s) tienen más unidades asignadas a clientes que las recibidas del proveedor: {sobreasignados.map((r) => `${r.producto} ${r.variante || ""} (${-r.libre})`).join(" · ")}
+                      </p>
+                    )}
+                    {huerfanos.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        ℹ️ {huerfanos.length} línea(s) de la lista de entrega no figuran en este pedido (cargadas sueltas o con otro nombre).
+                      </p>
+                    )}
+
+                    <Card>
+                      <CardContent className="p-0 overflow-x-auto">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="border-b border-border text-muted-foreground">
+                              <th className="px-3 py-2 text-left text-[10px] uppercase">Producto</th>
+                              <th className="px-3 py-2 text-left text-[10px] uppercase">Variante</th>
+                              <th className="px-3 py-2 text-center text-[10px] uppercase">Pedido</th>
+                              <th className="px-3 py-2 text-center text-[10px] uppercase">Recibido</th>
+                              <th className="px-3 py-2 text-center text-[10px] uppercase">Vendido</th>
+                              <th className="px-3 py-2 text-center text-[10px] uppercase">Remanente</th>
+                              <th className="px-3 py-2 text-right text-[10px] uppercase">Costo rem.</th>
+                              <th className="px-3 py-2 text-left text-[10px] uppercase">Clientes</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </CardContent>
-                  </Card>
+                          </thead>
+                          <tbody className="divide-y divide-border">
+                            {rows.map((r) => (
+                              <tr key={`${r.producto}||${r.variante}`} className="hover:bg-muted/30">
+                                <td className="px-3 py-2 font-medium">{r.producto}</td>
+                                <td className="px-3 py-2 text-muted-foreground">{r.variante || "—"}</td>
+                                <td className="px-3 py-2 text-center">{r.pedido}</td>
+                                <td className="px-3 py-2 text-center">
+                                  {r.recibido}
+                                  {r.faltanteProveedor > 0 && <span className="text-amber-500 text-[10px]"> (−{r.faltanteProveedor})</span>}
+                                </td>
+                                <td className="px-3 py-2 text-center">{r.asignado}</td>
+                                <td className={`px-3 py-2 text-center font-bold ${r.libre > 0 ? "text-primary" : r.libre < 0 ? "text-destructive" : "text-muted-foreground"}`}>{r.libre}</td>
+                                <td className="px-3 py-2 text-right">{r.libre > 0 ? formatPrice(r.libre * r.costoUnit, monedaPedido) : "—"}</td>
+                                <td className="px-3 py-2 text-xs text-muted-foreground">{r.clientes.join(" · ") || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </CardContent>
+                    </Card>
+                  </>
                 )}
               </>
             );
           })()}
         </TabsContent>
+
 
 
 
