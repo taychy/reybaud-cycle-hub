@@ -11,6 +11,7 @@ import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, Ext
 import { formatPrice } from "@/lib/currency";
 import { toast } from "@/hooks/use-toast";
 import { startProcessInstance } from "@/hooks/useProcesses";
+import { getShareOrigin } from "@/lib/eventLinks";
 
 const sb: any = supabase;
 
