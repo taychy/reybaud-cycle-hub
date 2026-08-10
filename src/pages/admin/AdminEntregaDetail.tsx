@@ -173,7 +173,7 @@ const AdminEntregaDetail = () => {
   const [supplierPayments, setSupplierPayments] = useState<SupplierPayment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [items, setItems] = useState<Item[]>([]);
-  const [tab, setTab] = useState<"resumen" | "productos" | "items" | "cobros" | "proveedor" | "cierre">("resumen");
+  const [tab, setTab] = useState<"resumen" | "productos" | "items" | "remanente" | "cobros" | "proveedor" | "cierre">("resumen");
   const [storeProducts, setStoreProducts] = useState<StoreProductLite[]>([]);
   const [productEdits, setProductEdits] = useState<Record<string, { costo: string; precio: string; moneda: string; store_product_id: string }>>({});
   const [loading, setLoading] = useState(true);
@@ -731,10 +731,11 @@ const AdminEntregaDetail = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-4 md:grid-cols-7 w-full">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="productos">Productos</TabsTrigger>
           <TabsTrigger value="items">Clientes</TabsTrigger>
+          <TabsTrigger value="remanente">Remanente</TabsTrigger>
           <TabsTrigger value="cobros">Cobros ({payments.length})</TabsTrigger>
           <TabsTrigger value="proveedor">Proveedor y salidas</TabsTrigger>
           <TabsTrigger value="cierre">Cierre</TabsTrigger>
@@ -1158,6 +1159,113 @@ const AdminEntregaDetail = () => {
             })
           )}
         </TabsContent>
+
+        {/* REMANENTE */}
+        <TabsContent value="remanente" className="space-y-3 pt-4">
+          {(() => {
+            const pendientes = items.filter((it) => !it.preparado);
+            const map: Record<string, { producto: string; variante: string; unidades: number; costo: number; venta: number; moneda: string; clientes: string[] }> = {};
+            pendientes.forEach((it) => {
+              const key = `${it.producto}||${it.variante ?? ""}`;
+              const qty = Number(it.cantidad || 0);
+              if (!map[key]) map[key] = { producto: it.producto, variante: it.variante ?? "", unidades: 0, costo: 0, venta: 0, moneda: it.moneda || "ARS", clientes: [] };
+              map[key].unidades += qty;
+              map[key].costo += Number(it.costo_unitario || 0) * qty;
+              map[key].venta += Number(it.precio_venta || 0) * qty;
+              if (it.cliente_nombre && !map[key].clientes.includes(it.cliente_nombre)) map[key].clientes.push(it.cliente_nombre);
+            });
+            const rows = Object.values(map).sort((a, b) => b.unidades - a.unidades || a.producto.localeCompare(b.producto));
+            const totalUnidades = rows.reduce((a, r) => a + r.unidades, 0);
+            const monedas = Array.from(new Set(rows.map((r) => r.moneda)));
+
+            const exportCsv = () => {
+              const header = ["Producto", "Variante", "Unidades", "Costo total", "Venta potencial", "Moneda", "Clientes"];
+              const body = rows.map((r) => [r.producto, r.variante, r.unidades, r.costo, r.venta, r.moneda, r.clientes.join(" / ")]);
+              const csv = [header, ...body].map((l) => l.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+              const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8;" }));
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `remanente-${list.titulo.replace(/\s+/g, "_")}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            };
+
+            return (
+              <>
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <p className="text-xs text-muted-foreground max-w-2xl">
+                    Mercadería que <strong>todavía no se entregó/vendió</strong> y sigue en depósito (ítems sin marcar como entregados).
+                  </p>
+                  <Button size="sm" variant="outline" onClick={exportCsv} disabled={rows.length === 0}>
+                    Exportar CSV
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  <Card><CardContent className="p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground">Unidades en depósito</div>
+                    <div className="text-xl font-heading">{totalUnidades}</div>
+                  </CardContent></Card>
+                  <Card><CardContent className="p-3">
+                    <div className="text-[10px] uppercase text-muted-foreground">Modelos distintos</div>
+                    <div className="text-xl font-heading">{rows.length}</div>
+                  </CardContent></Card>
+                  {monedas.map((m) => (
+                    <Card key={m}><CardContent className="p-3">
+                      <div className="text-[10px] uppercase text-muted-foreground">Costo inmovilizado ({m})</div>
+                      <div className="text-xl font-heading">
+                        {formatPrice(rows.filter((r) => r.moneda === m).reduce((a, r) => a + r.costo, 0), m as any)}
+                      </div>
+                    </CardContent></Card>
+                  ))}
+                  {monedas.map((m) => (
+                    <Card key={`v-${m}`}><CardContent className="p-3">
+                      <div className="text-[10px] uppercase text-muted-foreground">Venta potencial ({m})</div>
+                      <div className="text-xl font-heading">
+                        {formatPrice(rows.filter((r) => r.moneda === m).reduce((a, r) => a + r.venta, 0), m as any)}
+                      </div>
+                    </CardContent></Card>
+                  ))}
+                </div>
+
+                {rows.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-6">No queda remanente: todos los ítems fueron entregados.</p>
+                ) : (
+                  <Card>
+                    <CardContent className="p-0 overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-border text-muted-foreground">
+                            <th className="px-3 py-2 text-left text-[10px] uppercase">Producto</th>
+                            <th className="px-3 py-2 text-left text-[10px] uppercase">Variante</th>
+                            <th className="px-3 py-2 text-center text-[10px] uppercase">Unid.</th>
+                            <th className="px-3 py-2 text-right text-[10px] uppercase">Costo</th>
+                            <th className="px-3 py-2 text-right text-[10px] uppercase">Venta pot.</th>
+                            <th className="px-3 py-2 text-left text-[10px] uppercase">Reservado por</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border">
+                          {rows.map((r) => (
+                            <tr key={`${r.producto}||${r.variante}`} className="hover:bg-muted/30">
+                              <td className="px-3 py-2 font-medium">{r.producto}</td>
+                              <td className="px-3 py-2 text-muted-foreground">{r.variante || "—"}</td>
+                              <td className="px-3 py-2 text-center font-bold">{r.unidades}</td>
+                              <td className="px-3 py-2 text-right">{formatPrice(r.costo, r.moneda as any)}</td>
+                              <td className="px-3 py-2 text-right">{formatPrice(r.venta, r.moneda as any)}</td>
+                              <td className="px-3 py-2 text-xs text-muted-foreground">{r.clientes.join(" · ") || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </CardContent>
+                  </Card>
+                )}
+              </>
+            );
+          })()}
+        </TabsContent>
+
+
 
         {/* COBROS */}
         <TabsContent value="cobros" className="space-y-2 pt-4">
