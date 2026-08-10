@@ -731,10 +731,11 @@ const AdminEntregaDetail = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v: any) => setTab(v)}>
-        <TabsList className="grid grid-cols-3 md:grid-cols-6 w-full">
+        <TabsList className="grid grid-cols-4 md:grid-cols-7 w-full">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="productos">Productos</TabsTrigger>
           <TabsTrigger value="items">Clientes</TabsTrigger>
+          <TabsTrigger value="remanente">Remanente</TabsTrigger>
           <TabsTrigger value="cobros">Cobros ({payments.length})</TabsTrigger>
           <TabsTrigger value="proveedor">Proveedor y salidas</TabsTrigger>
           <TabsTrigger value="cierre">Cierre</TabsTrigger>
