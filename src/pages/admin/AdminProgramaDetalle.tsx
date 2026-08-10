@@ -11,6 +11,7 @@ import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, Ext
 import { formatPrice } from "@/lib/currency";
 import { toast } from "@/hooks/use-toast";
 import { startProcessInstance } from "@/hooks/useProcesses";
+import { getShareOrigin } from "@/lib/eventLinks";
 
 const sb: any = supabase;
 
@@ -271,7 +272,7 @@ const AdminProgramaDetalle = () => {
             {plan.cohort_slug && <Badge variant="outline">{plan.cohort_slug}</Badge>}
             {plan.landing_public && (
               <a
-                href={`/formacion-inicial?cohort=${plan.cohort_slug || plan.id}`}
+                href={`${getShareOrigin()}/formacion-inicial?cohort=${plan.cohort_slug || plan.id}`}
                 target="_blank"
                 rel="noreferrer"
               >
