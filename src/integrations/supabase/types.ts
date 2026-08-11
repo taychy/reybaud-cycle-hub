@@ -13687,6 +13687,15 @@ export type Database = {
         Returns: string
       }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
+      run_backfill_preview_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
       run_financial_regression_tests: {
         Args: never
         Returns: {
