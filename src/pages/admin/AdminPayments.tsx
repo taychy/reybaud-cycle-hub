@@ -30,6 +30,8 @@ import MpMovementsTab from "@/components/admin/MpMovementsTab";
 import DeudoresTab from "@/components/admin/DeudoresTab";
 import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
 import TurneraPaymentsTab from "@/components/admin/TurneraPaymentsTab";
+import InconsistenciasTab from "@/components/admin/InconsistenciasTab";
+
 
 
 type Suscripcion = {
