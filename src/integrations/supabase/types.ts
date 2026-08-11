@@ -12672,6 +12672,10 @@ export type Database = {
         Returns: Json
       }
       reopen_delivery_cash: { Args: { p_list_id: string }; Returns: undefined }
+      reparar_cancelacion_legacy_stock: {
+        Args: { p_order_id: string; p_user_id?: string }
+        Returns: Json
+      }
       report_excepciones_revision_manual: {
         Args: never
         Returns: {
