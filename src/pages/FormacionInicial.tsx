@@ -241,6 +241,16 @@ export default function FormacionInicial() {
 
   const cerrado = !inscripcionesAbiertas;
 
+  // Todo derivado de la configuración del programa (nada hardcodeado)
+  const semanas = semanasEntre(program.fecha_inicio_programa, program.fecha_fin_programa);
+  const duracionTxt = semanas ? `${semanas} semanas` : "varias semanas";
+  // Etiqueta de edición: parte final del slug (ej: formacion_inicial_2026_2 → 2026/2)
+  const edicionTxt = (() => {
+    const m = program.cohort_slug?.match(/(\d{4})[_-](\d+)$/);
+    return m ? `${m[1]}/${m[2]}` : program.nombre;
+  })();
+
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* HERO */}
