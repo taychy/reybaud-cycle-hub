@@ -14,27 +14,6 @@ export type Database = {
   }
   public: {
     Tables: {
-      _qa_last_run: {
-        Row: {
-          detalle: string | null
-          estado: string | null
-          nombre: string | null
-          test: number | null
-        }
-        Insert: {
-          detalle?: string | null
-          estado?: string | null
-          nombre?: string | null
-          test?: number | null
-        }
-        Update: {
-          detalle?: string | null
-          estado?: string | null
-          nombre?: string | null
-          test?: number | null
-        }
-        Relationships: []
-      }
       admin_notification_events: {
         Row: {
           created_at: string
