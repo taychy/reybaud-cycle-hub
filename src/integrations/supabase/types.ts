@@ -11740,6 +11740,7 @@ export type Database = {
         Row: {
           alumno_id: string | null
           alumno_nombre: string | null
+          capacidad_obligacion: number | null
           criterio_match: string | null
           fecha_pago: string | null
           metadata: Json | null
@@ -12137,6 +12138,7 @@ export type Database = {
         Row: {
           alumno_id: string | null
           alumno_nombre: string | null
+          capacidad_obligacion: number | null
           criterio_match: string | null
           fecha_pago: string | null
           metadata: Json | null
