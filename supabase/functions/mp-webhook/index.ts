@@ -457,7 +457,6 @@ Deno.serve(async (req) => {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const alreadyPaid = order.status === "pagado" || !!order.mp_payment_id;
 
       const update: Record<string, unknown> = {
         mp_payment_id: String(payment.id),
@@ -473,39 +472,9 @@ Deno.serve(async (req) => {
       }
       await supabaseAdmin.from("store_orders").update(update).eq("id", orderId);
 
-      // On first approval: descontar stock por variante
-      if (payment.status === "approved" && !alreadyPaid) {
-        const { data: items } = await supabaseAdmin
-          .from("store_order_items")
-          .select("product_id, quantity, variant_selection")
-          .eq("order_id", orderId);
-        for (const it of items || []) {
-          if (!it.product_id) continue;
-          const { data: prod } = await supabaseAdmin
-            .from("store_products")
-            .select("stock, variant_stock, variants")
-            .eq("id", it.product_id)
-            .maybeSingle();
-          if (!prod) continue;
-          const specs = Array.isArray(prod.variants) ? prod.variants : [];
-          const sel = (it.variant_selection || {}) as Record<string, string>;
-          const sig = specs
-            .filter((s: any) => s?.name)
-            .map((s: any) => `${s.name}:${sel[s.name] || ""}`)
-            .join("|");
-          const qty = Number(it.quantity || 0);
-          if (sig && prod.variant_stock && typeof (prod.variant_stock as any)[sig] === "number") {
-            const newStock = { ...(prod.variant_stock as Record<string, number>) };
-            newStock[sig] = Math.max(0, (newStock[sig] || 0) - qty);
-            await supabaseAdmin.from("store_products").update({ variant_stock: newStock }).eq("id", it.product_id);
-          } else if (typeof prod.stock === "number") {
-            await supabaseAdmin
-              .from("store_products")
-              .update({ stock: Math.max(0, prod.stock - qty) })
-              .eq("id", it.product_id);
-          }
-        }
-      }
+      // El stock lo descuenta exclusivamente el trigger `trg_store_order_stock_egreso`
+      // al pasar el pedido a un estado que compromete mercadería (fuente única de verdad).
+      // No tocar `store_products` desde acá: duplicaba el descuento y no dejaba movimiento.
 
       return new Response(JSON.stringify({ ok: true, kind: "store_order", status: payment.status }), {
         status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
