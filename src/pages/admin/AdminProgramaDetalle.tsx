@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3 } from "lucide-react";
+import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3, Settings2, CalendarClock } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "@/hooks/use-toast";
 import { startProcessInstance } from "@/hooks/useProcesses";
 import { getShareOrigin } from "@/lib/eventLinks";
+import EditProgramaDialog from "@/components/admin/EditProgramaDialog";
+import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
+
 
 const sb: any = supabase;
 
