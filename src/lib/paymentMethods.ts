@@ -121,10 +121,10 @@ export function resolvePaymentDisplay(sub: {
   } else if (mpStatus === "externo" || mpStatus === "plataforma_externa" || mpStatus === "otro") {
     method = "Otro";
     methodKey = "plataforma_externa";
-  } else if (mpStatus === "manual") {
-    // "manual" is an origin, not a method – default to Efectivo
-    method = "Efectivo";
-    methodKey = "efectivo";
+  } else if (mpStatus === "manual" || mpStatus === "pendiente") {
+    // "manual"/"pendiente" son estados internos, NO un medio de pago
+    method = "Sin definir";
+    methodKey = null;
   } else if (mpStatus === "conciliado" || mpStatus === "pendiente_verificacion") {
     // Internal states – can't determine method
     method = "Sin definir";
