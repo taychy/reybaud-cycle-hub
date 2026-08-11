@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      _qa_last_run: {
+        Row: {
+          detalle: string | null
+          estado: string | null
+          nombre: string | null
+          test: number | null
+        }
+        Insert: {
+          detalle?: string | null
+          estado?: string | null
+          nombre?: string | null
+          test?: number | null
+        }
+        Update: {
+          detalle?: string | null
+          estado?: string | null
+          nombre?: string | null
+          test?: number | null
+        }
+        Relationships: []
+      }
       admin_notification_events: {
         Row: {
           created_at: string
@@ -6360,6 +6381,65 @@ export type Database = {
           },
         ]
       }
+      pagos_imputaciones: {
+        Row: {
+          alumno_id: string
+          anulado_at: string | null
+          anulado_por: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          metadata: Json
+          moneda: string
+          monto: number
+          motivo_anulacion: string | null
+          obligacion_id: string
+          obligacion_tipo: string
+          pago_origen_id: string
+          pago_origen_tipo: string
+        }
+        Insert: {
+          alumno_id: string
+          anulado_at?: string | null
+          anulado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          moneda?: string
+          monto: number
+          motivo_anulacion?: string | null
+          obligacion_id: string
+          obligacion_tipo: string
+          pago_origen_id: string
+          pago_origen_tipo: string
+        }
+        Update: {
+          alumno_id?: string
+          anulado_at?: string | null
+          anulado_por?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          metadata?: Json
+          moneda?: string
+          monto?: number
+          motivo_anulacion?: string | null
+          obligacion_id?: string
+          obligacion_tipo?: string
+          pago_origen_id?: string
+          pago_origen_tipo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pagos_imputaciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pedidos_externos: {
         Row: {
           cantidad: number
@@ -11198,6 +11278,17 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_obligaciones_modelo_nuevo: {
+        Row: {
+          alumno_id: string | null
+          imputado: number | null
+          moneda: string | null
+          monto: number | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+        }
+        Relationships: []
+      }
       vw_pagos_inconsistencias: {
         Row: {
           alumno_id: string | null
@@ -11234,6 +11325,41 @@ export type Database = {
           effective_status: string | null
           item_id: string | null
           source: string | null
+        }
+        Relationships: []
+      }
+      vw_saldo_comparacion: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          cargos_legacy: number | null
+          cargos_nuevo: number | null
+          diferencia: number | null
+          imputado_nuevo: number | null
+          moneda: string | null
+          pagos_legacy: number | null
+          saldo_legacy: number | null
+          saldo_nuevo: number | null
+        }
+        Relationships: []
+      }
+      vw_saldo_imputaciones: {
+        Row: {
+          alumno_id: string | null
+          cargos_nuevo: number | null
+          imputado_nuevo: number | null
+          moneda: string | null
+          saldo_nuevo: number | null
+        }
+        Relationships: []
+      }
+      vw_saldo_legacy: {
+        Row: {
+          alumno_id: string | null
+          cargos_legacy: number | null
+          moneda: string | null
+          pagos_legacy: number | null
+          saldo_legacy: number | null
         }
         Relationships: []
       }
@@ -11343,6 +11469,10 @@ export type Database = {
           _reservation_id: string
         }
         Returns: Json
+      }
+      anular_imputacion: {
+        Args: { _id: string; _motivo?: string }
+        Returns: boolean
       }
       apply_credit_ajuste_to_suscripcion: {
         Args: { _ajuste_id: string; _suscripcion_id: string }
@@ -11924,6 +12054,17 @@ export type Database = {
         }[]
       }
       get_event_waitlist_meta: { Args: { p_event_id: string }; Returns: Json }
+      get_facturacion_metrics: {
+        Args: { _desde?: string }
+        Returns: {
+          antiguedad_mas_viejo_horas: number
+          errores: number
+          facturados: number
+          monto_pendiente: number
+          pendientes: number
+          tasa_exito: number
+        }[]
+      }
       get_gasto_recurrente_saldo_deuda: {
         Args: { p_rec_id: string }
         Returns: {
@@ -12172,6 +12313,19 @@ export type Database = {
         Args: { _reservation_id: string }
         Returns: Json
       }
+      imputar_pago: {
+        Args: {
+          _alumno_id: string
+          _metadata?: Json
+          _moneda?: string
+          _monto: number
+          _obligacion_id: string
+          _obligacion_tipo: string
+          _pago_origen_id: string
+          _pago_origen_tipo: string
+        }
+        Returns: string
+      }
       impute_validated_payments_to_installments: {
         Args: { p_reservation_id: string }
         Returns: Json
@@ -12290,6 +12444,30 @@ export type Database = {
         }
         Returns: string
       }
+      obligacion_imputado: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      obligacion_monto: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      obligacion_saldo: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      pago_monto_bruto: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      pago_monto_imputado: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      pago_saldo_disponible: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
       pay_gasto_ejecucion: {
         Args: {
           p_fecha: string
@@ -12344,6 +12522,15 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reasignar_imputacion: {
+        Args: {
+          _id: string
+          _motivo?: string
+          _obligacion_id: string
+          _obligacion_tipo: string
+        }
+        Returns: string
       }
       reassign_payment_to_installment: {
         Args: {
@@ -12589,6 +12776,24 @@ export type Database = {
       }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
       run_financial_regression_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
+      run_financial_regression_tests_core: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
+      run_imputaciones_regression_tests: {
         Args: never
         Returns: {
           detalle: string
