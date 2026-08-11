@@ -335,9 +335,49 @@ const AdminProgramaDetalle = () => {
               <Edit3 className="w-4 h-4 mr-1" /> Editar playbook
             </Button>
           </Link>
+          <Button size="sm" variant="secondary" onClick={() => openEditor(false)}>
+            <Settings2 className="w-4 h-4 mr-1" /> Editar programa
+          </Button>
         </div>
       </div>
 
+      {/* Estado de inscripciones — misma lógica que la landing pública */}
+      <Card className={enrollment.abiertas ? "border-primary/50 bg-primary/5" : "border-destructive/40 bg-destructive/5"}>
+        <CardContent className="p-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge variant={enrollment.abiertas ? "default" : "destructive"}>
+              {enrollment.abiertas ? "INSCRIPCIONES ABIERTAS" : "INSCRIPCIONES CERRADAS"}
+            </Badge>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Cupos: </span>
+            <span className="font-medium">
+              {enrollment.cuposUsados} / {enrollment.cuposMax || "—"}
+            </span>
+            {enrollment.cuposLibres !== Infinity && (
+              <span className="text-muted-foreground"> · {enrollment.cuposLibres} libres</span>
+            )}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Cierre: </span>
+            <span className="font-medium">{fmtFechaLargaAR(enrollment.fechaCierre)}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Etapa vigente: </span>
+            <span className="font-medium">
+              {enrollment.stageVigente
+                ? `${enrollment.stageVigente.nombre} · ${formatPrice(Number(enrollment.stageVigente.precio), plan.moneda)}`
+                : "Ninguna"}
+            </span>
+          </div>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => openEditor(true)}>
+            <CalendarClock className="w-4 h-4 mr-1" /> Gestionar inscripciones
+          </Button>
+          {!enrollment.abiertas && (
+            <p className="w-full text-xs text-destructive">{enrollment.motivos.join(" ")}</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -345,6 +385,7 @@ const AdminProgramaDetalle = () => {
         <KpiCard icon={Users} label="Activos" value={kpis.activos} />
         <KpiCard icon={AlertCircle} label="A verificar" value={kpis.pendVer} accent={kpis.pendVer > 0 ? "warn" : undefined} />
         <KpiCard icon={AlertCircle} label="Pendientes" value={kpis.pendPago} />
+
         <KpiCard icon={DollarSign} label="Recaudado" value={formatPrice(kpis.recaudado, plan.moneda)} />
         <KpiCard icon={DollarSign} label="Por cobrar" value={formatPrice(kpis.porCobrar, plan.moneda)} accent={kpis.porCobrar > 0 ? "warn" : undefined} />
       </div>
