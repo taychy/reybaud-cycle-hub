@@ -1,117 +1,74 @@
-# Sistema de Cargas de Camioneta
+# Auditoría: ¿el sistema detecta pagos inconsistentes hoy?
 
-Trazabilidad completa desde que la mercadería sale del depósito hasta que llega al cliente, con chequeo manual de contenido de caja y detección de incongruencias.
+**Respuesta corta: no.** Hoy el sistema detecta *ausencia de asignación* (un pago de Mercado Pago que nadie tocó) y *duplicación exacta del mismo ID de operación*. No detecta ninguna inconsistencia de **contenido**: importe distinto a la deuda, pago aplicado a la deuda equivocada, deuda que sigue figurando impaga después de cobrada, o medio de pago mal registrado. No existe ningún estado, campo ni tarea que signifique "este pago está inconsistente".
 
-## Alcance confirmado
+---
 
-- **Solo mercadería con retiro en sede** (KDT, Villa Nueva, u otras sedes). Los envíos a domicilio (correo/moto) quedan fuera de la camioneta pero mantienen su propio circuito de estados.
-- Chequeo de caja: **manual, bajo demanda** (botón, sin bloqueo).
-- Envíos externos: **estado manual simple** (admin marca "enviado" y "recibido" con campo libre de tracking).
-- Alerta de demora: **30 días** en camioneta sin entregar.
+## 1. Qué valida el sistema hoy (lo que sí funciona)
 
-## Nuevos estados logísticos unificados
+| Control | Dónde vive | Qué cubre |
+|---|---|---|
+| No se puede duplicar la misma operación MP en la bandeja | Restricción `UNIQUE (cuenta_mp_id, mp_payment_id)` en `mp_account_movements` | Reingesta del mismo pago. Verificado: **0 duplicados** hoy |
+| Aviso "este pago ya fue registrado" al imputar | `fn_mp_pago_ya_registrado()` | Busca el ID de operación en suscripciones, créditos y pagos de evento del **mismo alumno** |
+| No reasignar a otro alumno | `assign_mp_movement_to_target()` (`already_assigned_to_other_student`) | Evita pisar una asignación previa |
+| Sólo ingresos aprobados se imputan | mismo RPC | Bloquea egresos y pagos rechazados |
+| Un solo pago de evento por operación | chequeo previo en el bloque `reservation` del mismo RPC | Evita doble pago sobre la misma reserva |
+| Semáforo de verificación manual | vista `vw_conciliacion_pagos` (`auto_conciliado` / `verificado` / `por_verificar`) | Clasifica **por medio de pago**, no por consistencia |
 
-Aplicable a todo pedido físico (delivery items, store_orders, preorders, cambios):
+**Importante:** `vw_conciliacion_pagos` es lo más cercano a un estado "conciliado" que existe, pero (a) sólo mira el medio de pago y una tilde manual — un pago con importe equivocado igual sale `auto_conciliado`; y (b) **no está siendo consumida por ninguna pantalla**: no aparece en el código de la app, sólo en los tipos autogenerados. Es decir, ese semáforo hoy no se ve en ningún lado.
 
-```text
-pendiente → preparado → en_camioneta → entregado
-                     ↘ enviado (correo/moto) → recibido
-                     ↘ retenido (incidencia manual)
-```
+---
 
-- El cliente al comprar elige **Modalidad de retiro**: `Sede KDT`, `Sede Villa Nueva`, `Envío a domicilio`.
-- Solo las de sede alimentan el pool de "listo para cargar en camioneta".
+## 2. Inconsistencias que hoy NO puede detectar (con evidencia real)
 
-## Piezas nuevas
+### A. Pago MP con alumno identificado pero sin impacto en cuenta corriente
+Un movimiento con `alumno_id` cargado ya cuenta como "asignado" y **desaparece de la cola de pendientes**, aunque no esté imputado a ninguna deuda (`suscripcion_id`, `reservation_payment_id` y `gasto_id` en blanco). El filtro está en `MpMovementsTab.tsx` (líneas 440 y 469-471): considera asignado con que exista alumno.
 
-### 1. Tabla `vehiculo_cargas`
-Representa una salida física de la camioneta.
-- Destino (sede), fecha salida, entregador, estado (`abierta` → `en_ruta` → `cerrada`).
-- Notas y kilometraje opcional.
+> **151 movimientos aprobados por $14.315.775 están en ese estado hoy.** Plata cobrada, alumno identificado, sin efecto en la deuda ni en la cuenta corriente, y fuera de toda alerta.
 
-### 2. Tabla `vehiculo_carga_items`
-- Referencia polimórfica al ítem: `source_table` + `source_id` (delivery_list_item / store_order_item / etc.).
-- Snapshot de producto/variante/cantidad/cliente para no depender de la fuente si se edita.
-- Estado individual: `cargado`, `entregado`, `retornado`, `faltante`.
+### B. Deuda que sigue pendiente después del pago
+No hay ningún trigger ni consulta que compare el pago contra el estado de la deuda. Consultando la base: **36 suscripciones tienen un pago MP aprobado vinculado y siguen en estado `vencida`/`pendiente`**. Ejemplos verificados: Aldo Marcelo (op 171825988178, $61.480 = precio exacto), Lorena Rojas (op 170508591215), Carina (op 167960112967, $80.030). Según la regla del negocio, pago cobrado + período terminado debería ser `finalizada`, no `vencida` — hoy figuran como deudoras.
 
-### 3. Tabla `vehiculo_chequeos`
-Cada vez que depósito toca "Chequear caja".
-- Carga asociada, fecha, quién chequeó.
-- JSON con resultado por ítem: `presente` / `ausente` / `sobrante`.
+### C. Importe distinto a la deuda
+Nadie compara `monto del pago` contra `precio_final` de la suscripción ni contra el saldo del cargo. **38 casos con diferencia** entre lo cobrado y lo debido. Algunos serán pagos parciales legítimos, otros no: no hay forma de distinguirlos porque no se guarda ninguna marca de "parcial" ni de "diferencia aceptada".
 
-### 4. Tabla `logistica_incidencias`
-Incongruencias detectadas + acciones manuales tomadas.
-- Tipo: `falta_fisica`, `sobrante_fisico`, `demorado_30d`, `envio_sin_confirmar`.
-- Estado: `abierta`, `resuelta`, `descartada`.
+### D. Pago aplicado a la deuda equivocada
+No existe control alguno. El RPC valida que el cargo pertenezca al alumno correcto, pero nada más: cualquier deuda del alumno es un destino válido, sin importar período, importe ni moneda. Una vez imputado, no queda registro de "esto se aplicó mal" ni forma de detectarlo salvo revisión humana.
 
-## Flujos
+### E. Medio de pago que dice efectivo aunque venga de MP
+Bug confirmado en `assign_mp_movement_to_target()`: al imputar a una suscripción hace `metodo_pago = COALESCE(metodo_pago, 'mercadopago')`. Como el campo casi nunca está vacío (suele venir `pendiente`, `efectivo` o `transferencia`), **el valor viejo nunca se corrige**. Hoy hay **7 suscripciones con ID de operación de Mercado Pago y medio de pago registrado como efectivo/transferencia/pendiente**. Efecto en cadena: distorsiona el arqueo de caja y el semáforo de conciliación.
 
-### A) Armado de carga (depósito)
-1. `/deposito/camioneta` → botón "Nueva carga" → elegir sede destino.
-2. Pool de candidatos: ítems `preparado` cuya modalidad = esa sede + los que ya están `en_camioneta` de cargas previas de esa sede.
-3. Selecciona → pasa a `cargado` en la carga nueva.
-4. "Cerrar carga" → estado `en_ruta`, ítems fuente pasan a `en_camioneta`. Genera `stock_movement` de tipo `salida_camioneta`.
-5. Reusa la generación de etiquetas QR ya existente.
+### F. Créditos duplicados y créditos huérfanos
+- **4 créditos en cuenta corriente comparten el mismo ID de operación MP** (`cuenta_ajustes.referencia_externa` no tiene restricción de unicidad): el mismo pago contado dos veces como saldo a favor.
+- **24 créditos de origen MP quedaron sin aplicar a ninguna deuda** (`aplicado_a_fuente_id` vacío): inflan el "saldo a favor" del alumno mientras su deuda sigue viva. Este es exactamente el patrón de los casos que ya viste (familia Martinero).
 
-### B) Entrega en sede (entregador)
-- Sigue el flujo actual: escanea QR → marca `entregado`.
-- El ítem de la carga refleja `entregado` en tiempo real.
+### G. Facturación desacoplada
+`facturacion_cola` tiene **410 registros en estado `pendiente`** (desde el 08/07 hasta hoy) contra 158 facturados. La cola no tiene reintento visible ni alerta: un pago puede estar cobrado y conciliado y no facturarse nunca sin que nadie se entere.
 
-### C) Chequeo de caja (depósito, manual)
-1. Botón "Chequear caja" → elige carga activa.
-2. Escáner continuo o marcado manual: cada ítem se marca presente/ausente.
-3. Al cerrar chequeo, la app cruza:
-   - `ausente` + entregador no marcó entregado → **incidencia `falta_fisica`**.
-   - `presente` + entregador marcó entregado → **incidencia `sobrante_fisico`**.
-   - Ítem `en_camioneta` con >30 días desde salida → **incidencia `demorado_30d`**.
-4. Se crea registro en `vehiculo_chequeos` y las incidencias resultantes.
+---
 
-### D) Envíos a domicilio (paralelo a camioneta)
-- Admin en el detalle del pedido: botón "Marcar enviado" con campo libre para tracking/observación.
-- Botón "Cliente recibió" → estado `recibido`, cierra el circuito.
-- Job diario opcional (fase 2): si `enviado` >30 días sin `recibido` → incidencia `envio_sin_confirmar`.
+## 3. Diagnóstico de fondo
 
-### E) Panel de incidencias (admin)
-- `/admin/logistica/incidencias` con filtro por tipo/estado/sede.
-- Acciones: marcar entregado retroactivo, reportar pérdida (descuenta stock definitivo), devolver a stock, descartar.
-- Widget en dashboard admin: contador de incidencias abiertas.
+El sistema tiene **cinco fuentes de verdad paralelas** (`mp_account_movements`, `suscripciones`, `reservation_payments`, `cuenta_ajustes`, `store_orders`) y ningún proceso que las cruce. Cada RPC de imputación escribe en su tabla y termina; no hay verificación posterior de que el resultado sea coherente.
 
-## Reusa de infraestructura existente
+Lo que falta no es un campo más: falta un **motor de reglas de consistencia** que corra sobre los datos y produzca una lista de excepciones accionable.
 
-- **QR y escáner**: `CameraScanner.tsx`, `productQr.ts` — sin cambios.
-- **Etiquetas**: mismo generador de `DepositoEntregaDetail.tsx`, adaptado para imprimir por carga en vez de por lista.
-- **Reconciliación**: patrón similar a `ReconcileWithSupplierDialog.tsx` para el cruce chequeo vs. entregador.
-- **Stock movements**: se extiende con nuevos tipos.
-- **Sidebar depósito**: se agrega item "Camioneta" entre Entregas y Prov.
+---
 
-## Fases sugeridas de implementación
+## 4. Propuesta de solución (a discutir antes de implementar)
 
-**Fase 1 — Cimientos** (esta ronda)
-- Migraciones: 4 tablas nuevas + campo `modalidad_retiro` en `store_orders` / `delivery_list_items`.
-- Pantalla `/deposito/camioneta` con listado, alta y detalle de carga.
-- Selección de ítems al armar carga (solo delivery_list_items en esta fase).
-- Cierre de carga con generación de estados y stock movements.
+**Paso 1 — Vista de excepciones (sin tocar datos).** Una vista `vw_pagos_inconsistencias` que emita una fila por cada anomalía detectada, con tipo, severidad, alumno, importe y referencia. Reglas iniciales: pago con alumno sin imputar; pago vinculado con deuda aún impaga; diferencia importe vs deuda; medio de pago contradictorio con el ID de operación; crédito duplicado por operación; crédito sin aplicar con deuda viva; ítem de facturación estancado.
 
-**Fase 2 — Chequeo e incidencias**
-- Modal de chequeo con escáner/manual.
-- Motor de cruce y generación automática de incidencias.
-- Panel `/admin/logistica/incidencias`.
+**Paso 2 — Pestaña "Inconsistencias" en Pagos y Cobranzas.** Lista de tareas con explicación en castellano y acción de resolución directa, más un contador visible en el panel.
 
-**Fase 3 — Envíos externos y expansión**
-- Estados de envío en `store_orders` y otras fuentes.
-- Sumar `store_orders` y `preorders` al pool de cargas.
-- Widget dashboard admin + alertas por email a admin cuando hay >N incidencias abiertas.
+**Paso 3 — Corregir las causas raíz.** Arreglar el `COALESCE` del medio de pago; que la imputación a suscripción cierre la deuda y deje el estado correcto; unicidad de operación MP en créditos; que el filtro "sin asignar" exija imputación real y no sólo alumno identificado.
 
-## Detalles técnicos
+**Paso 4 — Reparación de los casos históricos** detectados arriba, uno por uno y con registro de auditoría.
 
-- Referencias polimórficas: `source_table` (`text` con CHECK enum) + `source_id` (`uuid`), sin FK real, se valida por trigger.
-- RLS: depósito y admin pueden todo; alumno no ve estas tablas.
-- Todas las tablas siguen el patrón `GRANT authenticated + service_role`, RLS enable, políticas por rol.
-- Vista `vw_pool_carga_camioneta` que expone ítems candidatos por sede unificando fuentes (fase 1 solo delivery_list_items).
-- Actualización de estados por trigger cuando el ítem fuente cambia (ej. entregador marca entregado → se refleja en `vehiculo_carga_items`).
+**Nota:** ninguno de estos pasos se ejecutó. Esta auditoría fue de sólo lectura.
 
-## Decisiones pendientes (te consulto antes de codear la Fase 1)
+---
 
-1. ¿Las sedes son fijas (**KDT** + **Villa Nueva**) o querés que sea una lista editable (tabla `sedes` ya existe — podría reusarse)?
-2. En delivery lists actuales que ya están cargadas, ¿asignamos modalidad de retiro por defecto a alguna sede, o quedan sin asignar hasta editar manualmente?
-3. Al armar una carga, ¿un ítem puede estar en múltiples cargas simultáneas o forzamos exclusividad (solo una carga activa por ítem)?
+## Detalle técnico
+
+Archivos y objetos relevantes: `src/components/admin/MpMovementsTab.tsx` (líneas 436-474 del filtro de asignación), `src/components/admin/DeudoresTab.tsx`, RPCs `assign_mp_movement_to_target`, `assign_mp_movement_to_alumno`, `assign_mp_movement_to_new_suscripcion`, `fn_mp_pago_ya_registrado`, `apply_credit_ajuste_to_target`, `is_metodo_auto_conciliado`, vistas `vw_conciliacion_pagos` y `vw_cuenta_corriente_movimientos`, tablas `mp_account_movements`, `cuenta_ajustes`, `suscripciones`, `reservation_payments`, `store_orders`, `facturacion_cola`, `facturas`. Triggers existentes sobre `suscripciones` y `reservation_payments`: ninguno valida importe contra deuda.
