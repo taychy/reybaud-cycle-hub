@@ -734,6 +734,7 @@ const AdminPayments = () => {
       <Tabs defaultValue="deudores" className="space-y-6">
         <TabsList>
           <TabsTrigger value="deudores">Deudores</TabsTrigger>
+          <TabsTrigger value="inconsistencias">Inconsistencias</TabsTrigger>
           <TabsTrigger value="mp">Cuentas MP sin vincular</TabsTrigger>
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
@@ -744,6 +745,11 @@ const AdminPayments = () => {
         <TabsContent value="deudores" className="space-y-6">
           <DeudoresTab />
         </TabsContent>
+
+        <TabsContent value="inconsistencias" className="space-y-6">
+          <InconsistenciasTab />
+        </TabsContent>
+
 
         <TabsContent value="tienda" className="space-y-6">
           <StorePaymentsTab />
