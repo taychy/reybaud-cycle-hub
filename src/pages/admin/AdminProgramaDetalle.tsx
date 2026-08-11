@@ -611,9 +611,18 @@ const AdminProgramaDetalle = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <EditProgramaDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        plan={plan}
+        focusInscripciones={editFocusInscripciones}
+        onSaved={() => setReloadKey((k) => k + 1)}
+      />
     </div>
   );
 };
+
 
 const KpiCard = ({
   icon: Icon,
