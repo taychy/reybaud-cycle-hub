@@ -150,9 +150,13 @@ Deno.serve(async (req) => {
 
     if (action === "reject") {
       const reason = String(body?.reason || "").trim();
+      // Rechazar el COMPROBANTE no elimina la OBLIGACIÓN: la deuda sigue viva.
+      // Se limpia únicamente la evidencia de pago informada por el alumno.
       const { error: upErr } = await admin.from("suscripciones").update({
         estado: "vencida",
         chequeado_admin: false,
+        metodo_pago: "pendiente",
+        mp_status: null,
         notas: reason
           ? `[Pago rechazado ${nowIso.split("T")[0]}] ${reason}`
           : `[Pago rechazado ${nowIso.split("T")[0]}]`,
