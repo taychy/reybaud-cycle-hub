@@ -28,10 +28,28 @@ export const PAYMENT_METHODS: PaymentMethodDef[] = [
 
 const methodMap = new Map(PAYMENT_METHODS.map((m) => [m.key, m]));
 
-/** Normalise legacy DB values ("cash", "manual", "externo", "otro") → canonical key */
-export function normalizePaymentMethod(raw: string | null | undefined): PaymentMethodKey {
-  if (!raw) return "efectivo";
+/** Estados internos / valores que NO son un medio de pago real */
+const NOT_A_METHOD = new Set([
+  "pendiente",
+  "pendiente_verificacion",
+  "conciliado",
+  "manual",
+  "approved",
+  "in_process",
+  "rejected",
+  "cancelled",
+  "saldo_a_favor",
+]);
+
+/**
+ * Normalise legacy DB values ("cash", "externo", "otro") → canonical key.
+ * Devuelve `null` cuando el valor es desconocido, nulo o un estado interno.
+ * NUNCA asume "efectivo": eso sólo se muestra con evidencia explícita.
+ */
+export function normalizePaymentMethod(raw: string | null | undefined): PaymentMethodKey | null {
+  if (!raw) return null;
   const lower = raw.toLowerCase().trim();
+  if (!lower || NOT_A_METHOD.has(lower)) return null;
   if (lower === "cash" || lower === "efectivo") return "efectivo";
   if (lower === "transferencia") return "transferencia";
   if (lower === "mercadopago" || lower === "mp") return "mercadopago";
@@ -40,14 +58,18 @@ export function normalizePaymentMethod(raw: string | null | undefined): PaymentM
   if (lower === "mp_externo_claudio") return "mp_externo_claudio";
   if (lower === "mp_externo") return "mp_externo";
   if (lower === "tarjeta" || lower === "card" || lower === "tarjeta_externa") return "tarjeta";
-  if (lower === "externo" || lower === "plataforma_externa" || lower === "otro" || lower === "manual") return "plataforma_externa";
-  return "efectivo";
+  if (lower === "externo" || lower === "plataforma_externa" || lower === "otro") return "plataforma_externa";
+  return null;
 }
 
-/** Get display label for a raw DB value */
+/** Get display label for a raw DB value. Nunca inventa "Efectivo". */
 export function getPaymentMethodLabel(raw: string | null | undefined): string {
   const key = normalizePaymentMethod(raw);
-  return methodMap.get(key)?.label ?? raw ?? "Sin definir";
+  if (key) return methodMap.get(key)?.label ?? key;
+  const lower = (raw ?? "").toLowerCase().trim();
+  if (lower === "saldo_a_favor") return "Saldo a favor";
+  if (lower === "pendiente" || lower === "pendiente_verificacion") return "Pendiente de conciliación";
+  return "Sin definir";
 }
 
 // --- Smart inference for admin display ---
@@ -99,10 +121,10 @@ export function resolvePaymentDisplay(sub: {
   } else if (mpStatus === "externo" || mpStatus === "plataforma_externa" || mpStatus === "otro") {
     method = "Otro";
     methodKey = "plataforma_externa";
-  } else if (mpStatus === "manual") {
-    // "manual" is an origin, not a method – default to Efectivo
-    method = "Efectivo";
-    methodKey = "efectivo";
+  } else if (mpStatus === "manual" || mpStatus === "pendiente") {
+    // "manual"/"pendiente" son estados internos, NO un medio de pago
+    method = "Sin definir";
+    methodKey = null;
   } else if (mpStatus === "conciliado" || mpStatus === "pendiente_verificacion") {
     // Internal states – can't determine method
     method = "Sin definir";

@@ -178,7 +178,14 @@ export function ManageSubscriptionModal({ open, onOpenChange, alumno, suscripcio
         case "cambiar_plan": {
           if (!newPlanId || !primarySub) { toast.error("Seleccioná un plan"); break; }
           const selectedPlan = planes.find(p => p.id === newPlanId);
-          await supabase.from("suscripciones").update({ plan_id: newPlanId } as any).eq("id", primarySub.id);
+          // RPC única: mantiene coherencia plan_id / precio_base / precio_final / moneda
+          const { error: cpErr } = await supabase.rpc("cambiar_plan_suscripcion" as any, {
+            _suscripcion_id: primarySub.id,
+            _nuevo_plan_id: newPlanId,
+            _motivo: motivo || "Corrección de plan desde administración",
+            _usar_precio_del_nuevo_plan: true,
+          });
+          if (cpErr) { toast.error(cpErr.message || "No se pudo cambiar el plan"); break; }
           supabase.functions.invoke("notify-student-update", {
             body: { alumno_id: alumno.id, type: "plan_cambiado", plan_nombre: selectedPlan?.nombre, plan_precio: selectedPlan?.precio, plan_moneda: selectedPlan?.moneda },
           }).catch(() => {});
