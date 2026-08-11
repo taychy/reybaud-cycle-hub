@@ -104,13 +104,18 @@ const AdminProgramaDetalle = () => {
   const [playbook, setPlaybook] = useState<{ id: string; nombre: string; stages: number } | null>(null);
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
   const [startingFlujo, setStartingFlujo] = useState(false);
+  const [priceStages, setPriceStages] = useState<ProgramStageLike[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFocusInscripciones, setEditFocusInscripciones] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!cohortId) return;
     (async () => {
       setLoading(true);
-      const [{ data: p }, { data: subs }] = await Promise.all([
+      const [{ data: p }, { data: subs }, { data: st }] = await Promise.all([
         sb.from("planes").select("*").eq("id", cohortId).maybeSingle(),
+
         sb
           .from("suscripciones")
           .select("id, alumno_id, estado, fecha_inicio, fecha_fin, precio_final, metodo_pago, origen_registro, notas, created_at, chequeado_admin, mp_status")
