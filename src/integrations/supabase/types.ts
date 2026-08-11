@@ -11439,6 +11439,17 @@ export type Database = {
       }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
+      cambiar_plan_suscripcion: {
+        Args: {
+          _excepcion_motivo?: string
+          _motivo: string
+          _nuevo_plan_id: string
+          _precio_excepcion?: number
+          _suscripcion_id: string
+          _usar_precio_del_nuevo_plan?: boolean
+        }
+        Returns: Json
+      }
       cancel_store_order:
         | { Args: { _order_id: string; _reason: string }; Returns: Json }
         | { Args: { p_order_id: string }; Returns: undefined }
@@ -12117,6 +12128,19 @@ export type Database = {
         Args: { _metodo: string; _mp_payment_id: string }
         Returns: boolean
       }
+      is_subscription_paid:
+        | { Args: { _sub_id: string }; Returns: boolean }
+        | {
+            Args: {
+              _chequeado_admin: boolean
+              _metodo_pago: string
+              _mp_payment_id: string
+              _mp_status: string
+              _origen_registro: string
+              _sub_id: string
+            }
+            Returns: boolean
+          }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
       list_event_participants_for_roommate: {
         Args: { _event_id: string }
@@ -12562,6 +12586,7 @@ export type Database = {
         }
         Returns: Json
       }
+      subscription_paid_amount: { Args: { _sub_id: string }; Returns: number }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
       transition_cambio_estado: {
