@@ -8939,8 +8939,10 @@ export type Database = {
           metodo: Database["public"]["Enums"]["cambio_metodo"] | null
           motivo: string | null
           order_id: string | null
+          order_item_id: string | null
           product_id: string
           registrado_por: string | null
+          reversa_de_movimiento_id: string | null
           stock_anterior: number
           stock_nuevo: number
           tipo: string
@@ -8954,8 +8956,10 @@ export type Database = {
           metodo?: Database["public"]["Enums"]["cambio_metodo"] | null
           motivo?: string | null
           order_id?: string | null
+          order_item_id?: string | null
           product_id: string
           registrado_por?: string | null
+          reversa_de_movimiento_id?: string | null
           stock_anterior: number
           stock_nuevo: number
           tipo?: string
@@ -8969,8 +8973,10 @@ export type Database = {
           metodo?: Database["public"]["Enums"]["cambio_metodo"] | null
           motivo?: string | null
           order_id?: string | null
+          order_item_id?: string | null
           product_id?: string
           registrado_por?: string | null
+          reversa_de_movimiento_id?: string | null
           stock_anterior?: number
           stock_nuevo?: number
           tipo?: string
@@ -8996,6 +9002,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_reversa_fk"
+            columns: ["reversa_de_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
             referencedColumns: ["id"]
           },
         ]
@@ -11342,6 +11355,18 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_stock_inconsistencias: {
+        Row: {
+          detalle: string | null
+          order_id: string | null
+          order_number: number | null
+          product_id: string | null
+          severidad: string | null
+          tipo: string | null
+          variante: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _adjust_product_stock: {
@@ -11372,6 +11397,10 @@ export type Database = {
         Args: { p_product_id: string; p_variante: Json }
         Returns: string
       }
+      _cancel_store_order_core: {
+        Args: { p_order_id: string; p_reason: string; p_user_id: string }
+        Returns: Json
+      }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
       accept_roommate_invitation: {
@@ -11400,6 +11429,22 @@ export type Database = {
             }
             Returns: number
           }
+      adjust_store_stock: {
+        Args: {
+          p_cambio_id?: string
+          p_delta: number
+          p_key: string
+          p_metodo?: Database["public"]["Enums"]["cambio_metodo"]
+          p_motivo: string
+          p_order_id?: string
+          p_order_item_id?: string
+          p_product_id: string
+          p_reversa_de?: string
+          p_strict?: boolean
+          p_user_id?: string
+        }
+        Returns: string
+      }
       admin_create_cambio_indumentaria: {
         Args: {
           p_alumno_id: string
@@ -11584,7 +11629,7 @@ export type Database = {
       }
       cancel_store_order:
         | { Args: { _order_id: string; _reason: string }; Returns: Json }
-        | { Args: { p_order_id: string }; Returns: undefined }
+        | { Args: { p_order_id: string }; Returns: Json }
       cancelar_solicitud_baja: {
         Args: { p_solicitud_id: string }
         Returns: undefined
@@ -12781,6 +12826,15 @@ export type Database = {
           test: number
         }[]
       }
+      run_store_stock_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
       split_mp_movement_among_alumnos: {
         Args: { _movement_id: string; _notes?: string; _splits: Json }
         Returns: Json
@@ -12814,6 +12868,11 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      store_order_compromete_stock: {
+        Args: { p_status: string }
+        Returns: boolean
+      }
+      store_order_estados_comprometidos: { Args: never; Returns: string[] }
       submit_survey_response: {
         Args: { _nps?: number; _respuestas: Json; _token: string }
         Returns: string
