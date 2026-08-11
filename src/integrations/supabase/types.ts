@@ -265,6 +265,20 @@ export type Database = {
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "alumno_email_links_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_email_links_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
         ]
       }
       alumno_evaluaciones_coach: {
@@ -352,6 +366,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "alumno_evaluaciones_coach_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: true
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: true
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "alumno_evaluaciones_coach_coach_id_ultimo_fkey"
             columns: ["coach_id_ultimo"]
             isOneToOne: false
@@ -405,6 +433,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "alumno_evaluaciones_coach_notas_coach_id_fkey"
@@ -472,11 +514,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "alumno_familiares_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_familiares_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "alumno_familiares_familiar_alumno_id_fkey"
             columns: ["familiar_alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_familiares_familiar_alumno_id_fkey"
+            columns: ["familiar_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_familiares_familiar_alumno_id_fkey"
+            columns: ["familiar_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -515,6 +585,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_notas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_notas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -739,6 +823,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "alumnos_fusionada_en_fkey"
+            columns: ["fusionada_en"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumnos_fusionada_en_fkey"
+            columns: ["fusionada_en"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "alumnos_sede_id_fkey"
             columns: ["sede_id"]
             isOneToOne: false
@@ -817,6 +915,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "asesoria_asignaciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "asesoria_asignaciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "asesoria_asignaciones_coach_id_fkey"
             columns: ["coach_id"]
             isOneToOne: false
@@ -867,6 +979,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "asistencias_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "asistencias_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "asistencias_entrenamiento_id_fkey"
@@ -1038,6 +1164,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bajas_solicitudes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "bajas_solicitudes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -1278,6 +1418,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cambios_plan_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "cambios_plan_plan_anterior_id_fkey"
             columns: ["plan_anterior_id"]
             isOneToOne: false
@@ -1443,6 +1597,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "clases_consumidas_coach_id_fkey"
@@ -1687,6 +1855,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cuenta_ajustes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "cuenta_ajustes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "cuenta_ajustes_cuenta_mp_id_fkey"
             columns: ["cuenta_mp_id"]
             isOneToOne: false
@@ -1745,6 +1927,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cuenta_corriente_tokens_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "cuenta_corriente_tokens_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -2030,6 +2226,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_list_items_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "delivery_list_items_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "delivery_list_items_list_id_fkey"
@@ -2433,6 +2643,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "descuentos_alumno_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "descuentos_alumno_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "descuentos_alumno_descuento_id_fkey"
             columns: ["descuento_id"]
             isOneToOne: false
@@ -2507,6 +2731,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "devoluciones_baja_solicitud_id_fkey"
@@ -3048,6 +3286,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "entrenamientos_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "entrenamientos_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "entrenamientos_origen_importacion_id_fkey"
             columns: ["origen_importacion_id"]
             isOneToOne: false
@@ -3082,6 +3334,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "entrenamientos_realizados_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "entrenamientos_realizados_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "entrenamientos_realizados_entrenamiento_id_fkey"
@@ -3154,6 +3420,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_accommodation_waitlist_requests_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "event_accommodation_waitlist_requests_event_id_fkey"
@@ -3569,6 +3849,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_favorites_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_favorites_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "event_favorites_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -3709,6 +4003,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_package_change_requests_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "event_package_change_requests_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -3749,6 +4057,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_roommate_propuesto_id_fkey"
+            columns: ["roommate_propuesto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_package_change_requests_roommate_propuesto_id_fkey"
+            columns: ["roommate_propuesto_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -4289,6 +4611,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_reservations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_reservations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "event_reservations_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -4370,6 +4706,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_results_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_results_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "event_results_event_id_fkey"
@@ -4776,6 +5126,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_waitlist_entries_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_waitlist_entries_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "event_waitlist_entries_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -5128,6 +5492,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "facturas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "facturas_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "facturas_cuenta_mp_id_fkey"
             columns: ["cuenta_mp_id"]
             isOneToOne: false
@@ -5200,6 +5578,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_coach_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "feedback_coach_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "feedback_coach_coach_id_fkey"
@@ -5714,6 +6106,20 @@ export type Database = {
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "grupo_familiar_titular_alumno_id_fkey"
+            columns: ["titular_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "grupo_familiar_titular_alumno_id_fkey"
+            columns: ["titular_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
         ]
       }
       grupo_familiar_miembros: {
@@ -5745,6 +6151,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "grupo_familiar_miembros_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "grupo_familiar_miembros_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "grupo_familiar_miembros_grupo_id_fkey"
@@ -6005,11 +6425,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "marketing_contacts_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "marketing_contacts_source_alumno_id_fkey"
             columns: ["source_alumno_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_source_alumno_id_fkey"
+            columns: ["source_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "marketing_contacts_source_alumno_id_fkey"
+            columns: ["source_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "marketing_contacts_source_event_participant_id_fkey"
@@ -6133,6 +6581,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "movimientos_liquidacion_coach_id_fkey"
@@ -6290,6 +6752,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "mp_account_movements_cuenta_mp_id_fkey"
             columns: ["cuenta_mp_id"]
             isOneToOne: false
@@ -6358,6 +6834,20 @@ export type Database = {
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "objetivos_alumno_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "objetivos_alumno_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
         ]
       }
       pagos_imputaciones: {
@@ -6416,6 +6906,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pagos_imputaciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "pagos_imputaciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -7240,6 +7744,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "registro_sesiones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "registro_sesiones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "registro_sesiones_entrenamiento_id_fkey"
             columns: ["entrenamiento_id"]
             isOneToOne: false
@@ -7430,6 +7948,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "reservas_turnera_coach_id_fkey"
@@ -7655,6 +8187,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reservation_checklist_data_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservation_checklist_data_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "reservation_checklist_data_reservation_id_fkey"
             columns: ["reservation_id"]
             isOneToOne: false
@@ -7729,6 +8275,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_financial_adjustments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservation_financial_adjustments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "reservation_financial_adjustments_event_id_fkey"
@@ -8031,6 +8591,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reservation_notifications_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservation_notifications_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "reservation_notifications_reservation_id_fkey"
             columns: ["reservation_id"]
             isOneToOne: false
@@ -8278,6 +8852,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reservation_payments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservation_payments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "reservation_payments_cuenta_mp_id_fkey"
             columns: ["cuenta_mp_id"]
             isOneToOne: false
@@ -8362,6 +8950,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "reservation_roommates_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservation_roommates_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "reservation_roommates_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -8374,6 +8976,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_roommates_invited_by_alumno_id_fkey"
+            columns: ["invited_by_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "reservation_roommates_invited_by_alumno_id_fkey"
+            columns: ["invited_by_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "reservation_roommates_reservation_id_fkey"
@@ -8755,6 +9371,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sesiones_extra_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "sesiones_extra_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -9200,6 +9830,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "store_cambios_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "store_cambios_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "store_cambios_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
@@ -9531,6 +10175,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "store_orders_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "store_orders_cuenta_mp_id_fkey"
@@ -10319,6 +10977,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "alumnos"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_cuenta_mp_id_fkey"
@@ -11210,6 +11882,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "event_reservations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_reservations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
             foreignKeyName: "event_reservations_event_id_fkey"
             columns: ["event_id"]
             isOneToOne: false
@@ -11217,6 +11903,101 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      vw_backfill_candidatos: {
+        Row: {
+          candidatos_del_pago: number | null
+          criterio_match: string | null
+          mejor_prioridad_del_pago: number | null
+          meta: Json | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+          prioridad: number | null
+        }
+        Relationships: []
+      }
+      vw_backfill_identidad_sugerida: {
+        Row: {
+          alumno_sugerido: string | null
+          alumno_sugerido_id: string | null
+          confianza_identidad: string | null
+          evidencia: Json | null
+          fecha_pago: string | null
+          moneda_pago: string | null
+          monto_pago: number | null
+          mp_payment_id: string | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+        }
+        Relationships: []
+      }
+      vw_backfill_ingresos: {
+        Row: {
+          alumno_id: string | null
+          evidencia: Json | null
+          fecha_pago: string | null
+          moneda_pago: string | null
+          monto_pago: number | null
+          mp_payment_id: string | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+        }
+        Relationships: []
+      }
+      vw_backfill_obligaciones: {
+        Row: {
+          alumno_id: string | null
+          evidencia: Json | null
+          fecha_obligacion: string | null
+          moneda: string | null
+          monto_obligacion: number | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado_legacy: number | null
+          periodo: string | null
+        }
+        Relationships: []
+      }
+      vw_backfill_resumen: {
+        Row: {
+          alumnos: number | null
+          imputaciones_propuestas: number | null
+          monto_propuesto: number | null
+          nivel_confianza: string | null
+          pagos: number | null
+        }
+        Relationships: []
+      }
+      vw_backfill_saldos_comparacion: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          cargos_legacy: number | null
+          clasificacion_diferencia: string | null
+          creditos_legacy: number | null
+          diferencia: number | null
+          imputaciones_simuladas: number | null
+          obligaciones_modelo_nuevo: number | null
+          pagos_legacy: number | null
+          saldo_disponible_pagos: number | null
+          saldo_legacy: number | null
+          saldo_modelo_nuevo_simulado: number | null
+        }
+        Relationships: []
+      }
+      vw_backfill_sobreimputacion: {
+        Row: {
+          entidad_id: string | null
+          entidad_tipo: string | null
+          exceso: number | null
+          propuesto: number | null
+          severidad: string | null
+          tipo: string | null
+          tope: number | null
+        }
+        Relationships: []
       }
       vw_bajas_metricas_mensuales: {
         Row: {
@@ -11278,6 +12059,35 @@ export type Database = {
           monto: number | null
           obligacion_id: string | null
           obligacion_tipo: string | null
+        }
+        Relationships: []
+      }
+      vw_pagos_imputaciones_backfill_preview: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          criterio_match: string | null
+          fecha_pago: string | null
+          metadata: Json | null
+          moneda_pago: string | null
+          monto_obligacion: number | null
+          monto_pago: number | null
+          monto_propuesto_imputar: number | null
+          motivo_revision: string | null
+          mp_payment_id: string | null
+          nivel_confianza: string | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado_legacy: number | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+          periodo_obligacion: string | null
+          requiere_revision: boolean | null
+          saldo_legacy: number | null
+          saldo_obligacion_antes: number | null
+          saldo_obligacion_despues: number | null
+          saldo_pago_antes: number | null
+          saldo_pago_despues: number | null
         }
         Relationships: []
       }
