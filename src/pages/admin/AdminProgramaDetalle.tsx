@@ -201,7 +201,7 @@ const AdminProgramaDetalle = () => {
 
       setLoading(false);
     })();
-  }, [cohortId]);
+  }, [cohortId, reloadKey]);
 
   const handleFlujo = async () => {
     if (!cohortId || !playbook) return;
