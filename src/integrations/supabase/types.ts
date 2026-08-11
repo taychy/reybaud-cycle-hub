@@ -11694,6 +11694,77 @@ export type Database = {
           },
         ]
       }
+      mv_backfill_candidatos: {
+        Row: {
+          candidatos_del_pago: number | null
+          criterio_match: string | null
+          mejor_prioridad_del_pago: number | null
+          meta: Json | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+          prioridad: number | null
+        }
+        Relationships: []
+      }
+      mv_backfill_ingresos: {
+        Row: {
+          alumno_id: string | null
+          evidencia: Json | null
+          fecha_pago: string | null
+          moneda_pago: string | null
+          monto_pago: number | null
+          mp_payment_id: string | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+        }
+        Relationships: []
+      }
+      mv_backfill_obligaciones: {
+        Row: {
+          alumno_id: string | null
+          evidencia: Json | null
+          fecha_obligacion: string | null
+          moneda: string | null
+          monto_obligacion: number | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado_legacy: number | null
+          periodo: string | null
+          saldo_legacy: number | null
+        }
+        Relationships: []
+      }
+      mv_backfill_preview: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          criterio_match: string | null
+          fecha_pago: string | null
+          metadata: Json | null
+          moneda_pago: string | null
+          monto_obligacion: number | null
+          monto_pago: number | null
+          monto_propuesto_imputar: number | null
+          motivo_revision: string | null
+          mp_payment_id: string | null
+          nivel_confianza: string | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado_legacy: number | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+          periodo_obligacion: string | null
+          requiere_revision: boolean | null
+          saldo_legacy: number | null
+          saldo_obligacion_antes: number | null
+          saldo_obligacion_despues: number | null
+          saldo_pago_antes: number | null
+          saldo_pago_despues: number | null
+        }
+        Relationships: []
+      }
       planes_con_inscriptos: {
         Row: {
           acceso_beneficios: boolean | null
@@ -13395,6 +13466,7 @@ export type Database = {
         Args: { _alumno_id: string; _codigo: string; _evento_id: string }
         Returns: Json
       }
+      refresh_backfill_preview: { Args: never; Returns: string }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
         Returns: undefined
