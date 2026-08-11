@@ -189,7 +189,7 @@ export default function FormacionInicial() {
 
       const { data, error } = await supabase.functions.invoke("enroll-programa", {
         body: {
-          cohort_slug: COHORT,
+          cohort_slug: cohortSlug,
           ...parsed.data,
           comprobante_base64,
           comprobante_filename,
