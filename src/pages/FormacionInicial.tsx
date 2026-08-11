@@ -75,22 +75,11 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-function addDaysISO(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
-  dt.setDate(dt.getDate() + days);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-}
-
 function fmtMoney(n: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 }
 
-function fmtDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
-  return dt.toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-}
+const fmtDate = fmtDiaMesAR;
 
 function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -107,10 +96,15 @@ export default function FormacionInicial() {
   const [transferSent, setTransferSent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Permite previsualizar/servir otra cohorte desde el link de admin (?cohort=slug)
+  const cohortSlug = useMemo(() => {
+    const p = new URLSearchParams(window.location.search).get("cohort");
+    return p && /^[a-z0-9_-]+$/i.test(p) ? p : DEFAULT_COHORT;
+  }, []);
+
   useEffect(() => {
-    document.title = "Programa de Iniciación 2026/2 — Ciclismo Reybaud";
     (async () => {
-      const { data, error } = await supabase.rpc("get_public_program", { _cohort_slug: COHORT });
+      const { data, error } = await supabase.rpc("get_public_program", { _cohort_slug: cohortSlug });
       if (error || !data) {
         toast.error("No se pudo cargar el programa");
       } else {
@@ -118,25 +112,34 @@ export default function FormacionInicial() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [cohortSlug]);
+
+  useEffect(() => {
+    document.title = program?.nombre
+      ? `${program.nombre} — Ciclismo Reybaud`
+      : "Programa de Formación Inicial — Ciclismo Reybaud";
+  }, [program?.nombre]);
 
   const stageVigente = program?.stage_vigente;
+  // Misma lógica que usa el panel admin (src/lib/programEnrollment.ts)
   const inscripcionesAbiertas = useMemo(() => {
     if (!program) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return (
-      program.cupos_libres > 0 &&
-      today <= program.fecha_cierre_inscripcion &&
-      !!stageVigente
-    );
-  }, [program, stageVigente]);
+    return computeEnrollmentStatus(
+      {
+        activo: true,
+        landing_public: true,
+        max_inscripciones: program.max_inscripciones,
+        inscripciones_actuales: program.inscripciones_actuales,
+        fecha_cierre_inscripcion: program.fecha_cierre_inscripcion,
+      },
+      program.stages,
+    ).abiertas;
+  }, [program]);
 
   const cuotaAmount = stageVigente?.precio_cuota ? Number(stageVigente.precio_cuota) : 0;
   const totalAmount = stageVigente ? Number(stageVigente.precio) : 0;
-  const cuota1Vence = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return addDaysISO(today, 30);
-  }, []);
+  const cuota1Vence = useMemo(() => addDays(todayISO(), 30), []);
+
 
   function copy(text: string, label: string) {
     navigator.clipboard.writeText(text).then(
