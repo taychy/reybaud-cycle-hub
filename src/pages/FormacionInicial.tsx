@@ -258,7 +258,7 @@ export default function FormacionInicial() {
         <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-16 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div className="order-2 lg:order-1">
             <span className="inline-block text-xs sm:text-sm font-semibold uppercase tracking-widest text-cyan mb-3">
-              Edición 2026/2 · Inicio 15 de agosto
+              Edición {edicionTxt} · Inicio {fmtDiaMesAR(program.fecha_inicio_programa)}
             </span>
             <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl leading-tight mb-4">
               <span className="text-primary">Programa de Formación</span><br />
@@ -269,7 +269,8 @@ export default function FormacionInicial() {
               <span className="text-foreground">a entrenar como ciclista.</span>
             </p>
             <p className="text-base sm:text-lg text-muted-foreground mb-6 max-w-xl">
-              Un programa de 8 semanas para adultos que ya pedalean y quieren evolucionar con método y seguridad.
+              {program.descripcion ||
+                `Un programa de ${duracionTxt} para adultos que ya pedalean y quieren evolucionar con método y seguridad.`}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado}>
@@ -339,7 +340,7 @@ export default function FormacionInicial() {
           <p className="text-lg mb-6">
             Es un programa de formación para <strong>ciclistas adultos que quieren dar el siguiente paso</strong>.
           </p>
-          <p className="text-lg mb-4">Durante 8 semanas vas a aprender a:</p>
+          <p className="text-lg mb-4">Durante {duracionTxt} vas a aprender a:</p>
           <ul className="space-y-2 text-lg">
             {program.features.map((f, i) => (
               <li key={i} className="flex gap-3">
@@ -379,9 +380,10 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <Calendar className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Inicio de clases</p>
-              <p className="text-xl font-heading">Sábado 15 de agosto</p>
-              <p className="text-sm text-muted-foreground mt-2">8 clases · Finalización 3 de octubre</p>
-              <p className="text-xs text-muted-foreground mt-1">Fechas de recuperación por lluvia: 10 y 17 de octubre</p>
+              <p className="text-xl font-heading">{fmtDiaSemanaAR(program.fecha_inicio_programa)}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {semanas ? `${semanas} clases · ` : ""}Finalización {fmtDiaMesAR(program.fecha_fin_programa)}
+              </p>
             </div>
             <div className="p-5 rounded-xl border border-border bg-card">
               <MapPin className="w-6 h-6 text-primary mb-3" />
@@ -398,7 +400,7 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <Calendar className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cierre de inscripciones</p>
-              <p className="text-xl font-heading">Lunes 10 de agosto</p>
+              <p className="text-xl font-heading">{fmtDiaSemanaAR(program.fecha_cierre_inscripcion)}</p>
               <p className="text-sm text-muted-foreground mt-2">O antes si se llenan los cupos.</p>
             </div>
           </div>
@@ -692,7 +694,7 @@ export default function FormacionInicial() {
       </section>
 
       <footer className="py-8 border-t border-border/40 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Ciclismo Reybaud · Programa de Iniciación 2026/2</p>
+        <p>© {new Date().getFullYear()} Ciclismo Reybaud · {program.nombre}</p>
       </footer>
     </div>
   );
