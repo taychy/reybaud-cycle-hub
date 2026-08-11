@@ -9,9 +9,18 @@ import { z } from "zod";
 import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone, Copy, Upload, CreditCard, Building2 } from "lucide-react";
 import heroAsset from "@/assets/formacion-inicial-hero.png.asset.json";
 import { ESCUELA_TRANSFER_INFO } from "@/lib/contactInfo";
+import {
+  addDaysISO as addDays,
+  computeEnrollmentStatus,
+  fmtDiaMesAR,
+  fmtDiaSemanaAR,
+  semanasEntre,
+  todayISO,
+} from "@/lib/programEnrollment";
 const heroImg = heroAsset.url;
 
-const COHORT = "formacion_inicial_2026_2";
+const DEFAULT_COHORT = "formacion_inicial_2026_2";
+
 
 interface Stage {
   id: string;
