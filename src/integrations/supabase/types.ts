@@ -7654,6 +7654,33 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_stock_test_results: {
+        Row: {
+          detalle: string | null
+          estado: string
+          id: number
+          nombre: string | null
+          run_at: string
+          test: number
+        }
+        Insert: {
+          detalle?: string | null
+          estado: string
+          id?: number
+          nombre?: string | null
+          run_at?: string
+          test: number
+        }
+        Update: {
+          detalle?: string | null
+          estado?: string
+          id?: number
+          nombre?: string | null
+          run_at?: string
+          test?: number
+        }
+        Relationships: []
+      }
       redes_sociales_tareas: {
         Row: {
           clase_dictada_id: string | null
@@ -13587,6 +13614,10 @@ export type Database = {
         Args: { p_order_id: string; p_user_id?: string }
         Returns: Json
       }
+      reparar_egreso_capado_legacy: {
+        Args: { p_movement_id: string; p_user_id?: string }
+        Returns: Json
+      }
       report_excepciones_revision_manual: {
         Args: never
         Returns: {
@@ -13792,6 +13823,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      stock_control_desde: { Args: never; Returns: string }
       store_order_compromete_stock: {
         Args: { p_status: string }
         Returns: boolean
