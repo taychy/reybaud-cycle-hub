@@ -13,6 +13,7 @@ import { RefreshCw, Search, UserPlus, ExternalLink, Link2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
+import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS } from "@/lib/mpConciliacion";
 
 
 type Movement = {
@@ -75,7 +76,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [cuentas, setCuentas] = useState<Array<{ id: string; nombre: string; slug: string }>>([]);
   const [cuentaFilter, setCuentaFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [assignFilter, setAssignFilter] = useState<"all" | "assigned" | "unassigned">("unassigned");
+  const [assignFilter, setAssignFilter] = useState<"all" | "imputado" | "identificado_sin_imputar" | "sin_identificar" | "pendientes">("pendientes");
   const [search, setSearch] = useState("");
 
   const [assignDialog, setAssignDialog] = useState<Movement | null>(null);
@@ -437,10 +438,10 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     return movements.filter((m) => {
       if (cuentaFilter !== "all" && m.cuenta_mp_id !== cuentaFilter) return false;
       if (statusFilter !== "all" && (m.status ?? "") !== statusFilter) return false;
-      const hasAssignment = !!(m.alumno_id || m.reservation_payment_id || m.suscripcion_id);
-      if (assignFilter === "assigned" && !hasAssignment) return false;
-      // "Sin asignar" es cola de trabajo: sólo aprobados son asignables.
-      if (assignFilter === "unassigned" && (hasAssignment || (statusFilter === "all" && m.status !== "approved"))) return false;
+      const estado = deriveMpConciliacionEstado(m);
+      // "Pendientes" = cola de trabajo: aprobados que todavía no están imputados.
+      if (assignFilter === "pendientes" && (estado === "imputado" || (statusFilter === "all" && m.status !== "approved"))) return false;
+      if (assignFilter !== "all" && assignFilter !== "pendientes" && estado !== assignFilter) return false;
       if (search) {
         const s = search.toLowerCase();
         const hay = [
@@ -466,9 +467,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       approved: approved.length,
       rejected: rejected.length,
       // Sólo cuentan los asignables: un pago rechazado/cancelado nunca se asigna.
-      unassigned: filtered.filter(
-        (m) => m.status === "approved" && !m.alumno_id && !m.reservation_payment_id && !m.suscripcion_id
-      ).length,
+      sinIdentificar: approved.filter((m) => deriveMpConciliacionEstado(m) === "sin_identificar").length,
+      sinImputar: approved.filter((m) => deriveMpConciliacionEstado(m) === "identificado_sin_imputar").length,
+      imputados: approved.filter((m) => deriveMpConciliacionEstado(m) === "imputado").length,
       totalByCurrency,
     };
   }, [filtered]);
@@ -494,7 +495,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
         {(() => {
           const isMes = !!periodo && periodo !== "all";
           const badge = <PeriodBadge scope={isMes ? "mes" : "acumulado"} label={isMes ? periodo : "Todos los meses"} className="ml-auto" />;
@@ -503,7 +504,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Movimientos</div>{badge}</div><div className="text-2xl font-bold">{totals.total}</div></CardContent></Card>
               <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Aprobados</div>{badge}</div><div className="text-2xl font-bold text-green-500">{totals.approved}</div></CardContent></Card>
               <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Rechazados / cancelados</div>{badge}</div><div className="text-2xl font-bold text-red-500">{totals.rejected}</div></CardContent></Card>
-              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Sin asignar (aprobados)</div>{badge}</div><div className="text-2xl font-bold text-orange-500">{totals.unassigned}</div></CardContent></Card>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Sin identificar</div>{badge}</div><div className="text-2xl font-bold text-orange-500">{totals.sinIdentificar}</div></CardContent></Card>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Identificados · falta imputar</div>{badge}</div><div className="text-2xl font-bold text-yellow-500">{totals.sinImputar}</div><div className="text-[10px] text-muted-foreground">Tienen alumno pero no impactan ninguna deuda</div></CardContent></Card>
+              <Card><CardContent className="pt-4"><div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Imputados</div>{badge}</div><div className="text-2xl font-bold text-green-500">{totals.imputados}</div></CardContent></Card>
               <Card><CardContent className="pt-4">
                 <div className="flex items-center gap-2"><div className="text-xs text-muted-foreground">Total (aprobados)</div>{badge}</div>
                 <div className="text-sm font-bold">
@@ -545,11 +548,13 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
               </SelectContent>
             </Select>
             <Select value={assignFilter} onValueChange={(v: any) => setAssignFilter(v)}>
-              <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+              <SelectTrigger className="w-[220px]"><SelectValue /></SelectTrigger>
               <SelectContent>
+                <SelectItem value="pendientes">Pendientes (falta imputar)</SelectItem>
+                <SelectItem value="sin_identificar">Sin identificar</SelectItem>
+                <SelectItem value="identificado_sin_imputar">Identificado · falta imputar</SelectItem>
+                <SelectItem value="imputado">Imputados</SelectItem>
                 <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="assigned">Asignados</SelectItem>
-                <SelectItem value="unassigned">Sin asignar</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -577,9 +582,10 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                   </TableCell></TableRow>
                 )}
                 {filtered.map((m) => {
-                  const assigned = !!(m.alumno_id || m.reservation_payment_id || m.suscripcion_id);
+                  const estado = deriveMpConciliacionEstado(m);
+                  const assigned = estado === "imputado";
                   return (
-                    <TableRow key={m.id} className={!assigned ? "bg-orange-500/5" : ""}>
+                    <TableRow key={m.id} className={estado === "sin_identificar" ? "bg-orange-500/5" : estado === "identificado_sin_imputar" ? "bg-yellow-500/5" : ""}>
                       <TableCell className="text-xs">{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</TableCell>
                       <TableCell><Badge variant="outline">{m.cuentas_mp?.nombre ?? "—"}</Badge></TableCell>
                       <TableCell className="text-xs">
@@ -637,21 +643,25 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                             {m.assigned_manually && <Link2 className="h-3 w-3 text-blue-400" />}
                             <span>{m.alumnos.nombre} {m.alumnos.apellido ?? ""}</span>
                           </div>
-                        ) : (
-                          <Badge variant="outline" className="bg-orange-500/10 text-orange-400 border-orange-500/30">Sin asignar</Badge>
-                        )}
+                        ) : null}
+                        <Badge variant="outline" className={`${MP_ESTADO_CLASS[estado]} mt-1 text-[10px]`}>{MP_ESTADO_LABEL[estado]}</Badge>
                         {m.reservation_payment_id && <div className="text-muted-foreground">Evento</div>}
                         {m.suscripcion_id && <div className="text-muted-foreground">Suscripción</div>}
                       </TableCell>
                       <TableCell className="text-xs">{m.payment_type || m.payment_method || "—"}</TableCell>
                       <TableCell className="text-xs font-mono">{m.mp_payment_id}</TableCell>
                       <TableCell className={`text-right whitespace-nowrap sticky right-0 shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.5)] ${!assigned ? "bg-[hsl(var(--card))]" : "bg-card"}`}>
-                        {assigned ? (
+                        {estado === "imputado" ? (
                           <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
                         ) : (
-                          <Button size="sm" variant="outline" onClick={() => { setAssignDialog(m); setSelectedAlumno(null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
-                            <UserPlus className="h-3 w-3 mr-1" /> Asignar alumno
-                          </Button>
+                          <div className="flex flex-col items-end gap-1">
+                            <Button size="sm" variant={estado === "identificado_sin_imputar" ? "default" : "outline"} onClick={() => { setAssignDialog(m); setSelectedAlumno(m.alumno_id ?? null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
+                              <UserPlus className="h-3 w-3 mr-1" /> {estado === "identificado_sin_imputar" ? "Imputar a deuda" : "Identificar alumno"}
+                            </Button>
+                            {estado === "identificado_sin_imputar" && (
+                              <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleUnassign(m)}>Quitar alumno</Button>
+                            )}
+                          </div>
                         )}
                       </TableCell>
                     </TableRow>
