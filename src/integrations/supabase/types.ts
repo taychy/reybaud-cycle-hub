@@ -14,6 +14,21 @@ export type Database = {
   }
   public: {
     Tables: {
+      _tmp_repair_check: {
+        Row: {
+          k: string | null
+          v: Json | null
+        }
+        Insert: {
+          k?: string | null
+          v?: Json | null
+        }
+        Update: {
+          k?: string | null
+          v?: Json | null
+        }
+        Relationships: []
+      }
       admin_notification_events: {
         Row: {
           created_at: string
