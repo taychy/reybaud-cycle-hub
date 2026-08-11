@@ -115,15 +115,21 @@ const AdminProgramaDetalle = () => {
       setLoading(true);
       const [{ data: p }, { data: subs }, { data: st }] = await Promise.all([
         sb.from("planes").select("*").eq("id", cohortId).maybeSingle(),
-
         sb
           .from("suscripciones")
           .select("id, alumno_id, estado, fecha_inicio, fecha_fin, precio_final, metodo_pago, origen_registro, notas, created_at, chequeado_admin, mp_status")
           .eq("plan_id", cohortId)
           .order("created_at", { ascending: false }),
+        sb
+          .from("plan_price_stages")
+          .select("id, nombre, precio, precio_cuota, cuotas_cantidad, fecha_desde, fecha_hasta, activo")
+          .eq("plan_id", cohortId)
+          .order("orden", { ascending: true }),
       ]);
       setPlan(p as PlanRow);
+      setPriceStages((st || []) as ProgramStageLike[]);
       const list = (subs || []) as Inscripto[];
+
       // Load alumno data in one shot
       const alumnoIds = Array.from(new Set(list.map((s) => s.alumno_id).filter(Boolean)));
       if (alumnoIds.length > 0) {
