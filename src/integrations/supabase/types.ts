@@ -12763,6 +12763,24 @@ export type Database = {
           test: number
         }[]
       }
+      run_financial_regression_tests_core: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
+      run_imputaciones_regression_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
       split_mp_movement_among_alumnos: {
         Args: { _movement_id: string; _notes?: string; _splits: Json }
         Returns: Json
