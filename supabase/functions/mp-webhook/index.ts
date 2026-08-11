@@ -457,7 +457,6 @@ Deno.serve(async (req) => {
           status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const alreadyPaid = order.status === "pagado" || !!order.mp_payment_id;
 
       const update: Record<string, unknown> = {
         mp_payment_id: String(payment.id),
