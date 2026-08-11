@@ -7654,6 +7654,33 @@ export type Database = {
         }
         Relationships: []
       }
+      qa_stock_test_results: {
+        Row: {
+          detalle: string | null
+          estado: string
+          id: number
+          nombre: string | null
+          run_at: string
+          test: number
+        }
+        Insert: {
+          detalle?: string | null
+          estado: string
+          id?: number
+          nombre?: string | null
+          run_at?: string
+          test: number
+        }
+        Update: {
+          detalle?: string | null
+          estado?: string
+          id?: number
+          nombre?: string | null
+          run_at?: string
+          test?: number
+        }
+        Relationships: []
+      }
       redes_sociales_tareas: {
         Row: {
           clase_dictada_id: string | null
