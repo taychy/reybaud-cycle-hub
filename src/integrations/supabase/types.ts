@@ -11198,6 +11198,29 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_pagos_inconsistencias: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          descripcion: string | null
+          diferencia: number | null
+          fecha: string | null
+          metadata: Json | null
+          moneda: string | null
+          monto_obligacion: number | null
+          monto_pago: number | null
+          mp_payment_id: string | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado: number | null
+          pago_id: string | null
+          pago_origen: string | null
+          saldo: number | null
+          severidad: string | null
+          tipo: string | null
+        }
+        Relationships: []
+      }
       vw_pagos_por_cobrar: {
         Row: {
           alumno_id: string | null
@@ -11956,6 +11979,35 @@ export type Database = {
         Args: { p_package_id: string }
         Returns: number
       }
+      get_pagos_inconsistencias: {
+        Args: never
+        Returns: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          descripcion: string | null
+          diferencia: number | null
+          fecha: string | null
+          metadata: Json | null
+          moneda: string | null
+          monto_obligacion: number | null
+          monto_pago: number | null
+          mp_payment_id: string | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado: number | null
+          pago_id: string | null
+          pago_origen: string | null
+          saldo: number | null
+          severidad: string | null
+          tipo: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "vw_pagos_inconsistencias"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       get_pending_event_promo: {
         Args: { _alumno_id: string; _evento_id: string }
         Returns: Json
@@ -12536,6 +12588,15 @@ export type Database = {
         Returns: string
       }
       revertir_clase_bono: { Args: { p_clase_id: string }; Returns: undefined }
+      run_financial_regression_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
       split_mp_movement_among_alumnos: {
         Args: { _movement_id: string; _notes?: string; _splits: Json }
         Returns: Json
