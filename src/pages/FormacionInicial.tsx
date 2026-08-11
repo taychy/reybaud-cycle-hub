@@ -9,9 +9,18 @@ import { z } from "zod";
 import { ChevronDown, Loader2, CheckCircle2, Calendar, MapPin, Users, Instagram, Phone, Copy, Upload, CreditCard, Building2 } from "lucide-react";
 import heroAsset from "@/assets/formacion-inicial-hero.png.asset.json";
 import { ESCUELA_TRANSFER_INFO } from "@/lib/contactInfo";
+import {
+  addDaysISO as addDays,
+  computeEnrollmentStatus,
+  fmtDiaMesAR,
+  fmtDiaSemanaAR,
+  semanasEntre,
+  todayISO,
+} from "@/lib/programEnrollment";
 const heroImg = heroAsset.url;
 
-const COHORT = "formacion_inicial_2026_2";
+const DEFAULT_COHORT = "formacion_inicial_2026_2";
+
 
 interface Stage {
   id: string;
@@ -66,22 +75,11 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
-function addDaysISO(iso: string, days: number): string {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
-  dt.setDate(dt.getDate() + days);
-  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
-}
-
 function fmtMoney(n: number) {
   return new Intl.NumberFormat("es-AR", { style: "currency", currency: "ARS", maximumFractionDigits: 0 }).format(n);
 }
 
-function fmtDate(iso: string) {
-  const [y, m, d] = iso.split("-").map(Number);
-  const dt = new Date(y, (m ?? 1) - 1, d ?? 1);
-  return dt.toLocaleDateString("es-AR", { day: "numeric", month: "long" });
-}
+const fmtDate = fmtDiaMesAR;
 
 function scrollTo(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -98,10 +96,15 @@ export default function FormacionInicial() {
   const [transferSent, setTransferSent] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Permite previsualizar/servir otra cohorte desde el link de admin (?cohort=slug)
+  const cohortSlug = useMemo(() => {
+    const p = new URLSearchParams(window.location.search).get("cohort");
+    return p && /^[a-z0-9_-]+$/i.test(p) ? p : DEFAULT_COHORT;
+  }, []);
+
   useEffect(() => {
-    document.title = "Programa de Iniciación 2026/2 — Ciclismo Reybaud";
     (async () => {
-      const { data, error } = await supabase.rpc("get_public_program", { _cohort_slug: COHORT });
+      const { data, error } = await supabase.rpc("get_public_program", { _cohort_slug: cohortSlug });
       if (error || !data) {
         toast.error("No se pudo cargar el programa");
       } else {
@@ -109,25 +112,34 @@ export default function FormacionInicial() {
       }
       setLoading(false);
     })();
-  }, []);
+  }, [cohortSlug]);
+
+  useEffect(() => {
+    document.title = program?.nombre
+      ? `${program.nombre} — Ciclismo Reybaud`
+      : "Programa de Formación Inicial — Ciclismo Reybaud";
+  }, [program?.nombre]);
 
   const stageVigente = program?.stage_vigente;
+  // Misma lógica que usa el panel admin (src/lib/programEnrollment.ts)
   const inscripcionesAbiertas = useMemo(() => {
     if (!program) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return (
-      program.cupos_libres > 0 &&
-      today <= program.fecha_cierre_inscripcion &&
-      !!stageVigente
-    );
-  }, [program, stageVigente]);
+    return computeEnrollmentStatus(
+      {
+        activo: true,
+        landing_public: true,
+        max_inscripciones: program.max_inscripciones,
+        inscripciones_actuales: program.inscripciones_actuales,
+        fecha_cierre_inscripcion: program.fecha_cierre_inscripcion,
+      },
+      program.stages,
+    ).abiertas;
+  }, [program]);
 
   const cuotaAmount = stageVigente?.precio_cuota ? Number(stageVigente.precio_cuota) : 0;
   const totalAmount = stageVigente ? Number(stageVigente.precio) : 0;
-  const cuota1Vence = useMemo(() => {
-    const today = new Date().toISOString().slice(0, 10);
-    return addDaysISO(today, 30);
-  }, []);
+  const cuota1Vence = useMemo(() => addDays(todayISO(), 30), []);
+
 
   function copy(text: string, label: string) {
     navigator.clipboard.writeText(text).then(
@@ -177,7 +189,7 @@ export default function FormacionInicial() {
 
       const { data, error } = await supabase.functions.invoke("enroll-programa", {
         body: {
-          cohort_slug: COHORT,
+          cohort_slug: cohortSlug,
           ...parsed.data,
           comprobante_base64,
           comprobante_filename,
@@ -229,6 +241,16 @@ export default function FormacionInicial() {
 
   const cerrado = !inscripcionesAbiertas;
 
+  // Todo derivado de la configuración del programa (nada hardcodeado)
+  const semanas = semanasEntre(program.fecha_inicio_programa, program.fecha_fin_programa);
+  const duracionTxt = semanas ? `${semanas} semanas` : "varias semanas";
+  // Etiqueta de edición: parte final del slug (ej: formacion_inicial_2026_2 → 2026/2)
+  const edicionTxt = (() => {
+    const m = program.cohort_slug?.match(/(\d{4})[_-](\d+)$/);
+    return m ? `${m[1]}/${m[2]}` : program.nombre;
+  })();
+
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       {/* HERO */}
@@ -236,7 +258,7 @@ export default function FormacionInicial() {
         <div className="container mx-auto px-4 sm:px-6 py-10 sm:py-16 grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
           <div className="order-2 lg:order-1">
             <span className="inline-block text-xs sm:text-sm font-semibold uppercase tracking-widest text-cyan mb-3">
-              Edición 2026/2 · Inicio 15 de agosto
+              Edición {edicionTxt} · Inicio {fmtDiaMesAR(program.fecha_inicio_programa)}
             </span>
             <h1 className="font-heading text-4xl sm:text-5xl lg:text-6xl leading-tight mb-4">
               <span className="text-primary">Programa de Formación</span><br />
@@ -247,7 +269,8 @@ export default function FormacionInicial() {
               <span className="text-foreground">a entrenar como ciclista.</span>
             </p>
             <p className="text-base sm:text-lg text-muted-foreground mb-6 max-w-xl">
-              Un programa de 8 semanas para adultos que ya pedalean y quieren evolucionar con método y seguridad.
+              {program.descripcion ||
+                `Un programa de ${duracionTxt} para adultos que ya pedalean y quieren evolucionar con método y seguridad.`}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado}>
@@ -317,7 +340,7 @@ export default function FormacionInicial() {
           <p className="text-lg mb-6">
             Es un programa de formación para <strong>ciclistas adultos que quieren dar el siguiente paso</strong>.
           </p>
-          <p className="text-lg mb-4">Durante 8 semanas vas a aprender a:</p>
+          <p className="text-lg mb-4">Durante {duracionTxt} vas a aprender a:</p>
           <ul className="space-y-2 text-lg">
             {program.features.map((f, i) => (
               <li key={i} className="flex gap-3">
@@ -357,9 +380,10 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <Calendar className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Inicio de clases</p>
-              <p className="text-xl font-heading">Sábado 15 de agosto</p>
-              <p className="text-sm text-muted-foreground mt-2">8 clases · Finalización 3 de octubre</p>
-              <p className="text-xs text-muted-foreground mt-1">Fechas de recuperación por lluvia: 10 y 17 de octubre</p>
+              <p className="text-xl font-heading">{fmtDiaSemanaAR(program.fecha_inicio_programa)}</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {semanas ? `${semanas} clases · ` : ""}Finalización {fmtDiaMesAR(program.fecha_fin_programa)}
+              </p>
             </div>
             <div className="p-5 rounded-xl border border-border bg-card">
               <MapPin className="w-6 h-6 text-primary mb-3" />
@@ -376,7 +400,7 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <Calendar className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cierre de inscripciones</p>
-              <p className="text-xl font-heading">Lunes 10 de agosto</p>
+              <p className="text-xl font-heading">{fmtDiaSemanaAR(program.fecha_cierre_inscripcion)}</p>
               <p className="text-sm text-muted-foreground mt-2">O antes si se llenan los cupos.</p>
             </div>
           </div>
@@ -670,7 +694,7 @@ export default function FormacionInicial() {
       </section>
 
       <footer className="py-8 border-t border-border/40 text-center text-sm text-muted-foreground">
-        <p>© {new Date().getFullYear()} Ciclismo Reybaud · Programa de Iniciación 2026/2</p>
+        <p>© {new Date().getFullYear()} Ciclismo Reybaud · {program.nombre}</p>
       </footer>
     </div>
   );

@@ -7,11 +7,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3 } from "lucide-react";
+import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3, Settings2, CalendarClock } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "@/hooks/use-toast";
 import { startProcessInstance } from "@/hooks/useProcesses";
 import { getShareOrigin } from "@/lib/eventLinks";
+import EditProgramaDialog from "@/components/admin/EditProgramaDialog";
+import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
+
 
 const sb: any = supabase;
 
@@ -101,21 +104,32 @@ const AdminProgramaDetalle = () => {
   const [playbook, setPlaybook] = useState<{ id: string; nombre: string; stages: number } | null>(null);
   const [activeInstanceId, setActiveInstanceId] = useState<string | null>(null);
   const [startingFlujo, setStartingFlujo] = useState(false);
+  const [priceStages, setPriceStages] = useState<ProgramStageLike[]>([]);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFocusInscripciones, setEditFocusInscripciones] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!cohortId) return;
     (async () => {
       setLoading(true);
-      const [{ data: p }, { data: subs }] = await Promise.all([
+      const [{ data: p }, { data: subs }, { data: st }] = await Promise.all([
         sb.from("planes").select("*").eq("id", cohortId).maybeSingle(),
         sb
           .from("suscripciones")
           .select("id, alumno_id, estado, fecha_inicio, fecha_fin, precio_final, metodo_pago, origen_registro, notas, created_at, chequeado_admin, mp_status")
           .eq("plan_id", cohortId)
           .order("created_at", { ascending: false }),
+        sb
+          .from("plan_price_stages")
+          .select("id, nombre, precio, precio_cuota, cuotas_cantidad, fecha_desde, fecha_hasta, activo")
+          .eq("plan_id", cohortId)
+          .order("orden", { ascending: true }),
       ]);
       setPlan(p as PlanRow);
+      setPriceStages((st || []) as ProgramStageLike[]);
       const list = (subs || []) as Inscripto[];
+
       // Load alumno data in one shot
       const alumnoIds = Array.from(new Set(list.map((s) => s.alumno_id).filter(Boolean)));
       if (alumnoIds.length > 0) {
@@ -187,7 +201,7 @@ const AdminProgramaDetalle = () => {
 
       setLoading(false);
     })();
-  }, [cohortId]);
+  }, [cohortId, reloadKey]);
 
   const handleFlujo = async () => {
     if (!cohortId || !playbook) return;
@@ -253,6 +267,14 @@ const AdminProgramaDetalle = () => {
   const curr = plan.inscripciones_actuales || 0;
   const dToStart = daysUntil(plan.fecha_inicio_programa);
   const dToClose = daysUntil(plan.fecha_cierre_inscripcion);
+  // Mismo helper que usa la landing pública → admin y landing nunca divergen.
+  const enrollment = computeEnrollmentStatus(plan, priceStages);
+
+  const openEditor = (focusInscripciones: boolean) => {
+    setEditFocusInscripciones(focusInscripciones);
+    setEditOpen(true);
+  };
+
 
   return (
     <div className="space-y-6">
@@ -313,9 +335,49 @@ const AdminProgramaDetalle = () => {
               <Edit3 className="w-4 h-4 mr-1" /> Editar playbook
             </Button>
           </Link>
+          <Button size="sm" variant="secondary" onClick={() => openEditor(false)}>
+            <Settings2 className="w-4 h-4 mr-1" /> Editar programa
+          </Button>
         </div>
       </div>
 
+      {/* Estado de inscripciones — misma lógica que la landing pública */}
+      <Card className={enrollment.abiertas ? "border-primary/50 bg-primary/5" : "border-destructive/40 bg-destructive/5"}>
+        <CardContent className="p-4 flex flex-wrap items-center gap-x-6 gap-y-3 text-sm">
+          <div className="flex items-center gap-2">
+            <Badge variant={enrollment.abiertas ? "default" : "destructive"}>
+              {enrollment.abiertas ? "INSCRIPCIONES ABIERTAS" : "INSCRIPCIONES CERRADAS"}
+            </Badge>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Cupos: </span>
+            <span className="font-medium">
+              {enrollment.cuposUsados} / {enrollment.cuposMax || "—"}
+            </span>
+            {enrollment.cuposLibres !== Infinity && (
+              <span className="text-muted-foreground"> · {enrollment.cuposLibres} libres</span>
+            )}
+          </div>
+          <div>
+            <span className="text-muted-foreground">Cierre: </span>
+            <span className="font-medium">{fmtFechaLargaAR(enrollment.fechaCierre)}</span>
+          </div>
+          <div>
+            <span className="text-muted-foreground">Etapa vigente: </span>
+            <span className="font-medium">
+              {enrollment.stageVigente
+                ? `${enrollment.stageVigente.nombre} · ${formatPrice(Number(enrollment.stageVigente.precio), plan.moneda)}`
+                : "Ninguna"}
+            </span>
+          </div>
+          <Button size="sm" variant="outline" className="ml-auto" onClick={() => openEditor(true)}>
+            <CalendarClock className="w-4 h-4 mr-1" /> Gestionar inscripciones
+          </Button>
+          {!enrollment.abiertas && (
+            <p className="w-full text-xs text-destructive">{enrollment.motivos.join(" ")}</p>
+          )}
+        </CardContent>
+      </Card>
 
       {/* KPI strip */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
@@ -323,6 +385,7 @@ const AdminProgramaDetalle = () => {
         <KpiCard icon={Users} label="Activos" value={kpis.activos} />
         <KpiCard icon={AlertCircle} label="A verificar" value={kpis.pendVer} accent={kpis.pendVer > 0 ? "warn" : undefined} />
         <KpiCard icon={AlertCircle} label="Pendientes" value={kpis.pendPago} />
+
         <KpiCard icon={DollarSign} label="Recaudado" value={formatPrice(kpis.recaudado, plan.moneda)} />
         <KpiCard icon={DollarSign} label="Por cobrar" value={formatPrice(kpis.porCobrar, plan.moneda)} accent={kpis.porCobrar > 0 ? "warn" : undefined} />
       </div>
@@ -548,9 +611,18 @@ const AdminProgramaDetalle = () => {
           </Card>
         </TabsContent>
       </Tabs>
+
+      <EditProgramaDialog
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        plan={plan}
+        focusInscripciones={editFocusInscripciones}
+        onSaved={() => setReloadKey((k) => k + 1)}
+      />
     </div>
   );
 };
+
 
 const KpiCard = ({
   icon: Icon,
