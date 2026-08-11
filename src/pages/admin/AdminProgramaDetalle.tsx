@@ -267,6 +267,14 @@ const AdminProgramaDetalle = () => {
   const curr = plan.inscripciones_actuales || 0;
   const dToStart = daysUntil(plan.fecha_inicio_programa);
   const dToClose = daysUntil(plan.fecha_cierre_inscripcion);
+  // Mismo helper que usa la landing pública → admin y landing nunca divergen.
+  const enrollment = computeEnrollmentStatus(plan, priceStages);
+
+  const openEditor = (focusInscripciones: boolean) => {
+    setEditFocusInscripciones(focusInscripciones);
+    setEditOpen(true);
+  };
+
 
   return (
     <div className="space-y-6">
