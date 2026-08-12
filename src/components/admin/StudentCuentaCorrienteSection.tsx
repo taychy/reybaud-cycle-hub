@@ -29,6 +29,7 @@ import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
+import SaldoDisponibleSection from "./SaldoDisponibleSection";
 
 interface Props {
   alumnoId: string;
@@ -531,6 +532,16 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           })}
         </div>
       )}
+
+      {/* Saldo disponible de pagos reales (no imputados todavía) */}
+      <SaldoDisponibleSection
+        alumnoId={alumnoId}
+        onChanged={() => {
+          fetchData();
+          onSubscriptionsChanged?.();
+        }}
+      />
+
 
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
