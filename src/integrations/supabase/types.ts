@@ -1467,11 +1467,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cambios_plan_suscripcion_anterior_id_fkey"
+            columns: ["suscripcion_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_anterior_id_fkey"
+            columns: ["suscripcion_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
+          },
+          {
             foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
             columns: ["suscripcion_nueva_id"]
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
+            columns: ["suscripcion_nueva_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
+            columns: ["suscripcion_nueva_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
           },
         ]
       }
@@ -1632,6 +1660,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
           },
         ]
       }
@@ -2759,6 +2801,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
           },
         ]
       }
@@ -6792,6 +6848,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
           },
         ]
       }
@@ -12188,6 +12258,70 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_pagos_disponibles: {
+        Row: {
+          alumno_id: string | null
+          concepto: string | null
+          consumido_legacy: boolean | null
+          disponible: number | null
+          fecha: string | null
+          moneda: string | null
+          monto_bruto: number | null
+          monto_imputado: number | null
+          mp_payment_id: string | null
+          pago_origen_id: string | null
+          pago_origen_tipo: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          concepto?: never
+          consumido_legacy?: never
+          disponible?: never
+          fecha?: string | null
+          moneda?: string | null
+          monto_bruto?: number | null
+          monto_imputado?: never
+          mp_payment_id?: string | null
+          pago_origen_id?: string | null
+          pago_origen_tipo?: never
+        }
+        Update: {
+          alumno_id?: string | null
+          concepto?: never
+          consumido_legacy?: never
+          disponible?: never
+          fecha?: string | null
+          moneda?: string | null
+          monto_bruto?: number | null
+          monto_imputado?: never
+          mp_payment_id?: string | null
+          pago_origen_id?: string | null
+          pago_origen_tipo?: never
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
+      }
       vw_pagos_imputaciones_backfill_preview: {
         Row: {
           alumno_id: string | null
@@ -12256,6 +12390,83 @@ export type Database = {
           source: string | null
         }
         Relationships: []
+      }
+      vw_programa_posibles_duplicados: {
+        Row: {
+          alumno_1_email: string | null
+          alumno_1_id: string | null
+          alumno_1_nombre: string | null
+          alumno_2_email: string | null
+          alumno_2_id: string | null
+          alumno_2_nombre: string | null
+          estado_1: string | null
+          estado_2: string | null
+          motivo_match: string | null
+          nivel_confianza: string | null
+          plan_id: string | null
+          plan_nombre: string | null
+          suscripcion_1_id: string | null
+          suscripcion_2_id: string | null
+          telefono_normalizado: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vw_saldo_comparacion: {
         Row: {
@@ -12339,6 +12550,7 @@ export type Database = {
         Returns: Json
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _programa_admin_ok: { Args: never; Returns: boolean }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
       accept_roommate_invitation: {
         Args: { _roommate_id: string }
@@ -12434,6 +12646,16 @@ export type Database = {
       anular_imputacion: {
         Args: { _id: string; _motivo?: string }
         Returns: boolean
+      }
+      aplicar_saldo_disponible: {
+        Args: {
+          _monto: number
+          _obligacion_id: string
+          _obligacion_tipo: string
+          _pago_origen_id: string
+          _pago_origen_tipo: string
+        }
+        Returns: Json
       }
       apply_credit_ajuste_to_suscripcion: {
         Args: { _ajuste_id: string; _suscripcion_id: string }
@@ -12573,6 +12795,10 @@ export type Database = {
       }
       cerrar_vehiculo_carga: { Args: { _carga_id: string }; Returns: undefined }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
+      check_programa_enrollment: {
+        Args: { _alumno_id: string; _plan_id: string }
+        Returns: Json
+      }
       classify_package_change: {
         Args: {
           p_package_nuevo_id: string
@@ -12695,6 +12921,14 @@ export type Database = {
           mp_preapproval_ids: string[]
           solicitud_id: string
         }[]
+      }
+      dar_de_baja_programa: {
+        Args: {
+          _motivo: string
+          _suscripcion_id: string
+          _tratamiento_pago?: string
+        }
+        Returns: Json
       }
       delete_email: {
         Args: { message_id: number; queue_name: string }
@@ -13405,6 +13639,8 @@ export type Database = {
         }
         Returns: string
       }
+      normalizar_nombre: { Args: { _t: string }; Returns: string }
+      normalizar_telefono_ar: { Args: { _t: string }; Returns: string }
       obligacion_imputado: {
         Args: { _id: string; _tipo: string }
         Returns: number
@@ -13416,6 +13652,10 @@ export type Database = {
       obligacion_saldo: {
         Args: { _id: string; _tipo: string }
         Returns: number
+      }
+      pago_consumido_legacy: {
+        Args: { _id: string; _tipo: string }
+        Returns: boolean
       }
       pago_monto_bruto: {
         Args: { _id: string; _tipo: string }
@@ -13717,6 +13957,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      resolve_alumno_for_enrollment: {
+        Args: {
+          _apellido: string
+          _email: string
+          _nombre: string
+          _telefono?: string
+        }
+        Returns: Json
+      }
       resolve_cash_announcement: {
         Args: {
           _announcement_id: string
@@ -13773,6 +14022,15 @@ export type Database = {
         }[]
       }
       run_imputaciones_regression_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
+      run_programa_bajas_tests: {
         Args: never
         Returns: {
           detalle: string
