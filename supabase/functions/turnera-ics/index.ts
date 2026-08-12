@@ -35,7 +35,7 @@ Deno.serve(async (req) => {
     const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const { data: r } = await supabase
       .from("reservas_turnera")
-      .select("id, fecha, hora_inicio, hora_fin, nombre, apellido, email, servicio_id, estado_operativo")
+      .select("id, fecha, hora_inicio, hora_fin, nombre, apellido, email, servicio_id, sede_id, estado_operativo")
       .eq("id", id)
       .maybeSingle();
 
@@ -49,7 +49,14 @@ Deno.serve(async (req) => {
 
     const title = `${s?.nombre || "Reserva"} — Reybaud Ciclismo`;
     const desc = [s?.descripcion || "", `Reserva a nombre de ${r.nombre} ${r.apellido || ""}`].filter(Boolean).join("\\n\\n");
-    const loc = s?.modalidad === "virtual" ? "Online" : "Reybaud Ciclismo";
+    let sedeNombre = "";
+    if ((r as any).sede_id) {
+      const { data: sede } = await supabase.from("sedes").select("nombre").eq("id", (r as any).sede_id).maybeSingle();
+      sedeNombre = sede?.nombre || "";
+    }
+    const loc = s?.modalidad === "virtual"
+      ? "Online"
+      : (sedeNombre ? `${sedeNombre} — Reybaud Ciclismo` : "Reybaud Ciclismo");
 
     const dtStart = toUtcStamp(r.fecha as string, r.hora_inicio as string);
     const dtEnd = toUtcStamp(r.fecha as string, r.hora_fin as string);
