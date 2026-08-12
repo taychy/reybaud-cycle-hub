@@ -567,6 +567,29 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
 
       // Crear una suscripción nueva: al agregar plan, o al renovar cambiando de plan
       const isCreating = dialogMode === "add" || changeScope === "renovar";
+
+      // Programas cerrados: nunca crear una segunda inscripción para la misma persona.
+      if (isCreating) {
+        const { data: check } = await supabase.rpc("check_programa_enrollment" as any, {
+          _alumno_id: alumno.id,
+          _plan_id: newPlanId,
+        });
+        const c = (check || {}) as any;
+        if (c.already_enrolled) {
+          setSaving(false);
+          setShowPlanDialog(false);
+          setEnrolledBlock({
+            planNombre: c.plan_nombre || selectedPlan?.nombre || "este programa",
+            suscripcionId: c.suscripcion_id,
+            estado: c.estado,
+            monto: Number(c.monto) || 0,
+            pagado: Number(c.pagado) || 0,
+            saldo: Number(c.saldo) || 0,
+          });
+          return;
+        }
+      }
+
       // Compose internal note with payment data
       const isUnpaidAdd = isCreating && payStatus !== "pagado";
       const fechaPagoLabel = !isUnpaidAdd && payFecha ? new Date(payFecha + "T00:00:00").toLocaleDateString("es-AR") : null;
