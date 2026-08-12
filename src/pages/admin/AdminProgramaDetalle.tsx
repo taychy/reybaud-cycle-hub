@@ -211,6 +211,13 @@ const AdminProgramaDetalle = () => {
         setActiveInstanceId(null);
       }
 
+      // Posibles duplicados cross-ficha en este programa
+      const { data: dups } = await sb
+        .from("vw_programa_posibles_duplicados")
+        .select("*")
+        .eq("plan_id", cohortId);
+      setDuplicados(dups || []);
+
       setLoading(false);
     })();
   }, [cohortId, reloadKey]);
