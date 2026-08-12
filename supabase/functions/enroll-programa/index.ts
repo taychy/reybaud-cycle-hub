@@ -246,31 +246,40 @@ Deno.serve(async (req) => {
     const deudaCuota2 = esCuotas ? precioCuota! : 0;
     const vencimientoCuota2 = esCuotas ? addDaysISO(30) : null;
 
-    // 3) Alumno — matchear por email primario o emails_adicionales
+    // 3) Alumno — resolución de identidad única (email principal/adicional, o teléfono+nombre)
     const emailLower = email.toLowerCase();
-    const { data: existingList } = await admin
-      .from("alumnos")
-      .select("id, nombre, apellido, telefono, origen_cohort, email, emails_adicionales, estado")
-      .or(`email.eq.${emailLower},emails_adicionales.cs.{${emailLower}}`)
-      .neq("estado", "fusionada")
-      .limit(1);
-    const existing = existingList?.[0] ?? null;
+    const { data: resolved, error: resolveErr } = await admin.rpc("resolve_alumno_for_enrollment", {
+      _email: emailLower,
+      _nombre: nombre,
+      _apellido: apellido,
+      _telefono: telefono,
+    });
+    if (resolveErr) {
+      console.error("[enroll-programa] resolve identity", resolveErr);
+      return jsonResp({ error: "No se pudo validar la identidad" }, 500);
+    }
+    const res = (resolved ?? {}) as Record<string, any>;
 
     let alumnoId: string;
     let alumnoPrimaryEmail = email;
     let addedAsSecondary = false;
-    if (existing) {
-      alumnoId = existing.id;
-      alumnoPrimaryEmail = existing.email || email;
+
+    if (res.alumno_id) {
+      alumnoId = res.alumno_id as string;
+      const { data: existing } = await admin
+        .from("alumnos")
+        .select("id, email, emails_adicionales, telefono, origen_cohort")
+        .eq("id", alumnoId)
+        .maybeSingle();
+      alumnoPrimaryEmail = existing?.email || email;
       const patch: Record<string, unknown> = {};
-      if (!existing.telefono && telefono) patch.telefono = telefono;
-      if (!existing.origen_cohort) {
+      if (!existing?.telefono && telefono) patch.telefono = telefono;
+      if (!existing?.origen_cohort) {
         patch.origen_cohort = cohort_slug;
         patch.origen_cohort_fecha = new Date().toISOString();
       }
-      // Si se inscribió con un email distinto al primario y no está en secundarios, agregarlo
-      const extras: string[] = Array.isArray(existing.emails_adicionales) ? existing.emails_adicionales : [];
-      const alreadyKnown = existing.email?.toLowerCase() === emailLower
+      const extras: string[] = Array.isArray(existing?.emails_adicionales) ? existing!.emails_adicionales : [];
+      const alreadyKnown = existing?.email?.toLowerCase() === emailLower
         || extras.some((e) => e?.toLowerCase() === emailLower);
       if (!alreadyKnown) {
         patch.emails_adicionales = [...extras, email];
@@ -296,17 +305,35 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "No se pudo registrar el alumno" }, 500);
       }
       alumnoId = nuevo.id;
+      if (res.match === "posible_duplicado") {
+        console.warn("[enroll-programa] posible duplicado por teléfono", {
+          nuevo: alumnoId,
+          existente: res.posible_duplicado_alumno_id,
+        });
+      }
     }
 
+    // 3.b) Nunca permitir una segunda inscripción al mismo programa
+    const { data: enrollCheck } = await admin.rpc("check_programa_enrollment", {
+      _alumno_id: alumnoId,
+      _plan_id: plan.id,
+    });
+    const ec = (enrollCheck ?? {}) as Record<string, any>;
 
     // 4) Sub existente o nueva
-    const { data: existSub } = await admin
-      .from("suscripciones")
-      .select("id, estado")
-      .eq("alumno_id", alumnoId)
-      .eq("plan_id", plan.id)
-      .in("estado", ["activa", "pendiente_pago", "pendiente", "pendiente_verificacion"])
-      .maybeSingle();
+    const existSub = ec.already_enrolled
+      ? { id: ec.suscripcion_id as string, estado: ec.estado as string }
+      : null;
+
+    // Si ya está inscripto y la inscripción está paga, no cobramos de nuevo.
+    if (existSub && Number(ec.saldo ?? 0) <= 0) {
+      return jsonResp({
+        error: "Ya tenés una inscripción confirmada a este programa. Escribinos si necesitás ayuda.",
+        code: "ALREADY_ENROLLED",
+        suscripcion_id: existSub.id,
+      }, 409);
+    }
+
 
     const modalidadNota = esCuotas
       ? ` (${cuotasCantidad} cuotas de $${precioCuota}; hoy cuota 1, cuota 2 vence ${vencimientoCuota2})`
