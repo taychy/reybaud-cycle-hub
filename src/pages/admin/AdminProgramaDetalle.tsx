@@ -99,6 +99,9 @@ const estadoBadge = (estado: string) => {
   return <Badge variant={info.variant}>{info.label}</Badge>;
 };
 
+/** Estados que representan una baja: no ocupan cupo ni cuentan como inscriptos activos. */
+const BAJA_STATES = ["cancelada", "baja"];
+
 const AdminProgramaDetalle = () => {
   const { cohortId } = useParams<{ cohortId: string }>();
   const navigate = useNavigate();
