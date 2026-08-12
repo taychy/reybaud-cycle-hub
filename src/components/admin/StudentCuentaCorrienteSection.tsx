@@ -532,6 +532,16 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         </div>
       )}
 
+      {/* Saldo disponible de pagos reales (no imputados todavía) */}
+      <SaldoDisponibleSection
+        alumnoId={alumnoId}
+        onChanged={() => {
+          fetchData();
+          onSubscriptionsChanged?.();
+        }}
+      />
+
+
       {/* Filtros */}
       <div className="flex flex-wrap items-center gap-2">
         <Select value={monedaFilter} onValueChange={setMonedaFilter}>
