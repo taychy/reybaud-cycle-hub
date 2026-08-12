@@ -20,6 +20,7 @@ type Tipo =
   | "recordatorio"
   | "cancelacion"
   | "coach_aviso"
+  | "coach_recordatorio"
   | "transferencia_instrucciones"
   | "transferencia_recordatorio_15min"
   | "transferencia_expirada"
@@ -159,13 +160,15 @@ const renderEmail = (opts: {
     recordatorio: "⏰ Recordatorio de tu reserva",
     cancelacion: "❌ Tu reserva fue cancelada",
     coach_aviso: "📌 Nueva clase agendada en tu calendario",
-  };
+    coach_recordatorio: "⏰ Recordatorio: tenés una clase próxima",
+  } as Record<string, string>;
   const intros: Record<Tipo, string> = {
     confirmacion: "Recibimos tu reserva. Acá tenés los detalles:",
     recordatorio: "Te recordamos que tenés una reserva próxima:",
     cancelacion: "Te avisamos que tu reserva fue cancelada. Si fue un error, escribinos.",
     coach_aviso: "Un alumno reservó una clase con vos. Te dejamos los datos para que la sumes a tu calendario:",
-  };
+    coach_recordatorio: "Te recordamos la clase que tenés agendada. Podés avisarle al alumno desde el botón de WhatsApp:",
+  } as Record<string, string>;
   const calBtn = tipo !== "cancelacion"
     ? `<div style="margin:20px 0;">
         <a href="${gcalUrl}" style="background:#0f1115;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;">📅 Agregar a Google Calendar</a>
@@ -213,14 +216,14 @@ Deno.serve(async (req) => {
 
     const { data: r, error: errR } = await supabase
       .from("reservas_turnera")
-      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota, pago_monto, moneda_snapshot, upload_token, hold_expira_at")
+      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota, sede_id, pago_monto, moneda_snapshot, upload_token, hold_expira_at")
       .eq("id", reservation_id)
       .maybeSingle();
     if (errR || !r) return new Response(JSON.stringify({ error: "reservation_not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: s } = await supabase
       .from("servicios_turnera")
-      .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, email_coach_enabled, ics_adjunto, sedes:sede_id(nombre)")
+      .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, email_coach_enabled, email_coach_recordatorio_enabled, ics_adjunto, sedes:sede_id(nombre)")
       .eq("id", r.servicio_id)
       .maybeSingle();
 
@@ -245,6 +248,9 @@ Deno.serve(async (req) => {
     if (tipo === "recordatorio" && s && s.email_recordatorio_enabled === false) {
       return new Response(JSON.stringify({ skipped: true, reason: "email_recordatorio_disabled" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+    if (tipo === "coach_recordatorio" && s && (s as any).email_coach_recordatorio_enabled === false) {
+      return new Response(JSON.stringify({ skipped: true, reason: "email_coach_recordatorio_disabled" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
     if (tipo === "coach_aviso" && s && s.email_coach_enabled === false) {
       return new Response(JSON.stringify({ skipped: true, reason: "email_coach_disabled" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
@@ -252,7 +258,7 @@ Deno.serve(async (req) => {
     // Resolve recipient
     let recipientEmail = r.email as string;
     let recipientName = r.nombre as string;
-    if (tipo === "coach_aviso") {
+    if (tipo === "coach_aviso" || tipo === "coach_recordatorio") {
       const { data: coach } = await supabase.from("coaches").select("email, nombre").eq("id", r.coach_id).maybeSingle();
       if (!coach?.email) {
         return new Response(JSON.stringify({ skipped: true, reason: "coach_no_email" }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -269,11 +275,16 @@ Deno.serve(async (req) => {
     const icsUrl = s?.ics_adjunto !== false
       ? `${SUPABASE_URL}/functions/v1/turnera-ics?id=${r.id}`
       : null;
-    const sedeNombre = (s as any)?.sedes?.nombre || "";
-    const gcalTitle = tipo === "coach_aviso"
+    let sedeNombre = (s as any)?.sedes?.nombre || "";
+    if ((r as any).sede_id) {
+      const { data: sedeRow } = await supabase.from("sedes").select("nombre").eq("id", (r as any).sede_id).maybeSingle();
+      if (sedeRow?.nombre) sedeNombre = sedeRow.nombre;
+    }
+    const esCoach = tipo === "coach_aviso" || tipo === "coach_recordatorio";
+    const gcalTitle = esCoach
       ? `${servicioNombre} · ${r.nombre} ${r.apellido || ""}`.trim()
       : servicioNombre;
-    const gcalDesc = tipo === "coach_aviso"
+    const gcalDesc = esCoach
       ? [
           `Alumno: ${r.nombre} ${r.apellido || ""}`.trim(),
           r.email ? `Email: ${r.email}` : "",
@@ -298,13 +309,13 @@ Deno.serve(async (req) => {
       fechaTxt,
       horaTxt,
       modalidad,
-      politica: tipo === "coach_aviso" ? "" : (s?.politica_cancelacion || ""),
+      politica: esCoach ? "" : (s?.politica_cancelacion || ""),
       icsUrl,
       gcalUrl: gcal,
     });
 
     // For coach: append alumno contact block + botón WhatsApp con mensaje precargado
-    if (tipo === "coach_aviso") {
+    if (esCoach) {
       const alumnoNombreFull = `${r.nombre} ${r.apellido || ""}`.trim();
       const alumnoFirstName = (r.nombre || "").split(" ")[0] || alumnoNombreFull;
       const waPhone = normalizePhoneWA(r.celular as string);
@@ -344,10 +355,11 @@ Deno.serve(async (req) => {
     }
 
 
-    const subjects: Record<Tipo, string> = {
+    const subjects: Record<string, string> = {
       confirmacion: `Reserva confirmada · ${servicioNombre} · ${fechaTxt}`,
       recordatorio: `Recordatorio · ${servicioNombre} · ${fechaTxt}`,
       cancelacion: `Reserva cancelada · ${servicioNombre} · ${fechaTxt}`,
+      coach_recordatorio: `Recordatorio de clase · ${fechaTxt} ${fmtHora(r.hora_inicio as string)} · ${r.nombre}`,
       coach_aviso: `Nueva clase agendada · ${fechaTxt} ${fmtHora(r.hora_inicio as string)} · ${r.nombre}`,
     };
 
@@ -473,6 +485,9 @@ Deno.serve(async (req) => {
     // Mark reminder as sent so cron doesn't re-send
     if (tipo === "recordatorio") {
       await supabase.from("reservas_turnera").update({ recordatorio_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
+    }
+    if (tipo === "coach_recordatorio") {
+      await supabase.from("reservas_turnera").update({ coach_recordatorio_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
     }
 
     return new Response(JSON.stringify({ success: true, tipo, recipient: recipientEmail }), {

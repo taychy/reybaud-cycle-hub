@@ -40,6 +40,28 @@ const AdminTurnera = () => {
   const [coaches, setCoaches] = useState<any[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtroSede, setFiltroSede] = useState<string>("all");
+  const [backfillInfo, setBackfillInfo] = useState<any | null>(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+
+  const reservasFiltradas = reservas.filter(r =>
+    filtroSede === "all" ? true : filtroSede === "none" ? !r.sede_id : r.sede_id === filtroSede,
+  );
+
+  const runBackfillSede = async (apply: boolean) => {
+    setBackfillLoading(true);
+    const { data, error } = await supabase.rpc("backfill_turnera_sede" as any, { p_dry_run: !apply });
+    setBackfillLoading(false);
+    if (error) {
+      toast({ title: "Error en la reparación", description: error.message, variant: "destructive" });
+      return;
+    }
+    setBackfillInfo(data);
+    if (apply) {
+      toast({ title: `Sedes completadas: ${(data as any)?.actualizadas ?? 0}` });
+      loadAll();
+    }
+  };
 
   // Forms
   const [showServForm, setShowServForm] = useState(false);
@@ -503,6 +525,38 @@ const AdminTurnera = () => {
             </Button>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Sede:</span>
+            <Select value={filtroSede} onValueChange={setFiltroSede}>
+              <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="none">Sin sede</SelectItem>
+                {sedes.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" disabled={backfillLoading} onClick={() => runBackfillSede(false)}>
+              Revisar reservas sin sede
+            </Button>
+          </div>
+
+          {backfillInfo && (
+            <div className="rounded-lg border p-3 text-xs space-y-2 bg-muted/30">
+              <div>
+                Sin sede: <strong>{(backfillInfo.deterministas ?? 0) + (backfillInfo.revision_manual ?? 0)}</strong> ·
+                {" "}completables automáticamente: <strong>{backfillInfo.deterministas ?? 0}</strong> ·
+                {" "}requieren revisión manual: <strong>{backfillInfo.revision_manual ?? 0}</strong>
+                {backfillInfo.dry_run === false && <> · actualizadas: <strong>{backfillInfo.actualizadas ?? 0}</strong></>}
+              </div>
+              {backfillInfo.dry_run !== false && (backfillInfo.deterministas ?? 0) > 0 && (
+                <Button size="sm" disabled={backfillLoading} onClick={() => runBackfillSede(true)}>
+                  Completar {backfillInfo.deterministas} sedes deterministas
+                </Button>
+              )}
+            </div>
+          )}
+
+
           <Table>
             <TableHeader>
               <TableRow>
@@ -514,15 +568,16 @@ const AdminTurnera = () => {
                 <TableHead>DNI</TableHead>
                 <TableHead>Nota</TableHead>
                 <TableHead>Coach</TableHead>
+                <TableHead>Sede</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reservas.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
+              {reservasFiltradas.length === 0 ? (
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
-                reservas.map(r => (
+                reservasFiltradas.map(r => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs font-mono">{r.fecha}</TableCell>
                     <TableCell className="text-xs font-mono">{r.hora_inicio}</TableCell>
@@ -539,6 +594,11 @@ const AdminTurnera = () => {
                       {r.nota ? <span className="text-muted-foreground line-clamp-2" title={r.nota}>{r.nota}</span> : "–"}
                     </TableCell>
                     <TableCell className="text-sm">{coachName(r.coach_id)}</TableCell>
+                    <TableCell className="text-xs">
+                      {r.sede_id
+                        ? sedeName(r.sede_id)
+                        : <span className="text-muted-foreground">Sin sede</span>}
+                    </TableCell>
                     <TableCell><Badge variant="outline" className="text-xs capitalize">{r.estado_operativo}</Badge></TableCell>
                     <TableCell>
                       <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>
