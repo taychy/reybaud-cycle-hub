@@ -250,7 +250,7 @@ const AdminProgramaDetalle = () => {
   }, [inscriptos, cobrado]);
 
 
-  const filtered = inscriptos.filter((i) => {
+  const matchesSearch = (i: Inscripto) => {
     if (!search.trim()) return true;
     const q = search.toLowerCase();
     return (
@@ -259,7 +259,16 @@ const AdminProgramaDetalle = () => {
       (i.alumno?.email || "").toLowerCase().includes(q) ||
       (i.alumno?.telefono || "").includes(q)
     );
-  });
+  };
+
+  const activos = inscriptos.filter((i) => !BAJA_STATES.includes(i.estado));
+  const bajas = inscriptos.filter((i) => BAJA_STATES.includes(i.estado));
+  const filteredActivos = activos.filter(matchesSearch);
+  const filteredBajas = bajas.filter(matchesSearch);
+  const duplicadosIds = new Set(
+    duplicados.flatMap((d) => (d.nivel_confianza === "ALTA" ? [d.alumno_1_id, d.alumno_2_id] : [])),
+  );
+
 
   if (loading) return <div className="text-center py-12 text-muted-foreground">Cargando…</div>;
   if (!plan)
