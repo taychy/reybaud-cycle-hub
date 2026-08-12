@@ -291,6 +291,107 @@ const AdminProgramaDetalle = () => {
     setEditOpen(true);
   };
 
+  const renderTable = (list: Inscripto[], allowBaja: boolean) => (
+    <Card>
+      <CardContent className="p-0">
+        {list.length === 0 ? (
+          <div className="p-12 text-center text-muted-foreground text-sm">
+            {allowBaja ? "Todavía no hay inscriptos activos." : "Sin bajas registradas."}
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Alumno</TableHead>
+                  <TableHead>Contacto</TableHead>
+                  <TableHead>Estado</TableHead>
+                  <TableHead>Método</TableHead>
+                  <TableHead>Precio</TableHead>
+                  <TableHead>Inscripto</TableHead>
+                  <TableHead className="text-right">Acciones</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {list.map((i) => {
+                  const nombre = `${i.alumno?.nombre || ""} ${i.alumno?.apellido || ""}`.trim() || "—";
+                  const tel = (i.alumno?.telefono || "").replace(/\D/g, "");
+                  const waLink = tel ? `https://wa.me/${tel.startsWith("54") ? tel : `54${tel}`}` : null;
+                  const pagado = cobrado[i.id] || 0;
+                  const saldo = Math.max(0, (Number(i.precio_final) || 0) - pagado);
+                  return (
+                    <TableRow key={i.id}>
+                      <TableCell className="font-medium">
+                        {nombre}
+                        {duplicadosIds.has(i.alumno_id) && (
+                          <Badge variant="destructive" className="ml-2 text-[10px]">
+                            <AlertTriangle className="w-3 h-3 mr-1" /> Posible duplicado
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        <div>{i.alumno?.email || "—"}</div>
+                        <div className="text-muted-foreground">{i.alumno?.telefono || ""}</div>
+                      </TableCell>
+                      <TableCell>{estadoBadge(i.estado)}</TableCell>
+                      <TableCell className="text-xs">
+                        <div>{i.metodo_pago || "—"}</div>
+                        {i.mp_status && <div className="text-muted-foreground">{i.mp_status}</div>}
+                      </TableCell>
+                      <TableCell className="text-xs font-medium">
+                        {i.precio_final != null ? formatPrice(Number(i.precio_final), plan.moneda) : "—"}
+                        <div className="font-normal text-muted-foreground">
+                          Pagó {formatPrice(pagado, plan.moneda)}
+                          {saldo > 0 && allowBaja && (
+                            <span className="text-warning"> · debe {formatPrice(saldo, plan.moneda)}</span>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell className="text-xs text-muted-foreground">{fmtDateTime(i.created_at)}</TableCell>
+                      <TableCell className="text-right">
+                        <div className="flex gap-1 justify-end">
+                          {waLink && (
+                            <a href={waLink} target="_blank" rel="noreferrer">
+                              <Button size="icon" variant="ghost" className="h-7 w-7">
+                                <MessageCircle className="w-3.5 h-3.5" />
+                              </Button>
+                            </a>
+                          )}
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button size="icon" variant="ghost" className="h-7 w-7">
+                                <MoreHorizontal className="w-4 h-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuItem onClick={() => navigate(`/admin/alumnos?alumno=${i.alumno_id}`)}>
+                                Ver alumno
+                              </DropdownMenuItem>
+                              {allowBaja && (
+                                <DropdownMenuItem
+                                  className="text-destructive focus:text-destructive"
+                                  onClick={() => setBajaSubId(i.id)}
+                                >
+                                  <UserMinus className="w-3.5 h-3.5 mr-2" /> Dar de baja del programa
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
+
+
 
   return (
     <div className="space-y-6">
