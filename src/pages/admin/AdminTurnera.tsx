@@ -44,6 +44,10 @@ const AdminTurnera = () => {
   const [backfillInfo, setBackfillInfo] = useState<any | null>(null);
   const [backfillLoading, setBackfillLoading] = useState(false);
 
+  const reservasFiltradas = reservas.filter(r =>
+    filtroSede === "all" ? true : filtroSede === "none" ? !r.sede_id : r.sede_id === filtroSede,
+  );
+
   const runBackfillSede = async (apply: boolean) => {
     setBackfillLoading(true);
     const { data, error } = await supabase.rpc("backfill_turnera_sede" as any, { p_dry_run: !apply });
@@ -570,10 +574,10 @@ const AdminTurnera = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reservas.length === 0 ? (
+              {reservasFiltradas.length === 0 ? (
                 <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
-                reservas.map(r => (
+                reservasFiltradas.map(r => (
                   <TableRow key={r.id}>
                     <TableCell className="text-xs font-mono">{r.fecha}</TableCell>
                     <TableCell className="text-xs font-mono">{r.hora_inicio}</TableCell>
