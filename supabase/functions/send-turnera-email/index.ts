@@ -20,6 +20,7 @@ type Tipo =
   | "recordatorio"
   | "cancelacion"
   | "coach_aviso"
+  | "coach_recordatorio"
   | "transferencia_instrucciones"
   | "transferencia_recordatorio_15min"
   | "transferencia_expirada"
@@ -159,13 +160,15 @@ const renderEmail = (opts: {
     recordatorio: "⏰ Recordatorio de tu reserva",
     cancelacion: "❌ Tu reserva fue cancelada",
     coach_aviso: "📌 Nueva clase agendada en tu calendario",
-  };
+    coach_recordatorio: "⏰ Recordatorio: tenés una clase próxima",
+  } as Record<string, string>;
   const intros: Record<Tipo, string> = {
     confirmacion: "Recibimos tu reserva. Acá tenés los detalles:",
     recordatorio: "Te recordamos que tenés una reserva próxima:",
     cancelacion: "Te avisamos que tu reserva fue cancelada. Si fue un error, escribinos.",
     coach_aviso: "Un alumno reservó una clase con vos. Te dejamos los datos para que la sumes a tu calendario:",
-  };
+    coach_recordatorio: "Te recordamos la clase que tenés agendada. Podés avisarle al alumno desde el botón de WhatsApp:",
+  } as Record<string, string>;
   const calBtn = tipo !== "cancelacion"
     ? `<div style="margin:20px 0;">
         <a href="${gcalUrl}" style="background:#0f1115;color:#fff;text-decoration:none;padding:10px 16px;border-radius:8px;font-size:13px;font-weight:600;">📅 Agregar a Google Calendar</a>
