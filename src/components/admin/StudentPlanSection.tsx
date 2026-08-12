@@ -1524,6 +1524,36 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Bloqueo de doble inscripción a un programa cerrado */}
+      <AlertDialog open={!!enrolledBlock} onOpenChange={(o) => !o && setEnrolledBlock(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Este alumno ya está inscripto</AlertDialogTitle>
+            <AlertDialogDescription>
+              Ya existe una inscripción a "{enrolledBlock?.planNombre}" ({enrolledBlock?.estado}).
+              {enrolledBlock && enrolledBlock.saldo > 0
+                ? ` Todavía debe ${formatPrice(enrolledBlock.saldo, "ARS")} de ${formatPrice(enrolledBlock.monto, "ARS")}. Registrá el pago en la inscripción existente en vez de crear otra.`
+                : " Ya está paga. No hace falta crear otra inscripción."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            {enrolledBlock && enrolledBlock.saldo > 0 && (
+              <AlertDialogAction
+                onClick={() => {
+                  const id = enrolledBlock.suscripcionId;
+                  setEnrolledBlock(null);
+                  setRegPaySubId(id);
+                }}
+              >
+                Registrar pago en la inscripción existente
+              </AlertDialogAction>
+            )}
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
     </>
   );
 }
