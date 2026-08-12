@@ -429,9 +429,40 @@ const AdminProgramaDetalle = () => {
         </CardContent>
       </Card>
 
+      {duplicados.length > 0 && (
+        <Card className="border-amber-500/40 bg-amber-500/5">
+          <CardContent className="p-4 text-sm space-y-2">
+            <div className="flex items-center gap-2 font-medium text-amber-500">
+              <AlertTriangle className="w-4 h-4" /> Posibles duplicados: {duplicados.length}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Estas personas parecen tener más de una ficha. Revisalas antes de fusionar: primero hay que
+              resolver inscripciones o pagos incompatibles.
+            </p>
+            <ul className="space-y-1 text-xs">
+              {duplicados.map((d, idx) => (
+                <li key={idx} className="flex flex-wrap items-center gap-2">
+                  <Badge variant={d.nivel_confianza === "ALTA" ? "destructive" : "outline"} className="text-[10px]">
+                    {d.nivel_confianza}
+                  </Badge>
+                  <span>
+                    {d.alumno_1_nombre} ({d.alumno_1_email}) ↔ {d.alumno_2_nombre} ({d.alumno_2_email})
+                  </span>
+                  <span className="text-muted-foreground">· {d.motivo_match}</span>
+                  <Link to={`/admin/alumnos?alumno=${d.alumno_1_id}`} className="text-primary underline">
+                    Revisar fichas
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
       <Tabs defaultValue="inscriptos">
         <TabsList>
-          <TabsTrigger value="inscriptos">Inscriptos ({inscriptos.length})</TabsTrigger>
+          <TabsTrigger value="inscriptos">Inscriptos activos ({activos.length})</TabsTrigger>
+          <TabsTrigger value="bajas">Bajas ({bajas.length})</TabsTrigger>
           <TabsTrigger value="playbook">Playbook</TabsTrigger>
           <TabsTrigger value="comunicaciones">Comunicaciones ({emails.length})</TabsTrigger>
         </TabsList>
@@ -443,86 +474,16 @@ const AdminProgramaDetalle = () => {
             onChange={(e) => setSearch(e.target.value)}
             className="max-w-md"
           />
-          <Card>
-            <CardContent className="p-0">
-              {filtered.length === 0 ? (
-                <div className="p-12 text-center text-muted-foreground text-sm">
-                  {inscriptos.length === 0 ? "Todavía no hay inscriptos." : "Sin resultados."}
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Alumno</TableHead>
-                        <TableHead>Contacto</TableHead>
-                        <TableHead>Estado</TableHead>
-                        <TableHead>Método</TableHead>
-                        <TableHead>Precio</TableHead>
-                        <TableHead>Inscripto</TableHead>
-                        <TableHead className="text-right">Acciones</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filtered.map((i) => {
-                        const nombre = `${i.alumno?.nombre || ""} ${i.alumno?.apellido || ""}`.trim() || "—";
-                        const tel = (i.alumno?.telefono || "").replace(/\D/g, "");
-                        const waLink = tel ? `https://wa.me/${tel.startsWith("54") ? tel : `54${tel}`}` : null;
-                        return (
-                          <TableRow key={i.id}>
-                            <TableCell className="font-medium">{nombre}</TableCell>
-                            <TableCell className="text-xs">
-                              <div>{i.alumno?.email || "—"}</div>
-                              <div className="text-muted-foreground">{i.alumno?.telefono || ""}</div>
-                            </TableCell>
-                            <TableCell>{estadoBadge(i.estado)}</TableCell>
-                            <TableCell className="text-xs">
-                              <div>{i.metodo_pago || "—"}</div>
-                              {i.mp_status && (
-                                <div className="text-muted-foreground">{i.mp_status}</div>
-                              )}
-                            </TableCell>
-                            <TableCell className="text-xs font-medium">
-                              {i.precio_final != null ? formatPrice(Number(i.precio_final), plan.moneda) : "—"}
-                              {(() => {
-                                const pagado = cobrado[i.id] || 0;
-                                const saldo = Math.max(0, (Number(i.precio_final) || 0) - pagado);
-                                return (
-                                  <div className="font-normal text-muted-foreground">
-                                    Pagó {formatPrice(pagado, plan.moneda)}
-                                    {saldo > 0 && (
-                                      <span className="text-warning"> · debe {formatPrice(saldo, plan.moneda)}</span>
-                                    )}
-                                  </div>
-                                );
-                              })()}
-                            </TableCell>
-
-                            <TableCell className="text-xs text-muted-foreground">{fmtDateTime(i.created_at)}</TableCell>
-                            <TableCell className="text-right">
-                              <div className="flex gap-1 justify-end">
-                                {waLink && (
-                                  <a href={waLink} target="_blank" rel="noreferrer">
-                                    <Button size="icon" variant="ghost" className="h-7 w-7">
-                                      <MessageCircle className="w-3.5 h-3.5" />
-                                    </Button>
-                                  </a>
-                                )}
-                                <Link to={`/admin/alumnos?alumno=${i.alumno_id}`}>
-                                  <Button size="sm" variant="ghost" className="h-7 text-xs">Ver</Button>
-                                </Link>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          {renderTable(filteredActivos, true)}
         </TabsContent>
+
+        <TabsContent value="bajas" className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Inscripciones canceladas. No ocupan cupo y no cuentan como inscriptos activos.
+          </p>
+          {renderTable(filteredBajas, false)}
+        </TabsContent>
+
 
         <TabsContent value="playbook">
           <Card>
