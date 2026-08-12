@@ -6688,6 +6688,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "movimientos_liquidacion_reserva_turnera_id_fkey"
+            columns: ["reserva_turnera_id"]
+            isOneToOne: false
+            referencedRelation: "vw_turnera_sede_backfill"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "movimientos_liquidacion_sede_id_fkey"
             columns: ["sede_id"]
             isOneToOne: false
@@ -7931,6 +7938,7 @@ export type Database = {
           apellido: string
           celular: string | null
           coach_id: string
+          coach_recordatorio_enviado_at: string | null
           comprobante_subido_at: string | null
           comprobante_url: string | null
           created_at: string
@@ -7978,6 +7986,7 @@ export type Database = {
           apellido: string
           celular?: string | null
           coach_id: string
+          coach_recordatorio_enviado_at?: string | null
           comprobante_subido_at?: string | null
           comprobante_url?: string | null
           created_at?: string
@@ -8025,6 +8034,7 @@ export type Database = {
           apellido?: string
           celular?: string | null
           coach_id?: string
+          coach_recordatorio_enviado_at?: string | null
           comprobante_subido_at?: string | null
           comprobante_url?: string | null
           created_at?: string
@@ -9373,10 +9383,12 @@ export type Database = {
           activo: boolean
           anticipacion_horas_minima: number
           archivado: boolean
+          coach_recordatorio_horas_antes: number
           created_at: string
           descripcion: string | null
           duracion_minutos: number
           email_coach_enabled: boolean
+          email_coach_recordatorio_enabled: boolean
           email_confirmacion_enabled: boolean
           email_recordatorio_enabled: boolean
           form_fields: Json
@@ -9399,10 +9411,12 @@ export type Database = {
           activo?: boolean
           anticipacion_horas_minima?: number
           archivado?: boolean
+          coach_recordatorio_horas_antes?: number
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
           email_coach_enabled?: boolean
+          email_coach_recordatorio_enabled?: boolean
           email_confirmacion_enabled?: boolean
           email_recordatorio_enabled?: boolean
           form_fields?: Json
@@ -9425,10 +9439,12 @@ export type Database = {
           activo?: boolean
           anticipacion_horas_minima?: number
           archivado?: boolean
+          coach_recordatorio_horas_antes?: number
           created_at?: string
           descripcion?: string | null
           duracion_minutos?: number
           email_coach_enabled?: boolean
+          email_coach_recordatorio_enabled?: boolean
           email_confirmacion_enabled?: boolean
           email_recordatorio_enabled?: boolean
           form_fields?: Json
@@ -12515,6 +12531,44 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_turnera_sede_backfill: {
+        Row: {
+          apellido: string | null
+          clasificacion: string | null
+          coach_id: string | null
+          estado_operativo: string | null
+          fecha: string | null
+          hora_inicio: string | null
+          id: string | null
+          n_sedes: number | null
+          nombre: string | null
+          sede_sugerida: string | null
+          servicio_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservas_turnera_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_turnera"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       _adjust_product_stock: {
@@ -12774,6 +12828,7 @@ export type Database = {
         }[]
       }
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
+      backfill_turnera_sede: { Args: { p_dry_run?: boolean }; Returns: Json }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
       cambiar_plan_suscripcion: {
         Args: {
