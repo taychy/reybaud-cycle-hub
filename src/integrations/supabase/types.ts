@@ -13689,6 +13689,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      preview_baja_programa: {
+        Args: { _suscripcion_id: string }
+        Returns: Json
+      }
       preview_merge_alumnos: {
         Args: { _duplicado_id: string; _principal_id: string }
         Returns: Json
