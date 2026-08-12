@@ -169,6 +169,14 @@ export function StudentPlanSection({ alumno, isSuperAdmin, onRefresh, onAlumnoUp
   const [removeSubId, setRemoveSubId] = useState<string | null>(null);
   const [removingSub, setRemovingSub] = useState(false);
   const [regPaySubId, setRegPaySubId] = useState<string | null>(null);
+  const [enrolledBlock, setEnrolledBlock] = useState<{
+    planNombre: string;
+    suscripcionId: string;
+    estado: string;
+    monto: number;
+    pagado: number;
+    saldo: number;
+  } | null>(null);
 
   // Email preview state
   const [previewSub, setPreviewSub] = useState<SuscripcionData | null>(null);
