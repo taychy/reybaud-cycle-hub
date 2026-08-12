@@ -15,6 +15,7 @@ import { CreditCard, Play, Pause, XCircle, CalendarCheck, ArrowRightLeft, AlertT
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 import { toast } from "sonner";
 import { logStudentActivity } from "@/lib/logStudentActivity";
+import { formatPrice } from "@/lib/currency";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG, detectDuplicateActiveSubs } from "@/lib/subscriptionGuard";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
