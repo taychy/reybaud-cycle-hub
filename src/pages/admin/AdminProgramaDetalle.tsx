@@ -709,6 +709,14 @@ const AdminProgramaDetalle = () => {
         focusInscripciones={editFocusInscripciones}
         onSaved={() => setReloadKey((k) => k + 1)}
       />
+
+      <DarDeBajaProgramaDialog
+        suscripcionId={bajaSubId}
+        open={!!bajaSubId}
+        onOpenChange={(o) => !o && setBajaSubId(null)}
+        onDone={() => setReloadKey((k) => k + 1)}
+      />
+
     </div>
   );
 };
