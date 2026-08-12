@@ -115,6 +115,8 @@ const AdminProgramaDetalle = () => {
   const [editOpen, setEditOpen] = useState(false);
   const [editFocusInscripciones, setEditFocusInscripciones] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [duplicados, setDuplicados] = useState<any[]>([]);
+  const [bajaSubId, setBajaSubId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cohortId) return;
