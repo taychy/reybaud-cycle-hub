@@ -40,6 +40,24 @@ const AdminTurnera = () => {
   const [coaches, setCoaches] = useState<any[]>([]);
   const [sedes, setSedes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filtroSede, setFiltroSede] = useState<string>("all");
+  const [backfillInfo, setBackfillInfo] = useState<any | null>(null);
+  const [backfillLoading, setBackfillLoading] = useState(false);
+
+  const runBackfillSede = async (apply: boolean) => {
+    setBackfillLoading(true);
+    const { data, error } = await supabase.rpc("backfill_turnera_sede" as any, { p_dry_run: !apply });
+    setBackfillLoading(false);
+    if (error) {
+      toast({ title: "Error en la reparación", description: error.message, variant: "destructive" });
+      return;
+    }
+    setBackfillInfo(data);
+    if (apply) {
+      toast({ title: `Sedes completadas: ${(data as any)?.actualizadas ?? 0}` });
+      fetchAll();
+    }
+  };
 
   // Forms
   const [showServForm, setShowServForm] = useState(false);
