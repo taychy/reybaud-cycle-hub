@@ -55,7 +55,7 @@ const AdminTurnera = () => {
     setBackfillInfo(data);
     if (apply) {
       toast({ title: `Sedes completadas: ${(data as any)?.actualizadas ?? 0}` });
-      fetchAll();
+      loadAll();
     }
   };
 
