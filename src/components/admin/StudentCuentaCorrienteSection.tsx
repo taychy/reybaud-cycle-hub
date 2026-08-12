@@ -29,6 +29,7 @@ import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
+import SaldoDisponibleSection from "./SaldoDisponibleSection";
 
 interface Props {
   alumnoId: string;
