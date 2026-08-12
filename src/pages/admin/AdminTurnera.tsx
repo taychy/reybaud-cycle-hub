@@ -514,13 +514,14 @@ const AdminTurnera = () => {
                 <TableHead>DNI</TableHead>
                 <TableHead>Nota</TableHead>
                 <TableHead>Coach</TableHead>
+                <TableHead>Sede</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reservas.length === 0 ? (
-                <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
                 reservas.map(r => (
                   <TableRow key={r.id}>
@@ -539,6 +540,11 @@ const AdminTurnera = () => {
                       {r.nota ? <span className="text-muted-foreground line-clamp-2" title={r.nota}>{r.nota}</span> : "–"}
                     </TableCell>
                     <TableCell className="text-sm">{coachName(r.coach_id)}</TableCell>
+                    <TableCell className="text-xs">
+                      {r.sede_id
+                        ? sedeName(r.sede_id)
+                        : <span className="text-muted-foreground">Sin sede</span>}
+                    </TableCell>
                     <TableCell><Badge variant="outline" className="text-xs capitalize">{r.estado_operativo}</Badge></TableCell>
                     <TableCell>
                       <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>

@@ -480,6 +480,7 @@ const BookingFlow = () => {
       id: reservationId,
       servicio_id: servicio.id,
       coach_id: selectedSlot.coach_id,
+      sede_id: selectedSlot.sede_id || null,
       alumno_id: alumnoId,
       fecha: dateStr,
       hora_inicio: `${selectedSlot.time}:00`,
