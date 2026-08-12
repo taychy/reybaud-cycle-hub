@@ -521,6 +521,38 @@ const AdminTurnera = () => {
             </Button>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Sede:</span>
+            <Select value={filtroSede} onValueChange={setFiltroSede}>
+              <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="none">Sin sede</SelectItem>
+                {sedes.map(s => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button size="sm" variant="outline" disabled={backfillLoading} onClick={() => runBackfillSede(false)}>
+              Revisar reservas sin sede
+            </Button>
+          </div>
+
+          {backfillInfo && (
+            <div className="rounded-lg border p-3 text-xs space-y-2 bg-muted/30">
+              <div>
+                Sin sede: <strong>{(backfillInfo.deterministas ?? 0) + (backfillInfo.revision_manual ?? 0)}</strong> ·
+                {" "}completables automáticamente: <strong>{backfillInfo.deterministas ?? 0}</strong> ·
+                {" "}requieren revisión manual: <strong>{backfillInfo.revision_manual ?? 0}</strong>
+                {backfillInfo.dry_run === false && <> · actualizadas: <strong>{backfillInfo.actualizadas ?? 0}</strong></>}
+              </div>
+              {backfillInfo.dry_run !== false && (backfillInfo.deterministas ?? 0) > 0 && (
+                <Button size="sm" disabled={backfillLoading} onClick={() => runBackfillSede(true)}>
+                  Completar {backfillInfo.deterministas} sedes deterministas
+                </Button>
+              )}
+            </div>
+          )}
+
+
           <Table>
             <TableHeader>
               <TableRow>
