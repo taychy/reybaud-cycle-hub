@@ -1,74 +1,124 @@
-# Auditoría: ¿el sistema detecta pagos inconsistentes hoy?
+# Auditoría integral Reybaud — informe (sin cambios de código)
 
-**Respuesta corta: no.** Hoy el sistema detecta *ausencia de asignación* (un pago de Mercado Pago que nadie tocó) y *duplicación exacta del mismo ID de operación*. No detecta ninguna inconsistencia de **contenido**: importe distinto a la deuda, pago aplicado a la deuda equivocada, deuda que sigue figurando impaga después de cobrada, o medio de pago mal registrado. No existe ningún estado, campo ni tarea que signifique "este pago está inconsistente".
+Base medida: 157 tablas, ~274 funciones DB, 99 Edge Functions, ~120 rutas, ~50 pantallas admin + 13 depósito. Datos de uso tomados por conteo de filas y actividad últimos 90 días.
 
----
+## 1. Inventario y matriz A/B/C/D
 
-## 1. Qué valida el sistema hoy (lo que sí funciona)
+### A. NÚCLEO (no se toca)
+| Módulo | Rutas | Backend | Uso 90d |
+|---|---|---|---|
+| Alumnos / ficha única | /admin/alumnos, /admin/ver-como | alumnos (200), alumno_notas, alumno_email_links, merge_alumnos | 170 activos |
+| Suscripciones y planes | /admin/planes, /admin/precios, /admin/descuentos, /alumno/pagos | suscripciones (824; 111 activas), planes, precio_historial, descuentos | alto |
+| Pagos y cobranzas + MP | /admin/pagos | mp_account_movements (582/582 en 90d), mp-webhook, sync-mp-*, imputar_pago | muy alto |
+| Cuenta corriente | /admin/cuenta-corriente, /cuenta/:token | vw_cuenta_corriente_movimientos, cuenta_ajustes (66), tokens (29) | alto |
+| Facturación AFIP | /admin/facturacion (+ por-día) | facturas (476, 375 en 90d), facturacion_cola, auto-facturar, emit-factura-afip | muy alto |
+| Eventos / camps con reservas y cuotas | /eventos, /eventos/:id, /admin/eventos, /mis-reservas | event_reservations (144), reservation_installments/payments, notify-reservation | alto |
+| Entrenamiento | /admin/entrenamientos, /alumno/progreso | entrenamientos (825), entrenamientos_realizados (689), registro_sesiones (1042) | muy alto |
+| Coaches | /coach/*, /admin/coaches | coaches, disponibilidad_coaches, agenda_grupal | medio-alto |
+| Email transaccional | (infra) | email_send_log 2314/90d, process-email-queue, enqueue_email | muy alto |
+| Auth / roles / portal | /, /portal, ProtectedRoute | user_roles, admin_profiles, has_role | crítico |
+| Gastos | /admin/gastos | gastos (121, 120 en 90d), gastos_recurrentes, ejecuciones | alto |
+| Tareas operativas | /admin/centro-control | tareas (114), tareas_historial | medio (auto-generadas) |
 
-| Control | Dónde vive | Qué cubre |
+### B. DEJAR PERO SIMPLIFICAR
+| Módulo | Problema | Recomendación |
 |---|---|---|
-| No se puede duplicar la misma operación MP en la bandeja | Restricción `UNIQUE (cuenta_mp_id, mp_payment_id)` en `mp_account_movements` | Reingesta del mismo pago. Verificado: **0 duplicados** hoy |
-| Aviso "este pago ya fue registrado" al imputar | `fn_mp_pago_ya_registrado()` | Busca el ID de operación en suscripciones, créditos y pagos de evento del **mismo alumno** |
-| No reasignar a otro alumno | `assign_mp_movement_to_target()` (`already_assigned_to_other_student`) | Evita pisar una asignación previa |
-| Sólo ingresos aprobados se imputan | mismo RPC | Bloquea egresos y pagos rechazados |
-| Un solo pago de evento por operación | chequeo previo en el bloque `reservation` del mismo RPC | Evita doble pago sobre la misma reserva |
-| Semáforo de verificación manual | vista `vw_conciliacion_pagos` (`auto_conciliado` / `verificado` / `por_verificar`) | Clasifica **por medio de pago**, no por consistencia |
+| Resumen vs Centro de Control | Dos tableros de "qué hacer hoy". Centro de control ni siquiera está en el sidebar (ruta huérfana) | Fusionar en **una sola** Home admin = Tareas/excepciones + 4 KPIs. Eliminar el bloque "Datos de contexto" duplicado |
+| Métricas (SuperAdminDashboard) | Se solapa con Resumen y con /admin/pagos | Reducir a 1 pestaña dentro de la Home (MRR, cobrado, morosidad, altas/bajas) |
+| Tienda | 15 rutas admin + 13 depósito para 23 pedidos y 36 productos históricos | Colapsar a: Productos+Stock, Ventas, Entregas. Ver "eliminar" abajo |
+| Turnera | 26 reservas totales, 4 servicios; funciona pero con muchas pantallas | Mantener 1 pantalla admin + landing pública; quitar Google Calendar sync si no se usa |
+| Eventos | Buen núcleo, pero addons/rooms/roommates/surveys/announcements/external participants agregan superficie | Mantener reservas+cuotas+waitlist+habitaciones; encuestas y roadbook a C |
+| Programas / Formación Inicial | Módulo paralelo a eventos, con playbook propio | Mantener el módulo (tiene cohortes y cobros reales) pero unificar el runner con procesos; no duplicar plantillas |
+| Comunicación (plantillas email) | 12 plantillas, útil | Mantener editor, quitar versiones/preview duplicados |
+| Liquidaciones coaches | 17 movimientos, 0 en 90d, clases_dictadas vacío | Simplificar a reporte mensual desde agenda; no módulo con reglas |
+| Depósito | Rol real pero 13 subpantallas | Reducir a Stock, Ventas, Entregas, Conteos |
 
-**Importante:** `vw_conciliacion_pagos` es lo más cercano a un estado "conciliado" que existe, pero (a) sólo mira el medio de pago y una tilde manual — un pago con importe equivocado igual sale `auto_conciliado`; y (b) **no está siendo consumida por ninguna pantalla**: no aparece en el código de la app, sólo en los tipos autogenerados. Es decir, ese semáforo hoy no se ve en ningún lado.
+### C. ARCHIVAR / OCULTAR (conservar datos, sacar del menú)
+- **Email masivo / broadcasts**: 17 campañas, 6.028 destinatarios — potente pero fuera del núcleo operativo y con riesgo reputacional. Ocultar; conservar tablas.
+- **Marketing contacts (937, todos importados)**: 913 importados de CSV, sólo 21 manuales y 3 de tienda → base fría. Archivar.
+- **WhatsApp como módulo** (`/admin/whatsapp-conciliador`, `/admin/whatsapp-historial`, extensión Chrome, register-whatsapp-contact/Google Contacts): 39 runs. Dejar sólo **acciones contextuales wa.me** en ficha de alumno y deudores. Archivar módulo y extensión.
+- **Chequeo de alumnos (evaluaciones coach)**: 32 evaluaciones, todas en 90d, pero ruta no está en el sidebar. Decidir: promover a la ficha del alumno o archivar.
+- **Encuestas de eventos / roadbook público**: 3 encuestas, 6 respuestas, 5 links roadbook. Archivar.
+- **Camioneta / control de mercadería / incidentes de escaneo**: vehiculo_chequeos 2, scan_incidents 0. Archivar (código y rutas), conservar tablas.
+- **Conteos de stock + etiquetas Niimbot/QR**: 3 conteos. Conservar el conteo (es la fuente de verdad del stock) pero ocultar etiquetas/impresión A4.
+- **Proveedores / pedidos a proveedor**: 2 pedidos. Archivar pantallas, conservar datos.
+- **Gestión de redes / mejoras sugeridas**: redes_sociales_tareas 0 filas, mejoras 5. Archivar.
+- **Cierre de caja diario**: 1 cierre. Archivar hasta que haya operación de caja real.
 
----
+### D. ELIMINAR
+- **Rutas legacy tienda**: `/admin/tienda/pedidos-legacy`, `/tienda/preventas-legacy` (StoreOrders.tsx, StorePreorders.tsx) — reemplazadas por Ventas.
+- **Ruta duplicada** `entrenamientos` declarada dos veces en App.tsx.
+- **Promociones y Banners de tienda**: store_banners 0 filas.
+- **Analytics de tienda**: duplica Dashboard de tienda con 23 pedidos.
+- **Solicitudes de cambio de plan como módulo**: `solicitudes_cambio_plan` 4 filas y `cambios_plan` 7 (2 en 90d) — coexisten dos modelos. Unificar en el flujo actual dentro de la ficha del alumno.
+- **Plantillas waitlist** (`waitlist_question_templates` 1 fila) y **Solicitudes de alojamiento** (`event_accommodation_waitlist_requests` 1 fila): plegar dentro del evento.
+- **Cambios de paquete** (`event_package_change_requests` 0 filas) — ruta sin menú.
+- **Asesoría**: 1 asignación, 0 postulaciones, pantallas en admin + coach + público. Eliminar del menú; landing pública puede quedar como página estática.
+- **Procesos/playbooks genéricos**: 5 plantillas, 19 instancias, 3 runners distintos (admin, programas, depósito). Dejar **uno** solo (el de programas) y eliminar los otros dos + `/admin/procesos/plantillas`.
+- **Importadores CSV/Excel de alumnos y planes** (ImportStudents/ImportPlan, `importaciones_usuarios` 1 fila).
+- **Devoluciones, clases_consumidas, asistencias, training_templates, ausencias_coaches, grupo_familiar**: 0 filas y sin UI viva → esquema muerto.
+- **Tablas QA** (`qa_stock_test_results`, `qa_backfill_test_results`) y **materialized views de backfill** (`mv_backfill_*`, 2.700 filas) — andamiaje de migraciones ya cerradas.
+- **SuperAdminEstadoEscuela.tsx**: ruta comentada, código huérfano.
+- **Pedidos externos / scrape-external-product / parse-etiqueta-externa** (11 filas): experimento.
 
-## 2. Inconsistencias que hoy NO puede detectar (con evidencia real)
+## 2. Top 10 a eliminar primero
+1. Rutas y pantallas legacy de tienda (pedidos/preventas legacy, promociones, banners, analytics).
+2. Extensión Chrome WhatsApp + módulo WhatsApp + Google Contacts.
+3. Importadores CSV/Excel de alumnos y planes.
+4. Materialized views y tablas QA de backfill.
+5. Procesos genéricos + plantillas de procesos + 2 de los 3 runners.
+6. Solicitudes de cambio de plan (módulo separado) y plantillas waitlist.
+7. Asesoría (admin + coach + módulo).
+8. Camioneta / control de mercadería / incidentes de escaneo.
+9. Encuestas de evento y roadbook público.
+10. Tablas 0-filas sin UI (devoluciones, asistencias, clases_consumidas, training_templates, ausencias_coaches, grupo_familiar, redes_sociales_tareas, postulaciones_asesoria).
 
-### A. Pago MP con alumno identificado pero sin impacto en cuenta corriente
-Un movimiento con `alumno_id` cargado ya cuenta como "asignado" y **desaparece de la cola de pendientes**, aunque no esté imputado a ninguna deuda (`suscripcion_id`, `reservation_payment_id` y `gasto_id` en blanco). El filtro está en `MpMovementsTab.tsx` (líneas 440 y 469-471): considera asignado con que exista alumno.
+## 3. Top 10 intocables
+Alumnos/ficha única · Suscripciones y planes · Pagos + Mercado Pago e imputación · Cuenta corriente y link público · Facturación AFIP · Eventos con reservas, cuotas y lista de espera · Entrenamientos y registro de sesiones · Coaches y agenda · Cola de emails transaccionales · Auth/roles/portal.
 
-> **151 movimientos aprobados por $14.315.775 están en ese estado hoy.** Plata cobrada, alumno identificado, sin efecto en la deuda ni en la cuenta corriente, y fuera de toda alerta.
+## 4. Duplicaciones y legacy detectado
+- Resumen vs Centro de Control vs Métricas (3 tableros).
+- Ventas de tienda vs pedidos/preventas legacy.
+- `cambios_plan` vs `solicitudes_cambio_plan` vs cambio desde ficha.
+- 3 runners de procesos.
+- Pagos: circuito nuevo `pagos_imputaciones` (0 filas) conviviendo con imputación vía `cuenta_ajustes` y `mp_account_movements` → hay que decidir cuál es la verdad (ver §7).
+- Entregas: `/admin/entregas-caja`, `/admin/cobros-entrega`, `/deposito/entregas`.
+- Estados heredados: `suscripciones` con 6 estados (activa/pendiente/vencida/cancelada/finalizada/pendiente_verificacion) — simplificable a 4.
+- `store_orders` con 7 estados para 23 pedidos.
 
-### B. Deuda que sigue pendiente después del pago
-No hay ningún trigger ni consulta que compare el pago contra el estado de la deuda. Consultando la base: **36 suscripciones tienen un pago MP aprobado vinculado y siguen en estado `vencida`/`pendiente`**. Ejemplos verificados: Aldo Marcelo (op 171825988178, $61.480 = precio exacto), Lorena Rojas (op 170508591215), Carina (op 167960112967, $80.030). Según la regla del negocio, pago cobrado + período terminado debería ser `finalizada`, no `vencida` — hoy figuran como deudoras.
+## 5. Navegación mínima propuesta (6 áreas)
+```text
+Admin
+├─ Hoy            Tareas + excepciones + KPIs (fusiona Resumen/Centro control/Métricas)
+├─ Alumnos        Ficha: plan, pagos, cuenta corriente, entrenamiento, notas,
+│                 bajas, cambios de plan, evaluación de coach, WhatsApp
+├─ Eventos        Ficha del evento: paquetes, reservas, cuotas, waitlist,
+│                 habitaciones, costos, comunicación. Programas = tipo de evento
+├─ Dinero         Pagos/MP · Cuenta corriente · Facturación · Gastos
+├─ Escuela        Coaches · Entrenamientos · Planes/Precios/Descuentos · Sedes · Turnera
+└─ Tienda         Productos+Stock · Ventas · Entregas       (rol depósito: 3 pantallas)
+```
+Todo lo que hoy es módulo de "solicitudes" pasa a ser una acción dentro de la ficha del alumno o del evento.
 
-### C. Importe distinto a la deuda
-Nadie compara `monto del pago` contra `precio_final` de la suscripción ni contra el saldo del cargo. **38 casos con diferencia** entre lo cobrado y lo debido. Algunos serán pagos parciales legítimos, otros no: no hay forma de distinguirlos porque no se guarda ninguna marca de "parcial" ni de "diferencia aceptada".
+## 6. Plan de limpieza por fases
+1. **Ocultar (1 semana)**: sacar del sidebar los C y D; dejar rutas accesibles por URL. Cero riesgo.
+2. **Validar (30 días)**: medir accesos y confirmar que no hubo pedidos de reactivación.
+3. **Borrar frontend**: eliminar pantallas, componentes y rutas de los D confirmados.
+4. **Borrar Edge Functions** sin invocaciones (candidatas: scrape-external-product, parse-etiqueta-externa, register-whatsapp-contact, send-prospect-roadbook, send-event-survey, sync-turnera-google-calendar).
+5. **Borrar esquema**: sólo tablas con 0 filas y las MV/QA. Todo lo que tenga datos financieros o históricos se conserva.
 
-### D. Pago aplicado a la deuda equivocada
-No existe control alguno. El RPC valida que el cargo pertenezca al alumno correcto, pero nada más: cualquier deuda del alumno es un destino válido, sin importar período, importe ni moneda. Una vez imputado, no queda registro de "esto se aplicó mal" ni forma de detectarlo salvo revisión humana.
+**Conservar siempre**: alumnos, suscripciones, pagos, facturas, mp_account_movements, cuenta_ajustes, event_reservations y sus pagos, audit_log, email_send_log, entrenamientos y registro_sesiones.
 
-### E. Medio de pago que dice efectivo aunque venga de MP
-Bug confirmado en `assign_mp_movement_to_target()`: al imputar a una suscripción hace `metodo_pago = COALESCE(metodo_pago, 'mercadopago')`. Como el campo casi nunca está vacío (suele venir `pendiente`, `efectivo` o `transferencia`), **el valor viejo nunca se corrige**. Hoy hay **7 suscripciones con ID de operación de Mercado Pago y medio de pago registrado como efectivo/transferencia/pendiente**. Efecto en cadena: distorsiona el arqueo de caja y el semáforo de conciliación.
+## 7. Requiere decisión humana (sin evidencia suficiente)
+1. ¿`pagos_imputaciones` (0 filas) es el circuito futuro o se descarta?
+2. Email masivo/broadcasts: ¿se sigue usando comercialmente?
+3. Chequeo/evaluaciones de coach: uso reciente alto pero sin menú — ¿se promueve o se archiva?
+4. Liquidaciones de coaches: ¿pagos manuales fuera del sistema?
+5. Turnera: ¿negocio en crecimiento o piloto?
+6. Preventas de tienda (27) vs pedidos (23): ¿ambas modalidades siguen?
+7. Programas: ¿se fusiona con eventos o queda como módulo?
+8. Cierre de caja y cobros en entrega: ¿hay operación de efectivo real?
+9. Sincronización con Google Calendar de la turnera.
+10. Marketing contacts importados: ¿base a reactivar o descartar?
 
-### F. Créditos duplicados y créditos huérfanos
-- **4 créditos en cuenta corriente comparten el mismo ID de operación MP** (`cuenta_ajustes.referencia_externa` no tiene restricción de unicidad): el mismo pago contado dos veces como saldo a favor.
-- **24 créditos de origen MP quedaron sin aplicar a ninguna deuda** (`aplicado_a_fuente_id` vacío): inflan el "saldo a favor" del alumno mientras su deuda sigue viva. Este es exactamente el patrón de los casos que ya viste (familia Martinero).
-
-### G. Facturación desacoplada
-`facturacion_cola` tiene **410 registros en estado `pendiente`** (desde el 08/07 hasta hoy) contra 158 facturados. La cola no tiene reintento visible ni alerta: un pago puede estar cobrado y conciliado y no facturarse nunca sin que nadie se entere.
-
----
-
-## 3. Diagnóstico de fondo
-
-El sistema tiene **cinco fuentes de verdad paralelas** (`mp_account_movements`, `suscripciones`, `reservation_payments`, `cuenta_ajustes`, `store_orders`) y ningún proceso que las cruce. Cada RPC de imputación escribe en su tabla y termina; no hay verificación posterior de que el resultado sea coherente.
-
-Lo que falta no es un campo más: falta un **motor de reglas de consistencia** que corra sobre los datos y produzca una lista de excepciones accionable.
-
----
-
-## 4. Propuesta de solución (a discutir antes de implementar)
-
-**Paso 1 — Vista de excepciones (sin tocar datos).** Una vista `vw_pagos_inconsistencias` que emita una fila por cada anomalía detectada, con tipo, severidad, alumno, importe y referencia. Reglas iniciales: pago con alumno sin imputar; pago vinculado con deuda aún impaga; diferencia importe vs deuda; medio de pago contradictorio con el ID de operación; crédito duplicado por operación; crédito sin aplicar con deuda viva; ítem de facturación estancado.
-
-**Paso 2 — Pestaña "Inconsistencias" en Pagos y Cobranzas.** Lista de tareas con explicación en castellano y acción de resolución directa, más un contador visible en el panel.
-
-**Paso 3 — Corregir las causas raíz.** Arreglar el `COALESCE` del medio de pago; que la imputación a suscripción cierre la deuda y deje el estado correcto; unicidad de operación MP en créditos; que el filtro "sin asignar" exija imputación real y no sólo alumno identificado.
-
-**Paso 4 — Reparación de los casos históricos** detectados arriba, uno por uno y con registro de auditoría.
-
-**Nota:** ninguno de estos pasos se ejecutó. Esta auditoría fue de sólo lectura.
-
----
-
-## Detalle técnico
-
-Archivos y objetos relevantes: `src/components/admin/MpMovementsTab.tsx` (líneas 436-474 del filtro de asignación), `src/components/admin/DeudoresTab.tsx`, RPCs `assign_mp_movement_to_target`, `assign_mp_movement_to_alumno`, `assign_mp_movement_to_new_suscripcion`, `fn_mp_pago_ya_registrado`, `apply_credit_ajuste_to_target`, `is_metodo_auto_conciliado`, vistas `vw_conciliacion_pagos` y `vw_cuenta_corriente_movimientos`, tablas `mp_account_movements`, `cuenta_ajustes`, `suscripciones`, `reservation_payments`, `store_orders`, `facturacion_cola`, `facturas`. Triggers existentes sobre `suscripciones` y `reservation_payments`: ninguno valida importe contra deuda.
+No se modificó código, base de datos ni configuración.
