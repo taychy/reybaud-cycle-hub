@@ -210,6 +210,35 @@ const PlanSelection = () => {
     };
   }, [alumnoId, navigate, isRenewal]);
 
+  // Revalidación del contexto de renovación anticipada contra la realidad:
+  // si la sub de origen ya no es una suscripción vigente del alumno, el contexto
+  // quedó stale y lo descartamos (así el checkout vuelve al mes calendario y
+  // puede reutilizar la sub pendiente correcta). Si la consulta falla, no tocamos nada.
+  useEffect(() => {
+    if (!alumnoId || !earlyRenewal) return;
+    let cancel = false;
+    (async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error: qErr } = await supabase
+        .from("suscripciones")
+        .select("id")
+        .eq("alumno_id", alumnoId)
+        .in("estado", ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"])
+        .is("cancelada_at", null)
+        .or(`fecha_fin.is.null,fecha_fin.gte.${today}`);
+      if (cancel || qErr || !data) return;
+      const revalidated = revalidateEarlyRenewalSource(
+        earlyRenewal,
+        (data as any[]).map((s) => s.id),
+      );
+      if (!revalidated) setEarlyRenewalCtx(null);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [alumnoId, earlyRenewal]);
+
+
   // Cargar plan grupal y pausa activos (para bloquear combinaciones incompatibles)
   useEffect(() => {
     if (!alumnoId) return;
