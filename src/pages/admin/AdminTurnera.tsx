@@ -66,7 +66,7 @@ const AdminTurnera = () => {
 
   // Forms
   const [showServForm, setShowServForm] = useState(false);
-  const [servForm, setServForm] = useState({ slug: "", nombre: "", descripcion: "", duracion_minutos: "60", precio: "", modalidad: "presencial", politica_cancelacion: "" });
+  const [servForm, setServForm] = useState({ nombre: "", descripcion: "", duracion_minutos: "60", precio: "", modalidad: "presencial", politica_cancelacion: "" });
   const [showDispForm, setShowDispForm] = useState(false);
   const [dispForm, setDispForm] = useState({ coach_id: "", servicio_id: "", dia_semana: "1", hora_inicio: "08:00", hora_fin: "12:00", sede_id: "" });
   const [configServ, setConfigServ] = useState<any | null>(null);
@@ -270,7 +270,7 @@ const AdminTurnera = () => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Servicio creado" });
     setShowServForm(false);
-    setServForm({ slug: "", nombre: "", descripcion: "", duracion_minutos: "60", precio: "", modalidad: "presencial", politica_cancelacion: "" });
+    setServForm({ nombre: "", descripcion: "", duracion_minutos: "60", precio: "", modalidad: "presencial", politica_cancelacion: "" });
     loadAll();
   };
 
@@ -423,7 +423,11 @@ const AdminTurnera = () => {
               <DialogHeader><DialogTitle>Nuevo servicio</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <Input placeholder="Nombre (ej: Clase evaluatoria)" value={servForm.nombre} onChange={e => setServForm({ ...servForm, nombre: e.target.value })} />
-                <Input placeholder="Slug (ej: evaluatoria)" value={servForm.slug} onChange={e => setServForm({ ...servForm, slug: e.target.value })} />
+                {servForm.nombre.trim() && slugifyServicio(servForm.nombre) && (
+                  <p className="text-xs text-muted-foreground">
+                    URL pública: /reservar/{slugifyServicio(servForm.nombre)}
+                  </p>
+                )}
                 <Textarea placeholder="Descripción" value={servForm.descripcion} onChange={e => setServForm({ ...servForm, descripcion: e.target.value })} />
                 <div className="grid grid-cols-2 gap-3">
                   <Input type="number" placeholder="Duración (min)" value={servForm.duracion_minutos} onChange={e => setServForm({ ...servForm, duracion_minutos: e.target.value })} />

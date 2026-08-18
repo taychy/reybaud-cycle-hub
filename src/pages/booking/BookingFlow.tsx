@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { resolveServicioSlug } from "@/lib/turneraSlug";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -127,9 +128,10 @@ const BookingFlow = () => {
   useEffect(() => {
     const load = async () => {
       if (!slug) return;
+      const lookupSlug = resolveServicioSlug(slug);
       const { data: serv } = await supabase
         .from("servicios_turnera").select("*")
-        .eq("slug", slug).eq("activo", true).single();
+        .eq("slug", lookupSlug).eq("activo", true).single();
       if (!serv) { setLoading(false); return; }
       setServicio(serv as any);
 
@@ -908,7 +910,7 @@ const BookingFlow = () => {
                 desc="Te asignamos el turno más cercano según la disponibilidad."
                 onClick={pickPrimerTurno} />
               <ModeCard icon={<MapPin className="w-5 h-5" />} label="Por sede"
-                desc="Elijo primero la ubicación, después la fecha y el coach."
+                desc="Elijo primero la ubicación, después la fecha y el horario."
                 onClick={() => pickModo("sede")} disabled={sedesDisponibles.length === 0} />
               <ModeCard icon={<CalendarDays className="w-5 h-5" />} label="Por fecha"
                 desc="Elijo el día que me viene bien, después el coach y el horario."
