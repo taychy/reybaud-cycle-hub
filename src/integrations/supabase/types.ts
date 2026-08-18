@@ -1470,6 +1470,20 @@ export type Database = {
             foreignKeyName: "cambios_plan_suscripcion_anterior_id_fkey"
             columns: ["suscripcion_anterior_id"]
             isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_anterior_id_fkey"
+            columns: ["suscripcion_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_anterior_id_fkey"
+            columns: ["suscripcion_anterior_id"]
+            isOneToOne: false
             referencedRelation: "vw_programa_posibles_duplicados"
             referencedColumns: ["suscripcion_1_id"]
           },
@@ -1486,6 +1500,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
+            columns: ["suscripcion_nueva_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
+            columns: ["suscripcion_nueva_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
           },
           {
             foreignKeyName: "cambios_plan_suscripcion_nueva_id_fkey"
@@ -1660,6 +1688,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
           },
           {
             foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
@@ -2801,6 +2843,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
           },
           {
             foreignKeyName: "devoluciones_suscripcion_id_fkey"
@@ -6855,6 +6911,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "suscripciones"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
           },
           {
             foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
@@ -12262,6 +12332,51 @@ export type Database = {
           tipo: string | null
         }
         Relationships: []
+      }
+      vw_inconsistencias_early_renewal: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          descripcion: string | null
+          diferencia: number | null
+          fecha: string | null
+          metadata: Json | null
+          moneda: string | null
+          monto_obligacion: number | null
+          monto_pago: number | null
+          mp_payment_id: string | null
+          obligacion_id: string | null
+          obligacion_tipo: string | null
+          pagado: number | null
+          pago_id: string | null
+          pago_origen: string | null
+          saldo: number | null
+          severidad: string | null
+          tipo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
       }
       vw_obligaciones_modelo_nuevo: {
         Row: {
