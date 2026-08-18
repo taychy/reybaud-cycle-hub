@@ -633,7 +633,10 @@ const PlanSelection = () => {
 
 
       const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
-      const earlyMarker = earlyRenewal && !isPausaPlan ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+      const earlyMarker =
+        earlyRenewal && earlyRenewalIsFuture && !isPausaPlan
+          ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}`
+          : null;
       const pausaMarker = plan.categoria === "pausa" && pausaTipo
         ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
         : null;
@@ -643,7 +646,8 @@ const PlanSelection = () => {
       const notasMarker = [upgradeMarker, earlyMarker, pausaMarker, afterPausaMarker].filter(Boolean).join(" | ") || null;
 
       let subId: string | null = null;
-      const reused = !earlyRenewal && !isUpgradeFlow && !afterPausaMarker
+      const reused = !earlyMarker && !isUpgradeFlow && !afterPausaMarker
+
         ? await tryReuseExistingSubscription(alumnoId, plan.id, {
             estado: "pendiente",
             descuento_id: disc?.discount?.id ?? null,
