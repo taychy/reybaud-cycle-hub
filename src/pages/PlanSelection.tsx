@@ -67,8 +67,12 @@ const PlanSelection = () => {
   const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
   // Un cambio de plan del PERÍODO ACTUAL (upgrade) nunca debe leer el contexto de
   // renovación anticipada: si quedó una bandera vieja de "próximo período", la ignoramos.
-  const earlyRenewal = upgradeFromSubId ? null : getEarlyRenewal();
+  // getEarlyRenewal() ya descarta contextos vencidos (TTL 24h) o de un mes pasado.
+  const [earlyRenewal, setEarlyRenewalCtx] = useState(() =>
+    upgradeFromSubId ? null : getEarlyRenewal()
+  );
   const isEarlyRenewal = !!earlyRenewal;
+
 
   const vacationPreselectPlanId = localStorage.getItem("alumno_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
