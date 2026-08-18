@@ -70,24 +70,28 @@ const ManualPaymentConfirm = ({
     // Renovación anticipada manual: solo reutilizamos las fechas del próximo período
     // calculadas a partir de la fecha_fin vigente para no solaparnos con la sub actual.
     // (No tocamos auto_renovacion: los pagos manuales nunca se cobran automáticamente.)
+    // getEarlyRenewal() ya descarta contextos vencidos (TTL) o de un mes pasado.
     const earlyRenewal = getEarlyRenewal();
+    const currentPeriod = calendarMonthPeriod();
+    // Si el contexto apunta al mes en curso, no es una "renovación anticipada":
+    // tratamos el pago como del período actual y priorizamos reutilizar la sub pendiente.
+    const isFuturePeriod = !!earlyRenewal && earlyRenewal.fechaInicio > currentPeriod.fechaInicio;
     let fechaInicio: string;
     let fechaFin: string;
-    if (earlyRenewal) {
+    if (earlyRenewal && isFuturePeriod) {
       fechaInicio = earlyRenewal.fechaInicio;
       fechaFin = earlyRenewal.fechaFin;
     } else if (overrideFechaFin) {
       fechaInicio = startOfCalendarMonth();
       fechaFin = overrideFechaFin;
     } else {
-      const period = calendarMonthPeriod();
-      fechaInicio = period.fechaInicio;
-      fechaFin = period.fechaFin;
+      fechaInicio = currentPeriod.fechaInicio;
+      fechaFin = currentPeriod.fechaFin;
     }
 
     const canonicalMethod = toCanonicalMethod(metodoPago);
     const upgradeMarker = upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
-    const earlyMarker = earlyRenewal ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+    const earlyMarker = earlyRenewal && isFuturePeriod ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
     const userNotas =
       metodoPago === "otro" && otherDetail && otherDetail.trim().length > 0
         ? `Otro medio informado por alumno: ${otherDetail.trim()}`
@@ -96,13 +100,13 @@ const ManualPaymentConfirm = ({
 
     // Limpieza previa: expira subs "activas" con fecha_fin vencida (cron dormido)
     // para que el trigger de duplicado no bloquee al insertar la sub del período nuevo.
-    if (!earlyRenewal && !upgradeFromSubId) {
+    if (!earlyMarker && !upgradeFromSubId) {
       await expireStaleSubs(alumnoId, planId);
     }
 
     // Si el alumno está pagando una sub del período actual (Natalia case),
     // reutilizamos esa sub en vez de generar una nueva.
-    const reused = !earlyRenewal && !upgradeFromSubId
+    const reused = !earlyMarker && !upgradeFromSubId
       ? await tryReuseExistingSubscription(alumnoId, planId, {
           estado: "pendiente_verificacion",
           descuento_id: descuentoId,
@@ -113,6 +117,7 @@ const ManualPaymentConfirm = ({
           notas,
         })
       : null;
+
 
     let subId: string;
     if (reused) {
