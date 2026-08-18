@@ -12543,13 +12543,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_2_id"]
-            isOneToOne: false
-            referencedRelation: "alumnos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
@@ -12559,8 +12552,8 @@ export type Database = {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
             isOneToOne: false
-            referencedRelation: "vw_backfill_identidad_sugerida"
-            referencedColumns: ["alumno_sugerido_id"]
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
@@ -12572,13 +12565,20 @@ export type Database = {
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_1_id"]
+            columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
