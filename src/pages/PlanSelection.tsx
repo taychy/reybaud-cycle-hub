@@ -593,6 +593,12 @@ const PlanSelection = () => {
       let fechaInicio: string;
       let fechaFin: string;
       const isPausaPlan = plan.categoria === "pausa";
+      // Sólo es "renovación anticipada" si apunta a un período FUTURO. Si el
+      // contexto quedó apuntando al mes en curso, lo tratamos como pago normal
+      // del período actual para poder reutilizar la sub pendiente correcta.
+      const earlyRenewalIsFuture =
+        !!earlyRenewal && earlyRenewal.fechaInicio > calendarMonthPeriod().fechaInicio;
+
       if (isPausaPlan) {
         // La pausa SIEMPRE arranca hoy: nunca hereda fechas de una renovación
         // anticipada ("próximo período"), porque suspende el acceso actual.
