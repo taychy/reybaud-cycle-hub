@@ -602,7 +602,7 @@ const PlanSelection = () => {
           const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
           return lastDay.toISOString().split("T")[0];
         })();
-      } else if (earlyRenewal) {
+      } else if (earlyRenewalIsFuture && earlyRenewal) {
         fechaInicio = earlyRenewal.fechaInicio;
         fechaFin = earlyRenewal.fechaFin;
         if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
@@ -611,6 +611,7 @@ const PlanSelection = () => {
             .update({ auto_renovacion: false } as any)
             .eq("id", earlyRenewal.subId);
         }
+
       } else if (scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa") {
         // Renovación con cambio de plan estando en pausa: el plan nuevo arranca
         // el día siguiente al fin de la pausa (no se corta la pausa vigente).
