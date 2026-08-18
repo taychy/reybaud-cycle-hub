@@ -15,7 +15,7 @@ import CheckoutMethodStep from "@/components/checkout/CheckoutMethodStep";
 import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
-import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
+import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate, revalidateEarlyRenewalSource } from "@/lib/earlyRenewal";
 import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
