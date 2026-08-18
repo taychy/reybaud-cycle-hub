@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.guard_early_renewal_periodo_stale() FROM PUBLIC, anon, authenticated;

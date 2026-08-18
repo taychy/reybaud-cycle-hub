@@ -15,7 +15,7 @@ import CheckoutMethodStep from "@/components/checkout/CheckoutMethodStep";
 import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
-import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate } from "@/lib/earlyRenewal";
+import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate, revalidateEarlyRenewalSource } from "@/lib/earlyRenewal";
 import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
 
@@ -67,8 +67,12 @@ const PlanSelection = () => {
   const upgradePreselectPlanId = localStorage.getItem("upgrade_preselect_plan_id");
   // Un cambio de plan del PERÍODO ACTUAL (upgrade) nunca debe leer el contexto de
   // renovación anticipada: si quedó una bandera vieja de "próximo período", la ignoramos.
-  const earlyRenewal = upgradeFromSubId ? null : getEarlyRenewal();
+  // getEarlyRenewal() ya descarta contextos vencidos (TTL 24h) o de un mes pasado.
+  const [earlyRenewal, setEarlyRenewalCtx] = useState(() =>
+    upgradeFromSubId ? null : getEarlyRenewal()
+  );
   const isEarlyRenewal = !!earlyRenewal;
+
 
   const vacationPreselectPlanId = localStorage.getItem("alumno_preselect_plan_id");
   const [planes, setPlanes] = useState<Plan[]>([]);
@@ -205,6 +209,35 @@ const PlanSelection = () => {
       isMounted = false;
     };
   }, [alumnoId, navigate, isRenewal]);
+
+  // Revalidación del contexto de renovación anticipada contra la realidad:
+  // si la sub de origen ya no es una suscripción vigente del alumno, el contexto
+  // quedó stale y lo descartamos (así el checkout vuelve al mes calendario y
+  // puede reutilizar la sub pendiente correcta). Si la consulta falla, no tocamos nada.
+  useEffect(() => {
+    if (!alumnoId || !earlyRenewal) return;
+    let cancel = false;
+    (async () => {
+      const today = new Date().toISOString().split("T")[0];
+      const { data, error: qErr } = await supabase
+        .from("suscripciones")
+        .select("id")
+        .eq("alumno_id", alumnoId)
+        .in("estado", ["activa", "pendiente", "pendiente_verificacion", "pago_pendiente", "acceso_pausado"])
+        .is("cancelada_at", null)
+        .or(`fecha_fin.is.null,fecha_fin.gte.${today}`);
+      if (cancel || qErr || !data) return;
+      const revalidated = revalidateEarlyRenewalSource(
+        earlyRenewal,
+        (data as any[]).map((s) => s.id),
+      );
+      if (!revalidated) setEarlyRenewalCtx(null);
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [alumnoId, earlyRenewal]);
+
 
   // Cargar plan grupal y pausa activos (para bloquear combinaciones incompatibles)
   useEffect(() => {
@@ -560,6 +593,12 @@ const PlanSelection = () => {
       let fechaInicio: string;
       let fechaFin: string;
       const isPausaPlan = plan.categoria === "pausa";
+      // Sólo es "renovación anticipada" si apunta a un período FUTURO. Si el
+      // contexto quedó apuntando al mes en curso, lo tratamos como pago normal
+      // del período actual para poder reutilizar la sub pendiente correcta.
+      const earlyRenewalIsFuture =
+        !!earlyRenewal && earlyRenewal.fechaInicio > calendarMonthPeriod().fechaInicio;
+
       if (isPausaPlan) {
         // La pausa SIEMPRE arranca hoy: nunca hereda fechas de una renovación
         // anticipada ("próximo período"), porque suspende el acceso actual.
@@ -569,7 +608,7 @@ const PlanSelection = () => {
           const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
           return lastDay.toISOString().split("T")[0];
         })();
-      } else if (earlyRenewal) {
+      } else if (earlyRenewalIsFuture && earlyRenewal) {
         fechaInicio = earlyRenewal.fechaInicio;
         fechaFin = earlyRenewal.fechaFin;
         if (earlyRenewal.autoRenovacion && earlyRenewal.subId) {
@@ -578,6 +617,7 @@ const PlanSelection = () => {
             .update({ auto_renovacion: false } as any)
             .eq("id", earlyRenewal.subId);
         }
+
       } else if (scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa") {
         // Renovación con cambio de plan estando en pausa: el plan nuevo arranca
         // el día siguiente al fin de la pausa (no se corta la pausa vigente).
@@ -593,7 +633,10 @@ const PlanSelection = () => {
 
 
       const upgradeMarker = isUpgradeFlow && upgradeFromSubId ? `UPGRADE_FROM:${upgradeFromSubId}` : null;
-      const earlyMarker = earlyRenewal && !isPausaPlan ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}` : null;
+      const earlyMarker =
+        earlyRenewal && earlyRenewalIsFuture && !isPausaPlan
+          ? `EARLY_RENEWAL_FROM:${earlyRenewal.subId}`
+          : null;
       const pausaMarker = plan.categoria === "pausa" && pausaTipo
         ? `PAUSA_TIPO:${pausaTipo}${pausaMotivo ? ` PAUSA_MOTIVO:${pausaMotivo.replace(/\|/g, "/").slice(0, 280)}` : ""}`
         : null;
@@ -603,7 +646,8 @@ const PlanSelection = () => {
       const notasMarker = [upgradeMarker, earlyMarker, pausaMarker, afterPausaMarker].filter(Boolean).join(" | ") || null;
 
       let subId: string | null = null;
-      const reused = !earlyRenewal && !isUpgradeFlow && !afterPausaMarker
+      const reused = !earlyMarker && !isUpgradeFlow && !afterPausaMarker
+
         ? await tryReuseExistingSubscription(alumnoId, plan.id, {
             estado: "pendiente",
             descuento_id: disc?.discount?.id ?? null,
