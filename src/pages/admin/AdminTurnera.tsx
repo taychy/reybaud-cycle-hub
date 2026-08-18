@@ -235,9 +235,30 @@ const AdminTurnera = () => {
 
 
   const addServicio = async () => {
-    if (!servForm.nombre || !servForm.slug) return;
+    if (!servForm.nombre.trim()) {
+      toast({ title: "El nombre es obligatorio", variant: "destructive" });
+      return;
+    }
+    const slug = slugifyServicio(servForm.nombre);
+    if (!slug) {
+      toast({ title: "El nombre debe tener al menos una letra o número", variant: "destructive" });
+      return;
+    }
+    const { data: existente } = await supabase
+      .from("servicios_turnera")
+      .select("id, nombre")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (existente) {
+      toast({
+        title: "Ya existe un servicio con esa URL",
+        description: `"${(existente as any).nombre}" usa /reservar/${slug}. Cambiá el nombre del servicio.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const { error } = await supabase.from("servicios_turnera").insert({
-      slug: servForm.slug,
+      slug,
       nombre: servForm.nombre,
       descripcion: servForm.descripcion || null,
       duracion_minutos: Number(servForm.duracion_minutos),
