@@ -2054,6 +2054,13 @@ const AdminEventReservations = ({
                   eventPrice={eventPrice ?? 0}
                   eventCurrency={curr(selectedRes)}
                   currentPriceSnapshot={selectedRes.price_snapshot ?? null}
+                  packageId={(selectedRes as any).package_id ?? null}
+                  packageName={
+                    eventPackages.find((p) => p.id === (selectedRes as any).package_id)?.nombre ?? null
+                  }
+                  packagePrice={
+                    eventPackages.find((p) => p.id === (selectedRes as any).package_id)?.precio ?? null
+                  }
                   onChanged={() => {
                     loadReservations();
                     loadPayments(selectedRes.id);
