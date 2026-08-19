@@ -11,6 +11,10 @@ interface Props {
   eventPrice: number;
   eventCurrency: string;
   currentPriceSnapshot: number | null;
+  /** Paquete de la reserva (si el evento trabaja con paquetes) */
+  packageId?: string | null;
+  packageName?: string | null;
+  packagePrice?: number | null;
   onChanged?: () => void;
 }
 
@@ -19,43 +23,65 @@ export const ReservationBasePriceEditor = ({
   eventPrice,
   eventCurrency,
   currentPriceSnapshot,
+  packageId,
+  packageName,
+  packagePrice,
   onChanged,
 }: Props) => {
+  // Referencia: precio del paquete si hay paquete; sino el del evento
+  const hasPackage = !!packageId && packagePrice != null;
+  const referencePrice = hasPackage ? Number(packagePrice) : Number(eventPrice ?? 0);
+  const referenceLabel = hasPackage
+    ? `Precio del paquete${packageName ? ` "${packageName}"` : ""}`
+    : "Precio del evento";
+
   const [value, setValue] = useState<string>(
-    currentPriceSnapshot != null ? String(currentPriceSnapshot) : String(eventPrice ?? 0),
+    currentPriceSnapshot != null ? String(currentPriceSnapshot) : String(referencePrice),
   );
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    setValue(currentPriceSnapshot != null ? String(currentPriceSnapshot) : String(eventPrice ?? 0));
-  }, [currentPriceSnapshot, eventPrice, reservationId]);
+    setValue(currentPriceSnapshot != null ? String(currentPriceSnapshot) : String(referencePrice));
+  }, [currentPriceSnapshot, referencePrice, reservationId]);
 
   const numeric = parseFloat(value);
   const isOverride =
-    currentPriceSnapshot != null && Number(currentPriceSnapshot) !== Number(eventPrice);
-  const dirty = !isNaN(numeric) && Number(numeric) !== Number(currentPriceSnapshot ?? eventPrice);
+    currentPriceSnapshot != null && Number(currentPriceSnapshot) !== Number(referencePrice);
+  const dirty = !isNaN(numeric) && Number(numeric) !== Number(currentPriceSnapshot ?? referencePrice);
 
+  /** p_price = null → restaura al precio de referencia resuelto en la base */
   const save = async (newPrice: number | null) => {
     setSaving(true);
-    const { error } = await supabase
-      .from("event_reservations" as any)
-      .update({ price_snapshot: newPrice })
-      .eq("id", reservationId);
+    const { data, error } = await supabase.rpc(
+      "admin_set_reservation_price_snapshot" as any,
+      {
+        p_reservation_id: reservationId,
+        p_price: newPrice,
+        p_note:
+          newPrice == null
+            ? "Restaurar precio de referencia desde panel admin"
+            : "Edición de precio del participante desde panel admin",
+      },
+    );
+    setSaving(false);
     if (error) {
-      setSaving(false);
       toast.error("Error: " + error.message);
       return;
     }
-    const { error: recalcErr } = await supabase.rpc(
-      "recalculate_reservation_amount_total" as any,
-      { p_reservation_id: reservationId },
+    const res = data as any;
+    toast.success(
+      newPrice == null
+        ? "Precio restaurado al de referencia"
+        : "Precio del participante actualizado",
+      {
+        description: res
+          ? `Total ${formatPrice(Number(res.amount_total || 0), eventCurrency as any)} · Pagado ${formatPrice(
+              Number(res.amount_paid || 0),
+              eventCurrency as any,
+            )} · Saldo ${formatPrice(Number(res.balance_due || 0), eventCurrency as any)}`
+          : undefined,
+      },
     );
-    setSaving(false);
-    if (recalcErr) {
-      toast.error("Guardado, pero falló el recalculo: " + recalcErr.message);
-      return;
-    }
-    toast.success(newPrice == null ? "Precio restaurado al del evento" : "Precio del participante actualizado");
     onChanged?.();
   };
 
@@ -73,8 +99,9 @@ export const ReservationBasePriceEditor = ({
         )}
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Precio del evento: {formatPrice(eventPrice ?? 0, eventCurrency as any)}. Editalo si este
-        participante paga un monto distinto (ej.: menos días).
+        {referenceLabel}: {formatPrice(referencePrice, eventCurrency as any)}. Editalo si este
+        participante paga un monto distinto (ej.: menos días). Se recalcula el total y se
+        redistribuyen sólo las cuotas abiertas: los pagos y las cuotas ya pagadas no se tocan.
       </p>
       <div className="flex items-center gap-2">
         <Input
@@ -101,8 +128,8 @@ export const ReservationBasePriceEditor = ({
             variant="ghost"
             className="h-8 gap-1"
             disabled={saving}
-            onClick={() => save(eventPrice ?? 0)}
-            title="Restaurar al precio del evento"
+            onClick={() => save(null)}
+            title={hasPackage ? "Restaurar al precio del paquete" : "Restaurar al precio del evento"}
           >
             <RotateCcw className="w-3.5 h-3.5" />
           </Button>

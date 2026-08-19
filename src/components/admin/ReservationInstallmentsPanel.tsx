@@ -514,7 +514,8 @@ const ReservationInstallmentsPanel = ({
         return (
           <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 space-y-2">
             <p className="text-xs font-semibold text-amber-500 flex items-center gap-1">
-              <AlertCircle className="w-3 h-3" /> Pagos sin cuota asignada
+              <AlertCircle className="w-3 h-3" /> Pagos no vinculados manualmente a una cuota — se
+              aplican automáticamente en orden
             </p>
             {orphans.map((p) => (
               <div key={p.id} className="flex items-center justify-between text-[11px]">
