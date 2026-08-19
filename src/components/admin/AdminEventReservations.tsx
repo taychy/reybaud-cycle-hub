@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
+import { addablePackages, requiresPackage, packageOptionLabel } from "@/lib/eventPackageAdd";
 import { assignPaymentPlanToReservation } from "@/lib/assignPaymentPlan";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -1570,7 +1571,7 @@ const AdminEventReservations = ({
                   <SelectValue placeholder="Elegí un paquete" />
                 </SelectTrigger>
                 <SelectContent>
-                  {addablePackages.map((p) => (
+                  {addablePkgs.map((p) => (
                     <SelectItem key={p.id} value={p.id}>{packageLabel(p.id)}</SelectItem>
                   ))}
                 </SelectContent>
