@@ -76,7 +76,40 @@ export async function applyPackageChange(args: ApplyPackageChangeArgs) {
     p_price_override: args.priceOverride ?? null,
   });
   if (error) throw error;
-  return data as { ok: boolean; adjustment_id?: string; credit_created?: number; debit_created?: number };
+  return data as ApplyPackageChangeResult;
+}
+
+export interface PaymentPlanRelinkResult {
+  relinked: boolean;
+  reason?: string;
+  from_plan_id?: string | null;
+  to_plan_id?: string | null;
+  to_plan_nombre?: string | null;
+}
+
+export interface ApplyPackageChangeResult {
+  ok: boolean;
+  adjustment_id?: string;
+  credit_created?: number;
+  debit_created?: number;
+  payment_plan_relink?: PaymentPlanRelinkResult | null;
+  warning?: string | null;
+}
+
+/** Mensaje legible del resultado de re-vinculación de plan tras cambiar de paquete. */
+export function planRelinkMessage(r?: PaymentPlanRelinkResult | null): { text: string; isWarning: boolean } | null {
+  if (!r) return null;
+  if (r.relinked) {
+    return {
+      text: `Plan de pagos re-vinculado al equivalente del paquete nuevo${r.to_plan_nombre ? ` ("${r.to_plan_nombre}")` : ""}. No se regeneraron pagos ni cuotas.`,
+      isWarning: false,
+    };
+  }
+  if (r.reason === "sin_plan" || r.reason === "ya_pertenece") return null;
+  return {
+    text: "El plan de pagos actual pertenece al paquete anterior y no se encontró un equivalente determinístico en el paquete nuevo. Se mantuvo el plan actual — revisalo manualmente.",
+    isWarning: true,
+  };
 }
 
 export function statusColor(s: PackageChangeStatus): string {

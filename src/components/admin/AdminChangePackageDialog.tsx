@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
-import { previewPackageChange, applyPackageChange, type PackageChangePreview } from "@/lib/packageChangePreview";
+import { previewPackageChange, applyPackageChange, planRelinkMessage, type PackageChangePreview } from "@/lib/packageChangePreview";
 import PackageChangePreviewCard from "./PackageChangePreviewCard";
 import { assignPaymentPlanToReservation } from "@/lib/assignPaymentPlan";
 import { formatPrice } from "@/lib/currency";
@@ -120,6 +120,17 @@ export default function AdminChangePackageDialog({
         priceOverride,
       });
 
+      const relink = planRelinkMessage(res?.payment_plan_relink);
+      if (relink) {
+        toast({
+          title: relink.isWarning ? "Revisar plan de pagos" : "Plan de pagos actualizado",
+          description: relink.text,
+          variant: relink.isWarning ? "destructive" : undefined,
+        });
+      }
+
+
+
       // Si eligió plan y la reserva no tenía plan (o vale la pena reasignar), asignarlo.
       const shouldAssignPlan = selectedPlan && selectedPlan !== "__ninguno__" && !reservationHasPaymentPlan;
       if (shouldAssignPlan) {
@@ -224,7 +235,9 @@ export default function AdminChangePackageDialog({
                 <Label className="text-xs flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> Plan de pagos
                   {reservationHasPaymentPlan && (
-                    <span className="text-[10px] text-muted-foreground">(reserva ya tiene plan, no se toca)</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      (se re-vincula automáticamente al plan equivalente del paquete nuevo)
+                    </span>
                   )}
                 </Label>
                 <Select
