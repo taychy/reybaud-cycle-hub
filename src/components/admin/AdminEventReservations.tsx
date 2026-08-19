@@ -1605,7 +1605,7 @@ const AdminEventReservations = ({
                         <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
                         <p className="text-xs text-muted-foreground">{a.email}</p>
                       </div>
-                      <Button size="sm" variant="outline" disabled={addingStudent === a.id} onClick={() => addStudentToEvent(a)}>
+                      <Button size="sm" variant="outline" disabled={addingStudent === a.id || (addRequiresPackage && !addPackageId)} onClick={() => addStudentToEvent(a)}>
                         {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
                       </Button>
                     </div>
