@@ -798,24 +798,23 @@ const AdminEventReservations = ({
   };
 
   /** Paquetes ofrecibles para una nueva alta (los inactivos no se ofrecen). */
-  const addablePackages = useMemo(
-    () => eventPackages.filter((p) => p.activo).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
-    [eventPackages],
-  );
-  const isInscriptionOnlyEvent = eventNature === "propio_solo_inscripcion";
+  const addablePkgs = useMemo(() => addablePackages(eventPackages), [eventPackages]);
   /** Con paquetes comerciales activos el paquete es obligatorio para el alta manual. */
-  const addRequiresPackage = addablePackages.length > 0 && !isInscriptionOnlyEvent;
+  const addRequiresPackage = useMemo(
+    () => requiresPackage(eventPackages, eventNature),
+    [eventPackages, eventNature],
+  );
+
+  // Si hay un solo paquete ofrecible, preseleccionarlo.
+  useEffect(() => {
+    if (addablePkgs.length === 1) setAddPackageId(addablePkgs[0].id);
+  }, [addablePkgs]);
 
   const packageLabel = (pkgId: string) => {
-    const p = addablePackages.find((x) => x.id === pkgId);
-    if (!p) return "";
-    const active = resolveActivePrice(p.precio, p.currency, priceStagesByPkg[p.id]);
-    return [
-      p.nombre,
-      active.activeStage ? active.activeStage.nombre : "Precio base",
-      formatPrice(active.precio, active.currency),
-    ].join(" · ");
+    const p = addablePkgs.find((x) => x.id === pkgId);
+    return p ? packageOptionLabel(p, priceStagesByPkg[p.id]) : "";
   };
+
 
   /** Crea la reserva vía RPC admin (precio y plan resueltos en backend) y materializa cuotas. */
   const createReservationViaRpc = async (args: {
