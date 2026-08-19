@@ -39,7 +39,6 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
-import SuperAdminEstadoEscuela from "./pages/admin/SuperAdminEstadoEscuela";
 import ManagePlanes from "./pages/admin/ManagePlanes";
 import ManageDescuentos from "./pages/admin/ManageDescuentos";
 import ManagePrecios from "./pages/admin/ManagePrecios";
@@ -249,7 +248,6 @@ const App = () => (
             <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
 
             <Route path="metricas" element={<SuperAdminDashboard />} />
-            {/* <Route path="estado-escuela" element={<SuperAdminEstadoEscuela />} /> */}
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
             <Route path="gestion-redes" element={<AdminGestionRedes />} />
