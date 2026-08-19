@@ -72,8 +72,6 @@ import PendingApproval from "./pages/PendingApproval";
 import StoreDashboard from "./pages/admin/store/StoreDashboard";
 import StoreProducts from "./pages/admin/store/StoreProducts";
 import StoreCategories from "./pages/admin/store/StoreCategories";
-import StoreOrders from "./pages/admin/store/StoreOrders";
-import StorePreorders from "./pages/admin/store/StorePreorders";
 import StoreVentas from "./pages/admin/store/StoreVentas";
 import StorePromotions from "./pages/admin/store/StorePromotions";
 import StoreBanners from "./pages/admin/store/StoreBanners";
@@ -270,8 +268,6 @@ const App = () => (
             <Route path="tienda/ventas" element={<StoreVentas />} />
             <Route path="tienda/pedidos" element={<Navigate to="/admin/tienda/ventas?tab=pedidos" replace />} />
             <Route path="tienda/preventas" element={<Navigate to="/admin/tienda/ventas?tab=preventas" replace />} />
-            <Route path="tienda/pedidos-legacy" element={<StoreOrders />} />
-            <Route path="tienda/preventas-legacy" element={<StorePreorders />} />
             <Route path="tienda/promociones" element={<StorePromotions />} />
             <Route path="tienda/banners" element={<StoreBanners />} />
             <Route path="tienda/stock" element={<StoreStock />} />
