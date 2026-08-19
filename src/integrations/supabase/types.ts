@@ -14289,6 +14289,14 @@ export type Database = {
       subscription_paid_amount: { Args: { _sub_id: string }; Returns: number }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
+      sync_reservation_package_from_room: {
+        Args: {
+          p_reservation_id: string
+          p_room_package_id: string
+          p_source?: string
+        }
+        Returns: Json
+      }
       transition_cambio_estado: {
         Args: {
           p_id: string
