@@ -4,6 +4,7 @@ import {
   requiresPackage,
   packageOptionLabel,
   canSubmitAdd,
+  reservationPackageIntegrityError,
   type AddablePackage,
 } from "./eventPackageAdd";
 import type { PriceStage } from "./priceStages";
@@ -74,5 +75,39 @@ describe("alta manual con paquetes", () => {
 
   it("permite el alta en eventos sin paquetes", () => {
     expect(canSubmitAdd({ packages: [], selectedPackageId: null })).toBe(true);
+  });
+});
+
+describe("integridad reserva↔paquete (espejo del trigger DB)", () => {
+  const base = { eventId: "e1", packages: [pkg()], packageId: null as string | null };
+
+  it("rechaza reserva activa sin paquete en evento con paquetes activos", () => {
+    expect(reservationPackageIntegrityError(base)).toMatch(/debe indicar un paquete/);
+  });
+
+  it("permite reserva sin paquete en evento sin paquetes", () => {
+    expect(reservationPackageIntegrityError({ ...base, packages: [] })).toBeNull();
+  });
+
+  it("permite reserva sin paquete en evento de sólo inscripción", () => {
+    expect(
+      reservationPackageIntegrityError({ ...base, eventNature: "propio_solo_inscripcion" }),
+    ).toBeNull();
+  });
+
+  it("rechaza un paquete de otro evento", () => {
+    expect(
+      reservationPackageIntegrityError({ ...base, packageId: "p1", packageEventId: "e2" }),
+    ).toMatch(/no pertenece/);
+  });
+
+  it("acepta un paquete del mismo evento", () => {
+    expect(
+      reservationPackageIntegrityError({ ...base, packageId: "p1", packageEventId: "e1" }),
+    ).toBeNull();
+  });
+
+  it("no valida reservas canceladas", () => {
+    expect(reservationPackageIntegrityError({ ...base, cancelled: true })).toBeNull();
   });
 });

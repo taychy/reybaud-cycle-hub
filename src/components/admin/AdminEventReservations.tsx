@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { addablePackages, requiresPackage, packageOptionLabel } from "@/lib/eventPackageAdd";
-import { assignPaymentPlanToReservation } from "@/lib/assignPaymentPlan";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -817,38 +816,25 @@ const AdminEventReservations = ({
   };
 
 
-  /** Crea la reserva vía RPC admin (precio y plan resueltos en backend) y materializa cuotas. */
+  /**
+   * Alta atómica: la RPC resuelve precio, plan de pagos, snapshot y cuotas
+   * en una sola transacción. El frontend no hace ningún segundo paso financiero.
+   */
   const createReservationViaRpc = async (args: {
     alumnoId?: string;
     external?: { nombre: string; apellido: string; email: string; telefono: string; documento: string };
   }): Promise<{ ok: boolean; error?: string }> => {
-    const { data, error } = await supabase.rpc("admin_create_event_reservation" as any, {
+    const { error } = await supabase.rpc("admin_create_event_reservation" as any, {
       p_event_id: eventId,
-      p_package_id: addRequiresPackage ? addPackageId : (addPackageId || null),
+      p_package_id: addPackageId || null,
       p_alumno_id: args.alumnoId ?? null,
       p_external: args.external ?? null,
       p_note: null,
     });
     if (error) return { ok: false, error: error.message };
-
-    const res = data as any;
-    if (res?.payment_plan_id && !isSimplePayment && Number(res.price) > 0) {
-      const assigned = await assignPaymentPlanToReservation({
-        reservationId: res.reservation_id,
-        paymentPlanId: res.payment_plan_id,
-        precioFinal: Number(res.price),
-      });
-      if (assigned.ok === false) {
-        toast({
-          title: "Reserva creada, pero no se pudieron generar las cuotas",
-          description: assigned.error,
-          variant: "destructive",
-        });
-      }
-
-    }
     return { ok: true };
   };
+
 
   const addStudentToEvent = async (alumno: AlumnoOption) => {
     if (addRequiresPackage && !addPackageId) {

@@ -12959,6 +12959,14 @@ export type Database = {
       auto_resolve_tareas_automaticas: { Args: never; Returns: number }
       backfill_turnera_sede: { Args: { p_dry_run?: boolean }; Returns: Json }
       build_baja_snapshot: { Args: { p_alumno_id: string }; Returns: Json }
+      build_payment_plan_snapshot: {
+        Args: {
+          p_fecha_reserva?: string
+          p_plan_id: string
+          p_precio_final: number
+        }
+        Returns: Json
+      }
       cambiar_plan_suscripcion: {
         Args: {
           _excepcion_motivo?: string
