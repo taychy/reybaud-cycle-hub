@@ -12803,6 +12803,10 @@ export type Database = {
         Args: { p_token_id: string }
         Returns: undefined
       }
+      admin_set_reservation_price_snapshot: {
+        Args: { p_note?: string; p_price?: number; p_reservation_id: string }
+        Returns: Json
+      }
       announce_cash_payment: {
         Args: {
           _fecha_limite: string
@@ -14021,6 +14025,10 @@ export type Database = {
       }
       release_room_on_cancel: {
         Args: { _liberar: boolean; _reservation_id: string }
+        Returns: Json
+      }
+      relink_reservation_payment_plan: {
+        Args: { p_note?: string; p_reservation_id: string }
         Returns: Json
       }
       reopen_delivery_cash: { Args: { p_list_id: string }; Returns: undefined }
