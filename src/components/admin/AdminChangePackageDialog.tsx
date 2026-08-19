@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Sparkles } from "lucide-react";
-import { previewPackageChange, applyPackageChange, type PackageChangePreview } from "@/lib/packageChangePreview";
+import { previewPackageChange, applyPackageChange, planRelinkMessage, type PackageChangePreview } from "@/lib/packageChangePreview";
 import PackageChangePreviewCard from "./PackageChangePreviewCard";
 import { assignPaymentPlanToReservation } from "@/lib/assignPaymentPlan";
 import { formatPrice } from "@/lib/currency";

@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Package, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { previewPackageChange, applyPackageChange } from "@/lib/packageChangePreview";
+import { previewPackageChange, applyPackageChange, planRelinkMessage } from "@/lib/packageChangePreview";
 import PackageChangePreviewCard from "@/components/admin/PackageChangePreviewCard";
 
 interface Row {
