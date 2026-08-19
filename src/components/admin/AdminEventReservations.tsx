@@ -1,5 +1,8 @@
 import { useEffect, useState, useMemo } from "react";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
+import { addablePackages, requiresPackage, packageOptionLabel } from "@/lib/eventPackageAdd";
+import { assignPaymentPlanToReservation } from "@/lib/assignPaymentPlan";
+
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -329,6 +332,8 @@ const AdminEventReservations = ({
   const [extPhone, setExtPhone] = useState("");
   const [extDoc, setExtDoc] = useState("");
   const [addingExternal, setAddingExternal] = useState(false);
+  const [addPackageId, setAddPackageId] = useState<string>("");
+
 
   // Admin payment
   const [showAdminPayment, setShowAdminPayment] = useState(false);
@@ -793,37 +798,68 @@ const AdminEventReservations = ({
     setSearchingStudents(false);
   };
 
-  const addStudentToEvent = async (alumno: AlumnoOption) => {
-    setAddingStudent(alumno.id);
-    const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
-    const isPaid = eventPrice != null && eventPrice > 0;
-    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
+  /** Paquetes ofrecibles para una nueva alta (los inactivos no se ofrecen). */
+  const addablePkgs = useMemo(() => addablePackages(eventPackages), [eventPackages]);
+  /** Con paquetes comerciales activos el paquete es obligatorio para el alta manual. */
+  const addRequiresPackage = useMemo(
+    () => requiresPackage(eventPackages, eventNature),
+    [eventPackages, eventNature],
+  );
 
-    const { error } = await supabase
-      .from("event_reservations" as any)
-      .insert({
-        event_id: eventId,
-        alumno_id: alumno.id,
-        reservation_status: "reserva_confirmada",
-        payment_status: paymentStatus,
-        estado: "reserva_confirmada",
-        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
-        amount_total: eventPrice,
-        price_snapshot: eventPrice,
-        currency_snapshot: eventCurrency,
-        moneda: eventCurrency,
-        monto: eventPrice,
-        balance_due: isInscriptionOnly || !isPaid ? 0 : eventPrice,
-        created_by: "admin",
-        confirmed_at: new Date().toISOString(),
-      } as any);
+  // Si hay un solo paquete ofrecible, preseleccionarlo.
+  useEffect(() => {
+    if (addablePkgs.length === 1) setAddPackageId(addablePkgs[0].id);
+  }, [addablePkgs]);
 
-    if (error) {
-      if (error.code === "23505") {
-        toast({ title: "Este alumno ya tiene una reserva en este evento.", variant: "destructive" });
-      } else {
-        toast({ title: "Error al agregar", description: error.message, variant: "destructive" });
+  const packageLabel = (pkgId: string) => {
+    const p = addablePkgs.find((x) => x.id === pkgId);
+    return p ? packageOptionLabel(p, priceStagesByPkg[p.id]) : "";
+  };
+
+
+  /** Crea la reserva vía RPC admin (precio y plan resueltos en backend) y materializa cuotas. */
+  const createReservationViaRpc = async (args: {
+    alumnoId?: string;
+    external?: { nombre: string; apellido: string; email: string; telefono: string; documento: string };
+  }): Promise<{ ok: boolean; error?: string }> => {
+    const { data, error } = await supabase.rpc("admin_create_event_reservation" as any, {
+      p_event_id: eventId,
+      p_package_id: addRequiresPackage ? addPackageId : (addPackageId || null),
+      p_alumno_id: args.alumnoId ?? null,
+      p_external: args.external ?? null,
+      p_note: null,
+    });
+    if (error) return { ok: false, error: error.message };
+
+    const res = data as any;
+    if (res?.payment_plan_id && !isSimplePayment && Number(res.price) > 0) {
+      const assigned = await assignPaymentPlanToReservation({
+        reservationId: res.reservation_id,
+        paymentPlanId: res.payment_plan_id,
+        precioFinal: Number(res.price),
+      });
+      if (assigned.ok === false) {
+        toast({
+          title: "Reserva creada, pero no se pudieron generar las cuotas",
+          description: assigned.error,
+          variant: "destructive",
+        });
       }
+
+    }
+    return { ok: true };
+  };
+
+  const addStudentToEvent = async (alumno: AlumnoOption) => {
+    if (addRequiresPackage && !addPackageId) {
+      toast({ title: "Elegí un paquete antes de agregar al participante", variant: "destructive" });
+      return;
+    }
+    setAddingStudent(alumno.id);
+    const { ok, error } = await createReservationViaRpc({ alumnoId: alumno.id });
+
+    if (!ok) {
+      toast({ title: "Error al agregar", description: error, variant: "destructive" });
     } else {
       toast({ title: `${alumno.nombre} ${alumno.apellido || ""} agregado al evento` });
       loadReservations();
@@ -834,46 +870,24 @@ const AdminEventReservations = ({
 
   const addExternalToEvent = async () => {
     if (!extName || !extEmail) { toast({ title: "Nombre y email son obligatorios", variant: "destructive" }); return; }
-    setAddingExternal(true);
-
-    const { data: extP, error: extErr } = await supabase
-      .from("event_external_participants" as any)
-      .insert({ nombre: extName, apellido: extLastName || null, email: extEmail, telefono: extPhone || null, documento: extDoc || null } as any)
-      .select("id")
-      .single();
-
-    if (extErr || !extP) {
-      toast({ title: "Error al crear participante", description: extErr?.message, variant: "destructive" });
-      setAddingExternal(false);
+    if (addRequiresPackage && !addPackageId) {
+      toast({ title: "Elegí un paquete antes de agregar al participante", variant: "destructive" });
       return;
     }
+    setAddingExternal(true);
 
-    const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
-    const isPaid = eventPrice != null && eventPrice > 0;
-    const paymentStatus = isInscriptionOnly || !isPaid ? "no_aplica" : "no_informado";
+    const { ok, error } = await createReservationViaRpc({
+      external: {
+        nombre: extName,
+        apellido: extLastName,
+        email: extEmail,
+        telefono: extPhone,
+        documento: extDoc,
+      },
+    });
 
-    const { error } = await supabase
-      .from("event_reservations" as any)
-      .insert({
-        event_id: eventId,
-        alumno_id: null,
-        external_participant_id: (extP as any).id,
-        reservation_status: "reserva_confirmada",
-        payment_status: paymentStatus,
-        estado: "reserva_confirmada",
-        metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
-        amount_total: eventPrice,
-        price_snapshot: eventPrice,
-        currency_snapshot: eventCurrency,
-        moneda: eventCurrency,
-        monto: eventPrice,
-        balance_due: isInscriptionOnly || !isPaid ? 0 : eventPrice,
-        created_by: "admin",
-        confirmed_at: new Date().toISOString(),
-      } as any);
-
-    if (error) {
-      toast({ title: "Error al agregar reserva", description: error.message, variant: "destructive" });
+    if (!ok) {
+      toast({ title: "Error al agregar reserva", description: error, variant: "destructive" });
     } else {
       toast({ title: `${extName} ${extLastName} agregado como participante externo` });
       loadReservations();
@@ -882,6 +896,7 @@ const AdminEventReservations = ({
     }
     setAddingExternal(false);
   };
+
 
   const deleteReservation = async (resId: string, participantName: string) => {
     const ok = window.confirm(
@@ -1548,7 +1563,28 @@ const AdminEventReservations = ({
             <DialogTitle>Agregar participante</DialogTitle>
             <DialogDescription>Inscribí un alumno existente o un participante externo.</DialogDescription>
           </DialogHeader>
+          {addRequiresPackage && (
+            <div className="space-y-1.5 rounded-lg border border-border p-3">
+              <Label className="text-xs text-muted-foreground">Paquete *</Label>
+              <Select value={addPackageId} onValueChange={setAddPackageId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un paquete" />
+                </SelectTrigger>
+                <SelectContent>
+                  {addablePkgs.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{packageLabel(p.id)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {addPackageId
+                  ? `Se creará con ${packageLabel(addPackageId)}`
+                  : "Obligatorio: el precio se toma de la etapa vigente del paquete."}
+              </p>
+            </div>
+          )}
           <Tabs value={addExternalMode ? "external" : "student"} onValueChange={(v) => setAddExternalMode(v === "external")}>
+
             <TabsList className="w-full">
               <TabsTrigger value="student" className="flex-1">Alumno</TabsTrigger>
               <TabsTrigger value="external" className="flex-1">Participante externo</TabsTrigger>
@@ -1569,7 +1605,7 @@ const AdminEventReservations = ({
                         <p className="text-sm font-medium">{a.nombre} {a.apellido || ""}</p>
                         <p className="text-xs text-muted-foreground">{a.email}</p>
                       </div>
-                      <Button size="sm" variant="outline" disabled={addingStudent === a.id} onClick={() => addStudentToEvent(a)}>
+                      <Button size="sm" variant="outline" disabled={addingStudent === a.id || (addRequiresPackage && !addPackageId)} onClick={() => addStudentToEvent(a)}>
                         {addingStudent === a.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <UserPlus className="w-3 h-3" />}
                       </Button>
                     </div>
@@ -1605,7 +1641,7 @@ const AdminEventReservations = ({
                   <Input value={extDoc} onChange={(e) => setExtDoc(e.target.value)} placeholder="DNI" />
                 </div>
               </div>
-              <Button className="w-full" disabled={addingExternal || !extName || !extEmail} onClick={addExternalToEvent}>
+              <Button className="w-full" disabled={addingExternal || !extName || !extEmail || (addRequiresPackage && !addPackageId)} onClick={addExternalToEvent}>
                 {addingExternal ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <UserPlus className="w-4 h-4 mr-1.5" />}
                 Agregar participante externo
               </Button>
