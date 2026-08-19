@@ -1,7 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { addablePackages, requiresPackage, packageOptionLabel } from "@/lib/eventPackageAdd";
-import { assignPaymentPlanToReservation } from "@/lib/assignPaymentPlan";
 
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
