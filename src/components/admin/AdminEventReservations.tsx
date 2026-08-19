@@ -329,6 +329,8 @@ const AdminEventReservations = ({
   const [extPhone, setExtPhone] = useState("");
   const [extDoc, setExtDoc] = useState("");
   const [addingExternal, setAddingExternal] = useState(false);
+  const [addPackageId, setAddPackageId] = useState<string>("");
+
 
   // Admin payment
   const [showAdminPayment, setShowAdminPayment] = useState(false);
