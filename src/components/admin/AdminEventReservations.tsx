@@ -1563,7 +1563,28 @@ const AdminEventReservations = ({
             <DialogTitle>Agregar participante</DialogTitle>
             <DialogDescription>Inscribí un alumno existente o un participante externo.</DialogDescription>
           </DialogHeader>
+          {addRequiresPackage && (
+            <div className="space-y-1.5 rounded-lg border border-border p-3">
+              <Label className="text-xs text-muted-foreground">Paquete *</Label>
+              <Select value={addPackageId} onValueChange={setAddPackageId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Elegí un paquete" />
+                </SelectTrigger>
+                <SelectContent>
+                  {addablePackages.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>{packageLabel(p.id)}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {addPackageId
+                  ? `Se creará con ${packageLabel(addPackageId)}`
+                  : "Obligatorio: el precio se toma de la etapa vigente del paquete."}
+              </p>
+            </div>
+          )}
           <Tabs value={addExternalMode ? "external" : "student"} onValueChange={(v) => setAddExternalMode(v === "external")}>
+
             <TabsList className="w-full">
               <TabsTrigger value="student" className="flex-1">Alumno</TabsTrigger>
               <TabsTrigger value="external" className="flex-1">Participante externo</TabsTrigger>
