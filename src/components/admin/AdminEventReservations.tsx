@@ -838,13 +838,14 @@ const AdminEventReservations = ({
         paymentPlanId: res.payment_plan_id,
         precioFinal: Number(res.price),
       });
-      if (!assigned.ok) {
+      if (assigned.ok === false) {
         toast({
           title: "Reserva creada, pero no se pudieron generar las cuotas",
           description: assigned.error,
           variant: "destructive",
         });
       }
+
     }
     return { ok: true };
   };
