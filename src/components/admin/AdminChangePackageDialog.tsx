@@ -120,6 +120,17 @@ export default function AdminChangePackageDialog({
         priceOverride,
       });
 
+      const relink = planRelinkMessage(res?.payment_plan_relink);
+      if (relink) {
+        toast({
+          title: relink.isWarning ? "Revisar plan de pagos" : "Plan de pagos actualizado",
+          description: relink.text,
+          variant: relink.isWarning ? "destructive" : undefined,
+        });
+      }
+
+
+
       // Si eligió plan y la reserva no tenía plan (o vale la pena reasignar), asignarlo.
       const shouldAssignPlan = selectedPlan && selectedPlan !== "__ninguno__" && !reservationHasPaymentPlan;
       if (shouldAssignPlan) {

@@ -98,7 +98,7 @@ export default function AdminPackageChangeRequests() {
     }
     setBusyId(row.id);
     try {
-      await applyPackageChange({
+      const res = await applyPackageChange({
         reservationId: row.reservation_id,
         packageNuevoId: row.package_nuevo_id,
         revalidationToken: livePreview.revalidation_token,
@@ -107,6 +107,14 @@ export default function AdminPackageChangeRequests() {
         adminNote: `Aprobado desde panel${override ? " (override plaza libre)" : ""}`,
       });
       toast({ title: "Cambio aplicado" });
+      const relink = planRelinkMessage(res?.payment_plan_relink);
+      if (relink) {
+        toast({
+          title: relink.isWarning ? "Revisar plan de pagos" : "Plan de pagos actualizado",
+          description: relink.text,
+          variant: relink.isWarning ? "destructive" : undefined,
+        });
+      }
       setExpandedId(null); setLivePreview(null);
       load();
     } catch (e: any) {
