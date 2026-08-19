@@ -224,7 +224,9 @@ export default function AdminChangePackageDialog({
                 <Label className="text-xs flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> Plan de pagos
                   {reservationHasPaymentPlan && (
-                    <span className="text-[10px] text-muted-foreground">(reserva ya tiene plan, no se toca)</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      (se re-vincula automáticamente al plan equivalente del paquete nuevo)
+                    </span>
                   )}
                 </Label>
                 <Select
