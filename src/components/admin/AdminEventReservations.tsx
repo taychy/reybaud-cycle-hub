@@ -1641,7 +1641,7 @@ const AdminEventReservations = ({
                   <Input value={extDoc} onChange={(e) => setExtDoc(e.target.value)} placeholder="DNI" />
                 </div>
               </div>
-              <Button className="w-full" disabled={addingExternal || !extName || !extEmail} onClick={addExternalToEvent}>
+              <Button className="w-full" disabled={addingExternal || !extName || !extEmail || (addRequiresPackage && !addPackageId)} onClick={addExternalToEvent}>
                 {addingExternal ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <UserPlus className="w-4 h-4 mr-1.5" />}
                 Agregar participante externo
               </Button>
