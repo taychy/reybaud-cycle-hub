@@ -12786,6 +12786,16 @@ export type Database = {
           token: string
         }[]
       }
+      admin_create_event_reservation: {
+        Args: {
+          p_alumno_id?: string
+          p_event_id: string
+          p_external?: Json
+          p_note?: string
+          p_package_id?: string
+        }
+        Returns: Json
+      }
       admin_get_or_create_cuenta_token: {
         Args: { p_alumno_id: string }
         Returns: {
