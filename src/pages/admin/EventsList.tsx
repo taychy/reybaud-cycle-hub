@@ -561,6 +561,10 @@ const EventsList = () => {
                       <DropdownMenuItem onClick={() => setFinanceEvent(ev)}>
                         <Wallet className="w-4 h-4 mr-2" /> Finanzas
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setBudgetEvent(ev)}>
+                        <Calculator className="w-4 h-4 mr-2" />
+                        {eventsWithBudget.has(ev.id) ? "Ver presupuesto" : "Crear presupuesto"}
+                      </DropdownMenuItem>
                       {ev.type === "record_hora" && (
                         <DropdownMenuItem onClick={() => navigate(`/admin/eventos/participantes?eventId=${ev.id}`)}>
                           <Trophy className="w-4 h-4 mr-2" /> Participantes y resultados
