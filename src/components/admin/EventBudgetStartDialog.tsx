@@ -43,10 +43,8 @@ type Mode = "choose" | "nuevo" | "existente";
 const TIPOS = [
   { value: "camp", label: "Camp / Viaje" },
   { value: "carrera", label: "Carrera" },
-  { value: "record_hora", label: "Escuela" },
+  { value: "otro", label: "Escuela" },
 ];
-
-const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export default function EventBudgetStartDialog({
   open,
@@ -61,7 +59,7 @@ export default function EventBudgetStartDialog({
   // Nuevo presupuesto
   const [title, setTitle] = useState("");
   const [tipo, setTipo] = useState("camp");
-  const [fecha, setFecha] = useState(todayISO());
+  const [fecha, setFecha] = useState("");
   const [moneda, setMoneda] = useState("ARS");
 
   // Evento existente
@@ -71,7 +69,7 @@ export default function EventBudgetStartDialog({
     setMode("choose");
     setTitle("");
     setTipo("camp");
-    setFecha(todayISO());
+    setFecha("");
     setMoneda("ARS");
     setSearch("");
   };
@@ -83,7 +81,7 @@ export default function EventBudgetStartDialog({
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    const base = events.filter((e) => e.status === "borrador" || e.status === "publicado");
+    const base = events.filter((e) => e.status !== "cancelado");
     if (!q) return base.slice(0, 30);
     return base
       .filter((e) => e.title.toLowerCase().includes(q) || (e.date || "").includes(q))
