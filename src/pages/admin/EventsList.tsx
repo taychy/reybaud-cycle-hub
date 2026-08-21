@@ -756,7 +756,44 @@ const EventsList = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Budget Sheet */}
+      <Sheet
+        open={!!budgetEvent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBudgetEvent(null);
+            fetchBudgets();
+          }
+        }}
+      >
+        <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider text-xl">
+              Presupuesto — {budgetEvent?.title}
+            </SheetTitle>
+            <SheetDescription className="sr-only">Simulador de costos y presupuesto del evento</SheetDescription>
+          </SheetHeader>
+          {budgetEvent && (
+            <div className="pb-8">
+              <EventCostSimulator eventId={budgetEvent.id} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <EventBudgetStartDialog
+        open={budgetDialogOpen}
+        onOpenChange={setBudgetDialogOpen}
+        events={events.map((e) => ({ id: e.id, title: e.title, date: e.date, status: e.status }))}
+        onOpenBudget={openBudget}
+        onDraftCreated={() => {
+          fetchEvents();
+          fetchBudgets();
+        }}
+      />
     </div>
+
   );
 };
 
