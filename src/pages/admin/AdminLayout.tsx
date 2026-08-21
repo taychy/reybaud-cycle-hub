@@ -108,7 +108,7 @@ const modules: NavModule[] = [
         label: "General",
         items: [
           { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
-          { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+          // { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 }, // oculto: duplica Dashboard de Tienda
         ],
       },
       {
