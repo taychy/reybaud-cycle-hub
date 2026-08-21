@@ -682,32 +682,46 @@ const EventsList = () => {
             <SheetDescription className="sr-only">Panel de gestión de reservas del evento</SheetDescription>
           </SheetHeader>
           {reservationsEvent && (
-            <div className="space-y-6 pb-8">
-              <AdminEventReservations
-                eventId={reservationsEvent.id}
-                eventTitle={reservationsEvent.title}
-                eventCurrency={reservationsEvent.currency}
-                eventPrice={reservationsEvent.price}
-                eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
-                eventType={(reservationsEvent as any).type as string | undefined}
-                eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
-                eventDate={reservationsEvent.date}
-                eventLocation={reservationsEvent.location}
-                eventMaxCapacity={reservationsEvent.max_capacity}
-                eventStatus={reservationsEvent.status}
-                eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
-              />
-              <div className="border-t border-border pt-6">
-                <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
-              </div>
-              <div className="border-t border-border pt-6">
-                <EventAnnouncementsManager eventId={reservationsEvent.id} />
-              </div>
-              <div className="border-t border-border pt-6">
-                <EventSurveyManager eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
-              </div>
-            </div>
+            <Tabs defaultValue="gestion" className="pb-8">
+              <TabsList>
+                <TabsTrigger value="gestion">Gestión</TabsTrigger>
+                <TabsTrigger value="presupuesto" className="gap-1.5">
+                  <Calculator className="w-3.5 h-3.5" /> Presupuesto
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="gestion" className="pt-4">
+                <div className="space-y-6">
+                  <AdminEventReservations
+                    eventId={reservationsEvent.id}
+                    eventTitle={reservationsEvent.title}
+                    eventCurrency={reservationsEvent.currency}
+                    eventPrice={reservationsEvent.price}
+                    eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
+                    eventType={(reservationsEvent as any).type as string | undefined}
+                    eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
+                    eventDate={reservationsEvent.date}
+                    eventLocation={reservationsEvent.location}
+                    eventMaxCapacity={reservationsEvent.max_capacity}
+                    eventStatus={reservationsEvent.status}
+                    eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
+                  />
+                  <div className="border-t border-border pt-6">
+                    <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+                  </div>
+                  <div className="border-t border-border pt-6">
+                    <EventAnnouncementsManager eventId={reservationsEvent.id} />
+                  </div>
+                  <div className="border-t border-border pt-6">
+                    <EventSurveyManager eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="presupuesto" className="pt-4">
+                <EventCostSimulator eventId={reservationsEvent.id} />
+              </TabsContent>
+            </Tabs>
           )}
+
         </SheetContent>
       </Sheet>
 
