@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Calculator,
 } from "lucide-react";
 import {
   DropdownMenu,
