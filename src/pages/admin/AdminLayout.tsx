@@ -36,7 +36,7 @@ const modules: NavModule[] = [
         items: [
           { to: "/admin/alumnos", label: "Alumnos", icon: Users, noveltyKey: "alumnos" },
           { to: "/admin/coaches", label: "Coaches", icon: UserCog },
-          { to: "/admin/asesoria", label: "Asesoría", icon: UserCog },
+          // { to: "/admin/asesoria", label: "Asesoría", icon: UserCog }, // oculto: sin uso operativo real
           { to: "/admin/solicitudes-cambio-plan", label: "Solicitudes cambio plan", icon: RefreshCw, noveltyKey: "cambios_plan" },
         ],
       },
@@ -93,7 +93,7 @@ const modules: NavModule[] = [
         label: "Contabilidad",
         items: [
           { to: "/admin/facturacion", label: "Facturación", icon: FileText },
-          { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
+          // { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote }, // oculto: sin uso operativo real
           { to: "/admin/gastos", label: "Gastos", icon: Wallet, superAdmin: true },
         ],
       },
@@ -118,7 +118,7 @@ const modules: NavModule[] = [
           { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
           { to: "/admin/tienda/stock", label: "Stock", icon: Package },
           { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
-          { to: "/admin/tienda/banners", label: "Banners", icon: Image },
+          // { to: "/admin/tienda/banners", label: "Banners", icon: Image }, // oculto: sin uso operativo real
         ],
       },
       {
