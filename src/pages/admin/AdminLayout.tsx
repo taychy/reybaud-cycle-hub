@@ -142,8 +142,8 @@ const modules: NavModule[] = [
       {
         label: "Configuración",
         items: [
+          { to: "/admin/procesos", label: "Procesos", icon: Workflow },
           { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-          
           { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
           { to: "/admin/historial", label: "Historial", icon: ScrollText },
         ],
