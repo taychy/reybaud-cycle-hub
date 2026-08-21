@@ -23,6 +23,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ClipboardList,
+  Calculator,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -72,6 +73,7 @@ import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
+import EventBudgetStartDialog from "@/components/admin/EventBudgetStartDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 /* ─── Type groupings ─── */
@@ -164,6 +166,9 @@ const EventsList = () => {
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [newReservationsByEvent, setNewReservationsByEvent] = useState<Record<string, number>>({});
+  const [budgetEvent, setBudgetEvent] = useState<Event | null>(null);
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [eventsWithBudget, setEventsWithBudget] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
@@ -184,9 +189,26 @@ const EventsList = () => {
     setLoading(false);
   };
 
+  const fetchBudgets = async () => {
+    const { data } = await supabase.from("event_cost_simulations").select("event_id");
+    setEventsWithBudget(new Set(((data as any[]) || []).map((r) => r.event_id)));
+  };
+
+  // Abre el presupuesto de un evento (por id), buscándolo en la lista actual.
+  const openBudget = async (eventId: string) => {
+    let ev = events.find((e) => e.id === eventId) || null;
+    if (!ev) {
+      const { data } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+      ev = (data as unknown as Event) || null;
+    }
+    if (ev) setBudgetEvent(ev);
+  };
+
   useEffect(() => {
     fetchEvents();
+    fetchBudgets();
   }, []);
+
 
   // Reservas nuevas desde la última visita a "Eventos", agrupadas por evento,
   // para poder detectar en qué evento está la novedad que marca la pelotita del sidebar.
@@ -332,9 +354,14 @@ const EventsList = () => {
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Eventos</h1>
           <p className="text-sm text-muted-foreground">{events.length} eventos en total</p>
         </div>
-        <Button variant="gold" onClick={openCreate} className="gap-2">
-          <Plus className="w-4 h-4" /> Nuevo Evento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setBudgetDialogOpen(true)} className="gap-2">
+            <Calculator className="w-4 h-4" /> Crear presupuesto
+          </Button>
+          <Button variant="gold" onClick={openCreate} className="gap-2">
+            <Plus className="w-4 h-4" /> Nuevo Evento
+          </Button>
+        </div>
       </div>
 
       {/* Tab Filters */}
@@ -534,6 +561,10 @@ const EventsList = () => {
                       <DropdownMenuItem onClick={() => setFinanceEvent(ev)}>
                         <Wallet className="w-4 h-4 mr-2" /> Finanzas
                       </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => setBudgetEvent(ev)}>
+                        <Calculator className="w-4 h-4 mr-2" />
+                        {eventsWithBudget.has(ev.id) ? "Ver presupuesto" : "Crear presupuesto"}
+                      </DropdownMenuItem>
                       {ev.type === "record_hora" && (
                         <DropdownMenuItem onClick={() => navigate(`/admin/eventos/participantes?eventId=${ev.id}`)}>
                           <Trophy className="w-4 h-4 mr-2" /> Participantes y resultados
@@ -651,32 +682,46 @@ const EventsList = () => {
             <SheetDescription className="sr-only">Panel de gestión de reservas del evento</SheetDescription>
           </SheetHeader>
           {reservationsEvent && (
-            <div className="space-y-6 pb-8">
-              <AdminEventReservations
-                eventId={reservationsEvent.id}
-                eventTitle={reservationsEvent.title}
-                eventCurrency={reservationsEvent.currency}
-                eventPrice={reservationsEvent.price}
-                eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
-                eventType={(reservationsEvent as any).type as string | undefined}
-                eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
-                eventDate={reservationsEvent.date}
-                eventLocation={reservationsEvent.location}
-                eventMaxCapacity={reservationsEvent.max_capacity}
-                eventStatus={reservationsEvent.status}
-                eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
-              />
-              <div className="border-t border-border pt-6">
-                <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
-              </div>
-              <div className="border-t border-border pt-6">
-                <EventAnnouncementsManager eventId={reservationsEvent.id} />
-              </div>
-              <div className="border-t border-border pt-6">
-                <EventSurveyManager eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
-              </div>
-            </div>
+            <Tabs defaultValue="gestion" className="pb-8">
+              <TabsList>
+                <TabsTrigger value="gestion">Gestión</TabsTrigger>
+                <TabsTrigger value="presupuesto" className="gap-1.5">
+                  <Calculator className="w-3.5 h-3.5" /> Presupuesto
+                </TabsTrigger>
+              </TabsList>
+              <TabsContent value="gestion" className="pt-4">
+                <div className="space-y-6">
+                  <AdminEventReservations
+                    eventId={reservationsEvent.id}
+                    eventTitle={reservationsEvent.title}
+                    eventCurrency={reservationsEvent.currency}
+                    eventPrice={reservationsEvent.price}
+                    eventNature={reservationsEvent.metadata?.event_nature as string | undefined}
+                    eventType={(reservationsEvent as any).type as string | undefined}
+                    eventMetadata={reservationsEvent.metadata as Record<string, any> | undefined}
+                    eventDate={reservationsEvent.date}
+                    eventLocation={reservationsEvent.location}
+                    eventMaxCapacity={reservationsEvent.max_capacity}
+                    eventStatus={reservationsEvent.status}
+                    eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
+                  />
+                  <div className="border-t border-border pt-6">
+                    <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+                  </div>
+                  <div className="border-t border-border pt-6">
+                    <EventAnnouncementsManager eventId={reservationsEvent.id} />
+                  </div>
+                  <div className="border-t border-border pt-6">
+                    <EventSurveyManager eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
+                  </div>
+                </div>
+              </TabsContent>
+              <TabsContent value="presupuesto" className="pt-4">
+                <EventCostSimulator eventId={reservationsEvent.id} />
+              </TabsContent>
+            </Tabs>
           )}
+
         </SheetContent>
       </Sheet>
 
@@ -711,7 +756,44 @@ const EventsList = () => {
           )}
         </SheetContent>
       </Sheet>
+
+      {/* Budget Sheet */}
+      <Sheet
+        open={!!budgetEvent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setBudgetEvent(null);
+            fetchBudgets();
+          }
+        }}
+      >
+        <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider text-xl">
+              Presupuesto — {budgetEvent?.title}
+            </SheetTitle>
+            <SheetDescription className="sr-only">Simulador de costos y presupuesto del evento</SheetDescription>
+          </SheetHeader>
+          {budgetEvent && (
+            <div className="pb-8">
+              <EventCostSimulator eventId={budgetEvent.id} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      <EventBudgetStartDialog
+        open={budgetDialogOpen}
+        onOpenChange={setBudgetDialogOpen}
+        events={events.map((e) => ({ id: e.id, title: e.title, date: e.date, status: e.status }))}
+        onOpenBudget={openBudget}
+        onDraftCreated={() => {
+          fetchEvents();
+          fetchBudgets();
+        }}
+      />
     </div>
+
   );
 };
 
