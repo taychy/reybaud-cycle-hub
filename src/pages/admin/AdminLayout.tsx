@@ -44,9 +44,9 @@ const modules: NavModule[] = [
         label: "Admisiones",
         items: [
           { to: "/admin/eventos", label: "Eventos", icon: Trophy, noveltyKey: "eventos" },
-          { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" },
-          { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" },
-          { to: "/admin/procesos", label: "Procesos", icon: Workflow },
+          // { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" }, // oculto: casi sin uso
+          // { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" }, // oculto: configuración puntual de eventos
+
         ],
       },
       {
@@ -108,7 +108,7 @@ const modules: NavModule[] = [
         label: "General",
         items: [
           { to: "/admin/tienda", label: "Dashboard", icon: LayoutDashboard },
-          { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 },
+          // { to: "/admin/tienda/analytics", label: "Analytics", icon: BarChart3 }, // oculto: duplica Dashboard de Tienda
         ],
       },
       {
@@ -142,8 +142,8 @@ const modules: NavModule[] = [
       {
         label: "Configuración",
         items: [
+          { to: "/admin/procesos", label: "Procesos", icon: Workflow },
           { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-          
           { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
           { to: "/admin/historial", label: "Historial", icon: ScrollText },
         ],
