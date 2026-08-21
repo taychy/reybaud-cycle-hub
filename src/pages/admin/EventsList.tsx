@@ -354,9 +354,14 @@ const EventsList = () => {
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Eventos</h1>
           <p className="text-sm text-muted-foreground">{events.length} eventos en total</p>
         </div>
-        <Button variant="gold" onClick={openCreate} className="gap-2">
-          <Plus className="w-4 h-4" /> Nuevo Evento
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => setBudgetDialogOpen(true)} className="gap-2">
+            <Calculator className="w-4 h-4" /> Crear presupuesto
+          </Button>
+          <Button variant="gold" onClick={openCreate} className="gap-2">
+            <Plus className="w-4 h-4" /> Nuevo Evento
+          </Button>
+        </div>
       </div>
 
       {/* Tab Filters */}
