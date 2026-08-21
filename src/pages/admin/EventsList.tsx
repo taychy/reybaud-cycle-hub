@@ -166,6 +166,9 @@ const EventsList = () => {
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [newReservationsByEvent, setNewReservationsByEvent] = useState<Record<string, number>>({});
+  const [budgetEvent, setBudgetEvent] = useState<Event | null>(null);
+  const [budgetDialogOpen, setBudgetDialogOpen] = useState(false);
+  const [eventsWithBudget, setEventsWithBudget] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     (async () => {
@@ -186,9 +189,26 @@ const EventsList = () => {
     setLoading(false);
   };
 
+  const fetchBudgets = async () => {
+    const { data } = await supabase.from("event_cost_simulations").select("event_id");
+    setEventsWithBudget(new Set(((data as any[]) || []).map((r) => r.event_id)));
+  };
+
+  // Abre el presupuesto de un evento (por id), buscándolo en la lista actual.
+  const openBudget = async (eventId: string) => {
+    let ev = events.find((e) => e.id === eventId) || null;
+    if (!ev) {
+      const { data } = await supabase.from("events").select("*").eq("id", eventId).maybeSingle();
+      ev = (data as unknown as Event) || null;
+    }
+    if (ev) setBudgetEvent(ev);
+  };
+
   useEffect(() => {
     fetchEvents();
+    fetchBudgets();
   }, []);
+
 
   // Reservas nuevas desde la última visita a "Eventos", agrupadas por evento,
   // para poder detectar en qué evento está la novedad que marca la pelotita del sidebar.
