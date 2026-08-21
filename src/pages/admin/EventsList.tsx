@@ -673,7 +673,15 @@ const EventsList = () => {
       </Sheet>
 
       {/* Reservations Sheet – full-width drawer */}
-      <Sheet open={!!reservationsEvent} onOpenChange={(open) => !open && setReservationsEvent(null)}>
+      <Sheet
+        open={!!reservationsEvent}
+        onOpenChange={(open) => {
+          if (!open) {
+            setReservationsEvent(null);
+            fetchBudgets();
+          }
+        }}
+      >
         <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
           <SheetHeader className="pb-2">
             <SheetTitle className="font-heading uppercase tracking-wider text-xl">
