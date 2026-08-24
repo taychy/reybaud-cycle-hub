@@ -658,6 +658,15 @@ const AdminTurnera = () => {
             </TableBody>
           </Table>
 
+          <TurneraReprogramarDialog
+            reserva={reprogramarReserva}
+            coaches={coaches as any}
+            sedes={sedes as any}
+            servicioNombre={reprogramarReserva ? servicioName(reprogramarReserva.servicio_id) : undefined}
+            onClose={() => setReprogramarReserva(null)}
+            onSaved={loadAll}
+          />
+
           <Dialog open={showReservaForm} onOpenChange={(o) => { if (!o) { setShowReservaForm(false); resetReservaForm(); } }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>Nueva reserva</DialogTitle></DialogHeader>
