@@ -14,7 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { toast } from "@/hooks/use-toast";
 import { slugifyServicio } from "@/lib/turneraSlug";
-import { Plus, Trash2, Calendar, Clock, Link as LinkIcon, Copy, X, CopyPlus, Ban, Settings, Check, ChevronsUpDown } from "lucide-react";
+import { Plus, Trash2, Calendar, Clock, Link as LinkIcon, Copy, X, CopyPlus, Ban, Settings, Check, ChevronsUpDown, Pencil } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem,
@@ -23,6 +23,7 @@ import { ServicioConfigDialog } from "@/components/admin/ServicioConfigDialog";
 import { DisponibilidadAjustadaManager } from "@/components/admin/DisponibilidadAjustadaManager";
 import TurneraTransferenciasTab from "@/components/admin/TurneraTransferenciasTab";
 import TurneraBancariosConfig from "@/components/admin/TurneraBancariosConfig";
+import TurneraReprogramarDialog from "@/components/admin/TurneraReprogramarDialog";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -44,6 +45,8 @@ const AdminTurnera = () => {
   const [filtroSede, setFiltroSede] = useState<string>("all");
   const [backfillInfo, setBackfillInfo] = useState<any | null>(null);
   const [backfillLoading, setBackfillLoading] = useState(false);
+  const [reprogramarReserva, setReprogramarReserva] = useState<any | null>(null);
+
 
   const reservasFiltradas = reservas.filter(r =>
     filtroSede === "all" ? true : filtroSede === "none" ? !r.sede_id : r.sede_id === filtroSede,
@@ -627,22 +630,42 @@ const AdminTurnera = () => {
                     </TableCell>
                     <TableCell><Badge variant="outline" className="text-xs capitalize">{r.estado_operativo}</Badge></TableCell>
                     <TableCell>
-                      <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>
-                        <SelectTrigger className="w-[130px] h-7 text-xs"><SelectValue placeholder="Cambiar" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="reservada">Reservada</SelectItem>
-                          <SelectItem value="realizada">Realizada</SelectItem>
-                          <SelectItem value="cancelada_por_alumno">Canc. alumno</SelectItem>
-                          <SelectItem value="cancelada_por_admin">Canc. admin</SelectItem>
-                          <SelectItem value="ausente_alumno">Ausente</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-1">
+                        <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>
+                          <SelectTrigger className="w-[130px] h-7 text-xs"><SelectValue placeholder="Cambiar" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="reservada">Reservada</SelectItem>
+                            <SelectItem value="realizada">Realizada</SelectItem>
+                            <SelectItem value="cancelada_por_alumno">Canc. alumno</SelectItem>
+                            <SelectItem value="cancelada_por_admin">Canc. admin</SelectItem>
+                            <SelectItem value="ausente_alumno">Ausente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={String(r.estado_operativo || "").startsWith("cancelada")}
+                          onClick={() => setReprogramarReserva(r)}
+                        >
+                          <Pencil className="w-3 h-3 mr-1" /> Editar
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
+
+          <TurneraReprogramarDialog
+            reserva={reprogramarReserva}
+            coaches={coaches as any}
+            sedes={sedes as any}
+            servicioNombre={reprogramarReserva ? servicioName(reprogramarReserva.servicio_id) : undefined}
+            onClose={() => setReprogramarReserva(null)}
+            onSaved={loadAll}
+          />
 
           <Dialog open={showReservaForm} onOpenChange={(o) => { if (!o) { setShowReservaForm(false); resetReservaForm(); } }}>
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">

@@ -12817,6 +12817,19 @@ export type Database = {
         Args: { p_note?: string; p_price?: number; p_reservation_id: string }
         Returns: Json
       }
+      admin_update_turnera_reservation: {
+        Args: {
+          p_coach_id: string
+          p_fecha: string
+          p_hora_fin: string
+          p_hora_inicio: string
+          p_motivo: string
+          p_nota: string
+          p_reservation_id: string
+          p_sede_id: string
+        }
+        Returns: Json
+      }
       announce_cash_payment: {
         Args: {
           _fecha_limite: string
