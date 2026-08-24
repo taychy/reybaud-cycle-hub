@@ -48,6 +48,12 @@ export interface Supuestos {
   pct_imprevistos: number; // 0-100
   pct_margen_objetivo: number; // 0-100
   moneda_base: Moneda | string;
+  /**
+   * Total de inscriptos del escenario activo. Es el denominador del prorrateo
+   * de costos GENERALES (no por paquete). Si no viene, se usa el
+   * comportamiento anterior (prorrateo según esperados por paquete).
+   */
+  participantes_prorrateo?: number;
 }
 
 export interface CalculoResult {
@@ -62,7 +68,12 @@ export interface CalculoResult {
   ingreso_esperado: number;
   punto_equilibrio: number; // participantes necesarios (fijos / margen unitario prom)
   moneda_base: string;
+  /** Costos generales (no específicos de un paquete) sujetos a prorrateo */
+  costos_generales_prorrateables: number;
+  /** Costo general por participante según el escenario activo */
+  prorrateo_general_por_persona: number;
 }
+
 
 export const CATEGORIAS_COSTO = [
   "alojamiento",
