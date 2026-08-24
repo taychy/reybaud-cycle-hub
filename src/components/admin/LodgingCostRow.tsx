@@ -44,6 +44,7 @@ interface Props {
 const BASIS_LABELS: Record<CostBasis, string> = {
   habitacion_noche: "Por habitación / noche",
   persona_noche: "Por persona / noche",
+  persona_estadia: "Por persona / estadía",
   total: "Total contratado",
 };
 
@@ -75,7 +76,9 @@ export default function LodgingCostRow({
       ? habitaciones * noches * Number(item.precio_unitario || 0)
       : basis === "persona_noche"
         ? pax * noches * Number(item.precio_unitario || 0)
-        : Number(item.precio_unitario || 0) * (Number(item.cantidad) > 0 ? Number(item.cantidad) : 1);
+        : basis === "persona_estadia"
+          ? pax * Number(item.precio_unitario || 0)
+          : Number(item.precio_unitario || 0) * (Number(item.cantidad) > 0 ? Number(item.cantidad) : 1);
 
   const plazas = info ? info.plazas : 0;
   const excedido = plazas > 0 && pax > plazas;
@@ -157,7 +160,7 @@ export default function LodgingCostRow({
               onChange={(e) => patchDetalle({ habitaciones: Number(e.target.value) })} />
           </div>
         )}
-        {basis !== "total" && (
+        {basis !== "total" && basis !== "persona_estadia" && (
           <div className="space-y-1">
             <Label className="text-xs">Noches</Label>
             <Input type="number" className="h-9" value={noches}
@@ -186,6 +189,11 @@ export default function LodgingCostRow({
             {info.habitaciones > 0 ? `${info.habitaciones} habitaciones · ` : ""}
             {info.plazas} plazas · {personas} personas/hab.
           </Badge>
+        )}
+        {(basis === "persona_estadia" || basis === "persona_noche") && pax === 0 && (
+          <span className="text-muted-foreground">
+            Cargá participantes esperados de este paquete para calcular esta forma de costo.
+          </span>
         )}
         {excedido && (
           <span className="flex items-center gap-1 text-amber-500">
