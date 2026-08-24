@@ -925,6 +925,10 @@ export default function EventCostSimulator({ eventId }: Props) {
                           <div className="flex-1 truncate">{m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span></div>
                           <div className="text-xs text-muted-foreground">
                             Costo unit: {formatPrice((calculo.costo_por_modalidad[m.key] || 0) / (m.esperados || 1), current.moneda_base)}
+                            {calculo.prorrateo_general_por_persona > 0 && (
+                              <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
+                            )}
+
                           </div>
                           <div className="font-semibold">
                             Sug: {formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}
