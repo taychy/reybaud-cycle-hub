@@ -24,7 +24,7 @@ interface Props {
   eventId: string;
   monedaBase: string;
   nextSortOrder: number;
-  onCreated: (packageId: string) => void;
+  onCreated: (packageId: string, cupo: number) => void | Promise<void>;
 }
 
 export default function AddLodgingTypeDialog({
@@ -86,7 +86,7 @@ export default function AddLodgingTypeDialog({
     setSaving(false);
     toast({ title: "Tipo de alojamiento creado" });
     onOpenChange(false);
-    onCreated(pkg.id);
+    onCreated(pkg.id, cupo);
   };
 
   return (

@@ -112,6 +112,27 @@ export default function EventCostSimulator({ eventId }: Props) {
     })();
   }, [currentId]);
 
+  /** Backfill: sólo claves AUSENTES de la simulación actual arrancan en 100% de ocupación (cupo). */
+  useEffect(() => {
+    if (!current || packages.length === 0) return;
+    const existing = (current.cantidades_esperadas || {}) as Record<string, number>;
+    const missing: Record<string, number> = {};
+    packages.forEach((p) => {
+      if (existing[p.id] === undefined || existing[p.id] === null) {
+        const cupo = Number(p.cupo) || 0;
+        if (cupo > 0) missing[p.id] = cupo;
+      }
+    });
+    if (Object.keys(missing).length === 0) return;
+    const merged = { ...existing, ...missing };
+    setSims((old) => old.map((s) => s.id === current.id ? { ...s, cantidades_esperadas: merged } : s));
+    supabase.from("event_cost_simulations")
+      .update({ cantidades_esperadas: merged as any })
+      .eq("id", current.id)
+      .then(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [current?.id, packages]);
+
   // Derive modalities from packages + cantidades_esperadas
   useEffect(() => {
     if (!current) return;
@@ -527,11 +548,20 @@ export default function EventCostSimulator({ eventId }: Props) {
                       onBlur={guardarCambios} /></div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Participantes esperados por modalidad</Label>
+                  <Label className="text-xs">Escenario de venta</Label>
+                  <p className="text-xs text-muted-foreground">
+                    El sistema parte del 100% de ocupación. Podés bajar los esperados para simular una venta parcial.
+                  </p>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {packages.map((p) => (
                       <div key={p.id} className="flex items-center gap-2">
-                        <span className="text-sm flex-1 truncate">{p.nombre}</span>
+                        <span className="text-sm flex-1 truncate">
+                          {p.nombre}
+                          {Number(p.cupo) > 0 && (
+                            <span className="text-muted-foreground"> · capacidad {Number(p.cupo)} plazas</span>
+                          )}
+                        </span>
+                        <Label className="text-[10px] text-muted-foreground">Esperados</Label>
                         <Input type="number" className="w-24"
                           value={Number(current.cantidades_esperadas?.[p.id] ?? 0)}
                           onChange={(e) => patchCurrent({
@@ -931,7 +961,18 @@ export default function EventCostSimulator({ eventId }: Props) {
           eventId={eventId}
           monedaBase={current.moneda_base}
           nextSortOrder={nextSortOrder}
-          onCreated={() => loadSims()}
+          onCreated={async (packageId, cupo) => {
+            // Escenario de venta inicial: 100% de ocupación del nuevo tipo de alojamiento.
+            if (current && cupo > 0) {
+              const existing = (current.cantidades_esperadas || {}) as Record<string, number>;
+              if (existing[packageId] === undefined || existing[packageId] === null) {
+                await supabase.from("event_cost_simulations")
+                  .update({ cantidades_esperadas: { ...existing, [packageId]: cupo } as any })
+                  .eq("id", current.id);
+              }
+            }
+            loadSims();
+          }}
         />
       )}
     </div>
