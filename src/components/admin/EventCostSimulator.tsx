@@ -39,11 +39,20 @@ interface SimRow {
   moneda_base: string;
   noches: number; jornadas: number; capacidad_total: number;
   cantidades_esperadas: Record<string, number>;
+  escenarios_inscripcion: EscenarioInscripcion[] | null;
+  escenario_activo_id: string | null;
   resultados: any;
   resultados_reales: any;
   estado: "borrador" | "activa" | "archivada";
   aplicada_a_packages_at: string | null;
 }
+
+export interface EscenarioInscripcion {
+  id: string;
+  nombre: string;
+  inscriptos: number;
+}
+
 
 interface ItemRow extends CostItem { id: string; simulation_id: string; }
 interface ActualRow {
