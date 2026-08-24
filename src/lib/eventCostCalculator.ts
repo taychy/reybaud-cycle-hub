@@ -247,5 +247,8 @@ export function calcularSimulacion(
     ingreso_esperado,
     punto_equilibrio,
     moneda_base: supuestos.moneda_base,
+    costos_generales_prorrateables: costos_generales_prorrateables * factorImp,
+    prorrateo_general_por_persona: prorrateo_general_por_persona * factorImp,
+
   };
 }
