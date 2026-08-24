@@ -39,11 +39,20 @@ interface SimRow {
   moneda_base: string;
   noches: number; jornadas: number; capacidad_total: number;
   cantidades_esperadas: Record<string, number>;
+  escenarios_inscripcion: EscenarioInscripcion[] | null;
+  escenario_activo_id: string | null;
   resultados: any;
   resultados_reales: any;
   estado: "borrador" | "activa" | "archivada";
   aplicada_a_packages_at: string | null;
 }
+
+export interface EscenarioInscripcion {
+  id: string;
+  nombre: string;
+  inscriptos: number;
+}
+
 
 interface ItemRow extends CostItem { id: string; simulation_id: string; }
 interface ActualRow {
@@ -145,13 +154,58 @@ export default function EventCostSimulator({ eventId }: Props) {
     setParticipantesReales(current.resultados_reales?.participantes || {});
   }, [current, packages]);
 
+  /* ─── Escenarios de inscripción ─── */
+  const capacidadTotal = useMemo(() => {
+    const cap = Number(current?.capacidad_total) || 0;
+    if (cap > 0) return cap;
+    return packages.reduce((a, p) => a + (Number(p.cupo) || 0), 0);
+  }, [current?.capacidad_total, packages]);
+
+  const sumaDistribucion = useMemo(
+    () => Object.values(current?.cantidades_esperadas || {})
+      .reduce((a: number, v: any) => a + (Number(v) || 0), 0),
+    [current?.cantidades_esperadas],
+  );
+
+  const escenarios: EscenarioInscripcion[] = useMemo(() => {
+    const stored = (current?.escenarios_inscripcion || []) as EscenarioInscripcion[];
+    if (Array.isArray(stored) && stored.length > 0) {
+      return stored.map((e) => ({
+        id: String(e.id), nombre: String(e.nombre || ""), inscriptos: Number(e.inscriptos) || 0,
+      }));
+    }
+    return [
+      { id: "conservador", nombre: "Conservador", inscriptos: Math.round(capacidadTotal * 0.5) },
+      { id: "esperado", nombre: "Esperado", inscriptos: sumaDistribucion > 0 ? sumaDistribucion : Math.round(capacidadTotal * 0.75) },
+      { id: "completo", nombre: "Completo", inscriptos: capacidadTotal },
+    ];
+  }, [current?.escenarios_inscripcion, capacidadTotal, sumaDistribucion]);
+
+  const escenarioActivo = useMemo(() => {
+    return escenarios.find((e) => e.id === current?.escenario_activo_id)
+      || escenarios.find((e) => e.id === "esperado")
+      || escenarios[0]
+      || null;
+  }, [escenarios, current?.escenario_activo_id]);
+
+  const persistEscenarios = async (next: EscenarioInscripcion[], activoId?: string | null) => {
+    if (!current) return;
+    const activo = activoId !== undefined ? activoId : (current.escenario_activo_id || escenarioActivo?.id || null);
+    patchCurrent({ escenarios_inscripcion: next, escenario_activo_id: activo });
+    await supabase.from("event_cost_simulations")
+      .update({ escenarios_inscripcion: next as any, escenario_activo_id: activo })
+      .eq("id", current.id);
+  };
+
   const supuestos: Supuestos | null = current ? {
     tc_usd: Number(current.tc_usd),
     tc_eur: Number(current.tc_eur),
     pct_imprevistos: Number(current.pct_imprevistos),
     pct_margen_objetivo: Number(current.pct_margen_objetivo),
     moneda_base: current.moneda_base,
+    participantes_prorrateo: Number(escenarioActivo?.inscriptos) || 0,
   } : null;
+
 
   const lodgingPackages = useMemo(
     () => packages.filter((p) => p.sin_alojamiento !== true),
@@ -200,6 +254,9 @@ export default function EventCostSimulator({ eventId }: Props) {
       noches: duplicarDe.noches, jornadas: duplicarDe.jornadas,
       capacidad_total: duplicarDe.capacidad_total,
       cantidades_esperadas: duplicarDe.cantidades_esperadas,
+      escenarios_inscripcion: duplicarDe.escenarios_inscripcion || [],
+      escenario_activo_id: duplicarDe.escenario_activo_id,
+
     } : {};
     const { data, error } = await supabase.from("event_cost_simulations").insert({
       event_id: eventId,
@@ -254,6 +311,9 @@ export default function EventCostSimulator({ eventId }: Props) {
       noches: current.noches, jornadas: current.jornadas,
       capacidad_total: current.capacidad_total,
       cantidades_esperadas: current.cantidades_esperadas,
+      escenarios_inscripcion: (current.escenarios_inscripcion || []) as any,
+      escenario_activo_id: current.escenario_activo_id,
+
       resultados: calculo as any,
     }).eq("id", current.id);
     toast({ title: "Guardado" });
@@ -548,10 +608,17 @@ export default function EventCostSimulator({ eventId }: Props) {
                       onBlur={guardarCambios} /></div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Escenario de venta</Label>
+                  <Label className="text-xs">Distribución estimada por paquete (ocupación e ingresos)</Label>
                   <p className="text-xs text-muted-foreground">
-                    El sistema parte del 100% de ocupación. Podés bajar los esperados para simular una venta parcial.
+                    Esta distribución sirve para proyectar ocupación e ingresos. El prorrateo general usa el total de inscriptos del escenario activo.
                   </p>
+                  {escenarioActivo && sumaDistribucion !== escenarioActivo.inscriptos && (
+                    <p className="text-xs text-amber-500">
+                      La distribución por paquetes suma {sumaDistribucion} y el escenario activo tiene {escenarioActivo.inscriptos} inscriptos:
+                      precio y proyección de ingresos usan supuestos distintos.
+                    </p>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {packages.map((p) => (
                       <div key={p.id} className="flex items-center gap-2">
@@ -732,6 +799,91 @@ export default function EventCostSimulator({ eventId }: Props) {
               </CardContent>
             </Card>
 
+            {/* Escenarios de inscripción */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm">Escenarios de inscripción</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                    El total de inscriptos del escenario activo es el denominador del prorrateo de los costos generales del viaje.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => {
+                  const next = [...escenarios, {
+                    id: `esc_${Date.now()}`, nombre: "Personalizado",
+                    inscriptos: escenarioActivo?.inscriptos || 0,
+                  }];
+                  persistEscenarios(next);
+                }}>
+                  <Plus className="w-4 h-4 mr-1" /> Agregar escenario
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {escenarios.map((e, idx) => {
+                    const activo = escenarioActivo?.id === e.id;
+                    return (
+                      <div key={e.id}
+                        className={`border rounded-md p-3 space-y-2 ${activo ? "border-primary bg-primary/5" : ""}`}>
+                        <div className="flex items-center gap-2">
+                          <Input className="h-8 text-sm" value={e.nombre}
+                            onChange={(ev) => {
+                              const next = escenarios.map((x, i) => i === idx ? { ...x, nombre: ev.target.value } : x);
+                              patchCurrent({ escenarios_inscripcion: next });
+                            }}
+                            onBlur={() => persistEscenarios(escenarios)} />
+                          {escenarios.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-8 w-7" title="Eliminar escenario"
+                              onClick={() => {
+                                const next = escenarios.filter((_, i) => i !== idx);
+                                persistEscenarios(next, activo ? next[0]?.id ?? null : undefined);
+                              }}>
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[10px] text-muted-foreground">Inscriptos</Label>
+                          <Input type="number" className="h-8 w-24" value={e.inscriptos}
+                            onChange={(ev) => {
+                              const next = escenarios.map((x, i) => i === idx ? { ...x, inscriptos: Number(ev.target.value) } : x);
+                              patchCurrent({ escenarios_inscripcion: next });
+                            }}
+                            onBlur={() => persistEscenarios(escenarios)} />
+                        </div>
+                        {activo ? (
+                          <Badge className="text-[10px]">Activo · usado para precios</Badge>
+                        ) : (
+                          <Button size="sm" variant="outline" className="w-full h-7 text-xs"
+                            onClick={() => persistEscenarios(escenarios, e.id)}>
+                            Usar para precios
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {calculo && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Costos generales prorrateables</div>
+                      <div className="font-semibold">{formatPrice(calculo.costos_generales_prorrateables, current.moneda_base)}</div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Escenario activo</div>
+                      <div className="font-semibold">{escenarioActivo?.inscriptos ?? 0} inscriptos</div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Prorrateo general</div>
+                      <div className="font-semibold">
+                        {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)} por participante
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
 
             {/* Resultados */}
             {calculo && (
@@ -773,6 +925,10 @@ export default function EventCostSimulator({ eventId }: Props) {
                           <div className="flex-1 truncate">{m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span></div>
                           <div className="text-xs text-muted-foreground">
                             Costo unit: {formatPrice((calculo.costo_por_modalidad[m.key] || 0) / (m.esperados || 1), current.moneda_base)}
+                            {calculo.prorrateo_general_por_persona > 0 && (
+                              <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
+                            )}
+
                           </div>
                           <div className="font-semibold">
                             Sug: {formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}

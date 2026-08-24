@@ -48,6 +48,12 @@ export interface Supuestos {
   pct_imprevistos: number; // 0-100
   pct_margen_objetivo: number; // 0-100
   moneda_base: Moneda | string;
+  /**
+   * Total de inscriptos del escenario activo. Es el denominador del prorrateo
+   * de costos GENERALES (no por paquete). Si no viene, se usa el
+   * comportamiento anterior (prorrateo según esperados por paquete).
+   */
+  participantes_prorrateo?: number;
 }
 
 export interface CalculoResult {
@@ -62,7 +68,12 @@ export interface CalculoResult {
   ingreso_esperado: number;
   punto_equilibrio: number; // participantes necesarios (fijos / margen unitario prom)
   moneda_base: string;
+  /** Costos generales (no específicos de un paquete) sujetos a prorrateo */
+  costos_generales_prorrateables: number;
+  /** Costo general por participante según el escenario activo */
+  prorrateo_general_por_persona: number;
 }
+
 
 export const CATEGORIAS_COSTO = [
   "alojamiento",
@@ -106,8 +117,14 @@ export function calcularSimulacion(
   modalidades.forEach((m) => (costo_por_modalidad[m.key] = 0));
 
   const totalEsperados = modalidades.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
+  const prorrateoBase = Number(supuestos.participantes_prorrateo) > 0
+    ? Number(supuestos.participantes_prorrateo)
+    : 0;
   let costos_fijos = 0;
   let costos_variables = 0;
+  let costos_generales_prorrateables = 0;
+  let prorrateo_general_por_persona = 0;
+
 
   for (const it of items) {
     // ── Alojamiento por paquete (línea especializada) ──
@@ -164,16 +181,30 @@ export function calcularSimulacion(
       por_categoria[it.categoria] =
         (por_categoria[it.categoria] || 0) - totalItem + totalVar;
     } else {
-      // fixed cost, prorated over expected participants of applicable modalities
+      // costo GENERAL prorrateable
       costos_fijos += totalItem;
-      const applyEsperados = applyTo.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
-      if (applyEsperados > 0) {
-        applyTo.forEach((m) => {
-          const share = (totalItem * (Number(m.esperados) || 0)) / applyEsperados;
-          costo_por_modalidad[m.key] += share;
+      costos_generales_prorrateables += totalItem;
+      const esGeneral = !it.aplica_a_modalidades?.length;
+      if (esGeneral && prorrateoBase > 0) {
+        // El denominador es SIEMPRE el escenario total de inscriptos:
+        // todos los paquetes reciben el mismo costo general por persona.
+        const porPersona = totalItem / prorrateoBase;
+        prorrateo_general_por_persona += porPersona;
+        modalidades.forEach((m) => {
+          costo_por_modalidad[m.key] += porPersona * (Number(m.esperados) || 0);
         });
+      } else {
+        // subset explícito de modalidades (o sin escenario): comportamiento previo
+        const applyEsperados = applyTo.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
+        if (applyEsperados > 0) {
+          applyTo.forEach((m) => {
+            const share = (totalItem * (Number(m.esperados) || 0)) / applyEsperados;
+            costo_por_modalidad[m.key] += share;
+          });
+        }
       }
     }
+
   }
 
   const total_costos_base = costos_fijos + costos_variables;
@@ -216,5 +247,8 @@ export function calcularSimulacion(
     ingreso_esperado,
     punto_equilibrio,
     moneda_base: supuestos.moneda_base,
+    costos_generales_prorrateables: costos_generales_prorrateables * factorImp,
+    prorrateo_general_por_persona: prorrateo_general_por_persona * factorImp,
+
   };
 }

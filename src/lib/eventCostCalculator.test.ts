@@ -133,3 +133,72 @@ describe("eventCostCalculator alojamiento", () => {
     expect(r.costo_por_modalidad.dob).toBe(400);
   });
 });
+
+describe("escenarios de inscripción (prorrateo general)", () => {
+  const supEsc = (n?: number): Supuestos => ({ ...sup, participantes_prorrateo: n });
+
+  it("costo fijo general 600 con escenario 10 => 60 por persona en todos los paquetes", () => {
+    const items: CostItem[] = [base({ categoria: "transporte", cantidad: 1, precio_unitario: 600 })];
+    const r = calcularSimulacion(items, mods, supEsc(10));
+    expect(r.precio_sugerido_por_modalidad.ind).toBe(60);
+    expect(r.precio_sugerido_por_modalidad.dob).toBe(60);
+    expect(r.costos_generales_prorrateables).toBe(600);
+    expect(r.prorrateo_general_por_persona).toBe(60);
+  });
+
+  it("escenario 20 => 30 por persona", () => {
+    const items: CostItem[] = [base({ categoria: "transporte", cantidad: 1, precio_unitario: 600 })];
+    const r = calcularSimulacion(items, mods, supEsc(20));
+    expect(r.precio_sugerido_por_modalidad.ind).toBe(30);
+    expect(r.precio_sugerido_por_modalidad.dob).toBe(30);
+    expect(r.prorrateo_general_por_persona).toBe(30);
+  });
+
+  it("es_por_persona=true es directo y no cambia con el escenario", () => {
+    const items: CostItem[] = [
+      base({ categoria: "servicios", cantidad: 1, precio_unitario: 50, es_por_persona: true }),
+    ];
+    const a = calcularSimulacion(items, mods, supEsc(10));
+    const b = calcularSimulacion(items, mods, supEsc(20));
+    expect(a.precio_sugerido_por_modalidad.ind).toBe(50);
+    expect(b.precio_sugerido_por_modalidad.ind).toBe(50);
+    expect(b.precio_sugerido_por_modalidad.dob).toBe(50);
+    expect(b.costos_generales_prorrateables).toBe(0);
+  });
+
+  it("alojamiento persona_estadia sigue exclusivo por paquete y no cambia con el escenario", () => {
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 799,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia" } }),
+    ];
+    const a = calcularSimulacion(items, mods, supEsc(10));
+    const b = calcularSimulacion(items, mods, supEsc(20));
+    expect(a.costo_por_modalidad.dob).toBe(3196);
+    expect(b.costo_por_modalidad.dob).toBe(3196);
+    expect(b.costo_por_modalidad.ind).toBe(0);
+    expect(b.costos_generales_prorrateables).toBe(0);
+  });
+
+  it("combina alojamiento propio + variable por persona + general prorrateado", () => {
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 1200,
+        detalle: { package_id: "ind", cost_basis: "persona_estadia" } }),
+      base({ categoria: "alojamiento", precio_unitario: 799,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia" } }),
+      base({ categoria: "servicios", cantidad: 1, precio_unitario: 50, es_por_persona: true }),
+      base({ categoria: "transporte", cantidad: 1, precio_unitario: 6000 }),
+    ];
+    const r = calcularSimulacion(items, mods, supEsc(15));
+    // general: 6000/15 = 400 por persona para todos
+    expect(r.prorrateo_general_por_persona).toBe(400);
+    expect(r.precio_sugerido_por_modalidad.ind).toBe(1200 + 50 + 400);
+    expect(r.precio_sugerido_por_modalidad.dob).toBe(799 + 50 + 400);
+  });
+
+  it("sin participantes_prorrateo conserva el comportamiento anterior", () => {
+    const items: CostItem[] = [base({ categoria: "transporte", cantidad: 1, precio_unitario: 600 })];
+    const r = calcularSimulacion(items, mods, sup);
+    expect(r.costo_por_modalidad.ind).toBe(200);
+    expect(r.costo_por_modalidad.dob).toBe(400);
+  });
+});
