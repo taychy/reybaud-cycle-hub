@@ -311,6 +311,9 @@ export default function EventCostSimulator({ eventId }: Props) {
       noches: current.noches, jornadas: current.jornadas,
       capacidad_total: current.capacidad_total,
       cantidades_esperadas: current.cantidades_esperadas,
+      escenarios_inscripcion: (current.escenarios_inscripcion || []) as any,
+      escenario_activo_id: current.escenario_activo_id,
+
       resultados: calculo as any,
     }).eq("id", current.id);
     toast({ title: "Guardado" });
