@@ -117,8 +117,14 @@ export function calcularSimulacion(
   modalidades.forEach((m) => (costo_por_modalidad[m.key] = 0));
 
   const totalEsperados = modalidades.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
+  const prorrateoBase = Number(supuestos.participantes_prorrateo) > 0
+    ? Number(supuestos.participantes_prorrateo)
+    : 0;
   let costos_fijos = 0;
   let costos_variables = 0;
+  let costos_generales_prorrateables = 0;
+  let prorrateo_general_por_persona = 0;
+
 
   for (const it of items) {
     // ── Alojamiento por paquete (línea especializada) ──
