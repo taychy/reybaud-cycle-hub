@@ -175,16 +175,30 @@ export function calcularSimulacion(
       por_categoria[it.categoria] =
         (por_categoria[it.categoria] || 0) - totalItem + totalVar;
     } else {
-      // fixed cost, prorated over expected participants of applicable modalities
+      // costo GENERAL prorrateable
       costos_fijos += totalItem;
-      const applyEsperados = applyTo.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
-      if (applyEsperados > 0) {
-        applyTo.forEach((m) => {
-          const share = (totalItem * (Number(m.esperados) || 0)) / applyEsperados;
-          costo_por_modalidad[m.key] += share;
+      costos_generales_prorrateables += totalItem;
+      const esGeneral = !it.aplica_a_modalidades?.length;
+      if (esGeneral && prorrateoBase > 0) {
+        // El denominador es SIEMPRE el escenario total de inscriptos:
+        // todos los paquetes reciben el mismo costo general por persona.
+        const porPersona = totalItem / prorrateoBase;
+        prorrateo_general_por_persona += porPersona;
+        modalidades.forEach((m) => {
+          costo_por_modalidad[m.key] += porPersona * (Number(m.esperados) || 0);
         });
+      } else {
+        // subset explícito de modalidades (o sin escenario): comportamiento previo
+        const applyEsperados = applyTo.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
+        if (applyEsperados > 0) {
+          applyTo.forEach((m) => {
+            const share = (totalItem * (Number(m.esperados) || 0)) / applyEsperados;
+            costo_por_modalidad[m.key] += share;
+          });
+        }
       }
     }
+
   }
 
   const total_costos_base = costos_fijos + costos_variables;
