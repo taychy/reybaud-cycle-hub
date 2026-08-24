@@ -7,7 +7,7 @@
 
 export type Moneda = "ARS" | "USD" | "EUR";
 
-export type CostBasis = "habitacion_noche" | "persona_noche" | "total";
+export type CostBasis = "habitacion_noche" | "persona_noche" | "persona_estadia" | "total";
 
 /** Metadata específica de líneas de alojamiento */
 export interface CostItemDetalle {
@@ -123,6 +123,10 @@ export function calcularSimulacion(
         totalLinea = Number(det.habitaciones || 0) * noches * unit;
       } else if (det.cost_basis === "persona_noche") {
         totalLinea = (Number(mod?.esperados) || 0) * noches * unit;
+        esVariable = true;
+      } else if (det.cost_basis === "persona_estadia") {
+        // El precio ya cubre toda la estadía por persona: no multiplicar por noches.
+        totalLinea = (Number(mod?.esperados) || 0) * unit;
         esVariable = true;
       } else {
         totalLinea = unit * (Number(it.cantidad) > 0 ? Number(it.cantidad) : 1);
