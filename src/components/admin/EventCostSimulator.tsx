@@ -154,13 +154,58 @@ export default function EventCostSimulator({ eventId }: Props) {
     setParticipantesReales(current.resultados_reales?.participantes || {});
   }, [current, packages]);
 
+  /* ─── Escenarios de inscripción ─── */
+  const capacidadTotal = useMemo(() => {
+    const cap = Number(current?.capacidad_total) || 0;
+    if (cap > 0) return cap;
+    return packages.reduce((a, p) => a + (Number(p.cupo) || 0), 0);
+  }, [current?.capacidad_total, packages]);
+
+  const sumaDistribucion = useMemo(
+    () => Object.values(current?.cantidades_esperadas || {})
+      .reduce((a: number, v: any) => a + (Number(v) || 0), 0),
+    [current?.cantidades_esperadas],
+  );
+
+  const escenarios: EscenarioInscripcion[] = useMemo(() => {
+    const stored = (current?.escenarios_inscripcion || []) as EscenarioInscripcion[];
+    if (Array.isArray(stored) && stored.length > 0) {
+      return stored.map((e) => ({
+        id: String(e.id), nombre: String(e.nombre || ""), inscriptos: Number(e.inscriptos) || 0,
+      }));
+    }
+    return [
+      { id: "conservador", nombre: "Conservador", inscriptos: Math.round(capacidadTotal * 0.5) },
+      { id: "esperado", nombre: "Esperado", inscriptos: sumaDistribucion > 0 ? sumaDistribucion : Math.round(capacidadTotal * 0.75) },
+      { id: "completo", nombre: "Completo", inscriptos: capacidadTotal },
+    ];
+  }, [current?.escenarios_inscripcion, capacidadTotal, sumaDistribucion]);
+
+  const escenarioActivo = useMemo(() => {
+    return escenarios.find((e) => e.id === current?.escenario_activo_id)
+      || escenarios.find((e) => e.id === "esperado")
+      || escenarios[0]
+      || null;
+  }, [escenarios, current?.escenario_activo_id]);
+
+  const persistEscenarios = async (next: EscenarioInscripcion[], activoId?: string | null) => {
+    if (!current) return;
+    const activo = activoId !== undefined ? activoId : (current.escenario_activo_id || escenarioActivo?.id || null);
+    patchCurrent({ escenarios_inscripcion: next, escenario_activo_id: activo });
+    await supabase.from("event_cost_simulations")
+      .update({ escenarios_inscripcion: next as any, escenario_activo_id: activo })
+      .eq("id", current.id);
+  };
+
   const supuestos: Supuestos | null = current ? {
     tc_usd: Number(current.tc_usd),
     tc_eur: Number(current.tc_eur),
     pct_imprevistos: Number(current.pct_imprevistos),
     pct_margen_objetivo: Number(current.pct_margen_objetivo),
     moneda_base: current.moneda_base,
+    participantes_prorrateo: Number(escenarioActivo?.inscriptos) || 0,
   } : null;
+
 
   const lodgingPackages = useMemo(
     () => packages.filter((p) => p.sin_alojamiento !== true),
