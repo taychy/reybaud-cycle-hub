@@ -72,7 +72,37 @@ describe("eventCostCalculator alojamiento", () => {
     expect(r.por_categoria.alojamiento).toBe(7990);
   });
 
+  it("individual y doble con persona_estadia conservan costos unitarios distintos", () => {
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 1200,
+        detalle: { package_id: "ind", cost_basis: "persona_estadia" } }),
+      base({ categoria: "alojamiento", precio_unitario: 799,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia" } }),
+    ];
+    const r = calcularSimulacion(items, mods, sup);
+    expect(r.costo_por_modalidad.ind).toBe(2400); // 2 pax * 1200
+    expect(r.costo_por_modalidad.dob).toBe(3196); // 4 pax * 799
+    expect(r.precio_sugerido_por_modalidad.ind).toBe(1200);
+    expect(r.precio_sugerido_por_modalidad.dob).toBe(799);
+    expect(r.costos_variables).toBe(5596);
+    expect(r.costos_fijos).toBe(0);
+  });
 
+  it("persona_estadia combinado con un costo fijo general suma el mismo prorrateo por persona", () => {
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 799,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia" } }),
+      base({ categoria: "transporte", cantidad: 1, precio_unitario: 600 }),
+    ];
+    const r = calcularSimulacion(items, mods, sup);
+    // fijo 600 sobre 6 esperados => 100 por persona
+    expect(r.costo_por_modalidad.ind).toBe(200);
+    expect(r.costo_por_modalidad.dob).toBe(3196 + 400);
+    expect(r.precio_sugerido_por_modalidad.ind).toBe(100);
+    expect(r.precio_sugerido_por_modalidad.dob).toBe(899);
+    expect(r.costos_fijos).toBe(600);
+    expect(r.costos_variables).toBe(3196);
+  });
 
 
   it("total contratado se imputa completo a un solo paquete", () => {
