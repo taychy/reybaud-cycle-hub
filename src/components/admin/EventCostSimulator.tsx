@@ -317,6 +317,28 @@ export default function EventCostSimulator({ eventId }: Props) {
     setItems(items.filter((i) => i.id !== id));
   };
 
+  /** Duplica una línea de costo genérica al final de la lista. */
+  const duplicarItem = async (it: ItemRow) => {
+    if (!current) return;
+    const maxOrden = items.reduce((a, i) => Math.max(a, Number((i as any).orden) || 0), 0);
+    const { data, error } = await supabase.from("event_cost_items").insert({
+      simulation_id: current.id,
+      categoria: it.categoria,
+      descripcion: it.descripcion,
+      cantidad: Number(it.cantidad),
+      precio_unitario: Number(it.precio_unitario),
+      moneda: it.moneda,
+      es_por_persona: it.es_por_persona,
+      aplica_a_modalidades: it.aplica_a_modalidades || [],
+      detalle: ((it as any).detalle || {}) as any,
+      orden: maxOrden + 1,
+    } as any).select().single();
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (data) setItems([...items, data as any]);
+    toast({ title: "Gasto duplicado" });
+  };
+
+
 
   /* ─── actuals ─── */
   const addActual = async () => {
@@ -630,10 +652,17 @@ export default function EventCostSimulator({ eventId }: Props) {
                         onCheckedChange={(v) => updateItem(it.id, { es_por_persona: !!v })} />
                       Por persona
                     </label>
-                    <Button variant="ghost" size="icon" className="col-span-1 h-8 w-8"
-                      onClick={() => delItem(it.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="col-span-1 flex items-center justify-end gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-8 w-7"
+                        title="Duplicar gasto" onClick={() => duplicarItem(it)}>
+                        <Copy className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-7"
+                        title="Eliminar" onClick={() => delItem(it.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+
                     {modalidades.length > 0 && (
                       <div className="col-span-12 flex flex-wrap gap-1 pl-1">
                         <span className="text-[10px] text-muted-foreground mr-1">Aplica a:</span>
