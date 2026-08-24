@@ -23,6 +23,7 @@ import { ServicioConfigDialog } from "@/components/admin/ServicioConfigDialog";
 import { DisponibilidadAjustadaManager } from "@/components/admin/DisponibilidadAjustadaManager";
 import TurneraTransferenciasTab from "@/components/admin/TurneraTransferenciasTab";
 import TurneraBancariosConfig from "@/components/admin/TurneraBancariosConfig";
+import TurneraReprogramarDialog from "@/components/admin/TurneraReprogramarDialog";
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
