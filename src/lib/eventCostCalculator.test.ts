@@ -56,6 +56,22 @@ describe("eventCostCalculator alojamiento", () => {
     expect(r.costos_variables).toBe(200);
   });
 
+  it("persona_estadia no multiplica por noches y sólo afecta a su paquete", () => {
+    const mods10: Modalidad[] = [
+      { key: "ind", label: "Individual", esperados: 3 },
+      { key: "dob", label: "Doble", esperados: 10 },
+    ];
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 799,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia", noches: 7 } }),
+    ];
+    const r = calcularSimulacion(items, mods10, sup);
+    expect(r.costo_por_modalidad.dob).toBe(7990);
+    expect(r.costo_por_modalidad.ind).toBe(0);
+    expect(r.costos_variables).toBe(7990);
+    expect(r.por_categoria.alojamiento).toBe(7990);
+
+
   it("total contratado se imputa completo a un solo paquete", () => {
     const items: CostItem[] = [
       base({ categoria: "alojamiento", cantidad: 1, precio_unitario: 5000,
