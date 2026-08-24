@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getSafeReturnTo } from "@/lib/pendingOtp";
 
 /**
  * Bridge page: validates reservation ownership via `get_my_reservation` RPC
