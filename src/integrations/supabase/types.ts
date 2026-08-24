@@ -3812,6 +3812,8 @@ export type Database = {
           capacidad_total: number
           created_at: string
           created_by: string | null
+          escenario_activo_id: string | null
+          escenarios_inscripcion: Json
           estado: string
           event_id: string
           id: string
@@ -3835,6 +3837,8 @@ export type Database = {
           capacidad_total?: number
           created_at?: string
           created_by?: string | null
+          escenario_activo_id?: string | null
+          escenarios_inscripcion?: Json
           estado?: string
           event_id: string
           id?: string
@@ -3858,6 +3862,8 @@ export type Database = {
           capacidad_total?: number
           created_at?: string
           created_by?: string | null
+          escenario_activo_id?: string | null
+          escenarios_inscripcion?: Json
           estado?: string
           event_id?: string
           id?: string
