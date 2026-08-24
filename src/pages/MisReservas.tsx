@@ -21,7 +21,8 @@ const MisReservas = () => {
     (async () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) {
-        navigate(`/login?redirect=${encodeURIComponent(`/mis-reservas/${id}${window.location.search}`)}`, { replace: true });
+        const target = getSafeReturnTo(`/mis-reservas/${id}${window.location.search}`);
+        navigate(target ? `/?returnTo=${encodeURIComponent(target)}` : "/", { replace: true });
         return;
       }
       const { data, error: rpcErr } = await supabase.rpc("get_my_reservation", { _reservation_id: id });
