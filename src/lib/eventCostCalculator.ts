@@ -7,6 +7,19 @@
 
 export type Moneda = "ARS" | "USD" | "EUR";
 
+export type CostBasis = "habitacion_noche" | "persona_noche" | "total";
+
+/** Metadata específica de líneas de alojamiento */
+export interface CostItemDetalle {
+  package_id?: string | null;
+  cost_basis?: CostBasis;
+  habitaciones?: number;
+  noches?: number;
+  personas_por_habitacion?: number;
+  tipo_habitacion?: string | null;
+  [k: string]: unknown;
+}
+
 export interface CostItem {
   id?: string;
   categoria: string;
@@ -18,7 +31,10 @@ export interface CostItem {
   /** modality keys this cost applies to (empty = all) */
   aplica_a_modalidades: string[];
   orden?: number;
+  /** metadata flexible (alojamiento por paquete, etc.) */
+  detalle?: CostItemDetalle | null;
 }
+
 
 export interface Modalidad {
   key: string;
@@ -94,6 +110,31 @@ export function calcularSimulacion(
   let costos_variables = 0;
 
   for (const it of items) {
+    // ── Alojamiento por paquete (línea especializada) ──
+    const det = (it.detalle || {}) as CostItemDetalle;
+    if (it.categoria === "alojamiento" && det.package_id && det.cost_basis) {
+      const mod = modalidades.find((m) => m.key === det.package_id);
+      const unit = toBase(Number(it.precio_unitario || 0), it.moneda, supuestos);
+      const noches = Number(det.noches || 0);
+      let totalLinea = 0;
+      let esVariable = false;
+
+      if (det.cost_basis === "habitacion_noche") {
+        totalLinea = Number(det.habitaciones || 0) * noches * unit;
+      } else if (det.cost_basis === "persona_noche") {
+        totalLinea = (Number(mod?.esperados) || 0) * noches * unit;
+        esVariable = true;
+      } else {
+        totalLinea = unit * (Number(it.cantidad) > 0 ? Number(it.cantidad) : 1);
+      }
+
+      por_categoria[it.categoria] = (por_categoria[it.categoria] || 0) + totalLinea;
+      if (esVariable) costos_variables += totalLinea; else costos_fijos += totalLinea;
+      // Imputación exclusiva al paquete elegido: nunca se reparte entre modalidades.
+      if (mod) costo_por_modalidad[mod.key] += totalLinea;
+      continue;
+    }
+
     const totalItem = toBase(
       Number(it.cantidad || 0) * Number(it.precio_unitario || 0),
       it.moneda,
@@ -104,6 +145,7 @@ export function calcularSimulacion(
     const applyTo = it.aplica_a_modalidades?.length
       ? modalidades.filter((m) => it.aplica_a_modalidades.includes(m.key))
       : modalidades;
+
 
     if (it.es_por_persona) {
       // per person, per modality selected

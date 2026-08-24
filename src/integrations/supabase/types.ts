@@ -3756,6 +3756,7 @@ export type Database = {
           categoria: string
           created_at: string
           descripcion: string
+          detalle: Json
           es_por_persona: boolean
           id: string
           moneda: string
@@ -3770,6 +3771,7 @@ export type Database = {
           categoria?: string
           created_at?: string
           descripcion?: string
+          detalle?: Json
           es_por_persona?: boolean
           id?: string
           moneda?: string
@@ -3784,6 +3786,7 @@ export type Database = {
           categoria?: string
           created_at?: string
           descripcion?: string
+          detalle?: Json
           es_por_persona?: boolean
           id?: string
           moneda?: string
