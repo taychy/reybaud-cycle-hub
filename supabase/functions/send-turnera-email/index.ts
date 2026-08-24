@@ -693,3 +693,175 @@ async function handleTransferenciaEmail(
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
 }
+
+// ─── Reprogramación de reserva ────────────────────────────────────────
+// Recibe en el body: { reservation_id, tipo, before: {coach_id, fecha, hora_inicio, hora_fin, sede_id},
+//                      motivo, coach_id_target? }
+// `before` viene del RPC admin_update_turnera_reservation; la reserva ya está actualizada en DB.
+async function handleReprogramacionEmail(
+  supabase: any,
+  tipo: Tipo,
+  r: any,
+  s: any,
+  extra: any,
+) {
+  const before = extra?.before || {};
+  const motivo: string = extra?.motivo || "";
+
+  const sedeNombreById = async (id: string | null | undefined) => {
+    if (!id) return "";
+    const { data } = await supabase.from("sedes").select("nombre").eq("id", id).maybeSingle();
+    return data?.nombre || "";
+  };
+  const coachById = async (id: string | null | undefined) => {
+    if (!id) return null;
+    const { data } = await supabase.from("coaches").select("nombre, email").eq("id", id).maybeSingle();
+    return data || null;
+  };
+
+  const servicioNombre = s?.nombre || "Reserva";
+  const alumnoNombre = `${r.nombre || ""} ${r.apellido || ""}`.trim();
+
+  const newFechaTxt = fmtDateAR(r.fecha);
+  const newHoraTxt = `${fmtHoraCorta(r.hora_inicio)} – ${fmtHoraCorta(r.hora_fin)}`;
+  const oldFecha = before.fecha || r.fecha;
+  const oldFechaTxt = fmtDateAR(oldFecha);
+  const oldHoraTxt = `${fmtHoraCorta(before.hora_inicio || r.hora_inicio)} – ${fmtHoraCorta(before.hora_fin || r.hora_fin)}`;
+
+  const [newSede, oldSede, newCoach, oldCoach] = await Promise.all([
+    sedeNombreById(r.sede_id),
+    sedeNombreById(before.sede_id),
+    coachById(r.coach_id),
+    coachById(before.coach_id),
+  ]);
+
+  // Destinatario
+  let recipient = "";
+  let recipientName = "";
+  if (tipo === "reprogramacion") {
+    recipient = r.email || "";
+    recipientName = (r.nombre || "").split(" ")[0] || "alumno";
+  } else if (tipo === "coach_reprogramacion") {
+    const target = extra?.coach_id_target ? await coachById(extra.coach_id_target) : newCoach;
+    recipient = target?.email || "";
+    recipientName = (target?.nombre || "coach").split(" ")[0];
+  } else {
+    const target = extra?.coach_id_target ? await coachById(extra.coach_id_target) : oldCoach;
+    recipient = target?.email || "";
+    recipientName = (target?.nombre || "coach").split(" ")[0];
+  }
+
+  if (!recipient) {
+    return new Response(JSON.stringify({ skipped: true, reason: "no_recipient" }), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  const row = (label: string, antes: string, ahora: string) => {
+    if (antes === ahora) return "";
+    return `<tr>
+      <td style="padding:8px 10px;font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;">${escapeHtml(label)}</td>
+      <td style="padding:8px 10px;font-size:14px;color:#a33;text-decoration:line-through;">${escapeHtml(antes || "—")}</td>
+      <td style="padding:8px 10px;font-size:14px;color:#0f1115;font-weight:600;">${escapeHtml(ahora || "—")}</td>
+    </tr>`;
+  };
+
+  const comparativa = `
+    <div style="background:#fafafa;border:1px solid #eee;border-radius:12px;padding:8px;margin:16px 0;">
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>
+          <td style="padding:6px 10px;font-size:11px;color:#bbb;"></td>
+          <td style="padding:6px 10px;font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Antes</td>
+          <td style="padding:6px 10px;font-size:11px;color:#bbb;text-transform:uppercase;letter-spacing:1px;">Ahora</td>
+        </tr>
+        ${row("Fecha", oldFechaTxt, newFechaTxt)}
+        ${row("Hora", `${oldHoraTxt} hs`, `${newHoraTxt} hs`)}
+        ${row("Coach", oldCoach?.nombre || "", newCoach?.nombre || "")}
+        ${row("Sede", oldSede, newSede)}
+      </table>
+    </div>`;
+
+  const detalleActual = `
+    <div style="background:#fff;border:1px solid #eee;border-radius:12px;padding:16px;margin:16px 0;">
+      <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:6px;">Datos actualizados</div>
+      <div style="font-size:14px;color:#0f1115;line-height:1.7;">
+        <strong>Servicio:</strong> ${escapeHtml(servicioNombre)}<br/>
+        <strong>Fecha:</strong> ${escapeHtml(newFechaTxt)}<br/>
+        <strong>Hora:</strong> ${escapeHtml(newHoraTxt)} hs<br/>
+        ${newCoach?.nombre ? `<strong>Coach:</strong> ${escapeHtml(newCoach.nombre)}<br/>` : ""}
+        ${newSede ? `<strong>Sede:</strong> ${escapeHtml(newSede)}<br/>` : ""}
+        ${alumnoNombre && tipo !== "reprogramacion" ? `<strong>Alumno:</strong> ${escapeHtml(alumnoNombre)}<br/>` : ""}
+      </div>
+    </div>`;
+
+  const motivoBlock = motivo
+    ? `<div style="margin:16px 0;padding:12px 14px;background:#fff8e1;border:1px solid #f0c69a;border-radius:8px;font-size:13px;color:#5a3d00;">
+         <strong>Motivo del cambio:</strong> ${escapeHtml(motivo)}
+       </div>`
+    : "";
+
+  let subject = "";
+  let title = "";
+  let intro = "";
+  let bodyHtml = "";
+
+  if (tipo === "reprogramacion") {
+    subject = `Tu clase fue reprogramada · ${servicioNombre} · ${newFechaTxt}`;
+    title = "🔄 Tu clase fue reprogramada";
+    intro = "Actualizamos los datos de tu clase. Estos son los cambios:";
+    bodyHtml = comparativa + detalleActual + motivoBlock;
+  } else if (tipo === "coach_reprogramacion") {
+    subject = `Clase actualizada · ${newFechaTxt} ${fmtHoraCorta(r.hora_inicio)} · ${alumnoNombre}`;
+    title = "🔄 Una clase tuya fue actualizada";
+    intro = `Se reprogramó la clase con <strong>${escapeHtml(alumnoNombre || "un alumno")}</strong>. Actualizá tu agenda:`;
+    bodyHtml = comparativa + detalleActual + motivoBlock;
+  } else {
+    subject = `Clase reasignada · ${oldFechaTxt} ${fmtHoraCorta(before.hora_inicio || r.hora_inicio)} · ${alumnoNombre}`;
+    title = "ℹ️ Esta clase ya no te corresponde";
+    intro = `La clase con <strong>${escapeHtml(alumnoNombre || "un alumno")}</strong> que tenías el ${escapeHtml(oldFechaTxt)} a las ${escapeHtml(fmtHoraCorta(before.hora_inicio || r.hora_inicio))} hs fue reasignada${newCoach?.nombre ? ` a <strong>${escapeHtml(newCoach.nombre)}</strong>` : ""}. Podés quitarla de tu agenda.`;
+    bodyHtml = detalleActual + motivoBlock;
+  }
+
+  const html = `<!doctype html><html><body style="margin:0;background:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+    <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <span style="font-size:11px;letter-spacing:3px;color:#888;text-transform:uppercase;">Reybaud Ciclismo</span>
+      </div>
+      <h1 style="font-size:22px;color:#0f1115;margin:0 0 12px;">${title}</h1>
+      <p style="font-size:15px;color:#333;margin:0 0 16px;line-height:1.55;">Hola ${escapeHtml(recipientName)}, ${intro}</p>
+      ${bodyHtml}
+      <p style="font-size:12px;color:#999;margin-top:32px;text-align:center;">Reybaud Ciclismo · <a href="${APP_DOMAIN}" style="color:#999;">reybaud-app.com</a></p>
+    </div></body></html>`;
+
+  const messageId = crypto.randomUUID();
+  const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipient);
+
+  const { error: qErr } = await supabase.rpc("enqueue_email", {
+    queue_name: "transactional_emails",
+    payload: {
+      message_id: messageId,
+      to: recipient,
+      from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
+      sender_domain: SENDER_DOMAIN,
+      subject,
+      html,
+      text: `${subject}\n\nAntes: ${oldFechaTxt} ${oldHoraTxt}\nAhora: ${newFechaTxt} ${newHoraTxt}\n${motivo ? `Motivo: ${motivo}\n` : ""}\n${APP_DOMAIN}`,
+      purpose: "transactional",
+      label: `turnera_${tipo}`,
+      // Clave única por envío: una reserva puede reprogramarse varias veces.
+      idempotency_key: `turnera-${tipo}-${r.id}-${messageId}`,
+      unsubscribe_token: unsubscribeToken,
+      queued_at: new Date().toISOString(),
+    },
+  });
+
+  if (qErr) {
+    return new Response(JSON.stringify({ error: "queue_failed", detail: qErr.message }), {
+      status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+
+  return new Response(JSON.stringify({ success: true, tipo, recipient }), {
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
