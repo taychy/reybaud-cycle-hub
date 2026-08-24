@@ -724,6 +724,11 @@ export default function EventCostSimulator({ eventId }: Props) {
                     )}
                   </div>
                 ))}
+                {genericItems.length > 0 && (
+                  <Button variant="outline" className="w-full" onClick={addItem}>
+                    <Plus className="w-4 h-4 mr-1" /> Agregar otro costo
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
