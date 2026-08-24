@@ -630,10 +630,17 @@ export default function EventCostSimulator({ eventId }: Props) {
                         onCheckedChange={(v) => updateItem(it.id, { es_por_persona: !!v })} />
                       Por persona
                     </label>
-                    <Button variant="ghost" size="icon" className="col-span-1 h-8 w-8"
-                      onClick={() => delItem(it.id)}>
-                      <Trash2 className="w-4 h-4 text-destructive" />
-                    </Button>
+                    <div className="col-span-1 flex items-center justify-end gap-0.5">
+                      <Button variant="ghost" size="icon" className="h-8 w-7"
+                        title="Duplicar gasto" onClick={() => duplicarItem(it)}>
+                        <Copy className="w-4 h-4 text-muted-foreground" />
+                      </Button>
+                      <Button variant="ghost" size="icon" className="h-8 w-7"
+                        title="Eliminar" onClick={() => delItem(it.id)}>
+                        <Trash2 className="w-4 h-4 text-destructive" />
+                      </Button>
+                    </div>
+
                     {modalidades.length > 0 && (
                       <div className="col-span-12 flex flex-wrap gap-1 pl-1">
                         <span className="text-[10px] text-muted-foreground mr-1">Aplica a:</span>
