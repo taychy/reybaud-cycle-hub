@@ -3,6 +3,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getSafeReturnTo } from "@/lib/pendingOtp";
 
 /**
  * Bridge page: validates reservation ownership via `get_my_reservation` RPC
@@ -21,7 +22,8 @@ const MisReservas = () => {
     (async () => {
       const { data: session } = await supabase.auth.getSession();
       if (!session.session) {
-        navigate(`/login?redirect=${encodeURIComponent(`/mis-reservas/${id}${window.location.search}`)}`, { replace: true });
+        const target = getSafeReturnTo(`/mis-reservas/${id}${window.location.search}`);
+        navigate(target ? `/?returnTo=${encodeURIComponent(target)}` : "/", { replace: true });
         return;
       }
       const { data, error: rpcErr } = await supabase.rpc("get_my_reservation", { _reservation_id: id });
