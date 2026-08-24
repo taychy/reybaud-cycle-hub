@@ -230,7 +230,11 @@ Deno.serve(async (req) => {
       .eq("id", r.servicio_id)
       .maybeSingle();
 
-    // ─── TIPOS DE TRANSFERENCIA / ADMIN — handler separado, HTML propio ───
+    // ─── REPROGRAMACIÓN — handler separado con datos antes/ahora ───
+    if (tipo === "reprogramacion" || tipo === "coach_reprogramacion" || tipo === "coach_reprogramacion_removida") {
+      return await handleReprogramacionEmail(supabase, tipo, r, s, body);
+    }
+
     const TRANSFER_TIPOS = new Set([
       "transferencia_instrucciones",
       "transferencia_recordatorio_15min",
