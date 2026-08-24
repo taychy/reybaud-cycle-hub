@@ -627,16 +627,27 @@ const AdminTurnera = () => {
                     </TableCell>
                     <TableCell><Badge variant="outline" className="text-xs capitalize">{r.estado_operativo}</Badge></TableCell>
                     <TableCell>
-                      <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>
-                        <SelectTrigger className="w-[130px] h-7 text-xs"><SelectValue placeholder="Cambiar" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="reservada">Reservada</SelectItem>
-                          <SelectItem value="realizada">Realizada</SelectItem>
-                          <SelectItem value="cancelada_por_alumno">Canc. alumno</SelectItem>
-                          <SelectItem value="cancelada_por_admin">Canc. admin</SelectItem>
-                          <SelectItem value="ausente_alumno">Ausente</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <div className="flex items-center gap-1">
+                        <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>
+                          <SelectTrigger className="w-[130px] h-7 text-xs"><SelectValue placeholder="Cambiar" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="reservada">Reservada</SelectItem>
+                            <SelectItem value="realizada">Realizada</SelectItem>
+                            <SelectItem value="cancelada_por_alumno">Canc. alumno</SelectItem>
+                            <SelectItem value="cancelada_por_admin">Canc. admin</SelectItem>
+                            <SelectItem value="ausente_alumno">Ausente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs"
+                          disabled={String(r.estado_operativo || "").startsWith("cancelada")}
+                          onClick={() => setReprogramarReserva(r)}
+                        >
+                          <Pencil className="w-3 h-3 mr-1" /> Editar
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
