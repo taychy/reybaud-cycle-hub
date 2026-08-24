@@ -74,7 +74,7 @@ const PublicPreorderPage = () => {
 
   const handleReserve = () => {
     if (!alumnoId) {
-      navigate(`/?redirect=${encodeURIComponent(`/preventa/${productId}`)}`);
+      navigate(`/?returnTo=${encodeURIComponent(`/preventa/${productId}`)}`);
       return;
     }
     setOpenReserve(true);
