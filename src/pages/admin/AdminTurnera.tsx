@@ -45,6 +45,8 @@ const AdminTurnera = () => {
   const [filtroSede, setFiltroSede] = useState<string>("all");
   const [backfillInfo, setBackfillInfo] = useState<any | null>(null);
   const [backfillLoading, setBackfillLoading] = useState(false);
+  const [reprogramarReserva, setReprogramarReserva] = useState<any | null>(null);
+
 
   const reservasFiltradas = reservas.filter(r =>
     filtroSede === "all" ? true : filtroSede === "none" ? !r.sede_id : r.sede_id === filtroSede,
