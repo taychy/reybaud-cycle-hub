@@ -608,10 +608,17 @@ export default function EventCostSimulator({ eventId }: Props) {
                       onBlur={guardarCambios} /></div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Escenario de venta</Label>
+                  <Label className="text-xs">Distribución estimada por paquete (ocupación e ingresos)</Label>
                   <p className="text-xs text-muted-foreground">
-                    El sistema parte del 100% de ocupación. Podés bajar los esperados para simular una venta parcial.
+                    Esta distribución sirve para proyectar ocupación e ingresos. El prorrateo general usa el total de inscriptos del escenario activo.
                   </p>
+                  {escenarioActivo && sumaDistribucion !== escenarioActivo.inscriptos && (
+                    <p className="text-xs text-amber-500">
+                      La distribución por paquetes suma {sumaDistribucion} y el escenario activo tiene {escenarioActivo.inscriptos} inscriptos:
+                      precio y proyección de ingresos usan supuestos distintos.
+                    </p>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                     {packages.map((p) => (
                       <div key={p.id} className="flex items-center gap-2">
