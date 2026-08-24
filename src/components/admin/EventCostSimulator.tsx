@@ -629,9 +629,11 @@ export default function EventCostSimulator({ eventId }: Props) {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <CardTitle className="text-sm">Otros costos estimados</CardTitle>
-                <Button size="sm" variant="outline" onClick={addItem}>
-                  <Plus className="w-4 h-4 mr-1" /> Agregar
-                </Button>
+                {genericItems.length === 0 && (
+                  <Button size="sm" variant="outline" onClick={addItem}>
+                    <Plus className="w-4 h-4 mr-1" /> Agregar
+                  </Button>
+                )}
               </CardHeader>
               <CardContent className="space-y-2">
                 {genericItems.length === 0 && <p className="text-xs text-muted-foreground">Sin costos cargados aún.</p>}
@@ -722,6 +724,11 @@ export default function EventCostSimulator({ eventId }: Props) {
                     )}
                   </div>
                 ))}
+                {genericItems.length > 0 && (
+                  <Button variant="outline" className="w-full" onClick={addItem}>
+                    <Plus className="w-4 h-4 mr-1" /> Agregar otro costo
+                  </Button>
+                )}
               </CardContent>
             </Card>
 
