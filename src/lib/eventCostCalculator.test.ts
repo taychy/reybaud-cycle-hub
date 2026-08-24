@@ -70,6 +70,9 @@ describe("eventCostCalculator alojamiento", () => {
     expect(r.costo_por_modalidad.ind).toBe(0);
     expect(r.costos_variables).toBe(7990);
     expect(r.por_categoria.alojamiento).toBe(7990);
+  });
+
+
 
 
   it("total contratado se imputa completo a un solo paquete", () => {
