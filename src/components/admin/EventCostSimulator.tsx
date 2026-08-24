@@ -254,6 +254,9 @@ export default function EventCostSimulator({ eventId }: Props) {
       noches: duplicarDe.noches, jornadas: duplicarDe.jornadas,
       capacidad_total: duplicarDe.capacidad_total,
       cantidades_esperadas: duplicarDe.cantidades_esperadas,
+      escenarios_inscripcion: duplicarDe.escenarios_inscripcion || [],
+      escenario_activo_id: duplicarDe.escenario_activo_id,
+
     } : {};
     const { data, error } = await supabase.from("event_cost_simulations").insert({
       event_id: eventId,
