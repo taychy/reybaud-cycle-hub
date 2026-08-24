@@ -317,6 +317,28 @@ export default function EventCostSimulator({ eventId }: Props) {
     setItems(items.filter((i) => i.id !== id));
   };
 
+  /** Duplica una línea de costo genérica al final de la lista. */
+  const duplicarItem = async (it: ItemRow) => {
+    if (!current) return;
+    const maxOrden = items.reduce((a, i) => Math.max(a, Number((i as any).orden) || 0), 0);
+    const { data, error } = await supabase.from("event_cost_items").insert({
+      simulation_id: current.id,
+      categoria: it.categoria,
+      descripcion: it.descripcion,
+      cantidad: Number(it.cantidad),
+      precio_unitario: Number(it.precio_unitario),
+      moneda: it.moneda,
+      es_por_persona: it.es_por_persona,
+      aplica_a_modalidades: it.aplica_a_modalidades || [],
+      detalle: ((it as any).detalle || {}) as any,
+      orden: maxOrden + 1,
+    } as any).select().single();
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    if (data) setItems([...items, data as any]);
+    toast({ title: "Gasto duplicado" });
+  };
+
+
 
   /* ─── actuals ─── */
   const addActual = async () => {
