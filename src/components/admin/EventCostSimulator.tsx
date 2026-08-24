@@ -16,10 +16,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Copy, Archive, Save, Sparkles, Calculator } from "lucide-react";
 import { formatPrice, MONEDAS } from "@/lib/currency";
+import LodgingCostRow from "@/components/admin/LodgingCostRow";
+import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
 import {
   calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS,
   type CostItem, type Modalidad, type Supuestos,
 } from "@/lib/eventCostCalculator";
+
 
 interface Props {
   eventId: string;
@@ -58,6 +61,9 @@ export default function EventCostSimulator({ eventId }: Props) {
   const [actuals, setActuals] = useState<ActualRow[]>([]);
   const [modalidades, setModalidades] = useState<Modalidad[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
+  const [addLodgingOpen, setAddLodgingOpen] = useState(false);
+
   const [participantesReales, setParticipantesReales] = useState<Record<string, number>>({});
   const [applyDialog, setApplyDialog] = useState(false);
   const [applyMap, setApplyMap] = useState<Record<string, boolean>>({});
@@ -68,10 +74,16 @@ export default function EventCostSimulator({ eventId }: Props) {
     setLoading(true);
     const { data: pkgs } = await supabase
       .from("event_packages")
-      .select("id, nombre, precio, currency, tipo_alojamiento, sin_alojamiento, activo")
+      .select("id, nombre, precio, currency, cupo, personas_por_habitacion, sin_alojamiento, activo, lodging_group_key, sort_order")
       .eq("event_id", eventId)
-      .order("orden", { ascending: true });
+      .order("sort_order", { ascending: true });
     setPackages(pkgs || []);
+
+    const { data: rms } = await supabase
+      .from("event_rooms")
+      .select("id, package_id, nombre, capacidad, tipo")
+      .eq("event_id", eventId);
+    setRooms((rms as any) || []);
 
     const { data: simsData } = await supabase
       .from("event_cost_simulations")
@@ -84,6 +96,7 @@ export default function EventCostSimulator({ eventId }: Props) {
     }
     setLoading(false);
   }, [eventId, currentId]);
+
 
   useEffect(() => { loadSims(); }, [loadSims]);
 
@@ -118,6 +131,18 @@ export default function EventCostSimulator({ eventId }: Props) {
     pct_margen_objetivo: Number(current.pct_margen_objetivo),
     moneda_base: current.moneda_base,
   } : null;
+
+  const lodgingPackages = useMemo(
+    () => packages.filter((p) => p.sin_alojamiento !== true),
+    [packages],
+  );
+  const lodgingItems = useMemo(() => items.filter((i) => i.categoria === "alojamiento"), [items]);
+  const genericItems = useMemo(() => items.filter((i) => i.categoria !== "alojamiento"), [items]);
+  const nextSortOrder = useMemo(
+    () => packages.reduce((a, p) => Math.max(a, Number(p.sort_order) || 0), 0) + 1,
+    [packages],
+  );
+
 
   const calculo = useMemo(() => {
     if (!supuestos) return null;
@@ -235,23 +260,63 @@ export default function EventCostSimulator({ eventId }: Props) {
     if (data) setItems([...items, data as any]);
   };
 
+  const addLodgingItem = async () => {
+    if (!current) return;
+    const { data } = await supabase.from("event_cost_items").insert({
+      simulation_id: current.id,
+      categoria: "alojamiento",
+      descripcion: "",
+      cantidad: 1,
+      precio_unitario: 0,
+      moneda: current.moneda_base,
+      es_por_persona: false,
+      aplica_a_modalidades: [],
+      orden: items.length,
+      detalle: {
+        package_id: null,
+        cost_basis: "habitacion_noche",
+        habitaciones: 0,
+        noches: Number(current.noches || 0),
+        personas_por_habitacion: 1,
+        tipo_habitacion: null,
+      },
+    } as any).select().single();
+    if (data) setItems([...items, data as any]);
+  };
+
   const patchItem = async (id: string, patch: Partial<ItemRow>) => {
     setItems((old) => old.map((i) => i.id === id ? { ...i, ...patch } : i));
   };
-  const commitItem = async (id: string) => {
-    const it = items.find((i) => i.id === id);
-    if (!it) return;
+
+  const persistItem = async (it: ItemRow) => {
     await supabase.from("event_cost_items").update({
       categoria: it.categoria, descripcion: it.descripcion,
       cantidad: Number(it.cantidad), precio_unitario: Number(it.precio_unitario),
       moneda: it.moneda, es_por_persona: it.es_por_persona,
       aplica_a_modalidades: it.aplica_a_modalidades,
-    }).eq("id", id);
+      detalle: (it.detalle || {}) as any,
+    } as any).eq("id", it.id);
+  };
+
+  /** Actualiza estado y DB con los valores fusionados (evita leer estado stale). */
+  const updateItem = async (id: string, patch: Partial<ItemRow>) => {
+    const prev = items.find((i) => i.id === id);
+    if (!prev) return;
+    const merged = { ...prev, ...patch } as ItemRow;
+    setItems((old) => old.map((i) => i.id === id ? merged : i));
+    await persistItem(merged);
+  };
+
+  const commitItem = async (id: string) => {
+    const it = items.find((i) => i.id === id);
+    if (!it) return;
+    await persistItem(it);
   };
   const delItem = async (id: string) => {
     await supabase.from("event_cost_items").delete().eq("id", id);
     setItems(items.filter((i) => i.id !== id));
   };
+
 
   /* ─── actuals ─── */
   const addActual = async () => {
@@ -464,19 +529,79 @@ export default function EventCostSimulator({ eventId }: Props) {
               </CardContent>
             </Card>
 
+            {/* Alojamiento por paquete */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm">Alojamiento</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                    El alojamiento se calcula por tipo de habitación/paquete para que cada modalidad tenga su costo y precio sugerido correcto.
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline" onClick={() => setAddLodgingOpen(true)}>
+                    <Plus className="w-4 h-4 mr-1" /> Agregar tipo de alojamiento
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={addLodgingItem}
+                    disabled={lodgingPackages.length === 0}>
+                    <Plus className="w-4 h-4 mr-1" /> Agregar costo
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {lodgingPackages.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Este evento todavía no tiene paquetes con alojamiento. Creá un tipo de alojamiento para poder costearlo.
+                  </p>
+                )}
+                {lodgingItems.length === 0 && lodgingPackages.length > 0 && (
+                  <p className="text-xs text-muted-foreground">Sin costos de alojamiento cargados aún.</p>
+                )}
+                {lodgingItems.map((it) => (
+                  <LodgingCostRow
+                    key={it.id}
+                    item={it as any}
+                    packages={lodgingPackages as any}
+                    rooms={rooms as any}
+                    monedaBase={current.moneda_base}
+                    nochesDefault={Number(current.noches || 0)}
+                    esperados={(current.cantidades_esperadas || {}) as Record<string, number>}
+                    onUpdate={(patch) => updateItem(it.id, patch as any)}
+                    onDelete={() => delItem(it.id)}
+                  />
+                ))}
+              </CardContent>
+            </Card>
+
             {/* Costos */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm">Costos estimados</CardTitle>
+                <CardTitle className="text-sm">Otros costos estimados</CardTitle>
                 <Button size="sm" variant="outline" onClick={addItem}>
                   <Plus className="w-4 h-4 mr-1" /> Agregar
                 </Button>
               </CardHeader>
               <CardContent className="space-y-2">
-                {items.length === 0 && <p className="text-xs text-muted-foreground">Sin costos cargados aún.</p>}
-                {items.map((it) => (
+                {genericItems.length === 0 && <p className="text-xs text-muted-foreground">Sin costos cargados aún.</p>}
+                {genericItems.map((it) => (
                   <div key={it.id} className="grid grid-cols-12 gap-2 items-center border rounded-md p-2">
-                    <Select value={it.categoria} onValueChange={(v) => { patchItem(it.id, { categoria: v }); }}>
+                    <Select value={it.categoria} onValueChange={(v) => {
+                      if (v === "alojamiento") {
+                        updateItem(it.id, {
+                          categoria: v,
+                          detalle: {
+                            package_id: null,
+                            cost_basis: "habitacion_noche",
+                            habitaciones: 0,
+                            noches: Number(current.noches || 0),
+                            personas_por_habitacion: 1,
+                            tipo_habitacion: null,
+                          },
+                        } as any);
+                      } else {
+                        updateItem(it.id, { categoria: v });
+                      }
+                    }}>
                       <SelectTrigger className="col-span-2 h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {CATEGORIAS_COSTO.map((c) => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
@@ -494,7 +619,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                       value={it.precio_unitario}
                       onChange={(e) => patchItem(it.id, { precio_unitario: Number(e.target.value) })}
                       onBlur={() => commitItem(it.id)} />
-                    <Select value={it.moneda} onValueChange={(v) => { patchItem(it.id, { moneda: v }); commitItem(it.id); }}>
+                    <Select value={it.moneda} onValueChange={(v) => updateItem(it.id, { moneda: v })}>
                       <SelectTrigger className="col-span-1 h-8 text-xs"><SelectValue /></SelectTrigger>
                       <SelectContent>
                         {MONEDAS.map((m) => <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>)}
@@ -502,7 +627,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                     </Select>
                     <label className="col-span-2 flex items-center gap-2 text-xs">
                       <Checkbox checked={it.es_por_persona}
-                        onCheckedChange={(v) => { patchItem(it.id, { es_por_persona: !!v }); commitItem(it.id); }} />
+                        onCheckedChange={(v) => updateItem(it.id, { es_por_persona: !!v })} />
                       Por persona
                     </label>
                     <Button variant="ghost" size="icon" className="col-span-1 h-8 w-8"
@@ -530,8 +655,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                                   next = [...cur, m.key];
                                 }
                                 if (next.length === modalidades.length) next = [];
-                                patchItem(it.id, { aplica_a_modalidades: next });
-                                commitItem(it.id);
+                                updateItem(it.id, { aplica_a_modalidades: next });
                               }}>{m.label}</Badge>
                           );
                         })}
@@ -541,6 +665,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                 ))}
               </CardContent>
             </Card>
+
 
             {/* Resultados */}
             {calculo && (
@@ -769,6 +894,18 @@ export default function EventCostSimulator({ eventId }: Props) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {current && (
+        <AddLodgingTypeDialog
+          open={addLodgingOpen}
+          onOpenChange={setAddLodgingOpen}
+          eventId={eventId}
+          monedaBase={current.moneda_base}
+          nextSortOrder={nextSortOrder}
+          onCreated={() => loadSims()}
+        />
+      )}
     </div>
+
   );
 }
