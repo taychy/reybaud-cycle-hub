@@ -799,6 +799,91 @@ export default function EventCostSimulator({ eventId }: Props) {
               </CardContent>
             </Card>
 
+            {/* Escenarios de inscripción */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-sm">Escenarios de inscripción</CardTitle>
+                  <p className="text-xs text-muted-foreground mt-1 max-w-xl">
+                    El total de inscriptos del escenario activo es el denominador del prorrateo de los costos generales del viaje.
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => {
+                  const next = [...escenarios, {
+                    id: `esc_${Date.now()}`, nombre: "Personalizado",
+                    inscriptos: escenarioActivo?.inscriptos || 0,
+                  }];
+                  persistEscenarios(next);
+                }}>
+                  <Plus className="w-4 h-4 mr-1" /> Agregar escenario
+                </Button>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                  {escenarios.map((e, idx) => {
+                    const activo = escenarioActivo?.id === e.id;
+                    return (
+                      <div key={e.id}
+                        className={`border rounded-md p-3 space-y-2 ${activo ? "border-primary bg-primary/5" : ""}`}>
+                        <div className="flex items-center gap-2">
+                          <Input className="h-8 text-sm" value={e.nombre}
+                            onChange={(ev) => {
+                              const next = escenarios.map((x, i) => i === idx ? { ...x, nombre: ev.target.value } : x);
+                              patchCurrent({ escenarios_inscripcion: next });
+                            }}
+                            onBlur={() => persistEscenarios(escenarios)} />
+                          {escenarios.length > 1 && (
+                            <Button variant="ghost" size="icon" className="h-8 w-7" title="Eliminar escenario"
+                              onClick={() => {
+                                const next = escenarios.filter((_, i) => i !== idx);
+                                persistEscenarios(next, activo ? next[0]?.id ?? null : undefined);
+                              }}>
+                              <Trash2 className="w-4 h-4 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[10px] text-muted-foreground">Inscriptos</Label>
+                          <Input type="number" className="h-8 w-24" value={e.inscriptos}
+                            onChange={(ev) => {
+                              const next = escenarios.map((x, i) => i === idx ? { ...x, inscriptos: Number(ev.target.value) } : x);
+                              patchCurrent({ escenarios_inscripcion: next });
+                            }}
+                            onBlur={() => persistEscenarios(escenarios)} />
+                        </div>
+                        {activo ? (
+                          <Badge className="text-[10px]">Activo · usado para precios</Badge>
+                        ) : (
+                          <Button size="sm" variant="outline" className="w-full h-7 text-xs"
+                            onClick={() => persistEscenarios(escenarios, e.id)}>
+                            Usar para precios
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {calculo && (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm">
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Costos generales prorrateables</div>
+                      <div className="font-semibold">{formatPrice(calculo.costos_generales_prorrateables, current.moneda_base)}</div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Escenario activo</div>
+                      <div className="font-semibold">{escenarioActivo?.inscriptos ?? 0} inscriptos</div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Prorrateo general</div>
+                      <div className="font-semibold">
+                        {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)} por participante
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
 
             {/* Resultados */}
             {calculo && (
