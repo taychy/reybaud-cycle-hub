@@ -81,6 +81,7 @@ import DepositoCamioneta from "./pages/deposito/DepositoCamioneta";
 import DepositoExternos from "./pages/deposito/DepositoExternos";
 import DepositoConteos from "./pages/deposito/DepositoConteos";
 import PublicDeliveryList from "./pages/PublicDeliveryList";
+import SupplierOrders from "./pages/SupplierOrders";
 import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EventTerms from "./pages/EventTerms";
