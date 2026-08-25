@@ -76,17 +76,17 @@ const modules: NavModule[] = [
         label: "Cobros",
         items: [
           { to: "/admin/pagos", label: "Pagos", icon: Receipt },
-          { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet },
+          // { to: "/admin/cierre-caja", label: "Cierre de caja", icon: Wallet }, // integrado como tab en /admin/pagos
           { to: "/admin/cuenta-corriente", label: "Cuenta corriente", icon: Wallet },
-          { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck, noveltyKey: "cobros_entrega" },
+          // { to: "/admin/cobros-entrega", label: "Cobros de entrega", icon: Truck, noveltyKey: "cobros_entrega" }, // movido a Tienda > Ventas
         ],
       },
       {
         label: "Precios",
         items: [
-          { to: "/admin/planes", label: "Planes", icon: Package },
-          { to: "/admin/descuentos", label: "Descuentos", icon: Tag },
-          { to: "/admin/precios", label: "Precios", icon: DollarSign },
+          { to: "/admin/planes-precios", label: "Planes y precios", icon: Package },
+          // { to: "/admin/descuentos", label: "Descuentos", icon: Tag }, // tab dentro de Planes y precios
+          // { to: "/admin/precios", label: "Precios", icon: DollarSign }, // tab dentro de Planes y precios
         ],
       },
       {
@@ -114,10 +114,10 @@ const modules: NavModule[] = [
       {
         label: "Catálogo",
         items: [
-          { to: "/admin/tienda/productos", label: "Productos", icon: ShoppingCart },
-          { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag },
-          { to: "/admin/tienda/stock", label: "Stock", icon: Package },
-          { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag },
+          { to: "/admin/tienda/productos", label: "Productos y stock", icon: ShoppingCart },
+          // { to: "/admin/tienda/categorias", label: "Categorías", icon: Tag }, // tab dentro de Productos y stock
+          // { to: "/admin/tienda/stock", label: "Stock", icon: Package }, // tab dentro de Productos y stock
+          // { to: "/admin/tienda/promociones", label: "Promociones", icon: Tag }, // tab dentro de Productos y stock
           // { to: "/admin/tienda/banners", label: "Banners", icon: Image }, // oculto: sin uso operativo real
         ],
       },
@@ -126,10 +126,10 @@ const modules: NavModule[] = [
         items: [
           { to: "/admin/tienda/ventas", label: "Ventas", icon: Boxes, noveltyKey: "tienda_ventas" },
           { to: "/admin/tienda/pedidos-proveedor", label: "Pedidos a Proveedor", icon: Truck, noveltyKey: "pedidos_proveedor" },
-          { to: "/admin/tienda/proveedores", label: "Proveedores", icon: Truck },
-          { to: "/admin/tienda/control-mercaderia", label: "Control de Mercadería", icon: AlertTriangle },
+          // { to: "/admin/tienda/proveedores", label: "Proveedores", icon: Truck }, // tab dentro de Pedidos a Proveedor
+          // { to: "/admin/tienda/control-mercaderia", label: "Control de Mercadería", icon: AlertTriangle }, // tab dentro de Pedidos a Proveedor
           
-          { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck },
+          // { to: "/admin/entregas-caja", label: "Entregas / Caja", icon: Truck }, // tab dentro de Ventas
         ],
       },
     ],
@@ -142,10 +142,7 @@ const modules: NavModule[] = [
       {
         label: "Configuración",
         items: [
-          { to: "/admin/procesos", label: "Procesos", icon: Workflow },
-          { to: "/admin/sedes", label: "Sedes", icon: MapPin },
-          { to: "/admin/admins", label: "Admins", icon: ShieldCheck },
-          { to: "/admin/historial", label: "Historial", icon: ScrollText },
+          { to: "/admin/configuracion", label: "Configuración", icon: Settings },
         ],
       },
     ],
