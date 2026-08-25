@@ -741,112 +741,58 @@ export default function EventCostSimulator({ eventId }: Props) {
               </CardContent>
             </Card>
 
-            {/* Costos */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm">Otros costos estimados</CardTitle>
-                {genericItems.length === 0 && (
-                  <Button size="sm" variant="outline" onClick={addItem}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {genericItems.length === 0 && <p className="text-xs text-muted-foreground">Sin costos cargados aún.</p>}
-                {genericItems.map((it) => (
-                  <div key={it.id} className="grid grid-cols-12 gap-2 items-center border rounded-md p-2">
-                    <Select value={it.categoria} onValueChange={(v) => {
-                      if (v === "alojamiento") {
-                        updateItem(it.id, {
-                          categoria: v,
-                          detalle: {
-                            package_id: null,
-                            cost_basis: "habitacion_noche",
-                            habitaciones: 0,
-                            noches: Number(current.noches || 0),
-                            personas_por_habitacion: 1,
-                            tipo_habitacion: null,
-                          },
-                        } as any);
-                      } else {
-                        updateItem(it.id, { categoria: v });
-                      }
-                    }}>
-                      <SelectTrigger className="col-span-2 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS_COSTO.map((c) => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Input className="col-span-3 h-8" placeholder="Descripción"
-                      value={it.descripcion}
-                      onChange={(e) => patchItem(it.id, { descripcion: e.target.value })}
-                      onBlur={() => commitItem(it.id)} />
-                    <Input type="number" className="col-span-1 h-8" placeholder="Cant"
-                      value={it.cantidad}
-                      onChange={(e) => patchItem(it.id, { cantidad: Number(e.target.value) })}
-                      onBlur={() => commitItem(it.id)} />
-                    <Input type="number" className="col-span-2 h-8" placeholder="Precio"
-                      value={it.precio_unitario}
-                      onChange={(e) => patchItem(it.id, { precio_unitario: Number(e.target.value) })}
-                      onBlur={() => commitItem(it.id)} />
-                    <Select value={it.moneda} onValueChange={(v) => updateItem(it.id, { moneda: v })}>
-                      <SelectTrigger className="col-span-1 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {MONEDAS.map((m) => <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <label className="col-span-2 flex items-center gap-2 text-xs">
-                      <Checkbox checked={it.es_por_persona}
-                        onCheckedChange={(v) => updateItem(it.id, { es_por_persona: !!v })} />
-                      Por persona
-                    </label>
-                    <div className="col-span-1 flex items-center justify-end gap-0.5">
-                      <Button variant="ghost" size="icon" className="h-8 w-7"
-                        title="Duplicar gasto" onClick={() => duplicarItem(it)}>
-                        <Copy className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-7"
-                        title="Eliminar" onClick={() => delItem(it.id)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
+            {/* Costos por grupo de decisión */}
+            <CostGroupSection
+              grupo="participante"
+              titulo={GRUPO_LABELS.participante}
+              descripcion="Costos que se repiten por cada persona inscripta (comidas, remeras, seguros). Impactan directo en el costo unitario del paquete."
+              items={participanteItems as any}
+              modalidades={modalidades}
+              monedaBase={current.moneda_base}
+              headline={formatPrice(calculo?.por_grupo?.participante || 0, current.moneda_base)}
+              subheadline="por participante (según escenario)"
+              onAdd={() => addItem("participante")}
+              onPatch={patchItem as any}
+              onCommit={commitItem}
+              onUpdate={updateItem as any}
+              onDuplicate={duplicarItem as any}
+              onDelete={delItem}
+            />
 
-                    {modalidades.length > 0 && (
-                      <div className="col-span-12 flex flex-wrap gap-1 pl-1">
-                        <span className="text-[10px] text-muted-foreground mr-1">Aplica a:</span>
-                        {modalidades.map((m) => {
-                          const active = it.aplica_a_modalidades?.length === 0 || it.aplica_a_modalidades?.includes(m.key);
-                          return (
-                            <Badge key={m.key}
-                              variant={active ? "default" : "outline"}
-                              className="cursor-pointer text-[10px]"
-                              onClick={() => {
-                                const cur = it.aplica_a_modalidades || [];
-                                let next: string[];
-                                if (cur.length === 0) {
-                                  // was "todas": deselect this one
-                                  next = modalidades.filter((x) => x.key !== m.key).map((x) => x.key);
-                                } else if (cur.includes(m.key)) {
-                                  next = cur.filter((k) => k !== m.key);
-                                } else {
-                                  next = [...cur, m.key];
-                                }
-                                if (next.length === modalidades.length) next = [];
-                                updateItem(it.id, { aplica_a_modalidades: next });
-                              }}>{m.label}</Badge>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {genericItems.length > 0 && (
-                  <Button variant="outline" className="w-full" onClick={addItem}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar otro costo
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+            <CostGroupSection
+              grupo="staff"
+              titulo={GRUPO_LABELS.staff}
+              descripcion="Costos del equipo (pasajes, alojamiento de staff, honorarios). Son fijos y se prorratean entre todos los inscriptos del escenario activo."
+              items={staffItems as any}
+              modalidades={modalidades}
+              monedaBase={current.moneda_base}
+              headline={formatPrice(calculo?.por_grupo?.staff || 0, current.moneda_base)}
+              subheadline="total fijo"
+              onAdd={() => addItem("staff")}
+              onPatch={patchItem as any}
+              onCommit={commitItem}
+              onUpdate={updateItem as any}
+              onDuplicate={duplicarItem as any}
+              onDelete={delItem}
+            />
+
+            <CostGroupSection
+              grupo="general"
+              titulo={GRUPO_LABELS.general}
+              descripcion="Costos generales del evento (vehículos, logística, marketing). Se prorratean por igual entre todos los inscriptos del escenario activo."
+              items={generalItems as any}
+              modalidades={modalidades}
+              monedaBase={current.moneda_base}
+              headline={formatPrice(calculo?.por_grupo?.general || 0, current.moneda_base)}
+              subheadline={calculo ? `${formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)} por persona` : undefined}
+              onAdd={() => addItem("general")}
+              onPatch={patchItem as any}
+              onCommit={commitItem}
+              onUpdate={updateItem as any}
+              onDuplicate={duplicarItem as any}
+              onDelete={delItem}
+            />
+
 
             {/* Escenarios de inscripción */}
             <Card>
