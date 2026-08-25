@@ -27,6 +27,18 @@ import TurneraReprogramarDialog from "@/components/admin/TurneraReprogramarDialo
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
+const estadoBadgeClasses = (estado: string) => {
+  switch (estado) {
+    case "reservada": return "bg-blue-500/10 text-blue-400 border-blue-500/30 hover:bg-blue-500/15";
+    case "realizada": return "bg-green-500/10 text-green-400 border-green-500/30 hover:bg-green-500/15";
+    case "cancelada_por_alumno":
+    case "cancelada_por_admin": return "bg-red-500/10 text-red-400 border-red-500/30 hover:bg-red-500/15";
+    case "ausente_alumno": return "bg-amber-500/10 text-amber-400 border-amber-500/30 hover:bg-amber-500/15";
+    default: return "bg-muted text-muted-foreground border-border";
+  }
+};
+
+
 const AdminTurnera = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") || "servicios";
@@ -589,68 +601,66 @@ const AdminTurnera = () => {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Hora</TableHead>
+                <TableHead>Fecha/Hora</TableHead>
                 <TableHead>Servicio</TableHead>
-                <TableHead>Nombre</TableHead>
-                <TableHead>Contacto</TableHead>
-                <TableHead>DNI</TableHead>
+                <TableHead>Cliente</TableHead>
                 <TableHead>Nota</TableHead>
-                <TableHead>Coach</TableHead>
-                <TableHead>Sede</TableHead>
+                <TableHead>Coach/Sede</TableHead>
                 <TableHead>Estado</TableHead>
-                <TableHead>Acciones</TableHead>
+                <TableHead className="w-10"></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {reservasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={11} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
                 reservasFiltradas.map(r => (
                   <TableRow key={r.id}>
-                    <TableCell className="text-xs font-mono">{r.fecha}</TableCell>
-                    <TableCell className="text-xs font-mono">{r.hora_inicio}</TableCell>
+                    <TableCell>
+                      <div className="text-xs font-mono">{r.fecha}</div>
+                      <div className="text-xs font-mono text-muted-foreground">{r.hora_inicio}</div>
+                    </TableCell>
                     <TableCell className="text-xs">{servicioName(r.servicio_id)}</TableCell>
-                    <TableCell className="text-sm">{r.nombre} {r.apellido}</TableCell>
-                    <TableCell className="text-xs">
-                      <div className="flex flex-col gap-0.5">
-                        {r.email && <span className="text-foreground break-all">{r.email}</span>}
-                        {r.celular && <span className="text-muted-foreground font-mono">{r.celular}</span>}
+                    <TableCell>
+                      <div className="text-sm font-medium">{r.nombre} {r.apellido}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {[r.email, r.celular, r.documento].filter(Boolean).join(" · ") || "–"}
                       </div>
                     </TableCell>
-                    <TableCell className="text-xs font-mono">{r.documento || "–"}</TableCell>
                     <TableCell className="text-xs max-w-[200px]">
                       {r.nota ? <span className="text-muted-foreground line-clamp-2" title={r.nota}>{r.nota}</span> : "–"}
                     </TableCell>
-                    <TableCell className="text-sm">{coachName(r.coach_id)}</TableCell>
-                    <TableCell className="text-xs">
-                      {r.sede_id
-                        ? sedeName(r.sede_id)
-                        : <span className="text-muted-foreground">Sin sede</span>}
-                    </TableCell>
-                    <TableCell><Badge variant="outline" className="text-xs capitalize">{r.estado_operativo}</Badge></TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1">
-                        <Select onValueChange={(v) => updateReservaEstado(r.id, v)}>
-                          <SelectTrigger className="w-[130px] h-7 text-xs"><SelectValue placeholder="Cambiar" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="reservada">Reservada</SelectItem>
-                            <SelectItem value="realizada">Realizada</SelectItem>
-                            <SelectItem value="cancelada_por_alumno">Canc. alumno</SelectItem>
-                            <SelectItem value="cancelada_por_admin">Canc. admin</SelectItem>
-                            <SelectItem value="ausente_alumno">Ausente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="h-7 text-xs"
-                          disabled={String(r.estado_operativo || "").startsWith("cancelada")}
-                          onClick={() => setReprogramarReserva(r)}
-                        >
-                          <Pencil className="w-3 h-3 mr-1" /> Editar
-                        </Button>
+                      <div className="text-sm">{coachName(r.coach_id)}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.sede_id ? sedeName(r.sede_id) : "Sin sede"}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Select value={r.estado_operativo} onValueChange={(v) => updateReservaEstado(r.id, v)}>
+                        <SelectTrigger className={`rounded-full h-7 px-3 text-xs font-medium border ${estadoBadgeClasses(r.estado_operativo)}`}>
+                          <SelectValue placeholder="Cambiar" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="reservada">Reservada</SelectItem>
+                          <SelectItem value="realizada">Realizada</SelectItem>
+                          <SelectItem value="cancelada_por_alumno">Canc. alumno</SelectItem>
+                          <SelectItem value="cancelada_por_admin">Canc. admin</SelectItem>
+                          <SelectItem value="ausente_alumno">Ausente</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
+                    <TableCell>
+                      <Button
+                        size="icon"
+                        variant="outline"
+                        className="h-7 w-7"
+                        title="Editar"
+                        disabled={String(r.estado_operativo || "").startsWith("cancelada")}
+                        onClick={() => setReprogramarReserva(r)}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
