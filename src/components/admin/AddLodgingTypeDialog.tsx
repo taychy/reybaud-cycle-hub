@@ -8,6 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
 } from "@/components/ui/dialog";
+import { MONEDAS } from "@/lib/currency";
+import { capacidadFisica } from "@/lib/lodgingCapacity";
+import type { CostBasis } from "@/lib/eventCostCalculator";
 
 const TIPOS: { value: string; label: string; personas: number }[] = [
   { value: "individual", label: "Individual", personas: 1 },
@@ -18,25 +21,53 @@ const TIPOS: { value: string; label: string; personas: number }[] = [
   { value: "dormitorio", label: "Dormitorio", personas: 6 },
 ];
 
+const BASIS_LABELS: Record<CostBasis, string> = {
+  persona_estadia: "Por persona / estadía",
+  persona_noche: "Por persona / noche",
+  habitacion_noche: "Por habitación / noche",
+  total: "Total contratado",
+};
+
+export interface NewLodgingResult {
+  packageId: string;
+  cupo: number;
+  habitaciones: number;
+  personas: number;
+  tipo: string;
+  costo: {
+    cost_basis: CostBasis;
+    precio_unitario: number;
+    moneda: string;
+    descripcion: string;
+    noches: number;
+  };
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (o: boolean) => void;
   eventId: string;
   monedaBase: string;
   nextSortOrder: number;
-  onCreated: (packageId: string, cupo: number) => void | Promise<void>;
+  nochesDefault?: number;
+  onCreated: (result: NewLodgingResult) => void | Promise<void>;
 }
 
 export default function AddLodgingTypeDialog({
-  open, onOpenChange, eventId, monedaBase, nextSortOrder, onCreated,
+  open, onOpenChange, eventId, monedaBase, nextSortOrder, nochesDefault = 0, onCreated,
 }: Props) {
   const [tipo, setTipo] = useState("doble");
   const [nombre, setNombre] = useState("Habitación doble");
   const [habitaciones, setHabitaciones] = useState(1);
   const [personas, setPersonas] = useState(2);
+  const [basis, setBasis] = useState<CostBasis>("persona_estadia");
+  const [precio, setPrecio] = useState(0);
+  const [moneda, setMoneda] = useState(monedaBase);
+  const [descripcion, setDescripcion] = useState("");
+  const [noches, setNoches] = useState(nochesDefault);
   const [saving, setSaving] = useState(false);
 
-  const cupo = Math.max(0, Number(habitaciones) || 0) * Math.max(1, Number(personas) || 1);
+  const cupo = capacidadFisica(habitaciones, personas);
   const tipoLabel = TIPOS.find((t) => t.value === tipo)?.label || "Habitación";
 
   const onTipoChange = (v: string) => {
@@ -84,33 +115,48 @@ export default function AddLodgingTypeDialog({
     }
 
     setSaving(false);
-    toast({ title: "Tipo de alojamiento creado" });
+    toast({ title: "Alojamiento creado" });
     onOpenChange(false);
-    onCreated(pkg.id, cupo);
+    onCreated({
+      packageId: pkg.id,
+      cupo,
+      habitaciones: Math.max(0, Number(habitaciones) || 0),
+      personas: Math.max(1, Number(personas) || 1),
+      tipo,
+      costo: {
+        cost_basis: basis,
+        precio_unitario: Number(precio) || 0,
+        moneda,
+        descripcion: descripcion.trim(),
+        noches: Number(noches) || 0,
+      },
+    });
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Agregar tipo de alojamiento</DialogTitle>
+          <DialogTitle>Agregar alojamiento</DialogTitle>
           <DialogDescription>
-            Se crea un paquete con precio 0 y sus habitaciones, para poder costearlo. El evento sigue en borrador.
+            Se crea la modalidad con sus habitaciones y su costo principal, listo para presupuestar. El evento sigue en borrador.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Tipo</Label>
-            <Select value={tipo} onValueChange={onTipoChange}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Nombre del paquete</Label>
-            <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Tipo</Label>
+              <Select value={tipo} onValueChange={onTipoChange}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {TIPOS.map((t) => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Nombre</Label>
+              <Input value={nombre} onChange={(e) => setNombre(e.target.value)} />
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1">
@@ -122,7 +168,50 @@ export default function AddLodgingTypeDialog({
               <Input type="number" value={personas} onChange={(e) => setPersonas(Number(e.target.value))} />
             </div>
           </div>
-          <p className="text-xs text-muted-foreground">Cupo calculado: <span className="font-medium">{cupo} plazas</span></p>
+          <p className="text-xs text-muted-foreground">
+            Capacidad física: <span className="font-medium">{cupo} plazas</span>
+          </p>
+
+          <div className="border-t pt-3 space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Forma de costo</Label>
+                <Select value={basis} onValueChange={(v) => setBasis(v as CostBasis)}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {(Object.keys(BASIS_LABELS) as CostBasis[]).map((b) => (
+                      <SelectItem key={b} value={b}>{BASIS_LABELS[b]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {basis !== "total" && basis !== "persona_estadia" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Noches</Label>
+                  <Input type="number" value={noches} onChange={(e) => setNoches(Number(e.target.value))} />
+                </div>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1 col-span-2">
+                <Label className="text-xs">Costo unitario</Label>
+                <Input type="number" value={precio} onChange={(e) => setPrecio(Number(e.target.value))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Moneda</Label>
+                <Select value={moneda} onValueChange={setMoneda}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {MONEDAS.map((m) => <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Descripción (opcional)</Label>
+              <Input placeholder="Hotel, hostel…" value={descripcion} onChange={(e) => setDescripcion(e.target.value)} />
+            </div>
+          </div>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
