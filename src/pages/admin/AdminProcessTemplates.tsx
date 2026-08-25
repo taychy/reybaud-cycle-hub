@@ -135,7 +135,7 @@ const AdminProcessTemplates = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/admin/procesos">
+        <Link to="/admin/configuracion?tab=procesos">
           <Button variant="ghost" size="sm"><ArrowLeft className="w-4 h-4 mr-1" /> Volver a Procesos activos</Button>
         </Link>
       </div>

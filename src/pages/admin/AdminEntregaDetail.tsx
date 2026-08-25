@@ -1391,7 +1391,7 @@ const AdminEntregaDetail = () => {
               <Plus className="w-3 h-3 mr-1" /> Nuevo cobro
             </Button>
             <Button size="sm" variant="ghost" asChild>
-              <Link to="/admin/cobros-entrega">Validar <ExternalLink className="w-3 h-3 ml-1" /></Link>
+              <Link to="/admin/tienda/ventas?tab=cobros-entrega">Validar <ExternalLink className="w-3 h-3 ml-1" /></Link>
             </Button>
           </div>
           {payments.length === 0 ? (
@@ -1934,7 +1934,7 @@ const AdminEntregaDetail = () => {
           )}
           <DialogFooter className="gap-2">
             <Button variant="outline" size="sm" asChild>
-              <Link to="/admin/cobros-entrega">Validar cobros <ExternalLink className="w-3 h-3 ml-1" /></Link>
+              <Link to="/admin/tienda/ventas?tab=cobros-entrega">Validar cobros <ExternalLink className="w-3 h-3 ml-1" /></Link>
             </Button>
             <Button size="sm" onClick={() => { if (detailPayment) { const p = detailPayment; setDetailPayment(null); setDetailUrl(null); openEditPayment(p); } }}>
               <Pencil className="w-3.5 h-3.5 mr-1" /> Editar

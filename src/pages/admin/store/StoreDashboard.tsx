@@ -91,7 +91,7 @@ const StoreDashboard = () => {
           <Button size="sm" variant="outline" onClick={() => navigate("/admin/tienda/banners")}>
             <Image className="w-4 h-4 mr-1" /> Banners
           </Button>
-          <Button size="sm" variant="outline" onClick={() => navigate("/admin/tienda/promociones")}>
+          <Button size="sm" variant="outline" onClick={() => navigate("/admin/tienda/productos?tab=promociones")}>
             <Tag className="w-4 h-4 mr-1" /> Promociones
           </Button>
         </div>
@@ -145,7 +145,7 @@ const StoreDashboard = () => {
         <div className="rounded-xl border border-border bg-card">
           <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="text-sm font-heading font-bold uppercase tracking-wider">Stock bajo</h2>
-            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/tienda/stock")} className="text-xs text-primary">
+            <Button variant="ghost" size="sm" onClick={() => navigate("/admin/tienda/productos?tab=stock")} className="text-xs text-primary">
               Ver todo
             </Button>
           </div>
