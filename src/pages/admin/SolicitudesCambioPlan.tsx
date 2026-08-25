@@ -31,7 +31,7 @@ const formatDate = (iso: string) => {
   } catch { return iso; }
 };
 
-export default function SolicitudesCambioPlan() {
+export default function SolicitudesCambioPlan({ embedded = false }: { embedded?: boolean } = {}) {
   const [items, setItems] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pendiente" | "todas">("pendiente");

@@ -467,7 +467,7 @@ const AdminDashboard = () => {
             date: iso,
             kind: "Solicitud de cambio de plan",
             label: "Responder al alumno",
-            link: "/admin/solicitudes-cambio-plan",
+            link: "/admin/alumnos?tab=cambios-plan",
             tone: iso < today ? "danger" : "warning",
           });
         }
@@ -485,7 +485,7 @@ const AdminDashboard = () => {
           icon: ArrowRightLeft,
           message: `${solicitudes.length} solicitud(es) de cambio de plan pendiente(s) de revisión`,
           count: solicitudes.length,
-          link: "/admin/solicitudes-cambio-plan",
+          link: "/admin/alumnos?tab=cambios-plan",
           bucket: bucketForDate(masUrgente),
         });
       }

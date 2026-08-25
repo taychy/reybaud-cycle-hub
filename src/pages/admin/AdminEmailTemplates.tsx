@@ -39,7 +39,7 @@ const renderPreview = (html: string, subject: string, vars: Variable[]) => {
   return { subject: replace(subject), html: replace(html) };
 };
 
-const AdminEmailTemplates = () => {
+const AdminEmailTemplates = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const { toast } = useToast();
   const [tab, setTab] = useState("plantillas");
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -108,9 +108,11 @@ const AdminEmailTemplates = () => {
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6 max-w-6xl">
+    <div className={embedded ? "space-y-6 max-w-6xl" : "container mx-auto p-4 md:p-6 space-y-6 max-w-6xl"}>
       <div>
-        <h1 className="text-2xl font-heading font-bold flex items-center gap-2"><Mail className="w-6 h-6" /> Comunicaciones</h1>
+        {!embedded && (
+          <h1 className="text-2xl font-heading font-bold flex items-center gap-2"><Mail className="w-6 h-6" /> Comunicaciones</h1>
+        )}
         <p className="text-sm text-muted-foreground">Plantillas de emails automáticos enviadas por la plataforma.</p>
       </div>
 
