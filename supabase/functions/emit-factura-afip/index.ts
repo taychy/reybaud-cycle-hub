@@ -13,6 +13,47 @@ const WSAA_URL = "https://wsaa.afip.gov.ar/ws/services/LoginCms";
 const WSFEV1_URL = "https://servicios1.afip.gov.ar/wsfev1/service.asmx";
 const SERVICE_NAME = "wsfe";
 
+type ComprobanteLetra = "A" | "B" | "C";
+
+interface ComprobanteAfip {
+  tipo: 1 | 6 | 11;
+  letra: ComprobanteLetra;
+  ivaIncluido21: boolean;
+}
+
+function normalizeFiscal(value: string | null | undefined): string {
+  return (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[_.-]+/g, " ")
+    .trim();
+}
+
+function isResponsableInscripto(value: string | null | undefined): boolean {
+  const normalized = normalizeFiscal(value);
+  return normalized.includes("responsable inscripto") || normalized === "ri" || normalized.includes("resp inscripto");
+}
+
+function resolveComprobanteAfip(
+  emisorCondicionIva: string | null | undefined,
+  clienteCondicionFiscal: string | null | undefined,
+  clienteDoc: string
+): ComprobanteAfip {
+  if (!isResponsableInscripto(emisorCondicionIva)) {
+    return { tipo: 11, letra: "C", ivaIncluido21: false };
+  }
+
+  const clienteRi = isResponsableInscripto(clienteCondicionFiscal) && clienteDoc.length === 11;
+  return clienteRi
+    ? { tipo: 1, letra: "A", ivaIncluido21: true }
+    : { tipo: 6, letra: "B", ivaIncluido21: true };
+}
+
+function round2(value: number): number {
+  return Math.round((value + Number.EPSILON) * 100) / 100;
+}
+
 interface EmitRequest {
   factura_id: string;
   emisor_id: string;
@@ -130,41 +171,70 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Step 2: Get last authorized comprobante number
     const cuitClean = emisor.cuit.replace(/-/g, "");
-    const lastNum = await getUltimoComprobante(
-      wsaaResult.token!,
-      wsaaResult.sign!,
-      cuitClean,
-      emisor.punto_venta
-    );
+    const clienteCuitClean = cliente_cuit?.replace(/\D/g, "") || "0";
+    let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicion_fiscal, clienteCuitClean);
 
-    if (lastNum.error) {
+    const emitirConTipo = async (tipo: ComprobanteAfip, docOverride?: { clienteCuit: string; condicionFiscal: string }) => {
+      const lastNum = await getUltimoComprobante(
+        wsaaResult.token || "",
+        wsaaResult.sign || "",
+        cuitClean,
+        emisor.punto_venta,
+        tipo.tipo
+      );
+
+      if (lastNum.error || lastNum.number === undefined) {
+        return {
+          cbteNro: null,
+          result: { error: `FECompUltimoAutorizado: ${lastNum.error || "sin número"}` },
+        };
+      }
+
+      const cbteNro = lastNum.number + 1;
+      const result = await emitirFacturaAfip({
+        token: wsaaResult.token || "",
+        sign: wsaaResult.sign || "",
+        cuit: cuitClean,
+        puntoVenta: emisor.punto_venta,
+        cbteNro,
+        cbteTipo: tipo.tipo,
+        monto: factura.monto,
+        concepto: 2, // Servicios
+        clienteCuit: docOverride?.clienteCuit ?? clienteCuitClean,
+        condicionFiscal: docOverride?.condicionFiscal ?? condicion_fiscal,
+        ivaIncluido21: tipo.ivaIncluido21,
+      });
+
+      return { cbteNro, result };
+    };
+
+    // Step 2 + 3: elegir tipo de comprobante y emitir.
+    let { cbteNro, result: emitResult } = await emitirConTipo(comprobante);
+
+    if (emitResult.error?.startsWith("FECompUltimoAutorizado:")) {
       await adminClient
         .from("facturas")
-        .update({ estado: "error", error_detalle: `FECompUltimoAutorizado: ${lastNum.error}` } as any)
+        .update({ estado: "error", error_detalle: emitResult.error } as any)
         .eq("id", factura_id);
       return new Response(
-        JSON.stringify({ error: `Error al consultar AFIP: ${lastNum.error}` }),
+        JSON.stringify({ error: `Error al consultar AFIP: ${emitResult.error.replace("FECompUltimoAutorizado: ", "")}` }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    const cbteNro = lastNum.number! + 1;
+    const emisorNoMonotributoRejected =
+      comprobante.tipo === 11 &&
+      emitResult.error &&
+      /NO AUTORIZADO A EMITIR COMPROBANTES|NO CORRESPONDE A RESPONS(?:A|BA)LE MONOTRIBUTO|RESPONS(?:A|BA)LE MONOTRIBUTO/i.test(emitResult.error);
 
-    // Step 3: Emit Factura C (cbte_tipo = 11)
-    const clienteCuitClean = cliente_cuit?.replace(/\D/g, "") || "0";
-    let emitResult = await emitirFacturaC({
-      token: wsaaResult.token!,
-      sign: wsaaResult.sign!,
-      cuit: cuitClean,
-      puntoVenta: emisor.punto_venta,
-      cbteNro,
-      monto: factura.monto,
-      concepto: 2, // Servicios
-      clienteCuit: clienteCuitClean,
-      condicionFiscal: condicion_fiscal,
-    });
+    if (emisorNoMonotributoRejected) {
+      console.warn(
+        `[emit-factura] AFIP rechazó Factura C para CUIT ${cuitClean}. Reintentando con comprobante de Responsable Inscripto.`
+      );
+      comprobante = resolveComprobanteAfip("Responsable Inscripto", condicion_fiscal, clienteCuitClean);
+      ({ cbteNro, result: emitResult } = await emitirConTipo(comprobante));
+    }
 
     // Retry como Consumidor Final si AFIP rechaza el CUIT/DNI por padrón
     const padronRejected =
@@ -173,17 +243,20 @@ Deno.serve(async (req) => {
 
     if (padronRejected && clienteCuitClean !== "0") {
       console.warn(`[emit-factura] CUIT/DNI ${clienteCuitClean} rechazado por padrón AFIP. Reintentando como Consumidor Final.`);
-      emitResult = await emitirFacturaC({
-        token: wsaaResult.token!,
-        sign: wsaaResult.sign!,
+      const retry = await emitirFacturaAfip({
+        token: wsaaResult.token || "",
+        sign: wsaaResult.sign || "",
         cuit: cuitClean,
         puntoVenta: emisor.punto_venta,
-        cbteNro,
+        cbteNro: cbteNro || 1,
+        cbteTipo: comprobante.tipo,
         monto: factura.monto,
         concepto: 2,
         clienteCuit: "0",
         condicionFiscal: "consumidor_final",
+        ivaIncluido21: comprobante.ivaIncluido21,
       });
+      emitResult = retry;
     }
 
     if (emitResult.error) {
@@ -198,6 +271,13 @@ Deno.serve(async (req) => {
     }
 
     // Step 4: Update factura with AFIP data
+    if (cbteNro === null) {
+      return new Response(
+        JSON.stringify({ error: "AFIP no devolvió número de comprobante" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const nroComprobante = `${String(emisor.punto_venta).padStart(5, "0")}-${String(cbteNro).padStart(8, "0")}`;
 
     const { error: updateErr } = await adminClient
@@ -208,6 +288,8 @@ Deno.serve(async (req) => {
         condicion_fiscal: condicion_fiscal,
         estado: "emitida",
         numero_comprobante: nroComprobante,
+        tipo_comprobante: comprobante.tipo,
+        letra_comprobante: comprobante.letra,
         cae: emitResult.cae,
         cae_vencimiento: emitResult.caeVto,
         fecha_emision: new Date().toISOString(),
@@ -244,6 +326,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         numero_comprobante: nroComprobante,
+        tipo_comprobante: comprobante.tipo,
+        letra_comprobante: comprobante.letra,
         cae: emitResult.cae,
         cae_vencimiento: emitResult.caeVto,
       }),
@@ -393,7 +477,8 @@ async function getUltimoComprobante(
   token: string,
   sign: string,
   cuit: string,
-  puntoVenta: number
+  puntoVenta: number,
+  cbteTipo: number
 ): Promise<{ number?: number; error?: string }> {
   const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
@@ -405,7 +490,7 @@ async function getUltimoComprobante(
         <ar:Cuit>${cuit}</ar:Cuit>
       </ar:Auth>
       <ar:PtoVta>${puntoVenta}</ar:PtoVta>
-      <ar:CbteTipo>11</ar:CbteTipo>
+      <ar:CbteTipo>${cbteTipo}</ar:CbteTipo>
     </ar:FECompUltimoAutorizado>
   </soapenv:Body>
 </soapenv:Envelope>`;
@@ -439,22 +524,23 @@ async function getUltimoComprobante(
 }
 
 // ============================================================
-// WSFEV1: Emit Factura C
+// WSFEV1: Emit factura AFIP
 // ============================================================
-async function emitirFacturaC(params: {
+async function emitirFacturaAfip(params: {
   token: string;
   sign: string;
   cuit: string;
   puntoVenta: number;
   cbteNro: number;
+  cbteTipo: number;
   monto: number;
   concepto: number;
   clienteCuit: string;
   condicionFiscal: string;
+  ivaIncluido21: boolean;
 }): Promise<{ cae?: string; caeVto?: string; error?: string }> {
-  const { token, sign, cuit, puntoVenta, cbteNro, monto, concepto, clienteCuit, condicionFiscal } = params;
+  const { token, sign, cuit, puntoVenta, cbteNro, cbteTipo, monto, concepto, clienteCuit, ivaIncluido21 } = params;
 
-  // Factura C = CbteTipo 11
   // DocTipo: 96=DNI, 80=CUIT, 99=Consumidor Final (sin doc)
   let docTipo = 99;
   let docNro = "0";
@@ -479,6 +565,13 @@ async function emitirFacturaC(params: {
   const fchServHasta = lastDay.toISOString().split("T")[0].replace(/-/g, "");
   const fchVtoPago = fechaCbte;
 
+  const total = round2(Number(monto));
+  const neto = ivaIncluido21 ? round2(total / 1.21) : total;
+  const iva = ivaIncluido21 ? round2(total - neto) : 0;
+  const ivaXml = ivaIncluido21
+    ? `<ar:Iva><ar:AlicIva><ar:Id>5</ar:Id><ar:BaseImp>${neto.toFixed(2)}</ar:BaseImp><ar:Importe>${iva.toFixed(2)}</ar:Importe></ar:AlicIva></ar:Iva>`
+    : "";
+
   const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
 <soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
   <soapenv:Body>
@@ -492,7 +585,7 @@ async function emitirFacturaC(params: {
         <ar:FeCabReq>
           <ar:CantReg>1</ar:CantReg>
           <ar:PtoVta>${puntoVenta}</ar:PtoVta>
-          <ar:CbteTipo>11</ar:CbteTipo>
+          <ar:CbteTipo>${cbteTipo}</ar:CbteTipo>
         </ar:FeCabReq>
         <ar:FeDetReq>
           <ar:FECAEDetRequest>
@@ -502,12 +595,13 @@ async function emitirFacturaC(params: {
             <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
             <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
             <ar:CbteFch>${fechaCbte}</ar:CbteFch>
-            <ar:ImpTotal>${monto.toFixed(2)}</ar:ImpTotal>
+            <ar:ImpTotal>${total.toFixed(2)}</ar:ImpTotal>
             <ar:ImpTotConc>0</ar:ImpTotConc>
-            <ar:ImpNeto>${monto.toFixed(2)}</ar:ImpNeto>
+            <ar:ImpNeto>${neto.toFixed(2)}</ar:ImpNeto>
             <ar:ImpOpEx>0</ar:ImpOpEx>
-            <ar:ImpIVA>0</ar:ImpIVA>
+            <ar:ImpIVA>${iva.toFixed(2)}</ar:ImpIVA>
             <ar:ImpTrib>0</ar:ImpTrib>
+            ${ivaXml}
             <ar:FchServDesde>${fchServDesde}</ar:FchServDesde>
             <ar:FchServHasta>${fchServHasta}</ar:FchServHasta>
             <ar:FchVtoPago>${fchVtoPago}</ar:FchVtoPago>

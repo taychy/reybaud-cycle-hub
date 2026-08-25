@@ -5546,6 +5546,7 @@ export type Database = {
           facturacion_cola_id: string | null
           fecha_emision: string | null
           id: string
+          letra_comprobante: string | null
           metodo_pago: string | null
           moneda: string
           monto: number
@@ -5556,6 +5557,7 @@ export type Database = {
           referencia_id: string | null
           referencia_tipo: string
           segmento: string | null
+          tipo_comprobante: number | null
           updated_at: string
         }
         Insert: {
@@ -5575,6 +5577,7 @@ export type Database = {
           facturacion_cola_id?: string | null
           fecha_emision?: string | null
           id?: string
+          letra_comprobante?: string | null
           metodo_pago?: string | null
           moneda?: string
           monto: number
@@ -5585,6 +5588,7 @@ export type Database = {
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
+          tipo_comprobante?: number | null
           updated_at?: string
         }
         Update: {
@@ -5604,6 +5608,7 @@ export type Database = {
           facturacion_cola_id?: string | null
           fecha_emision?: string | null
           id?: string
+          letra_comprobante?: string | null
           metodo_pago?: string | null
           moneda?: string
           monto?: number
@@ -5614,6 +5619,7 @@ export type Database = {
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
+          tipo_comprobante?: number | null
           updated_at?: string
         }
         Relationships: [
