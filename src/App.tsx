@@ -33,24 +33,17 @@ import CoachAsesoria from "./pages/coach/CoachAsesoria";
 import CoachChequeoAlumnos from "./pages/coach/CoachChequeoAlumnos";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
-import ManageAdmins from "./pages/admin/ManageAdmins";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminResumen from "./pages/admin/AdminResumen";
 import AdminComunicaciones from "./pages/admin/AdminComunicaciones";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
-import ManagePlanes from "./pages/admin/ManagePlanes";
-import ManageDescuentos from "./pages/admin/ManageDescuentos";
-import ManagePrecios from "./pages/admin/ManagePrecios";
-import ManageSedes from "./pages/admin/ManageSedes";
+import AdminPlanesPrecios from "./pages/admin/AdminPlanesPrecios";
+import AdminConfiguracion from "./pages/admin/AdminConfiguracion";
 import NotFound from "./pages/NotFound";
-import AuditLog from "./pages/admin/AuditLog";
-import AdminPayments from "./pages/admin/AdminPayments";
-import AdminCierreCaja from "./pages/admin/AdminCierreCaja";
+import AdminPagosHub from "./pages/admin/AdminPagosHub";
 import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
 import AdminBilling from "./pages/admin/billing/AdminBilling";
-import AdminDeliveryPayments from "./pages/admin/AdminDeliveryPayments";
-import AdminEntregasCaja from "./pages/admin/AdminEntregasCaja";
 import AdminEntregaDetail from "./pages/admin/AdminEntregaDetail";
 import RecordDelAhora from "./pages/events/RecordDelAhora";
 import EventResults from "./pages/events/EventResults";
@@ -60,7 +53,6 @@ import AdminProgramas from "./pages/admin/AdminProgramas";
 import AdminProgramaDetalle from "./pages/admin/AdminProgramaDetalle";
 import PlanPlaybookEditor from "./pages/admin/PlanPlaybookEditor";
 import AdminProgramaFlujoRunner from "./pages/admin/AdminProgramaFlujoRunner";
-import AdminProcesos from "./pages/admin/AdminProcesos";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
@@ -68,13 +60,10 @@ import GuestReservationView from "./pages/GuestReservationView";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
 import StoreDashboard from "./pages/admin/store/StoreDashboard";
-import StoreProducts from "./pages/admin/store/StoreProducts";
-import StoreCategories from "./pages/admin/store/StoreCategories";
-import StoreVentas from "./pages/admin/store/StoreVentas";
-import StorePromotions from "./pages/admin/store/StorePromotions";
+import StoreProductosStock from "./pages/admin/store/StoreProductosStock";
+import StoreVentasHub from "./pages/admin/store/StoreVentasHub";
 import StoreBanners from "./pages/admin/store/StoreBanners";
-import StoreStock from "./pages/admin/store/StoreStock";
-import StoreSuppliers from "./pages/admin/store/StoreSuppliers";
+import StorePedidosProveedorHub from "./pages/admin/store/StorePedidosProveedorHub";
 import StoreAnalytics from "./pages/admin/store/StoreAnalytics";
 import StoreCambios from "./pages/admin/store/StoreCambios";
 import DepositoCambios from "./pages/deposito/DepositoCambios";
@@ -92,9 +81,7 @@ import DepositoCamioneta from "./pages/deposito/DepositoCamioneta";
 import DepositoExternos from "./pages/deposito/DepositoExternos";
 import DepositoConteos from "./pages/deposito/DepositoConteos";
 import PublicDeliveryList from "./pages/PublicDeliveryList";
-import SupplierOrders from "./pages/SupplierOrders";
 import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
-import AdminControlMercaderia from "./pages/admin/AdminControlMercaderia";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EventTerms from "./pages/EventTerms";
 import ExternalTripView from "./pages/ExternalTripView";
@@ -212,19 +199,21 @@ const App = () => (
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
             <Route path="asesoria" element={<AdminAsesoria />} />
-            <Route path="planes" element={<ManagePlanes />} />
-            <Route path="precios" element={<ManagePrecios />} />
-            <Route path="descuentos" element={<ManageDescuentos />} />
-            <Route path="pagos" element={<AdminPayments />} />
-            <Route path="cierre-caja" element={<AdminCierreCaja />} />
+            <Route path="planes" element={<AdminPlanesPrecios />} />
+            <Route path="planes-precios" element={<AdminPlanesPrecios />} />
+            <Route path="precios" element={<Navigate to="/admin/planes-precios?tab=precios" replace />} />
+            <Route path="descuentos" element={<Navigate to="/admin/planes-precios?tab=descuentos" replace />} />
+            <Route path="pagos" element={<AdminPagosHub />} />
+            <Route path="cierre-caja" element={<Navigate to="/admin/pagos?tab=cierre" replace />} />
             <Route path="cuenta-corriente" element={<AdminCuentaCorriente />} />
             <Route path="facturacion" element={<AdminBilling />} />
-            <Route path="cobros-entrega" element={<AdminDeliveryPayments />} />
-            <Route path="entregas-caja" element={<AdminEntregasCaja />} />
-            <Route path="entregas" element={<AdminEntregasCaja />} />
+            <Route path="cobros-entrega" element={<Navigate to="/admin/tienda/ventas?tab=cobros-entrega" replace />} />
+            <Route path="entregas-caja" element={<Navigate to="/admin/tienda/ventas?tab=entregas-caja" replace />} />
+            <Route path="entregas" element={<Navigate to="/admin/tienda/ventas?tab=entregas-caja" replace />} />
             <Route path="entregas/:listId" element={<AdminEntregaDetail />} />
-            <Route path="sedes" element={<ManageSedes />} />
-            <Route path="admins" element={<ManageAdmins />} />
+            <Route path="configuracion" element={<AdminConfiguracion />} />
+            <Route path="sedes" element={<Navigate to="/admin/configuracion?tab=sedes" replace />} />
+            <Route path="admins" element={<Navigate to="/admin/configuracion?tab=admins" replace />} />
             <Route path="eventos" element={<EventsList />} />
             <Route path="programas" element={<AdminProgramas />} />
             <Route path="programas/:cohortId" element={<AdminProgramaDetalle />} />
@@ -234,7 +223,7 @@ const App = () => (
             <Route path="eventos/record-de-la-hora/participantes" element={<EventManagement />} />
             <Route path="eventos/participantes" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
-            <Route path="historial" element={<AuditLog />} />
+            <Route path="historial" element={<Navigate to="/admin/configuracion?tab=historial" replace />} />
             <Route path="solicitudes-cambio-plan" element={<Navigate to="/admin/alumnos?tab=cambios-plan" replace />} />
             <Route path="comunicaciones" element={<AdminComunicaciones />} />
             <Route path="email-masivo" element={<Navigate to="/admin/comunicaciones?tab=email-masivo" replace />} />
@@ -258,21 +247,21 @@ const App = () => (
             <Route path="alumnos/nuevos-por-dia" element={<NuevosUsuariosPorDiaPage />} />
             <Route path="tienda" element={<StoreDashboard />} />
 
-            <Route path="tienda/productos" element={<StoreProducts />} />
-            <Route path="tienda/categorias" element={<StoreCategories />} />
-            <Route path="tienda/ventas" element={<StoreVentas />} />
+            <Route path="tienda/productos" element={<StoreProductosStock />} />
+            <Route path="tienda/categorias" element={<Navigate to="/admin/tienda/productos?tab=categorias" replace />} />
+            <Route path="tienda/ventas" element={<StoreVentasHub />} />
             <Route path="tienda/pedidos" element={<Navigate to="/admin/tienda/ventas?tab=pedidos" replace />} />
             <Route path="tienda/preventas" element={<Navigate to="/admin/tienda/ventas?tab=preventas" replace />} />
-            <Route path="tienda/promociones" element={<StorePromotions />} />
+            <Route path="tienda/promociones" element={<Navigate to="/admin/tienda/productos?tab=promociones" replace />} />
             <Route path="tienda/banners" element={<StoreBanners />} />
-            <Route path="tienda/stock" element={<StoreStock />} />
-            <Route path="tienda/proveedores" element={<StoreSuppliers />} />
+            <Route path="tienda/stock" element={<Navigate to="/admin/tienda/productos?tab=stock" replace />} />
+            <Route path="tienda/proveedores" element={<Navigate to="/admin/tienda/pedidos-proveedor?tab=proveedores" replace />} />
             <Route path="tienda/analytics" element={<StoreAnalytics />} />
             <Route path="tienda/cambios" element={<StoreCambios />} />
-            <Route path="tienda/pedidos-proveedor" element={<SupplierOrders />} />
+            <Route path="tienda/pedidos-proveedor" element={<StorePedidosProveedorHub />} />
             <Route path="tienda/incidentes-escaneo" element={<AdminScanIncidents />} />
-            <Route path="tienda/control-mercaderia" element={<AdminControlMercaderia />} />
-            <Route path="procesos" element={<AdminProcesos />} />
+            <Route path="tienda/control-mercaderia" element={<Navigate to="/admin/tienda/pedidos-proveedor?tab=control" replace />} />
+            <Route path="procesos" element={<Navigate to="/admin/configuracion?tab=procesos" replace />} />
             <Route path="procesos/plantillas" element={<AdminProcessTemplates />} />
             <Route path="procesos/runner/:instanceId" element={<AdminProgramaFlujoRunner />} />
           </Route>
