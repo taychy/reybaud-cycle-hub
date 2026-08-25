@@ -18,10 +18,12 @@ import { Plus, Trash2, Copy, Archive, Save, Sparkles, Calculator } from "lucide-
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
+import CostGroupSection from "@/components/admin/CostGroupSection";
 import {
-  calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS,
-  type CostItem, type Modalidad, type Supuestos,
+  calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto,
+  type CostItem, type GrupoCosto, type Modalidad, type Supuestos,
 } from "@/lib/eventCostCalculator";
+
 
 
 interface Props {
@@ -36,7 +38,10 @@ interface SimRow {
   notas: string | null;
   tc_usd: number; tc_eur: number;
   pct_imprevistos: number; pct_margen_objetivo: number;
+  rentabilidad_modo: string;
+  honorario_por_participante: number;
   moneda_base: string;
+
   noches: number; jornadas: number; capacidad_total: number;
   cantidades_esperadas: Record<string, number>;
   escenarios_inscripcion: EscenarioInscripcion[] | null;
@@ -204,6 +209,8 @@ export default function EventCostSimulator({ eventId }: Props) {
     pct_margen_objetivo: Number(current.pct_margen_objetivo),
     moneda_base: current.moneda_base,
     participantes_prorrateo: Number(escenarioActivo?.inscriptos) || 0,
+    rentabilidad_modo: current.rentabilidad_modo || "margen",
+    honorario_por_participante: Number(current.honorario_por_participante) || 0,
   } : null;
 
 
@@ -211,8 +218,12 @@ export default function EventCostSimulator({ eventId }: Props) {
     () => packages.filter((p) => p.sin_alojamiento !== true),
     [packages],
   );
-  const lodgingItems = useMemo(() => items.filter((i) => i.categoria === "alojamiento"), [items]);
-  const genericItems = useMemo(() => items.filter((i) => i.categoria !== "alojamiento"), [items]);
+  const grupoDe = (it: ItemRow): GrupoCosto => inferGrupoCosto(it);
+  const lodgingItems = useMemo(() => items.filter((i) => grupoDe(i) === "alojamiento"), [items]);
+  const participanteItems = useMemo(() => items.filter((i) => grupoDe(i) === "participante"), [items]);
+  const staffItems = useMemo(() => items.filter((i) => grupoDe(i) === "staff"), [items]);
+  const generalItems = useMemo(() => items.filter((i) => grupoDe(i) === "general"), [items]);
+
   const nextSortOrder = useMemo(
     () => packages.reduce((a, p) => Math.max(a, Number(p.sort_order) || 0), 0) + 1,
     [packages],
@@ -250,7 +261,10 @@ export default function EventCostSimulator({ eventId }: Props) {
       tc_usd: duplicarDe.tc_usd, tc_eur: duplicarDe.tc_eur,
       pct_imprevistos: duplicarDe.pct_imprevistos,
       pct_margen_objetivo: duplicarDe.pct_margen_objetivo,
+      rentabilidad_modo: duplicarDe.rentabilidad_modo || "margen",
+      honorario_por_participante: duplicarDe.honorario_por_participante || 0,
       moneda_base: duplicarDe.moneda_base,
+
       noches: duplicarDe.noches, jornadas: duplicarDe.jornadas,
       capacidad_total: duplicarDe.capacidad_total,
       cantidades_esperadas: duplicarDe.cantidades_esperadas,
@@ -307,7 +321,10 @@ export default function EventCostSimulator({ eventId }: Props) {
       tc_usd: current.tc_usd, tc_eur: current.tc_eur,
       pct_imprevistos: current.pct_imprevistos,
       pct_margen_objetivo: current.pct_margen_objetivo,
+      rentabilidad_modo: current.rentabilidad_modo || "margen",
+      honorario_por_participante: Number(current.honorario_por_participante) || 0,
       moneda_base: current.moneda_base,
+
       noches: current.noches, jornadas: current.jornadas,
       capacidad_total: current.capacidad_total,
       cantidades_esperadas: current.cantidades_esperadas,
@@ -325,27 +342,37 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
 
   /* ─── ítems ─── */
-  const addItem = async () => {
+  const SUBCAT_DEFAULT: Record<Exclude<GrupoCosto, "alojamiento">, string> = {
+    participante: "comida",
+    staff: "staff",
+    general: "otros",
+  };
+
+  const addItem = async (grupo: Exclude<GrupoCosto, "alojamiento"> = "general") => {
     if (!current) return;
     const { data } = await supabase.from("event_cost_items").insert({
       simulation_id: current.id,
-      categoria: "otros",
+      grupo_costo: grupo,
+      categoria: SUBCAT_DEFAULT[grupo],
       descripcion: "",
       cantidad: 1,
       precio_unitario: 0,
       moneda: current.moneda_base,
-      es_por_persona: false,
+      es_por_persona: grupo === "participante",
       aplica_a_modalidades: [],
       orden: items.length,
-    }).select().single();
+    } as any).select().single();
     if (data) setItems([...items, data as any]);
   };
+
 
   const addLodgingItem = async () => {
     if (!current) return;
     const { data } = await supabase.from("event_cost_items").insert({
       simulation_id: current.id,
+      grupo_costo: "alojamiento",
       categoria: "alojamiento",
+
       descripcion: "",
       cantidad: 1,
       precio_unitario: 0,
@@ -371,7 +398,9 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   const persistItem = async (it: ItemRow) => {
     await supabase.from("event_cost_items").update({
+      grupo_costo: inferGrupoCosto(it),
       categoria: it.categoria, descripcion: it.descripcion,
+
       cantidad: Number(it.cantidad), precio_unitario: Number(it.precio_unitario),
       moneda: it.moneda, es_por_persona: it.es_por_persona,
       aplica_a_modalidades: it.aplica_a_modalidades,
@@ -404,7 +433,9 @@ export default function EventCostSimulator({ eventId }: Props) {
     const maxOrden = items.reduce((a, i) => Math.max(a, Number((i as any).orden) || 0), 0);
     const { data, error } = await supabase.from("event_cost_items").insert({
       simulation_id: current.id,
+      grupo_costo: inferGrupoCosto(it),
       categoria: it.categoria,
+
       descripcion: it.descripcion,
       cantidad: Number(it.cantidad),
       precio_unitario: Number(it.precio_unitario),
@@ -560,7 +591,7 @@ export default function EventCostSimulator({ eventId }: Props) {
             {/* Supuestos */}
             <Card>
               <CardHeader><CardTitle className="text-sm">Supuestos financieros</CardTitle></CardHeader>
-              <CardContent className="grid grid-cols-2 md:grid-cols-5 gap-3">
+              <CardContent className="grid grid-cols-2 md:grid-cols-6 gap-3">
                 <div><Label className="text-xs">TC USD → ARS</Label>
                   <Input type="number" value={current.tc_usd}
                     onChange={(e) => patchCurrent({ tc_usd: Number(e.target.value) })}
@@ -573,10 +604,28 @@ export default function EventCostSimulator({ eventId }: Props) {
                   <Input type="number" value={current.pct_imprevistos}
                     onChange={(e) => patchCurrent({ pct_imprevistos: Number(e.target.value) })}
                     onBlur={guardarCambios} /></div>
-                <div><Label className="text-xs">% Margen objetivo</Label>
-                  <Input type="number" value={current.pct_margen_objetivo}
-                    onChange={(e) => patchCurrent({ pct_margen_objetivo: Number(e.target.value) })}
-                    onBlur={guardarCambios} /></div>
+                <div><Label className="text-xs">Modelo de rentabilidad</Label>
+                  <Select value={current.rentabilidad_modo || "margen"}
+                    onValueChange={(v) => { patchCurrent({ rentabilidad_modo: v }); setTimeout(guardarCambios, 0); }}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="margen">Margen objetivo</SelectItem>
+                      <SelectItem value="honorario_participante">Honorario por participante</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {current.rentabilidad_modo === "honorario_participante" ? (
+                  <div><Label className="text-xs">Honorario por participante ({current.moneda_base})</Label>
+                    <Input type="number" value={current.honorario_por_participante ?? 0}
+                      onChange={(e) => patchCurrent({ honorario_por_participante: Number(e.target.value) })}
+                      onBlur={guardarCambios} /></div>
+                ) : (
+                  <div><Label className="text-xs">% Margen objetivo</Label>
+                    <Input type="number" value={current.pct_margen_objetivo}
+                      onChange={(e) => patchCurrent({ pct_margen_objetivo: Number(e.target.value) })}
+                      onBlur={guardarCambios} /></div>
+                )}
+
                 <div><Label className="text-xs">Moneda base</Label>
                   <Select value={current.moneda_base}
                     onValueChange={(v) => { patchCurrent({ moneda_base: v }); setTimeout(guardarCambios, 0); }}>
@@ -692,112 +741,58 @@ export default function EventCostSimulator({ eventId }: Props) {
               </CardContent>
             </Card>
 
-            {/* Costos */}
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle className="text-sm">Otros costos estimados</CardTitle>
-                {genericItems.length === 0 && (
-                  <Button size="sm" variant="outline" onClick={addItem}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar
-                  </Button>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {genericItems.length === 0 && <p className="text-xs text-muted-foreground">Sin costos cargados aún.</p>}
-                {genericItems.map((it) => (
-                  <div key={it.id} className="grid grid-cols-12 gap-2 items-center border rounded-md p-2">
-                    <Select value={it.categoria} onValueChange={(v) => {
-                      if (v === "alojamiento") {
-                        updateItem(it.id, {
-                          categoria: v,
-                          detalle: {
-                            package_id: null,
-                            cost_basis: "habitacion_noche",
-                            habitaciones: 0,
-                            noches: Number(current.noches || 0),
-                            personas_por_habitacion: 1,
-                            tipo_habitacion: null,
-                          },
-                        } as any);
-                      } else {
-                        updateItem(it.id, { categoria: v });
-                      }
-                    }}>
-                      <SelectTrigger className="col-span-2 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {CATEGORIAS_COSTO.map((c) => <SelectItem key={c} value={c}>{CATEGORIA_LABELS[c]}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <Input className="col-span-3 h-8" placeholder="Descripción"
-                      value={it.descripcion}
-                      onChange={(e) => patchItem(it.id, { descripcion: e.target.value })}
-                      onBlur={() => commitItem(it.id)} />
-                    <Input type="number" className="col-span-1 h-8" placeholder="Cant"
-                      value={it.cantidad}
-                      onChange={(e) => patchItem(it.id, { cantidad: Number(e.target.value) })}
-                      onBlur={() => commitItem(it.id)} />
-                    <Input type="number" className="col-span-2 h-8" placeholder="Precio"
-                      value={it.precio_unitario}
-                      onChange={(e) => patchItem(it.id, { precio_unitario: Number(e.target.value) })}
-                      onBlur={() => commitItem(it.id)} />
-                    <Select value={it.moneda} onValueChange={(v) => updateItem(it.id, { moneda: v })}>
-                      <SelectTrigger className="col-span-1 h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        {MONEDAS.map((m) => <SelectItem key={m.value} value={m.value}>{m.value}</SelectItem>)}
-                      </SelectContent>
-                    </Select>
-                    <label className="col-span-2 flex items-center gap-2 text-xs">
-                      <Checkbox checked={it.es_por_persona}
-                        onCheckedChange={(v) => updateItem(it.id, { es_por_persona: !!v })} />
-                      Por persona
-                    </label>
-                    <div className="col-span-1 flex items-center justify-end gap-0.5">
-                      <Button variant="ghost" size="icon" className="h-8 w-7"
-                        title="Duplicar gasto" onClick={() => duplicarItem(it)}>
-                        <Copy className="w-4 h-4 text-muted-foreground" />
-                      </Button>
-                      <Button variant="ghost" size="icon" className="h-8 w-7"
-                        title="Eliminar" onClick={() => delItem(it.id)}>
-                        <Trash2 className="w-4 h-4 text-destructive" />
-                      </Button>
-                    </div>
+            {/* Costos por grupo de decisión */}
+            <CostGroupSection
+              grupo="participante"
+              titulo={GRUPO_LABELS.participante}
+              descripcion="Costos que se repiten por cada persona inscripta (comidas, remeras, seguros). Impactan directo en el costo unitario del paquete."
+              items={participanteItems as any}
+              modalidades={modalidades}
+              monedaBase={current.moneda_base}
+              headline={formatPrice(calculo?.por_grupo?.participante || 0, current.moneda_base)}
+              subheadline="por participante (según escenario)"
+              onAdd={() => addItem("participante")}
+              onPatch={patchItem as any}
+              onCommit={commitItem}
+              onUpdate={updateItem as any}
+              onDuplicate={duplicarItem as any}
+              onDelete={delItem}
+            />
 
-                    {modalidades.length > 0 && (
-                      <div className="col-span-12 flex flex-wrap gap-1 pl-1">
-                        <span className="text-[10px] text-muted-foreground mr-1">Aplica a:</span>
-                        {modalidades.map((m) => {
-                          const active = it.aplica_a_modalidades?.length === 0 || it.aplica_a_modalidades?.includes(m.key);
-                          return (
-                            <Badge key={m.key}
-                              variant={active ? "default" : "outline"}
-                              className="cursor-pointer text-[10px]"
-                              onClick={() => {
-                                const cur = it.aplica_a_modalidades || [];
-                                let next: string[];
-                                if (cur.length === 0) {
-                                  // was "todas": deselect this one
-                                  next = modalidades.filter((x) => x.key !== m.key).map((x) => x.key);
-                                } else if (cur.includes(m.key)) {
-                                  next = cur.filter((k) => k !== m.key);
-                                } else {
-                                  next = [...cur, m.key];
-                                }
-                                if (next.length === modalidades.length) next = [];
-                                updateItem(it.id, { aplica_a_modalidades: next });
-                              }}>{m.label}</Badge>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                ))}
-                {genericItems.length > 0 && (
-                  <Button variant="outline" className="w-full" onClick={addItem}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar otro costo
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
+            <CostGroupSection
+              grupo="staff"
+              titulo={GRUPO_LABELS.staff}
+              descripcion="Costos del equipo (pasajes, alojamiento de staff, honorarios). Son fijos y se prorratean entre todos los inscriptos del escenario activo."
+              items={staffItems as any}
+              modalidades={modalidades}
+              monedaBase={current.moneda_base}
+              headline={formatPrice(calculo?.por_grupo?.staff || 0, current.moneda_base)}
+              subheadline="total fijo"
+              onAdd={() => addItem("staff")}
+              onPatch={patchItem as any}
+              onCommit={commitItem}
+              onUpdate={updateItem as any}
+              onDuplicate={duplicarItem as any}
+              onDelete={delItem}
+            />
+
+            <CostGroupSection
+              grupo="general"
+              titulo={GRUPO_LABELS.general}
+              descripcion="Costos generales del evento (vehículos, logística, marketing). Se prorratean por igual entre todos los inscriptos del escenario activo."
+              items={generalItems as any}
+              modalidades={modalidades}
+              monedaBase={current.moneda_base}
+              headline={formatPrice(calculo?.por_grupo?.general || 0, current.moneda_base)}
+              subheadline={calculo ? `${formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)} por persona` : undefined}
+              onAdd={() => addItem("general")}
+              onPatch={patchItem as any}
+              onCommit={commitItem}
+              onUpdate={updateItem as any}
+              onDuplicate={duplicarItem as any}
+              onDelete={delItem}
+            />
+
 
             {/* Escenarios de inscripción */}
             <Card>
