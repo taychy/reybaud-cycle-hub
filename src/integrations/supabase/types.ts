@@ -3758,6 +3758,7 @@ export type Database = {
           descripcion: string
           detalle: Json
           es_por_persona: boolean
+          grupo_costo: string | null
           id: string
           moneda: string
           orden: number
@@ -3773,6 +3774,7 @@ export type Database = {
           descripcion?: string
           detalle?: Json
           es_por_persona?: boolean
+          grupo_costo?: string | null
           id?: string
           moneda?: string
           orden?: number
@@ -3788,6 +3790,7 @@ export type Database = {
           descripcion?: string
           detalle?: Json
           es_por_persona?: boolean
+          grupo_costo?: string | null
           id?: string
           moneda?: string
           orden?: number
@@ -3816,6 +3819,7 @@ export type Database = {
           escenarios_inscripcion: Json
           estado: string
           event_id: string
+          honorario_por_participante: number
           id: string
           jornadas: number
           moneda_base: string
@@ -3824,6 +3828,7 @@ export type Database = {
           notas: string | null
           pct_imprevistos: number
           pct_margen_objetivo: number
+          rentabilidad_modo: string
           resultados: Json
           resultados_reales: Json
           tc_eur: number
@@ -3841,6 +3846,7 @@ export type Database = {
           escenarios_inscripcion?: Json
           estado?: string
           event_id: string
+          honorario_por_participante?: number
           id?: string
           jornadas?: number
           moneda_base?: string
@@ -3849,6 +3855,7 @@ export type Database = {
           notas?: string | null
           pct_imprevistos?: number
           pct_margen_objetivo?: number
+          rentabilidad_modo?: string
           resultados?: Json
           resultados_reales?: Json
           tc_eur?: number
@@ -3866,6 +3873,7 @@ export type Database = {
           escenarios_inscripcion?: Json
           estado?: string
           event_id?: string
+          honorario_por_participante?: number
           id?: string
           jornadas?: number
           moneda_base?: string
@@ -3874,6 +3882,7 @@ export type Database = {
           notas?: string | null
           pct_imprevistos?: number
           pct_margen_objetivo?: number
+          rentabilidad_modo?: string
           resultados?: Json
           resultados_reales?: Json
           tc_eur?: number

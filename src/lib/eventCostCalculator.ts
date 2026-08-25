@@ -1,13 +1,22 @@
 /**
  * Pure event cost simulator.
- * Normalizes items to base currency, splits fixed vs per-person costs,
- * applies contingency %, and derives suggested price per modality using
- * target margin.
+ *
+ * Modelo de decisión en 4 grandes grupos (`grupo_costo`):
+ *  - alojamiento : lógica especializada por paquete (habitación/persona/estadía).
+ *  - participante: costo VARIABLE por participante (cantidad × precio = costo por pax).
+ *  - staff       : costo total de la línea, prorrateado por el total de inscriptos del escenario.
+ *  - general     : idem staff (costo fijo general prorrateado).
+ *
+ * `categoria` se conserva como subcategoría/legado.
  */
 
 export type Moneda = "ARS" | "USD" | "EUR";
 
 export type CostBasis = "habitacion_noche" | "persona_noche" | "persona_estadia" | "total";
+
+export type GrupoCosto = "alojamiento" | "participante" | "staff" | "general";
+
+export type RentabilidadModo = "margen" | "honorario_participante";
 
 /** Metadata específica de líneas de alojamiento */
 export interface CostItemDetalle {
@@ -33,6 +42,8 @@ export interface CostItem {
   orden?: number;
   /** metadata flexible (alojamiento por paquete, etc.) */
   detalle?: CostItemDetalle | null;
+  /** grupo grande de decisión; si falta se infiere (backward compatibility) */
+  grupo_costo?: GrupoCosto | string | null;
 }
 
 
@@ -50,10 +61,14 @@ export interface Supuestos {
   moneda_base: Moneda | string;
   /**
    * Total de inscriptos del escenario activo. Es el denominador del prorrateo
-   * de costos GENERALES (no por paquete). Si no viene, se usa el
+   * de costos GENERALES/STAFF (no por paquete). Si no viene, se usa el
    * comportamiento anterior (prorrateo según esperados por paquete).
    */
   participantes_prorrateo?: number;
+  /** Cómo se define el precio: margen objetivo u honorario fijo por participante. */
+  rentabilidad_modo?: RentabilidadModo | string;
+  /** Honorario por participante en moneda base (modo honorario_participante). */
+  honorario_por_participante?: number;
 }
 
 export interface CalculoResult {
@@ -62,16 +77,26 @@ export interface CalculoResult {
   costos_fijos: number;
   costos_variables: number;
   por_categoria: Record<string, number>;
+  /** Totales por grandes grupos de decisión */
+  por_grupo: Record<GrupoCosto, number>;
   costo_por_modalidad: Record<string, number>;
+  /** Costo por participante de cada modalidad; null si no hay participantes esperados */
+  costo_unitario_por_modalidad: Record<string, number | null>;
   precio_sugerido_por_modalidad: Record<string, number>;
+  /** Ganancia unitaria = precio sugerido − costo unitario; null si no hay participantes */
+  ganancia_unitaria_por_modalidad: Record<string, number | null>;
   margen_estimado: number;
   ingreso_esperado: number;
-  punto_equilibrio: number; // participantes necesarios (fijos / margen unitario prom)
+  ganancia_estimada_total: number;
+  ganancia_promedio_por_participante: number;
+  /** Aproximado: costos fijos / margen unitario promedio */
+  punto_equilibrio: number;
   moneda_base: string;
-  /** Costos generales (no específicos de un paquete) sujetos a prorrateo */
+  /** Costos generales + staff (no específicos de un paquete) sujetos a prorrateo */
   costos_generales_prorrateables: number;
   /** Costo general por participante según el escenario activo */
   prorrateo_general_por_persona: number;
+  rentabilidad_modo: RentabilidadModo;
 }
 
 
@@ -95,6 +120,30 @@ export const CATEGORIA_LABELS: Record<string, string> = {
   otros: "Otros",
 };
 
+/** Subcategorías disponibles por grupo (clasificación secundaria, opcional) */
+export const SUBCATEGORIAS_POR_GRUPO: Record<Exclude<GrupoCosto, "alojamiento">, string[]> = {
+  participante: ["comida", "transporte", "servicios", "otros"],
+  staff: ["staff", "transporte", "comida", "otros"],
+  general: ["transporte", "servicios", "marketing", "comida", "otros"],
+};
+
+export const GRUPO_LABELS: Record<GrupoCosto, string> = {
+  alojamiento: "Alojamiento",
+  participante: "Participantes",
+  staff: "Staff",
+  general: "Generales",
+};
+
+/** Infiere el grupo grande de una línea cuando el dato no está persistido. */
+export function inferGrupoCosto(it: Pick<CostItem, "categoria" | "es_por_persona" | "grupo_costo">): GrupoCosto {
+  const g = it.grupo_costo;
+  if (g === "alojamiento" || g === "participante" || g === "staff" || g === "general") return g;
+  if (it.categoria === "alojamiento") return "alojamiento";
+  if (it.categoria === "staff") return "staff";
+  if (it.es_por_persona) return "participante";
+  return "general";
+}
+
 export function toBase(monto: number, moneda: string, sup: Supuestos): number {
   if (!moneda || moneda === sup.moneda_base) return monto;
   // convert source to ARS first, then to base
@@ -113,6 +162,9 @@ export function calcularSimulacion(
   supuestos: Supuestos,
 ): CalculoResult {
   const por_categoria: Record<string, number> = {};
+  const por_grupo: Record<GrupoCosto, number> = {
+    alojamiento: 0, participante: 0, staff: 0, general: 0,
+  };
   const costo_por_modalidad: Record<string, number> = {};
   modalidades.forEach((m) => (costo_por_modalidad[m.key] = 0));
 
@@ -125,11 +177,16 @@ export function calcularSimulacion(
   let costos_generales_prorrateables = 0;
   let prorrateo_general_por_persona = 0;
 
+  const addCat = (cat: string, monto: number) => {
+    por_categoria[cat] = (por_categoria[cat] || 0) + monto;
+  };
 
   for (const it of items) {
-    // ── Alojamiento por paquete (línea especializada) ──
+    const grupo = inferGrupoCosto(it);
     const det = (it.detalle || {}) as CostItemDetalle;
-    if (it.categoria === "alojamiento" && det.package_id && det.cost_basis) {
+
+    // ── Alojamiento por paquete (línea especializada) ──
+    if (grupo === "alojamiento" && det.package_id && det.cost_basis) {
       const mod = modalidades.find((m) => m.key === det.package_id);
       const unit = toBase(Number(it.precio_unitario || 0), it.moneda, supuestos);
       const noches = Number(det.noches || 0);
@@ -149,7 +206,8 @@ export function calcularSimulacion(
         totalLinea = unit * (Number(it.cantidad) > 0 ? Number(it.cantidad) : 1);
       }
 
-      por_categoria[it.categoria] = (por_categoria[it.categoria] || 0) + totalLinea;
+      addCat(it.categoria, totalLinea);
+      por_grupo.alojamiento += totalLinea;
       if (esVariable) costos_variables += totalLinea; else costos_fijos += totalLinea;
       // Imputación exclusiva al paquete elegido: nunca se reparte entre modalidades.
       if (mod) costo_por_modalidad[mod.key] += totalLinea;
@@ -161,15 +219,13 @@ export function calcularSimulacion(
       it.moneda,
       supuestos,
     );
-    por_categoria[it.categoria] = (por_categoria[it.categoria] || 0) + totalItem;
 
     const applyTo = it.aplica_a_modalidades?.length
       ? modalidades.filter((m) => it.aplica_a_modalidades.includes(m.key))
       : modalidades;
 
-
-    if (it.es_por_persona) {
-      // per person, per modality selected
+    if (grupo === "participante") {
+      // Costo VARIABLE por participante: el total de la fila es el costo por pax.
       let totalVar = 0;
       applyTo.forEach((m) => {
         const cost = totalItem * (Number(m.esperados) || 0);
@@ -177,34 +233,38 @@ export function calcularSimulacion(
         totalVar += cost;
       });
       costos_variables += totalVar;
-      // NOTE: por_categoria already added totalItem — replace with computed variable
-      por_categoria[it.categoria] =
-        (por_categoria[it.categoria] || 0) - totalItem + totalVar;
-    } else {
-      // costo GENERAL prorrateable
-      costos_fijos += totalItem;
-      costos_generales_prorrateables += totalItem;
-      const esGeneral = !it.aplica_a_modalidades?.length;
-      if (esGeneral && prorrateoBase > 0) {
-        // El denominador es SIEMPRE el escenario total de inscriptos:
-        // todos los paquetes reciben el mismo costo general por persona.
-        const porPersona = totalItem / prorrateoBase;
-        prorrateo_general_por_persona += porPersona;
-        modalidades.forEach((m) => {
-          costo_por_modalidad[m.key] += porPersona * (Number(m.esperados) || 0);
-        });
-      } else {
-        // subset explícito de modalidades (o sin escenario): comportamiento previo
-        const applyEsperados = applyTo.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
-        if (applyEsperados > 0) {
-          applyTo.forEach((m) => {
-            const share = (totalItem * (Number(m.esperados) || 0)) / applyEsperados;
-            costo_por_modalidad[m.key] += share;
-          });
-        }
-      }
+      addCat(it.categoria, totalVar);
+      por_grupo.participante += totalVar;
+      continue;
     }
 
+    // ── staff / general / alojamiento sin detalle: costo fijo general prorrateado ──
+    costos_fijos += totalItem;
+    costos_generales_prorrateables += totalItem;
+    addCat(it.categoria, totalItem);
+    por_grupo[grupo === "alojamiento" ? "general" : grupo] += totalItem;
+
+    // Staff y General se reparten SIEMPRE entre todos los paquetes por igual.
+    const esGeneral = grupo !== "alojamiento" || !it.aplica_a_modalidades?.length;
+    if (esGeneral && prorrateoBase > 0) {
+      // El denominador es SIEMPRE el escenario total de inscriptos:
+      // todos los paquetes reciben el mismo costo general por persona.
+      const porPersona = totalItem / prorrateoBase;
+      prorrateo_general_por_persona += porPersona;
+      modalidades.forEach((m) => {
+        costo_por_modalidad[m.key] += porPersona * (Number(m.esperados) || 0);
+      });
+    } else {
+      // sin escenario definido: comportamiento previo (reparto por esperados)
+      const target = grupo === "alojamiento" ? applyTo : modalidades;
+      const applyEsperados = target.reduce((a, m) => a + (Number(m.esperados) || 0), 0);
+      if (applyEsperados > 0) {
+        target.forEach((m) => {
+          const share = (totalItem * (Number(m.esperados) || 0)) / applyEsperados;
+          costo_por_modalidad[m.key] += share;
+        });
+      }
+    }
   }
 
   const total_costos_base = costos_fijos + costos_variables;
@@ -215,23 +275,46 @@ export function calcularSimulacion(
   Object.keys(costo_por_modalidad).forEach((k) => {
     costo_por_modalidad[k] = costo_por_modalidad[k] * factorImp;
   });
-
-  const margen = Math.min(0.9, Math.max(0, (Number(supuestos.pct_margen_objetivo) || 0) / 100));
-  const precio_sugerido_por_modalidad: Record<string, number> = {};
-  let ingreso_esperado = 0;
-  modalidades.forEach((m) => {
-    const costoUnit = m.esperados > 0 ? costo_por_modalidad[m.key] / m.esperados : 0;
-    const precio = margen < 1 ? costoUnit / (1 - margen) : costoUnit;
-    precio_sugerido_por_modalidad[m.key] = precio;
-    ingreso_esperado += precio * (Number(m.esperados) || 0);
+  (Object.keys(por_grupo) as GrupoCosto[]).forEach((k) => {
+    por_grupo[k] = por_grupo[k] * factorImp;
   });
 
-  const margen_estimado =
-    ingreso_esperado > 0 ? (ingreso_esperado - total_con_imprevistos) / ingreso_esperado : 0;
+  const modo: RentabilidadModo = supuestos.rentabilidad_modo === "honorario_participante"
+    ? "honorario_participante"
+    : "margen";
+  const margen = Math.min(0.9, Math.max(0, (Number(supuestos.pct_margen_objetivo) || 0) / 100));
+  const honorario = Number(supuestos.honorario_por_participante) || 0;
+
+  const costo_unitario_por_modalidad: Record<string, number | null> = {};
+  const precio_sugerido_por_modalidad: Record<string, number> = {};
+  const ganancia_unitaria_por_modalidad: Record<string, number | null> = {};
+  let ingreso_esperado = 0;
+  modalidades.forEach((m) => {
+    const pax = Number(m.esperados) || 0;
+    if (pax <= 0) {
+      // Sin participantes esperados no hay costo unitario real: no inventar valores.
+      costo_unitario_por_modalidad[m.key] = null;
+      precio_sugerido_por_modalidad[m.key] = 0;
+      ganancia_unitaria_por_modalidad[m.key] = null;
+      return;
+    }
+    const costoUnit = costo_por_modalidad[m.key] / pax;
+    const precio = modo === "honorario_participante"
+      ? costoUnit + honorario
+      : (margen < 1 ? costoUnit / (1 - margen) : costoUnit);
+    costo_unitario_por_modalidad[m.key] = costoUnit;
+    precio_sugerido_por_modalidad[m.key] = precio;
+    ganancia_unitaria_por_modalidad[m.key] = precio - costoUnit;
+    ingreso_esperado += precio * pax;
+  });
+
+  const ganancia_estimada_total = ingreso_esperado - total_con_imprevistos;
+  const ganancia_promedio_por_participante =
+    totalEsperados > 0 ? ganancia_estimada_total / totalEsperados : 0;
+  const margen_estimado = ingreso_esperado > 0 ? ganancia_estimada_total / ingreso_esperado : 0;
 
   // punto de equilibrio en participantes promedio: fijos / margen unitario promedio
-  const margen_unit_prom =
-    totalEsperados > 0 ? (ingreso_esperado - total_con_imprevistos) / totalEsperados : 0;
+  const margen_unit_prom = totalEsperados > 0 ? ganancia_estimada_total / totalEsperados : 0;
   const punto_equilibrio =
     margen_unit_prom > 0 ? Math.ceil((costos_fijos * factorImp) / margen_unit_prom) : 0;
 
@@ -241,14 +324,19 @@ export function calcularSimulacion(
     costos_fijos: costos_fijos * factorImp,
     costos_variables: costos_variables * factorImp,
     por_categoria,
+    por_grupo,
     costo_por_modalidad,
+    costo_unitario_por_modalidad,
     precio_sugerido_por_modalidad,
+    ganancia_unitaria_por_modalidad,
     margen_estimado,
     ingreso_esperado,
+    ganancia_estimada_total,
+    ganancia_promedio_por_participante,
     punto_equilibrio,
     moneda_base: supuestos.moneda_base,
     costos_generales_prorrateables: costos_generales_prorrateables * factorImp,
     prorrateo_general_por_persona: prorrateo_general_por_persona * factorImp,
-
+    rentabilidad_modo: modo,
   };
 }
