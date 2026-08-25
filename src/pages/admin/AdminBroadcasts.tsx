@@ -82,7 +82,7 @@ const DEFAULT_CTA_PRESETS: CtaPreset[] = [
   { name: "Mi plan / pagos", url: "https://reybaud-app.com/alumno/pagos", label: "Ver mi plan" },
 ];
 
-export default function AdminBroadcasts() {
+export default function AdminBroadcasts({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const [tab, setTab] = useState("composer");
   const [composer, setComposer] = useState(emptyComposer);
@@ -448,12 +448,12 @@ export default function AdminBroadcasts() {
     contact.type === "coach" ? composer.coach_ids.includes(contact.id) : composer.alumno_ids.includes(contact.id);
 
   return (
-    <div className="p-4 md:p-6 space-y-6 max-w-6xl">
+    <div className={embedded ? "space-y-6 max-w-6xl" : "p-4 md:p-6 space-y-6 max-w-6xl"}>
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div className="flex items-start gap-3">
-          <Mail className="w-7 h-7 text-primary mt-1" />
+          {!embedded && <Mail className="w-7 h-7 text-primary mt-1" />}
           <div>
-            <h1 className="font-heading text-2xl md:text-3xl">Email Masivo</h1>
+            {!embedded && <h1 className="font-heading text-2xl md:text-3xl">Email Masivo</h1>}
             <p className="text-sm text-muted-foreground max-w-2xl">
               Enviá comunicaciones a tus alumnos. Las cuentas transaccionales (reservas, pagos) usan otro canal aparte para proteger su entregabilidad.
             </p>

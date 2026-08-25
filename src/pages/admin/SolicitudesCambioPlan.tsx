@@ -31,7 +31,7 @@ const formatDate = (iso: string) => {
   } catch { return iso; }
 };
 
-export default function SolicitudesCambioPlan() {
+export default function SolicitudesCambioPlan({ embedded = false }: { embedded?: boolean } = {}) {
   const [items, setItems] = useState<Solicitud[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"pendiente" | "todas">("pendiente");
@@ -82,7 +82,8 @@ export default function SolicitudesCambioPlan() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      <div className={embedded ? "flex items-center justify-end" : "flex items-center justify-between"}>
+        {!embedded && (
         <div className="flex items-center gap-2">
           <Link to="/admin/resumen" className="text-muted-foreground hover:text-foreground">
             <ArrowLeft className="w-5 h-5" />
@@ -92,6 +93,8 @@ export default function SolicitudesCambioPlan() {
             Solicitudes de cambio de plan
           </h1>
         </div>
+        )}
+
         <div className="flex gap-1">
           <Button variant={filter === "pendiente" ? "default" : "outline"} size="sm" onClick={() => setFilter("pendiente")}>
             Pendientes

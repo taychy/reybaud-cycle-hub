@@ -16,6 +16,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, DropdownMenuLabel } from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SolicitudesCambioPlan from "./SolicitudesCambioPlan";
+import { ArrowRightLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
 import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
@@ -116,7 +118,27 @@ const isProfileIncomplete = (alumno: Alumno, subEstado: string) => getProfileMis
 
 const ManageStudents = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const studentsTab = tabParam === "cambios-plan" || tabParam === "importar" ? tabParam : "lista";
+  const [cambiosPlanPendientes, setCambiosPlanPendientes] = useState(0);
+  const handleStudentsTabChange = (value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === "lista") next.delete("tab");
+    else next.set("tab", value);
+    setSearchParams(next, { replace: true });
+  };
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const { count } = await supabase
+        .from("solicitudes_cambio_plan" as any)
+        .select("id", { count: "exact", head: true })
+        .eq("estado", "pendiente");
+      if (mounted) setCambiosPlanPendientes(count || 0);
+    })();
+    return () => { mounted = false; };
+  }, []);
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState(searchParams.get("buscar") || "");
@@ -1068,10 +1090,18 @@ const ManageStudents = () => {
         </div>
       </div>
 
-      <Tabs defaultValue="lista" className="w-full">
+      <Tabs value={studentsTab} onValueChange={handleStudentsTabChange} className="w-full">
         <TabsList className="bg-secondary">
           <TabsTrigger value="lista" className="gap-1.5"><Users className="w-4 h-4" />Lista</TabsTrigger>
           <TabsTrigger value="importar" className="gap-1.5"><Upload className="w-4 h-4" />Importar</TabsTrigger>
+          <TabsTrigger value="cambios-plan" className="gap-1.5">
+            <ArrowRightLeft className="w-4 h-4" />Cambios de plan
+            {cambiosPlanPendientes > 0 && (
+              <span className="ml-1 rounded-full bg-primary/20 text-primary text-[10px] px-1.5 py-0.5">
+                {cambiosPlanPendientes}
+              </span>
+            )}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="lista" className="space-y-5 mt-4">
@@ -1993,6 +2023,10 @@ const ManageStudents = () => {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </TabsContent>
+
+        <TabsContent value="cambios-plan" className="mt-4">
+          <SolicitudesCambioPlan embedded />
         </TabsContent>
 
         <TabsContent value="importar" className="mt-4">

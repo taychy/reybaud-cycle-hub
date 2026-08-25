@@ -106,7 +106,7 @@ const MOTIVO_LABEL: Record<ExtraRow["motivo"], string> = {
   desconocido: "Desconocido / por identificar",
 };
 
-const WhatsAppConciliador = () => {
+const WhatsAppConciliador = ({ embedded = false }: { embedded?: boolean } = {}) => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { toast } = useToast();
@@ -424,7 +424,9 @@ const WhatsAppConciliador = () => {
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Chequeo de WhatsApp</h1>
+          {!embedded && (
+            <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Chequeo de WhatsApp</h1>
+          )}
           <p className="text-sm text-muted-foreground mt-1">
             Revisamos grupo por grupo, alumno por alumno. Hacelo los días 5 y 15 de cada mes.
           </p>

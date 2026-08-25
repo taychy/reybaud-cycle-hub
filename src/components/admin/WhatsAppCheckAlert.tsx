@@ -83,7 +83,7 @@ export const WhatsAppCheckAlert = () => {
               </p>
             </div>
           </div>
-          <Button size="sm" onClick={() => navigate(`/admin/whatsapp-conciliador?fecha=${win.fechaObjetivo}`)}>
+          <Button size="sm" onClick={() => navigate(`/admin/comunicaciones?tab=whatsapp&fecha=${win.fechaObjetivo}`)}>
             {todoCerrado ? "Ver detalle" : "Iniciar chequeo"} <ChevronRight className="w-3.5 h-3.5 ml-1" />
           </Button>
         </div>
@@ -108,7 +108,7 @@ export const WhatsAppCheckAlert = () => {
               return (
                 <Badge key={g} variant="outline"
                   className={`${cls} cursor-pointer text-[10px]`}
-                  onClick={() => navigate(`/admin/whatsapp-conciliador?grupo=${encodeURIComponent(g)}&fecha=${win.fechaObjetivo}`)}>
+                  onClick={() => navigate(`/admin/comunicaciones?tab=whatsapp&grupo=${encodeURIComponent(g)}&fecha=${win.fechaObjetivo}`)}>
                   {status === "cerrado" && <CheckCircle2 className="w-2.5 h-2.5 mr-1" />}
                   {g}
                 </Badge>

@@ -16,7 +16,6 @@ import StudentPayments from "./pages/StudentPayments";
 import SetPassword from "./pages/SetPassword";
 import AdminLayout from "./pages/admin/AdminLayout";
 import ManageStudents from "./pages/admin/ManageStudents";
-import WhatsAppConciliador from "./pages/admin/WhatsAppConciliador";
 import WhatsAppHistorial from "./pages/admin/WhatsAppHistorial";
 import Trainings from "./pages/admin/Trainings";
 import Install from "./pages/Install";
@@ -36,7 +35,8 @@ import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
 import AdminDashboard from "./pages/admin/AdminDashboard";
-import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
+import AdminResumen from "./pages/admin/AdminResumen";
+import AdminComunicaciones from "./pages/admin/AdminComunicaciones";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
 import ManagePlanes from "./pages/admin/ManagePlanes";
@@ -45,7 +45,6 @@ import ManagePrecios from "./pages/admin/ManagePrecios";
 import ManageSedes from "./pages/admin/ManageSedes";
 import NotFound from "./pages/NotFound";
 import AuditLog from "./pages/admin/AuditLog";
-import SolicitudesCambioPlan from "./pages/admin/SolicitudesCambioPlan";
 import AdminPayments from "./pages/admin/AdminPayments";
 import AdminCierreCaja from "./pages/admin/AdminCierreCaja";
 import AdminCuentaCorriente from "./pages/admin/AdminCuentaCorriente";
@@ -126,14 +125,12 @@ import TurneraConfirmacion from "./pages/booking/TurneraConfirmacion";
 import TurneraTransferencia from "./pages/booking/TurneraTransferencia";
 import BookingLanding from "./pages/booking/BookingLanding";
 import ImpersonateStudent from "./pages/admin/ImpersonateStudent";
-import AdminEmailTemplates from "./pages/admin/AdminEmailTemplates";
 import AdminPriceAlertApproval from "./pages/admin/AdminPriceAlertApproval";
 import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests";
 import AdminWaitlistRequests from "./pages/admin/AdminWaitlistRequests";
 import AdminWaitlistTemplates from "./pages/admin/AdminWaitlistTemplates";
 import AdminEventWaitlist from "./pages/admin/AdminEventWaitlist";
 import EventWaitlistPage from "./pages/EventWaitlistPage";
-import AdminBroadcasts from "./pages/admin/AdminBroadcasts";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 import FormacionInicial from "./pages/FormacionInicial";
 
@@ -208,9 +205,9 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
-            <Route path="resumen" element={<AdminDashboard />} />
+            <Route path="resumen" element={<AdminResumen />} />
             <Route path="alumnos" element={<ManageStudents />} />
-            <Route path="whatsapp-conciliador" element={<WhatsAppConciliador />} />
+            <Route path="whatsapp-conciliador" element={<Navigate to="/admin/comunicaciones?tab=whatsapp" replace />} />
             <Route path="whatsapp-historial" element={<WhatsAppHistorial />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
@@ -238,16 +235,16 @@ const App = () => (
             <Route path="eventos/participantes" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
-            <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
-            <Route path="comunicaciones" element={<AdminEmailTemplates />} />
-            <Route path="email-masivo" element={<AdminBroadcasts />} />
+            <Route path="solicitudes-cambio-plan" element={<Navigate to="/admin/alumnos?tab=cambios-plan" replace />} />
+            <Route path="comunicaciones" element={<AdminComunicaciones />} />
+            <Route path="email-masivo" element={<Navigate to="/admin/comunicaciones?tab=email-masivo" replace />} />
             <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
             <Route path="cambios-paquete" element={<AdminPackageChangeRequests />} />
             <Route path="solicitudes-alojamiento" element={<AdminWaitlistRequests />} />
             <Route path="waitlist-plantillas" element={<AdminWaitlistTemplates />} />
             <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
 
-            <Route path="metricas" element={<SuperAdminDashboard />} />
+            <Route path="metricas" element={<Navigate to="/admin/resumen?tab=metricas" replace />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
             <Route path="gestion-redes" element={<AdminGestionRedes />} />
