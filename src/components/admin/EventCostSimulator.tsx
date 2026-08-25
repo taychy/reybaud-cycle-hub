@@ -995,21 +995,30 @@ export default function EventCostSimulator({ eventId }: Props) {
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">Costo y precio sugerido por modalidad</div>
                     <div className="grid gap-2">
-                      {modalidades.map((m) => (
-                        <div key={m.key} className="flex items-center gap-3 text-sm border rounded-md p-2">
-                          <div className="flex-1 truncate">{m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span></div>
-                          <div className="text-xs text-muted-foreground">
-                            Costo unit: {formatPrice((calculo.costo_por_modalidad[m.key] || 0) / (m.esperados || 1), current.moneda_base)}
-                            {calculo.prorrateo_general_por_persona > 0 && (
-                              <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
-                            )}
+                      {modalidades.map((m) => {
+                        const unit = calculo.costo_unitario_por_modalidad[m.key];
+                        const sinCalculo = m.esperados <= 0 || unit == null;
+                        return (
+                          <div key={m.key} className="flex items-center gap-3 text-sm border rounded-md p-2">
+                            <div className="flex-1 truncate">
+                              {m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span>
+                              {sinCalculo && (
+                                <div className="text-[11px] text-muted-foreground">Definí participantes esperados para calcular</div>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Costo por participante: {sinCalculo ? "—" : formatPrice(unit as number, current.moneda_base)}
+                              {!sinCalculo && calculo.prorrateo_general_por_persona > 0 && (
+                                <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
+                              )}
+                            </div>
+                            <div className="font-semibold">
+                              Precio sugerido: {sinCalculo ? "—" : formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}
+                            </div>
+                          </div>
+                        );
+                      })}
 
-                          </div>
-                          <div className="font-semibold">
-                            Sug: {formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </div>
 
