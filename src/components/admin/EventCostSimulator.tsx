@@ -366,31 +366,112 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
 
 
-  const addLodgingItem = async () => {
+  /** Crea la línea principal de costo de un alojamiento recién creado. */
+  const addLodgingItemFor = async (opts: {
+    packageId: string;
+    habitaciones: number;
+    personas: number;
+    tipo: string | null;
+    cost_basis: string;
+    precio_unitario: number;
+    moneda: string;
+    descripcion: string;
+    noches: number;
+  }) => {
     if (!current) return;
     const { data } = await supabase.from("event_cost_items").insert({
       simulation_id: current.id,
       grupo_costo: "alojamiento",
       categoria: "alojamiento",
-
-      descripcion: "",
+      descripcion: opts.descripcion || "",
       cantidad: 1,
-      precio_unitario: 0,
-      moneda: current.moneda_base,
+      precio_unitario: Number(opts.precio_unitario) || 0,
+      moneda: opts.moneda || current.moneda_base,
       es_por_persona: false,
       aplica_a_modalidades: [],
       orden: items.length,
       detalle: {
-        package_id: null,
-        cost_basis: "habitacion_noche",
-        habitaciones: 0,
-        noches: Number(current.noches || 0),
-        personas_por_habitacion: 1,
-        tipo_habitacion: null,
+        package_id: opts.packageId,
+        cost_basis: opts.cost_basis,
+        habitaciones: opts.habitaciones,
+        noches: Number(opts.noches) || 0,
+        personas_por_habitacion: opts.personas,
+        tipo_habitacion: opts.tipo,
       },
     } as any).select().single();
-    if (data) setItems([...items, data as any]);
+    if (data) setItems((old) => [...old, data as any]);
   };
+
+  /** Reservas activas por paquete (guard de reducción de capacidad). */
+  const [reservasActivas, setReservasActivas] = useState<Record<string, number>>({});
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("event_reservations")
+        .select("package_id, reservation_status")
+        .eq("event_id", eventId);
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        if (!r.package_id) return;
+        if (r.reservation_status === "cancelada" || r.reservation_status === "rechazada") return;
+        counts[r.package_id] = (counts[r.package_id] || 0) + 1;
+      });
+      setReservasActivas(counts);
+    })();
+  }, [eventId]);
+
+  /** Renombra la modalidad/paquete sin tocar precio ni seña. */
+  const renamePackage = async (packageId: string, nombre: string) => {
+    const { error } = await supabase.from("event_packages").update({ nombre }).eq("id", packageId);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    setPackages((old) => old.map((p) => p.id === packageId ? { ...p, nombre } : p));
+  };
+
+  /** Sincroniza habitaciones/personas → event_rooms + cupo del paquete. */
+  const syncLodgingStructure = async (packageId: string, habitaciones: number, personas: number) => {
+    const pkg = packages.find((p) => p.id === packageId);
+    const existing = rooms.filter((r) => r.package_id === packageId);
+    const plan = planRoomSync({
+      existing: existing as any,
+      habitaciones,
+      personas,
+      tipo: (existing[0]?.tipo as string) || null,
+      label: pkg?.nombre || "Habitación",
+    });
+
+    const guard = capacityReductionError(plan.capacidad, reservasActivas[packageId] || 0);
+    if (guard) { toast({ title: "No se puede reducir la capacidad", description: guard, variant: "destructive" }); return; }
+
+    if (plan.toDeleteIds.length > 0) {
+      await supabase.from("event_rooms").delete().in("id", plan.toDeleteIds);
+    }
+    for (const u of plan.toUpdate) {
+      await supabase.from("event_rooms").update({ capacidad: u.capacidad }).eq("id", u.id);
+    }
+    let inserted: any[] = [];
+    if (plan.toInsert.length > 0) {
+      const { data } = await supabase.from("event_rooms").insert(
+        plan.toInsert.map((r) => ({ ...r, event_id: eventId, package_id: packageId })) as any,
+      ).select("id, package_id, nombre, capacidad, tipo, sort_order");
+      inserted = (data as any) || [];
+    }
+    await supabase.from("event_packages")
+      .update({ cupo: plan.capacidad, personas_por_habitacion: personas })
+      .eq("id", packageId);
+
+    setRooms((old) => [
+      ...old
+        .filter((r) => !plan.toDeleteIds.includes(r.id))
+        .map((r) => {
+          const upd = plan.toUpdate.find((u) => u.id === r.id);
+          return upd ? { ...r, capacidad: upd.capacidad } : r;
+        }),
+      ...inserted,
+    ]);
+    setPackages((old) => old.map((p) =>
+      p.id === packageId ? { ...p, cupo: plan.capacidad, personas_por_habitacion: personas } : p));
+  };
+
 
   const patchItem = async (id: string, patch: Partial<ItemRow>) => {
     setItems((old) => old.map((i) => i.id === id ? { ...i, ...patch } : i));
