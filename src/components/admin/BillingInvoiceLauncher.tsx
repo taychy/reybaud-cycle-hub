@@ -5,6 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { InvoiceModal } from "@/pages/admin/billing/InvoiceModal";
+import { isFacturaEmitida } from "@/lib/billingInvoiceLink";
 
 export type InvoiceSource = {
   alumno_id: string;
@@ -18,8 +19,12 @@ export type InvoiceSource = {
   segmento: "escuela" | "viajes" | "tienda";
   metodo_pago?: string | null;
   origen_registro?: string | null;
+  /** Fila exacta de `facturacion_cola` que originó este pago (vínculo determinístico). */
+  facturacion_cola_id?: string | null;
 };
 
+const FACTURA_COLS =
+  "id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id, facturacion_cola_id";
 
 interface Emisor {
   id: string;
@@ -37,37 +42,52 @@ interface Props {
   variant?: "icon" | "default";
   className?: string;
   onEmitted?: () => void;
+  /**
+   * Estado ya conocido de la factura (evita 1 query por fila en listados).
+   * `null` significa "sé que no existe factura".
+   */
+  existingFactura?: { id: string; estado: string | null; cae: string | null } | null;
 }
 
 /**
  * Botón + modal que asegura que exista un registro en `facturas` para el pago
  * (creándolo vía `auto-facturar` si hace falta) y abre el flujo AFIP.
  */
-export function BillingInvoiceLauncher({ source, variant = "icon", className, onEmitted }: Props) {
+export function BillingInvoiceLauncher({ source, variant = "icon", className, onEmitted, existingFactura: preknown }: Props) {
   const [loading, setLoading] = useState(false);
-  const [existingFactura, setExistingFactura] = useState<any | null>(null);
-  const [checkingExisting, setCheckingExisting] = useState(true);
+  const [existingFactura, setExistingFactura] = useState<any | null>(preknown ?? null);
+  // Si el listado ya nos pasó el estado, no consultamos al renderizar.
+  const [checkingExisting, setCheckingExisting] = useState(preknown === undefined);
   const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [modalFactura, setModalFactura] = useState<any | null>(null);
 
   const fetchExisting = useCallback(async () => {
-    const { data } = await supabase
-      .from("facturas")
-      .select("id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id")
-      .eq("referencia_tipo", source.referencia_tipo)
-      .eq("referencia_id", source.referencia_id)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    let query = supabase.from("facturas").select(FACTURA_COLS);
+    if (source.facturacion_cola_id) {
+      query = query.eq("facturacion_cola_id", source.facturacion_cola_id);
+    } else {
+      query = query
+        .eq("referencia_tipo", source.referencia_tipo)
+        .eq("referencia_id", source.referencia_id);
+    }
+    const { data } = await query.order("created_at", { ascending: false }).limit(1).maybeSingle();
     setExistingFactura(data || null);
     setCheckingExisting(false);
-  }, [source.referencia_tipo, source.referencia_id]);
+    return (data as any) || null;
+  }, [source.facturacion_cola_id, source.referencia_tipo, source.referencia_id]);
 
-  useEffect(() => { fetchExisting(); }, [fetchExisting]);
+  useEffect(() => {
+    if (preknown !== undefined) {
+      setExistingFactura(preknown);
+      setCheckingExisting(false);
+      return;
+    }
+    fetchExisting();
+  }, [fetchExisting, preknown]);
 
   const handleClick = async () => {
     // Ya facturada con CAE → no-op
-    if (existingFactura?.estado === "emitida" && existingFactura?.cae) {
+    if (isFacturaEmitida(existingFactura)) {
       toast({
         title: "Ya facturada en AFIP",
         description: `CAE ${existingFactura.cae}`,
@@ -86,16 +106,17 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
       if (!emisoresData || emisoresData.length === 0) {
         toast({
           title: "Sin emisores activos",
-          description: "Configurá al menos un emisor en /admin/facturacion → Emisores.",
+          description: "Configurá al menos un emisor en Configuración → Finanzas → Emisores fiscales.",
           variant: "destructive",
         });
         return;
       }
       setEmisores(emisoresData as any);
 
-      let factura = existingFactura;
+      // Si el estado vino precargado del listado, buscamos la fila completa ahora.
+      let factura = existingFactura?.concepto ? existingFactura : await fetchExisting();
 
-      // Si no hay registro, lo creamos sin emitir (skipEmit) llamando auto-facturar
+      // Si no hay registro, lo creamos sin emitir llamando auto-facturar
       if (!factura) {
         const { data, error } = await supabase.functions.invoke("auto-facturar", {
           body: {
@@ -108,29 +129,21 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
             segmento: source.segmento,
             metodo_pago: source.metodo_pago ?? undefined,
             origen_registro: source.origen_registro ?? undefined,
+            facturacion_cola_id: source.facturacion_cola_id ?? undefined,
           },
         });
 
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
 
-        // Volver a leer la factura recién creada
-        const { data: nueva } = await supabase
-          .from("facturas")
-          .select("id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id")
-          .eq("referencia_tipo", source.referencia_tipo)
-          .eq("referencia_id", source.referencia_id)
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        factura = nueva;
-        setExistingFactura(nueva || null);
+        // Volver a leer la factura recién creada (por vínculo exacto si lo hay)
+        factura = await fetchExisting();
 
         // Si auto-facturar ya la emitió, listo
         if (data?.emitted) {
           toast({
             title: "Factura AFIP emitida",
-            description: `N° ${data.numero_comprobante} — CAE ${data.cae}`,
+            description: data?.cae ? `CAE ${data.cae}` : "Emitida correctamente.",
           });
           onEmitted?.();
           return;
@@ -168,7 +181,7 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
     }
   };
 
-  const alreadyEmitted = existingFactura?.estado === "emitida" && !!existingFactura?.cae;
+  const alreadyEmitted = isFacturaEmitida(existingFactura);
 
   if (variant === "icon") {
     return (
