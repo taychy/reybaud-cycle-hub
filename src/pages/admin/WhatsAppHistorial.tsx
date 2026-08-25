@@ -111,7 +111,7 @@ const WhatsAppHistorial = () => {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/admin/whatsapp-conciliador")}>
+        <Button variant="ghost" size="sm" onClick={() => navigate("/admin/comunicaciones?tab=whatsapp")}>
           <ChevronLeft className="w-4 h-4 mr-1" /> Volver
         </Button>
         <div>

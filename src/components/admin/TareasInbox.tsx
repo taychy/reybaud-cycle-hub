@@ -10,7 +10,7 @@ function getTareaRoute(t: Tarea): string | null {
   const alumnoId = meta.alumno_id as string | undefined;
   switch (t.origen) {
     case "whatsapp_check":
-      return "/admin/whatsapp-conciliador";
+      return "/admin/comunicaciones?tab=whatsapp";
     case "alumno_inactivo_30d":
     case "certificado_no_cargado":
     case "certificado_por_vencer":
