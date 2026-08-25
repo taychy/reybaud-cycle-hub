@@ -1,16 +1,13 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { BillingKPIs } from "./BillingKPIs";
-import { BillingList } from "./BillingList";
-import { BillingEmisores } from "./BillingEmisores";
-import { BillingCuentasMP } from "./BillingCuentasMP";
-import { PendingPaymentsList } from "./PendingPaymentsList";
-import { BillingEmisorSummary } from "./BillingEmisorSummary";
-import { InvoiceModal } from "./InvoiceModal";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Settings2, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { ManualInvoiceButton } from "./ManualInvoiceButton";
-import { SyncMpFeesButton } from "./SyncMpFeesButton";
-import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
-import { BillingStepper, BillingStep, SecondaryView } from "./BillingStepper";
+import { TrayPendientes } from "./TrayPendientes";
+import { TrayProblemas } from "./TrayProblemas";
+import { TrayHistorial } from "./TrayHistorial";
 import { useBillingCounts } from "./useBillingCounts";
 
 interface Emisor {
@@ -23,161 +20,85 @@ interface Emisor {
   limite_anual_ars?: number | null;
 }
 
-interface FacturaRow {
-  id: string;
-  cliente_nombre: string;
-  cliente_cuit: string | null;
-  condicion_fiscal: string;
-  concepto: string;
-  monto: number;
-  estado: string;
-  emisor_id: string | null;
-  numero_comprobante: string | null;
-  fecha_emision: string | null;
-  referencia_tipo: string;
-  referencia_id: string | null;
-  created_at: string;
-  cae?: string | null;
+type Tab = "pendientes" | "problemas" | "historial";
+
+function Indicator({
+  label, value, loading, icon: Icon, tone,
+}: { label: string; value: number; loading?: boolean; icon: any; tone: string }) {
+  return (
+    <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-3 flex-1 min-w-[150px]">
+      <span className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", tone)}>
+        <Icon className="w-4 h-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-xs text-muted-foreground truncate">{label}</p>
+        <p className="text-lg font-bold tabular-nums leading-tight">
+          {loading ? "…" : new Intl.NumberFormat("es-AR").format(value)}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminBilling() {
-  const [facturas, setFacturas] = useState<FacturaRow[]>([]);
+  const [tab, setTab] = useState<Tab>("pendientes");
   const [emisores, setEmisores] = useState<Emisor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [invoiceTarget, setInvoiceTarget] = useState<FacturaRow | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-  const [bulkOpen, setBulkOpen] = useState(false);
-  const [bulkRows, setBulkRows] = useState<BulkFacturaRow[]>([]);
-  const [summaryKey, setSummaryKey] = useState(0);
-  const [step, setStep] = useState<BillingStep>("cobrado");
-  const [secondary, setSecondary] = useState<SecondaryView>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const counts = useBillingCounts(refreshKey);
 
-  const counts = useBillingCounts(summaryKey);
-
-  const loadData = useCallback(async () => {
-    const [facturasRes, emisoresRes] = await Promise.all([
-      supabase.from("facturas").select("*").order("created_at", { ascending: false }).limit(500),
-      supabase.from("emisores_fiscales").select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars").order("created_at", { ascending: true }),
-    ]);
-    setFacturas((facturasRes.data as any[]) || []);
-    setEmisores((emisoresRes.data as any[]) || []);
-    setSummaryKey((k) => k + 1);
-    setLoading(false);
+  const loadEmisores = useCallback(async () => {
+    const { data } = await supabase
+      .from("emisores_fiscales")
+      .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
+      .order("created_at", { ascending: true });
+    setEmisores((data as any[]) || []);
   }, []);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadEmisores(); }, [loadEmisores]);
 
-  const handleGenerarFactura = (factura: FacturaRow) => {
-    setInvoiceTarget(factura);
-    setModalOpen(true);
-  };
-
-  const handleBulkRequest = (rows: FacturaRow[]) => {
-    setBulkRows(rows.map((r) => {
-      const kind: "sin_factura" | "error" | "manual" =
-        r.estado === "sin_factura" ? "sin_factura"
-        : r.estado === "error" ? "error"
-        : "manual";
-      return {
-        id: r.id,
-        cliente_nombre: r.cliente_nombre,
-        cliente_cuit: r.cliente_cuit,
-        condicion_fiscal: r.condicion_fiscal || "consumidor_final",
-        concepto: r.concepto,
-        monto: r.monto,
-        referencia_tipo: r.referencia_tipo,
-        kind,
-      };
-    }));
-    setBulkOpen(true);
-  };
-
-  if (loading) {
-    return <div className="animate-pulse text-muted-foreground text-center py-12">Cargando facturación...</div>;
-  }
-
-  // Set de referencias que YA tienen una factura emitida con CAE (para deduplicar placeholders huérfanos)
-  const refsConCAE = new Set<string>();
-  facturas.forEach((f) => {
-    if (f.estado === "emitida" && f.cae && f.referencia_id) {
-      refsConCAE.add(`${f.referencia_tipo}:${f.referencia_id}`);
-    }
-  });
-
-  const pendientes = facturas.filter((f) => {
-    const isPending = f.estado === "sin_factura" || f.estado === "error" || (f.estado === "emitida" && !f.cae);
-    if (!isPending) return false;
-    if (f.referencia_id && refsConCAE.has(`${f.referencia_tipo}:${f.referencia_id}`)) return false;
-    return true;
-  });
-  const historial = facturas.filter((f) => f.estado === "emitida" && f.cae);
+  const onChanged = () => setRefreshKey((k) => k + 1);
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h1 className="text-xl font-heading font-bold text-foreground">Facturación</h1>
-          <p className="text-sm text-muted-foreground">Gestión de facturas y emisores fiscales</p>
+          <p className="text-sm text-muted-foreground">Qué cobramos, qué falta facturar y qué necesita atención.</p>
         </div>
         <div className="flex items-center gap-2">
-          <SyncMpFeesButton />
-          <ManualInvoiceButton emisores={emisores} onCreated={loadData} />
+          <Link
+            to="/admin/configuracion?tab=finanzas"
+            className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+          >
+            <Settings2 className="w-3.5 h-3.5" /> Configuración fiscal
+          </Link>
+          <ManualInvoiceButton emisores={emisores} onCreated={onChanged} />
         </div>
       </div>
 
-      <BillingKPIs facturas={facturas} emisores={emisores} />
+      <div className="flex flex-wrap gap-2">
+        <Indicator label="Pendientes de facturar" value={counts.pendientes} loading={counts.loading} icon={Clock} tone="bg-orange-500/10 text-orange-500" />
+        <Indicator label="Con problemas" value={counts.problemas} loading={counts.loading} icon={AlertTriangle} tone="bg-red-500/10 text-red-500" />
+        <Indicator label="Emitidas este mes" value={counts.emitidasMes} loading={counts.loading} icon={CheckCircle2} tone="bg-emerald-500/10 text-emerald-500" />
+      </div>
 
-      <BillingEmisorSummary refreshKey={summaryKey} />
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="space-y-4">
+        <TabsList className="bg-secondary">
+          <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
+          <TabsTrigger value="problemas">Problemas</TabsTrigger>
+          <TabsTrigger value="historial">Historial</TabsTrigger>
+        </TabsList>
 
-      <BillingStepper
-        active={step}
-        secondary={secondary}
-        counts={{ cobrado: counts.cobrado, sinCae: counts.sinCae, emitido: counts.emitido }}
-        loading={counts.loading}
-        onChangeStep={setStep}
-        onChangeSecondary={setSecondary}
-      />
-
-      {secondary === "emisores" ? (
-        <BillingEmisores onDataChange={loadData} />
-      ) : secondary === "cuentas_mp" ? (
-        <BillingCuentasMP />
-      ) : step === "cobrado" ? (
-        <PendingPaymentsList groupByAge />
-      ) : step === "sin_cae" ? (
-        <BillingList
-          facturas={pendientes}
-          emisores={emisores}
-          enableBulk
-          groupByAge
-          onGenerarFactura={handleGenerarFactura}
-          onBulkRequest={handleBulkRequest}
-        />
-      ) : (
-        <BillingList
-          facturas={historial}
-          emisores={emisores}
-          filterEstado="emitida"
-          groupByAge
-          onGenerarFactura={handleGenerarFactura}
-        />
-      )}
-
-      <InvoiceModal
-        factura={invoiceTarget}
-        emisores={emisores}
-        open={modalOpen}
-        onOpenChange={setModalOpen}
-        onEmitted={loadData}
-      />
-
-      <BulkInvoiceModal
-        open={bulkOpen}
-        onOpenChange={setBulkOpen}
-        rows={bulkRows}
-        emisores={emisores}
-        onDone={loadData}
-      />
+        <TabsContent value="pendientes" className="mt-0">
+          {tab === "pendientes" && <TrayPendientes onChanged={onChanged} />}
+        </TabsContent>
+        <TabsContent value="problemas" className="mt-0">
+          {tab === "problemas" && <TrayProblemas emisores={emisores} onChanged={onChanged} />}
+        </TabsContent>
+        <TabsContent value="historial" className="mt-0">
+          {tab === "historial" && <TrayHistorial emisores={emisores} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

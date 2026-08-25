@@ -5543,6 +5543,7 @@ export type Database = {
           emisor_id: string | null
           error_detalle: string | null
           estado: string
+          facturacion_cola_id: string | null
           fecha_emision: string | null
           id: string
           metodo_pago: string | null
@@ -5571,6 +5572,7 @@ export type Database = {
           emisor_id?: string | null
           error_detalle?: string | null
           estado?: string
+          facturacion_cola_id?: string | null
           fecha_emision?: string | null
           id?: string
           metodo_pago?: string | null
@@ -5599,6 +5601,7 @@ export type Database = {
           emisor_id?: string | null
           error_detalle?: string | null
           estado?: string
+          facturacion_cola_id?: string | null
           fecha_emision?: string | null
           id?: string
           metodo_pago?: string | null
@@ -5654,6 +5657,13 @@ export type Database = {
             columns: ["emisor_id"]
             isOneToOne: false
             referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturas_facturacion_cola_id_fkey"
+            columns: ["facturacion_cola_id"]
+            isOneToOne: false
+            referencedRelation: "facturacion_cola"
             referencedColumns: ["id"]
           },
         ]
@@ -13345,6 +13355,7 @@ export type Database = {
         Args: { _alumno_id: string }
         Returns: Json
       }
+      get_billing_dashboard: { Args: never; Returns: Json }
       get_coaches_public: {
         Args: never
         Returns: {

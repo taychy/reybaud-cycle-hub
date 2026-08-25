@@ -59,6 +59,7 @@ Deno.serve(async (req) => {
       origen,
       metodo_pago,
       origen_registro,
+      facturacion_cola_id,
     }: {
       alumno_id: string;
       concepto: string;
@@ -70,6 +71,7 @@ Deno.serve(async (req) => {
       origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
       metodo_pago?: string | null;
       origen_registro?: string | null;
+      facturacion_cola_id?: string | null;
     } = body;
 
 
@@ -85,6 +87,33 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: "segmento inválido (escuela | viajes | tienda)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // ============================================================
+    // IDEMPOTENCIA: una fila de `facturacion_cola` = una sola factura
+    // ============================================================
+    if (facturacion_cola_id) {
+      const { data: existente } = await adminClient
+        .from("facturas")
+        .select("id, estado, cae, numero_comprobante")
+        .eq("facturacion_cola_id", facturacion_cola_id)
+        .maybeSingle();
+
+      if (existente) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            created: false,
+            reused: true,
+            factura_id: existente.id,
+            emitted: existente.estado === "emitida" && !!existente.cae,
+            cae: existente.cae ?? undefined,
+            numero_comprobante: existente.numero_comprobante ?? undefined,
+            message: "Ya existía una factura para este pago.",
+          }),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     // Auto-detectar metodo_pago / origen_registro desde la suscripción si no vino
@@ -142,6 +171,7 @@ Deno.serve(async (req) => {
         condicion_fiscal: "consumidor_final",
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
+        facturacion_cola_id: facturacion_cola_id || null,
       });
 
 
@@ -158,7 +188,7 @@ Deno.serve(async (req) => {
           success: true,
           created: true,
           emitted: false,
-          message: `Sin emisor disponible para "${segmento}". Configurá uno habilitado con cupo y certificado en /admin/facturacion.`,
+          message: `Sin emisor disponible para "${segmento}". Configurá uno habilitado con cupo y certificado en Configuración → Finanzas → Emisores fiscales.`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -182,6 +212,7 @@ Deno.serve(async (req) => {
         condicion_fiscal: "consumidor_final",
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
+        facturacion_cola_id: facturacion_cola_id || null,
       })
       .select("id")
       .single();
@@ -212,6 +243,7 @@ Deno.serve(async (req) => {
         JSON.stringify({
           success: true,
           created: true,
+          factura_id: factura.id,
           emitted: false,
           emisor: emisorElegido.nombre_fiscal,
           message: !origenPermitido
@@ -262,6 +294,7 @@ Deno.serve(async (req) => {
       JSON.stringify({
         success: true,
         created: true,
+        factura_id: factura.id,
         emitted: true,
         emisor: emisorElegido.nombre_fiscal,
         numero_comprobante: emitData.numero_comprobante,
