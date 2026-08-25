@@ -1190,16 +1190,18 @@ export default function EventCostSimulator({ eventId }: Props) {
           <div className="space-y-2 max-h-72 overflow-auto py-2">
             {calculo && modalidades.map((m) => {
               const pkg = packages.find((p) => p.id === m.key);
+              const aplicable = modalidadAplicable(m.key);
               const sug = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
               return (
-                <label key={m.key} className="flex items-center gap-2 text-sm border rounded-md p-2">
-                  <Checkbox checked={!!applyMap[m.key]}
+                <label key={m.key}
+                  className={`flex items-center gap-2 text-sm border rounded-md p-2 ${aplicable ? "" : "opacity-60"}`}>
+                  <Checkbox checked={aplicable && !!applyMap[m.key]} disabled={!aplicable}
                     onCheckedChange={(v) => setApplyMap({ ...applyMap, [m.key]: !!v })} />
                   <div className="flex-1">
                     <div className="font-medium">{m.label}</div>
                     <div className="text-xs text-muted-foreground">
                       Actual: {formatPrice(Number(pkg?.precio ?? 0), pkg?.currency || current.moneda_base)} →{" "}
-                      Sugerido: {formatPrice(sug, current.moneda_base)}
+                      {aplicable ? `Sugerido: ${formatPrice(sug, current.moneda_base)}` : "Sin cálculo"}
                     </div>
                   </div>
                 </label>
@@ -1220,16 +1222,25 @@ export default function EventCostSimulator({ eventId }: Props) {
           eventId={eventId}
           monedaBase={current.moneda_base}
           nextSortOrder={nextSortOrder}
-          onCreated={async (packageId, cupo) => {
-            // Escenario de venta inicial: 100% de ocupación del nuevo tipo de alojamiento.
-            if (current && cupo > 0) {
+          nochesDefault={Number(current.noches || 0)}
+          onCreated={async (res) => {
+            // Escenario de venta inicial: 100% de ocupación del nuevo alojamiento.
+            if (current && res.cupo > 0) {
               const existing = (current.cantidades_esperadas || {}) as Record<string, number>;
-              if (existing[packageId] === undefined || existing[packageId] === null) {
+              if (existing[res.packageId] === undefined || existing[res.packageId] === null) {
                 await supabase.from("event_cost_simulations")
-                  .update({ cantidades_esperadas: { ...existing, [packageId]: cupo } as any })
+                  .update({ cantidades_esperadas: { ...existing, [res.packageId]: res.cupo } as any })
                   .eq("id", current.id);
               }
             }
+            // Línea principal de costo, para que la ficha quede completa de una.
+            await addLodgingItemFor({
+              packageId: res.packageId,
+              habitaciones: res.habitaciones,
+              personas: res.personas,
+              tipo: res.tipo,
+              ...res.costo,
+            });
             loadSims();
           }}
         />
@@ -1238,3 +1249,4 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   );
 }
+
