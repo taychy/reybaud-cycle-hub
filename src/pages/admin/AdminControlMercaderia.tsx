@@ -5,26 +5,30 @@ import { PackageCheck, AlertTriangle } from "lucide-react";
 import SupplierOrders from "@/pages/SupplierOrders";
 import AdminScanIncidents from "@/pages/admin/AdminScanIncidents";
 
-const AdminControlMercaderia = () => {
+const AdminControlMercaderia = ({ embedded = false }: { embedded?: boolean }) => {
   const [params, setParams] = useSearchParams();
   const initial = params.get("tab") === "incidentes" ? "incidentes" : "historial";
   const [tab, setTab] = useState(initial);
 
   const onChange = (v: string) => {
     setTab(v);
+    if (embedded) return;
     const next = new URLSearchParams(params);
     next.set("tab", v);
     setParams(next, { replace: true });
   };
 
   return (
-    <div className="p-4 md:p-6 space-y-4">
-      <div>
-        <h1 className="text-2xl font-bold">Control de Mercadería</h1>
-        <p className="text-sm text-muted-foreground">
-          Historial de pedidos a proveedor recibidos e incidentes de escaneo en un solo lugar.
-        </p>
-      </div>
+    <div className={embedded ? "space-y-4" : "p-4 md:p-6 space-y-4"}>
+      {!embedded && (
+        <div>
+          <h1 className="text-2xl font-bold">Control de Mercadería</h1>
+          <p className="text-sm text-muted-foreground">
+            Historial de pedidos a proveedor recibidos e incidentes de escaneo en un solo lugar.
+          </p>
+        </div>
+      )}
+
 
       <Tabs value={tab} onValueChange={onChange} className="w-full">
         <TabsList>
