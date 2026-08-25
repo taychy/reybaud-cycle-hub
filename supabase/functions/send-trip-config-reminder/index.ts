@@ -1,19 +1,20 @@
 /**
  * Recordatorio para completar la configuración del viaje.
  *
- * Se ejecuta a diario (cron). Para cada reserva confirmada en eventos con
- * categoría 'viaje' o 'camp', calcula el % completitud del checklist
+ * Se ejecuta a diario (cron). Para cada reserva confirmada en eventos tipo
+ * 'viaje' o 'camp', calcula el % completitud del checklist
  * (`reservation_checklist_data`) y, si es < 100 %, dispara el mail usando
  * `notify-reservation` (que encola + loguea + trackea idempotencia).
  *
- * Triggers habilitados:
- *  - `48h`: 48 hs después de reservar (onboarding inicial)
- *  - `t30`: exactamente 30 días antes del inicio del viaje
+ * Triggers automáticos (con ventana de catch-up, tolerante a caídas breves):
+ *  - `48h`: entre 2 y 7 días después de reservar (y evento a más de 3 días)
+ *  - `t30`: cuando el evento está a 27–30 días
+ *
+ * Trigger manual:
+ *  - `catchup`: sólo si se invoca explícitamente con reservation_id
  *
  * Idempotencia:
  *   idempotency_key = `trip-config-<reservation_id>-<trigger>`
- *
- * Acepta POST manual con `{ reservation_id, trigger }` para pruebas.
  */
 
 const corsHeaders = {
@@ -27,8 +28,9 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const APP_URL = 'https://reybaud-app.com';
 
-/** Todos los step_key posibles (ver src/lib/tripSteps.ts). Sirve como denominador
- *  para calcular % completo cuando no hay datos aún. */
+type Trigger = '48h' | 't30' | 'catchup';
+
+/** Todos los step_key posibles (ver src/lib/tripSteps.ts). */
 const ALL_TRIP_STEPS = [
   'bici', 'pedales', 'pasaje', 'seguro',
   'alimentacion', 'habitacion', 'arribo_partida',
@@ -50,38 +52,76 @@ function fmtDateAR(iso: string) {
   const [y, m, d] = iso.split('-');
   return `${d}/${m}/${y}`;
 }
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const RETRYABLE_STATUS = new Set([429, 500, 502, 503, 504]);
+
+/** POST con reintentos acotados: sólo errores de red y 429/5xx. */
+async function postWithRetry(url: string, body: unknown, maxAttempts = 3): Promise<Response> {
+  let lastErr: unknown = null;
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify(body),
+      });
+      if (res.ok || !RETRYABLE_STATUS.has(res.status) || attempt === maxAttempts) return res;
+      console.warn(`[trip-config] retry ${attempt}/${maxAttempts} status=${res.status}`);
+    } catch (err) {
+      lastErr = err;
+      if (attempt === maxAttempts) throw err;
+      console.warn(`[trip-config] retry ${attempt}/${maxAttempts} network error: ${String(err)}`);
+    }
+    await sleep(400 * attempt);
+  }
+  throw lastErr ?? new Error('postWithRetry: unreachable');
+}
 
 interface Reservation {
   id: string;
   alumno_id: string;
   event_id: string;
-  status: string;
+  reservation_status: string;
   created_at: string;
 }
-interface EventLite { id: string; title: string; categoria: string | null; start_date: string | null; }
+interface EventLite { id: string; title: string; type: string | null; date: string | null; }
 interface AlumnoLite { id: string; nombre: string; apellido: string | null; email: string; }
 
 function buildContenido(params: {
   first_name: string;
   eventTitle: string;
   eventDate: string | null;
-  completedSteps: string[];
   pendingSteps: string[];
   reservationId: string;
-  trigger: '48h' | 't30';
+  trigger: Trigger;
+  daysToEvent: number | null;
 }) {
-  const { first_name, eventTitle, eventDate, pendingSteps, reservationId, trigger } = params;
+  const { first_name, eventTitle, eventDate, pendingSteps, reservationId, trigger, daysToEvent } = params;
   const url = `${APP_URL}/mis-reservas?reservation=${reservationId}`;
   const stepsHtml = pendingSteps.map((s) => `<li style="margin-bottom:6px;color:#333;">${labelForStep(s)}</li>`).join('');
   const stepsText = pendingSteps.map((s) => `• ${labelForStep(s)}`).join('\n');
 
-  const intro = trigger === '48h'
-    ? `¡Bienvenido al viaje! Reservaste hace unos días y todavía te faltan datos por completar para que podamos organizarlo todo bien.`
-    : `Faltan 30 días para tu viaje. Necesitamos que termines de cargar tus datos para poder cerrar la logística.`;
-
-  const asunto = trigger === '48h'
-    ? `Configurá tu viaje — ${eventTitle}`
-    : `Faltan 30 días — completá tu configuración de ${eventTitle}`;
+  let intro: string;
+  let asunto: string;
+  if (trigger === '48h') {
+    intro = `¡Bienvenido al viaje! Reservaste hace unos días y todavía te faltan datos por completar para que podamos organizarlo todo bien.`;
+    asunto = `Configurá tu viaje — ${eventTitle}`;
+  } else if (trigger === 't30') {
+    intro = `Faltan 30 días para tu viaje. Necesitamos que termines de cargar tus datos para poder cerrar la logística.`;
+    asunto = `Faltan 30 días — completá tu configuración de ${eventTitle}`;
+  } else {
+    const dias = daysToEvent ?? null;
+    intro = dias !== null && dias > 0
+      ? `Faltan ${dias} ${dias === 1 ? 'día' : 'días'} para tu viaje y todavía tenemos datos pendientes tuyos para cerrar la logística.`
+      : `Todavía tenemos datos pendientes tuyos para cerrar la logística de tu viaje.`;
+    asunto = dias !== null && dias > 0
+      ? `Faltan ${dias} ${dias === 1 ? 'día' : 'días'} — completá tu configuración de ${eventTitle}`
+      : `Completá tu configuración de ${eventTitle}`;
+  }
 
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"></head>
@@ -126,7 +166,8 @@ async function processReservation(
   reservation: Reservation,
   event: EventLite,
   alumno: AlumnoLite,
-  trigger: '48h' | 't30',
+  trigger: Trigger,
+  daysToEvent: number | null,
 ): Promise<{ sent: boolean; reason?: string }> {
   const idempotency_key = `trip-config-${reservation.id}-${trigger}`;
 
@@ -154,20 +195,16 @@ async function processReservation(
   const { asunto, html, texto } = buildContenido({
     first_name,
     eventTitle: event.title,
-    eventDate: event.start_date,
-    completedSteps: Array.from(completedSteps),
+    eventDate: event.date,
     pendingSteps,
     reservationId: reservation.id,
     trigger,
+    daysToEvent,
   });
 
-  const res = await fetch(`${SUPABASE_URL}/functions/v1/notify-reservation`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}`,
-    },
-    body: JSON.stringify({
+  let res: Response;
+  try {
+    res = await postWithRetry(`${SUPABASE_URL}/functions/v1/notify-reservation`, {
       reservation_id: reservation.id,
       alumno_id: reservation.alumno_id,
       tipo: 'novedad',
@@ -176,8 +213,11 @@ async function processReservation(
       contenido_texto: texto,
       idempotency_key,
       metadata: { trigger, pendingSteps, source: 'send-trip-config-reminder' },
-    }),
-  });
+    });
+  } catch (err) {
+    console.error(`[trip-config] notify-reservation network failure for ${reservation.id}: ${String(err)}`);
+    return { sent: false, reason: 'notify_network_error' };
+  }
 
   if (!res.ok) {
     const body = await res.text();
@@ -198,7 +238,7 @@ Deno.serve(async (req) => {
 
   // Modo manual
   let manualReservationId: string | null = null;
-  let manualTrigger: '48h' | 't30' | null = null;
+  let manualTrigger: Trigger | null = null;
   if (req.method === 'POST') {
     try {
       const body = await req.json();
@@ -207,19 +247,27 @@ Deno.serve(async (req) => {
     } catch { /* cron sin body */ }
   }
 
+  // `catchup` sólo con invocación explícita para una reserva puntual.
+  if (manualTrigger === 'catchup' && !manualReservationId) {
+    return new Response(
+      JSON.stringify({ error: 'trigger=catchup requiere reservation_id explícito' }),
+      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+    );
+  }
+
   const today = todayISO();
   const results: any[] = [];
 
-  // Query base de reservas confirmadas en viajes/camps
+  // Query base de reservas confirmadas en viajes/camps (schema actual)
   let query = supabase
     .from('event_reservations')
     .select(`
-      id, alumno_id, event_id, status, created_at,
+      id, alumno_id, event_id, reservation_status, created_at,
       alumnos!inner(id, nombre, apellido, email),
-      events!inner(id, title, categoria, start_date)
+      events!inner(id, title, type, date)
     `)
-    .in('status', ['confirmada', 'confirmada_parcial'])
-    .in('events.categoria', ['viaje', 'camp']);
+    .eq('reservation_status', 'reserva_confirmada')
+    .in('events.type', ['viaje', 'camp']);
 
   if (manualReservationId) query = query.eq('id', manualReservationId);
 
@@ -235,22 +283,22 @@ Deno.serve(async (req) => {
   for (const r of (reservations as any[]) || []) {
     const event: EventLite = r.events;
     const alumno: AlumnoLite = r.alumnos;
-    if (!alumno?.email || !event?.start_date) continue;
+    if (!alumno?.email || !event?.date) continue;
 
-    const daysToEvent = daysBetween(today, event.start_date);
-    const daysSinceBooking = daysBetween(r.created_at.slice(0, 10), today);
+    const daysToEvent = daysBetween(today, event.date);
+    const daysSinceBooking = daysBetween(String(r.created_at).slice(0, 10), today);
 
-    const triggers: ('48h' | 't30')[] = [];
+    const triggers: Trigger[] = [];
     if (manualTrigger) {
       triggers.push(manualTrigger);
     } else {
-      // Cron automático
-      if (daysSinceBooking === 2 && daysToEvent > 3) triggers.push('48h');
-      if (daysToEvent === 30) triggers.push('t30');
+      // Cron automático con ventanas de catch-up acotadas
+      if (daysSinceBooking >= 2 && daysSinceBooking <= 7 && daysToEvent > 3) triggers.push('48h');
+      if (daysToEvent >= 27 && daysToEvent <= 30) triggers.push('t30');
     }
 
     for (const t of triggers) {
-      const out = await processReservation(supabase, r, event, alumno, t);
+      const out = await processReservation(supabase, r, event, alumno, t, daysToEvent);
       results.push({ reservation_id: r.id, trigger: t, ...out });
     }
   }
