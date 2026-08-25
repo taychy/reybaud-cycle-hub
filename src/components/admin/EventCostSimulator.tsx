@@ -573,20 +573,31 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
 
   /* ─── aplicar precios ─── */
+  /** Sólo se puede aplicar precio si hay esperados y un precio sugerido válido. */
+  const modalidadAplicable = (key: string) => {
+    const m = modalidades.find((x) => x.key === key);
+    if (!m || m.esperados <= 0 || !calculo) return false;
+    const unit = calculo.costo_unitario_por_modalidad[key];
+    return unit != null && (calculo.precio_sugerido_por_modalidad[key] || 0) > 0;
+  };
+
   const abrirAplicar = () => {
     const initial: Record<string, boolean> = {};
-    modalidades.forEach((m) => (initial[m.key] = true));
+    modalidades.forEach((m) => (initial[m.key] = modalidadAplicable(m.key)));
     setApplyMap(initial);
     setApplyDialog(true);
   };
   const aplicarPrecios = async () => {
     if (!calculo || !current) return;
-    const updates = modalidades
-      .filter((m) => applyMap[m.key])
-      .map((m) => {
-        const precio = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
-        return supabase.from("event_packages").update({ precio }).eq("id", m.key);
-      });
+    const targets = modalidades.filter((m) => applyMap[m.key] && modalidadAplicable(m.key));
+    if (targets.length === 0) {
+      toast({ title: "No hay precios sugeridos válidos para aplicar", variant: "destructive" });
+      return;
+    }
+    const updates = targets.map((m) => {
+      const precio = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
+      return supabase.from("event_packages").update({ precio }).eq("id", m.key);
+    });
     await Promise.all(updates);
     await supabase.from("event_cost_simulations")
       .update({ aplicada_a_packages_at: new Date().toISOString() })
@@ -595,6 +606,7 @@ export default function EventCostSimulator({ eventId }: Props) {
     setApplyDialog(false);
     loadSims();
   };
+
 
   if (loading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
 
