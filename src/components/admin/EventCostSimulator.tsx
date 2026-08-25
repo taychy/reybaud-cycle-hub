@@ -786,27 +786,20 @@ export default function EventCostSimulator({ eventId }: Props) {
                 <div>
                   <CardTitle className="text-sm">Alojamiento</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                    El alojamiento se calcula por tipo de habitación/paquete para que cada modalidad tenga su costo y precio sugerido correcto.
+                    Cada alojamiento es una ficha con su estructura física y su costo, para que cada modalidad tenga su costo y precio sugerido correcto.
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => setAddLodgingOpen(true)}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar tipo de alojamiento
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={addLodgingItem}
-                    disabled={lodgingPackages.length === 0}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar costo
+                    <Plus className="w-4 h-4 mr-1" /> Agregar alojamiento
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {lodgingPackages.length === 0 && (
+                {lodgingItems.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Este evento todavía no tiene paquetes con alojamiento. Creá un tipo de alojamiento para poder costearlo.
+                    Todavía no hay alojamientos cargados. Agregá uno para presupuestarlo.
                   </p>
-                )}
-                {lodgingItems.length === 0 && lodgingPackages.length > 0 && (
-                  <p className="text-xs text-muted-foreground">Sin costos de alojamiento cargados aún.</p>
                 )}
                 {lodgingItems.map((it) => (
                   <LodgingCostRow
@@ -817,10 +810,14 @@ export default function EventCostSimulator({ eventId }: Props) {
                     monedaBase={current.moneda_base}
                     nochesDefault={Number(current.noches || 0)}
                     esperados={(current.cantidades_esperadas || {}) as Record<string, number>}
+                    reservasActivas={reservasActivas}
                     onUpdate={(patch) => updateItem(it.id, patch as any)}
                     onDelete={() => delItem(it.id)}
+                    onRenamePackage={renamePackage}
+                    onSyncStructure={syncLodgingStructure}
                   />
                 ))}
+
               </CardContent>
             </Card>
 
