@@ -18,7 +18,9 @@ import { Plus, Trash2, Copy, Archive, Save, Sparkles, Calculator } from "lucide-
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
+import { planRoomSync, capacityReductionError } from "@/lib/lodgingCapacity";
 import CostGroupSection from "@/components/admin/CostGroupSection";
+
 import {
   calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto,
   type CostItem, type GrupoCosto, type Modalidad, type Supuestos,
