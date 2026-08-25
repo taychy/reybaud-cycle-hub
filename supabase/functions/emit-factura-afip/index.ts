@@ -21,6 +21,8 @@ interface ComprobanteAfip {
   ivaIncluido21: boolean;
 }
 
+type EmitAfipResult = { cae?: string; caeVto?: string; error?: string };
+
 function normalizeFiscal(value: string | null | undefined): string {
   return (value || "")
     .normalize("NFD")
@@ -175,7 +177,10 @@ Deno.serve(async (req) => {
     const clienteCuitClean = cliente_cuit?.replace(/\D/g, "") || "0";
     let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicion_fiscal, clienteCuitClean);
 
-    const emitirConTipo = async (tipo: ComprobanteAfip, docOverride?: { clienteCuit: string; condicionFiscal: string }) => {
+    const emitirConTipo = async (
+      tipo: ComprobanteAfip,
+      docOverride?: { clienteCuit: string; condicionFiscal: string }
+    ): Promise<{ cbteNro: number | null; result: EmitAfipResult }> => {
       const lastNum = await getUltimoComprobante(
         wsaaResult.token || "",
         wsaaResult.sign || "",
