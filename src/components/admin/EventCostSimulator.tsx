@@ -18,7 +18,9 @@ import { Plus, Trash2, Copy, Archive, Save, Sparkles, Calculator } from "lucide-
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
+import { planRoomSync, capacityReductionError } from "@/lib/lodgingCapacity";
 import CostGroupSection from "@/components/admin/CostGroupSection";
+
 import {
   calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto,
   type CostItem, type GrupoCosto, type Modalidad, type Supuestos,
@@ -366,31 +368,112 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
 
 
-  const addLodgingItem = async () => {
+  /** Crea la línea principal de costo de un alojamiento recién creado. */
+  const addLodgingItemFor = async (opts: {
+    packageId: string;
+    habitaciones: number;
+    personas: number;
+    tipo: string | null;
+    cost_basis: string;
+    precio_unitario: number;
+    moneda: string;
+    descripcion: string;
+    noches: number;
+  }) => {
     if (!current) return;
     const { data } = await supabase.from("event_cost_items").insert({
       simulation_id: current.id,
       grupo_costo: "alojamiento",
       categoria: "alojamiento",
-
-      descripcion: "",
+      descripcion: opts.descripcion || "",
       cantidad: 1,
-      precio_unitario: 0,
-      moneda: current.moneda_base,
+      precio_unitario: Number(opts.precio_unitario) || 0,
+      moneda: opts.moneda || current.moneda_base,
       es_por_persona: false,
       aplica_a_modalidades: [],
       orden: items.length,
       detalle: {
-        package_id: null,
-        cost_basis: "habitacion_noche",
-        habitaciones: 0,
-        noches: Number(current.noches || 0),
-        personas_por_habitacion: 1,
-        tipo_habitacion: null,
+        package_id: opts.packageId,
+        cost_basis: opts.cost_basis,
+        habitaciones: opts.habitaciones,
+        noches: Number(opts.noches) || 0,
+        personas_por_habitacion: opts.personas,
+        tipo_habitacion: opts.tipo,
       },
     } as any).select().single();
-    if (data) setItems([...items, data as any]);
+    if (data) setItems((old) => [...old, data as any]);
   };
+
+  /** Reservas activas por paquete (guard de reducción de capacidad). */
+  const [reservasActivas, setReservasActivas] = useState<Record<string, number>>({});
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("event_reservations")
+        .select("package_id, reservation_status")
+        .eq("event_id", eventId);
+      const counts: Record<string, number> = {};
+      (data || []).forEach((r: any) => {
+        if (!r.package_id) return;
+        if (r.reservation_status === "cancelada" || r.reservation_status === "rechazada") return;
+        counts[r.package_id] = (counts[r.package_id] || 0) + 1;
+      });
+      setReservasActivas(counts);
+    })();
+  }, [eventId]);
+
+  /** Renombra la modalidad/paquete sin tocar precio ni seña. */
+  const renamePackage = async (packageId: string, nombre: string) => {
+    const { error } = await supabase.from("event_packages").update({ nombre }).eq("id", packageId);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    setPackages((old) => old.map((p) => p.id === packageId ? { ...p, nombre } : p));
+  };
+
+  /** Sincroniza habitaciones/personas → event_rooms + cupo del paquete. */
+  const syncLodgingStructure = async (packageId: string, habitaciones: number, personas: number) => {
+    const pkg = packages.find((p) => p.id === packageId);
+    const existing = rooms.filter((r) => r.package_id === packageId);
+    const plan = planRoomSync({
+      existing: existing as any,
+      habitaciones,
+      personas,
+      tipo: (existing[0]?.tipo as string) || null,
+      label: pkg?.nombre || "Habitación",
+    });
+
+    const guard = capacityReductionError(plan.capacidad, reservasActivas[packageId] || 0);
+    if (guard) { toast({ title: "No se puede reducir la capacidad", description: guard, variant: "destructive" }); return; }
+
+    if (plan.toDeleteIds.length > 0) {
+      await supabase.from("event_rooms").delete().in("id", plan.toDeleteIds);
+    }
+    for (const u of plan.toUpdate) {
+      await supabase.from("event_rooms").update({ capacidad: u.capacidad }).eq("id", u.id);
+    }
+    let inserted: any[] = [];
+    if (plan.toInsert.length > 0) {
+      const { data } = await supabase.from("event_rooms").insert(
+        plan.toInsert.map((r) => ({ ...r, event_id: eventId, package_id: packageId })) as any,
+      ).select("id, package_id, nombre, capacidad, tipo, sort_order");
+      inserted = (data as any) || [];
+    }
+    await supabase.from("event_packages")
+      .update({ cupo: plan.capacidad, personas_por_habitacion: personas })
+      .eq("id", packageId);
+
+    setRooms((old) => [
+      ...old
+        .filter((r) => !plan.toDeleteIds.includes(r.id))
+        .map((r) => {
+          const upd = plan.toUpdate.find((u) => u.id === r.id);
+          return upd ? { ...r, capacidad: upd.capacidad } : r;
+        }),
+      ...inserted,
+    ]);
+    setPackages((old) => old.map((p) =>
+      p.id === packageId ? { ...p, cupo: plan.capacidad, personas_por_habitacion: personas } : p));
+  };
+
 
   const patchItem = async (id: string, patch: Partial<ItemRow>) => {
     setItems((old) => old.map((i) => i.id === id ? { ...i, ...patch } : i));
@@ -490,20 +573,31 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
 
   /* ─── aplicar precios ─── */
+  /** Sólo se puede aplicar precio si hay esperados y un precio sugerido válido. */
+  const modalidadAplicable = (key: string) => {
+    const m = modalidades.find((x) => x.key === key);
+    if (!m || m.esperados <= 0 || !calculo) return false;
+    const unit = calculo.costo_unitario_por_modalidad[key];
+    return unit != null && (calculo.precio_sugerido_por_modalidad[key] || 0) > 0;
+  };
+
   const abrirAplicar = () => {
     const initial: Record<string, boolean> = {};
-    modalidades.forEach((m) => (initial[m.key] = true));
+    modalidades.forEach((m) => (initial[m.key] = modalidadAplicable(m.key)));
     setApplyMap(initial);
     setApplyDialog(true);
   };
   const aplicarPrecios = async () => {
     if (!calculo || !current) return;
-    const updates = modalidades
-      .filter((m) => applyMap[m.key])
-      .map((m) => {
-        const precio = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
-        return supabase.from("event_packages").update({ precio }).eq("id", m.key);
-      });
+    const targets = modalidades.filter((m) => applyMap[m.key] && modalidadAplicable(m.key));
+    if (targets.length === 0) {
+      toast({ title: "No hay precios sugeridos válidos para aplicar", variant: "destructive" });
+      return;
+    }
+    const updates = targets.map((m) => {
+      const precio = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
+      return supabase.from("event_packages").update({ precio }).eq("id", m.key);
+    });
     await Promise.all(updates);
     await supabase.from("event_cost_simulations")
       .update({ aplicada_a_packages_at: new Date().toISOString() })
@@ -512,6 +606,7 @@ export default function EventCostSimulator({ eventId }: Props) {
     setApplyDialog(false);
     loadSims();
   };
+
 
   if (loading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
 
@@ -703,27 +798,20 @@ export default function EventCostSimulator({ eventId }: Props) {
                 <div>
                   <CardTitle className="text-sm">Alojamiento</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                    El alojamiento se calcula por tipo de habitación/paquete para que cada modalidad tenga su costo y precio sugerido correcto.
+                    Cada alojamiento es una ficha con su estructura física y su costo, para que cada modalidad tenga su costo y precio sugerido correcto.
                   </p>
                 </div>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => setAddLodgingOpen(true)}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar tipo de alojamiento
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={addLodgingItem}
-                    disabled={lodgingPackages.length === 0}>
-                    <Plus className="w-4 h-4 mr-1" /> Agregar costo
+                    <Plus className="w-4 h-4 mr-1" /> Agregar alojamiento
                   </Button>
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                {lodgingPackages.length === 0 && (
+                {lodgingItems.length === 0 && (
                   <p className="text-xs text-muted-foreground">
-                    Este evento todavía no tiene paquetes con alojamiento. Creá un tipo de alojamiento para poder costearlo.
+                    Todavía no hay alojamientos cargados. Agregá uno para presupuestarlo.
                   </p>
-                )}
-                {lodgingItems.length === 0 && lodgingPackages.length > 0 && (
-                  <p className="text-xs text-muted-foreground">Sin costos de alojamiento cargados aún.</p>
                 )}
                 {lodgingItems.map((it) => (
                   <LodgingCostRow
@@ -734,10 +822,14 @@ export default function EventCostSimulator({ eventId }: Props) {
                     monedaBase={current.moneda_base}
                     nochesDefault={Number(current.noches || 0)}
                     esperados={(current.cantidades_esperadas || {}) as Record<string, number>}
+                    reservasActivas={reservasActivas}
                     onUpdate={(patch) => updateItem(it.id, patch as any)}
                     onDelete={() => delItem(it.id)}
+                    onRenamePackage={renamePackage}
+                    onSyncStructure={syncLodgingStructure}
                   />
                 ))}
+
               </CardContent>
             </Card>
 
@@ -915,21 +1007,30 @@ export default function EventCostSimulator({ eventId }: Props) {
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">Costo y precio sugerido por modalidad</div>
                     <div className="grid gap-2">
-                      {modalidades.map((m) => (
-                        <div key={m.key} className="flex items-center gap-3 text-sm border rounded-md p-2">
-                          <div className="flex-1 truncate">{m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span></div>
-                          <div className="text-xs text-muted-foreground">
-                            Costo unit: {formatPrice((calculo.costo_por_modalidad[m.key] || 0) / (m.esperados || 1), current.moneda_base)}
-                            {calculo.prorrateo_general_por_persona > 0 && (
-                              <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
-                            )}
+                      {modalidades.map((m) => {
+                        const unit = calculo.costo_unitario_por_modalidad[m.key];
+                        const sinCalculo = m.esperados <= 0 || unit == null;
+                        return (
+                          <div key={m.key} className="flex items-center gap-3 text-sm border rounded-md p-2">
+                            <div className="flex-1 truncate">
+                              {m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span>
+                              {sinCalculo && (
+                                <div className="text-[11px] text-muted-foreground">Definí participantes esperados para calcular</div>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              Costo por participante: {sinCalculo ? "—" : formatPrice(unit as number, current.moneda_base)}
+                              {!sinCalculo && calculo.prorrateo_general_por_persona > 0 && (
+                                <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
+                              )}
+                            </div>
+                            <div className="font-semibold">
+                              Precio sugerido: {sinCalculo ? "—" : formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}
+                            </div>
+                          </div>
+                        );
+                      })}
 
-                          </div>
-                          <div className="font-semibold">
-                            Sug: {formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}
-                          </div>
-                        </div>
-                      ))}
                     </div>
                   </div>
 
@@ -1089,16 +1190,18 @@ export default function EventCostSimulator({ eventId }: Props) {
           <div className="space-y-2 max-h-72 overflow-auto py-2">
             {calculo && modalidades.map((m) => {
               const pkg = packages.find((p) => p.id === m.key);
+              const aplicable = modalidadAplicable(m.key);
               const sug = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
               return (
-                <label key={m.key} className="flex items-center gap-2 text-sm border rounded-md p-2">
-                  <Checkbox checked={!!applyMap[m.key]}
+                <label key={m.key}
+                  className={`flex items-center gap-2 text-sm border rounded-md p-2 ${aplicable ? "" : "opacity-60"}`}>
+                  <Checkbox checked={aplicable && !!applyMap[m.key]} disabled={!aplicable}
                     onCheckedChange={(v) => setApplyMap({ ...applyMap, [m.key]: !!v })} />
                   <div className="flex-1">
                     <div className="font-medium">{m.label}</div>
                     <div className="text-xs text-muted-foreground">
                       Actual: {formatPrice(Number(pkg?.precio ?? 0), pkg?.currency || current.moneda_base)} →{" "}
-                      Sugerido: {formatPrice(sug, current.moneda_base)}
+                      {aplicable ? `Sugerido: ${formatPrice(sug, current.moneda_base)}` : "Sin cálculo"}
                     </div>
                   </div>
                 </label>
@@ -1119,16 +1222,25 @@ export default function EventCostSimulator({ eventId }: Props) {
           eventId={eventId}
           monedaBase={current.moneda_base}
           nextSortOrder={nextSortOrder}
-          onCreated={async (packageId, cupo) => {
-            // Escenario de venta inicial: 100% de ocupación del nuevo tipo de alojamiento.
-            if (current && cupo > 0) {
+          nochesDefault={Number(current.noches || 0)}
+          onCreated={async (res) => {
+            // Escenario de venta inicial: 100% de ocupación del nuevo alojamiento.
+            if (current && res.cupo > 0) {
               const existing = (current.cantidades_esperadas || {}) as Record<string, number>;
-              if (existing[packageId] === undefined || existing[packageId] === null) {
+              if (existing[res.packageId] === undefined || existing[res.packageId] === null) {
                 await supabase.from("event_cost_simulations")
-                  .update({ cantidades_esperadas: { ...existing, [packageId]: cupo } as any })
+                  .update({ cantidades_esperadas: { ...existing, [res.packageId]: res.cupo } as any })
                   .eq("id", current.id);
               }
             }
+            // Línea principal de costo, para que la ficha quede completa de una.
+            await addLodgingItemFor({
+              packageId: res.packageId,
+              habitaciones: res.habitaciones,
+              personas: res.personas,
+              tipo: res.tipo,
+              ...res.costo,
+            });
             loadSims();
           }}
         />
@@ -1137,3 +1249,4 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   );
 }
+

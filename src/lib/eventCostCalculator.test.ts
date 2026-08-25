@@ -202,3 +202,33 @@ describe("escenarios de inscripción (prorrateo general)", () => {
     expect(r.costo_por_modalidad.dob).toBe(400);
   });
 });
+
+describe("modalidades sin participantes esperados", () => {
+  const modsCero: Modalidad[] = [
+    { key: "ind", label: "Individual", esperados: 0 },
+    { key: "dob", label: "Doble", esperados: 4 },
+  ];
+
+  it("no inventa costo unitario ni precio sugerido con 0 esperados", () => {
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 500,
+        detalle: { package_id: "ind", cost_basis: "habitacion_noche", habitaciones: 2, noches: 3 } }),
+    ];
+    const r = calcularSimulacion(items, modsCero, { ...sup, pct_margen_objetivo: 30 });
+    expect(r.costo_unitario_por_modalidad.ind).toBeNull();
+    expect(r.precio_sugerido_por_modalidad.ind).toBe(0);
+    expect(r.ganancia_unitaria_por_modalidad.ind).toBeNull();
+    // el costo total de la línea sigue existiendo, sólo no es unitario
+    expect(r.costo_por_modalidad.ind).toBe(3000);
+  });
+
+  it("las modalidades con esperados > 0 sí calculan costo unitario", () => {
+    const items: CostItem[] = [
+      base({ categoria: "alojamiento", precio_unitario: 100,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia" } }),
+    ];
+    const r = calcularSimulacion(items, modsCero, sup);
+    expect(r.costo_unitario_por_modalidad.dob).toBe(100);
+    expect(r.costo_unitario_por_modalidad.ind).toBeNull();
+  });
+});
