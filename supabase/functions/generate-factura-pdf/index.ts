@@ -192,12 +192,14 @@ async function renderInvoicePdf(args: {
   }
 
   // Comprobante box (right)
+  const tipoComprobante = Number(factura.tipo_comprobante || 11);
+  const letraComprobante = factura.letra_comprobante || (tipoComprobante === 1 ? "A" : tipoComprobante === 6 ? "B" : "C");
+  const codigoComprobante = String(tipoComprobante).padStart(3, "0");
   const boxW = 180, boxH = 96, boxX = W - margin - boxW, boxY = headerTop - boxH;
   page.drawRectangle({ x: boxX, y: boxY, width: boxW, height: boxH, borderColor: LINE, borderWidth: 1, color: rgb(0.99, 0.99, 0.99) });
-  // Letter C
   page.drawRectangle({ x: boxX + boxW / 2 - 14, y: boxY + boxH - 32, width: 28, height: 24, borderColor: TEXT_DARK, borderWidth: 1 });
-  drawText(page, "C", boxX + boxW / 2 - 7, boxY + boxH - 26, bold, 18, TEXT_DARK);
-  drawText(page, "Cód. 011", boxX + boxW / 2 - 18, boxY + boxH - 42, font, 8, TEXT_MUTED);
+  drawText(page, letraComprobante, boxX + boxW / 2 - 7, boxY + boxH - 26, bold, 18, TEXT_DARK);
+  drawText(page, `Cód. ${codigoComprobante}`, boxX + boxW / 2 - 18, boxY + boxH - 42, font, 8, TEXT_MUTED);
   drawText(page, "FACTURA", boxX + 10, boxY + 36, bold, 12, TEXT_DARK);
   drawText(page, `Nº ${factura.numero_comprobante || "—"}`, boxX + 10, boxY + 22, font, 10, TEXT_DARK);
   const fEmis = factura.fecha_emision
@@ -276,6 +278,7 @@ async function renderInvoicePdf(args: {
         cae: factura.cae,
         tipoDocRec: (factura.cliente_cuit || "").replace(/\D/g, "").length === 11 ? 80 : (factura.cliente_cuit ? 96 : 99),
         nroDocRec: Number((factura.cliente_cuit || "0").replace(/\D/g, "")) || 0,
+        tipoCmp: tipoComprobante,
       });
       const qrDataUrl = await QRCode.toDataURL(qrPayload, { margin: 0, width: 220 });
       const qrBytes = Uint8Array.from(atob(qrDataUrl.split(",")[1]), c => c.charCodeAt(0));
@@ -333,14 +336,14 @@ function formatMoney(n: number, moneda: string): string {
 
 function buildAfipQrPayload(p: {
   cuit: string; ptoVta: number; nroCmp: number; importe: number; moneda: string;
-  fecha: string; cae: string; tipoDocRec: number; nroDocRec: number;
+  fecha: string; cae: string; tipoDocRec: number; nroDocRec: number; tipoCmp: number;
 }): string {
   const json = {
     ver: 1,
     fecha: p.fecha,
     cuit: Number(p.cuit),
     ptoVta: p.ptoVta,
-    tipoCmp: 11,
+    tipoCmp: p.tipoCmp,
     nroCmp: p.nroCmp,
     importe: Number(p.importe.toFixed(2)),
     moneda: p.moneda,
