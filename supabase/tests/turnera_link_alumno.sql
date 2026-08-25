@@ -24,8 +24,8 @@ BEGIN
   IF v_got IS DISTINCT FROM v_a1 THEN RAISE EXCEPTION 'FAIL email match: %', v_got; END IF;
 
   -- 2) match por documento normalizado (con guiones) → asigna
-  INSERT INTO public.reservas_turnera (servicio_id, coach_id, fecha, hora_inicio, hora_fin, nombre, apellido, documento, precio_snapshot)
-  VALUES (v_servicio, v_coach, current_date + 30, '12:00', '13:00', 'ZZTest', 'Unico', '90.111.222', 1000)
+  INSERT INTO public.reservas_turnera (servicio_id, coach_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, documento, precio_snapshot)
+  VALUES (v_servicio, v_coach, current_date + 30, '12:00', '13:00', 'ZZTest', 'Unico', 'zz.test.otro@example.invalid', '90.111.222', 1000)
   RETURNING alumno_id INTO v_got;
   IF v_got IS DISTINCT FROM v_a1 THEN RAISE EXCEPTION 'FAIL documento match: %', v_got; END IF;
 
