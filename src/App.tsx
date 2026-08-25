@@ -36,6 +36,8 @@ import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import ManageAdmins from "./pages/admin/ManageAdmins";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminResumen from "./pages/admin/AdminResumen";
+import AdminComunicaciones from "./pages/admin/AdminComunicaciones";
 import SuperAdminDashboard from "./pages/admin/SuperAdminDashboard";
 import SuperAdminGastos from "./pages/admin/SuperAdminGastos";
 import SuperAdminControl from "./pages/admin/SuperAdminControl";
@@ -208,9 +210,9 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
-            <Route path="resumen" element={<AdminDashboard />} />
+            <Route path="resumen" element={<AdminResumen />} />
             <Route path="alumnos" element={<ManageStudents />} />
-            <Route path="whatsapp-conciliador" element={<WhatsAppConciliador />} />
+            <Route path="whatsapp-conciliador" element={<Navigate to="/admin/comunicaciones?tab=whatsapp" replace />} />
             <Route path="whatsapp-historial" element={<WhatsAppHistorial />} />
             <Route path="entrenamientos" element={<Trainings />} />
             <Route path="coaches" element={<ManageCoaches />} />
@@ -238,16 +240,16 @@ const App = () => (
             <Route path="eventos/participantes" element={<EventManagement />} />
             <Route path="deposito" element={<ManageDeposito />} />
             <Route path="historial" element={<AuditLog />} />
-            <Route path="solicitudes-cambio-plan" element={<SolicitudesCambioPlan />} />
-            <Route path="comunicaciones" element={<AdminEmailTemplates />} />
-            <Route path="email-masivo" element={<AdminBroadcasts />} />
+            <Route path="solicitudes-cambio-plan" element={<Navigate to="/admin/alumnos?tab=cambios-plan" replace />} />
+            <Route path="comunicaciones" element={<AdminComunicaciones />} />
+            <Route path="email-masivo" element={<Navigate to="/admin/comunicaciones?tab=email-masivo" replace />} />
             <Route path="aprobar-aviso-precio" element={<AdminPriceAlertApproval />} />
             <Route path="cambios-paquete" element={<AdminPackageChangeRequests />} />
             <Route path="solicitudes-alojamiento" element={<AdminWaitlistRequests />} />
             <Route path="waitlist-plantillas" element={<AdminWaitlistTemplates />} />
             <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
 
-            <Route path="metricas" element={<SuperAdminDashboard />} />
+            <Route path="metricas" element={<Navigate to="/admin/resumen?tab=metricas" replace />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
             <Route path="centro-control" element={<SuperAdminControl />} />
             <Route path="gestion-redes" element={<AdminGestionRedes />} />

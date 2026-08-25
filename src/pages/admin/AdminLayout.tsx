@@ -28,7 +28,7 @@ const modules: NavModule[] = [
         label: "Principal",
         items: [
           { to: "/admin/resumen", label: "Resumen", icon: LayoutDashboard },
-          { to: "/admin/metricas", label: "Métricas", icon: TrendingUp, superAdmin: true },
+          // { to: "/admin/metricas", label: "Métricas", icon: TrendingUp, superAdmin: true }, // integrado como tab en /admin/resumen
         ],
       },
       {
@@ -37,7 +37,7 @@ const modules: NavModule[] = [
           { to: "/admin/alumnos", label: "Alumnos", icon: Users, noveltyKey: "alumnos" },
           { to: "/admin/coaches", label: "Coaches", icon: UserCog },
           // { to: "/admin/asesoria", label: "Asesoría", icon: UserCog }, // oculto: sin uso operativo real
-          { to: "/admin/solicitudes-cambio-plan", label: "Solicitudes cambio plan", icon: RefreshCw, noveltyKey: "cambios_plan" },
+          // { to: "/admin/solicitudes-cambio-plan", label: "Solicitudes cambio plan", icon: RefreshCw, noveltyKey: "cambios_plan" }, // integrado como tab en Alumnos
         ],
       },
       {
@@ -52,9 +52,9 @@ const modules: NavModule[] = [
       {
         label: "Comunicación",
         items: [
-          { to: "/admin/whatsapp-conciliador", label: "WhatsApp", icon: MessageCircle },
-          { to: "/admin/comunicaciones", label: "Plantillas email", icon: Megaphone },
-          { to: "/admin/email-masivo", label: "Email masivo", icon: Megaphone },
+          { to: "/admin/comunicaciones", label: "Comunicaciones", icon: MessageCircle },
+          // { to: "/admin/comunicaciones?tab=plantillas", label: "Plantillas email", icon: Megaphone }, // tab dentro de Comunicaciones
+          // { to: "/admin/email-masivo", label: "Email masivo", icon: Megaphone }, // tab dentro de Comunicaciones
         ],
       },
       {
