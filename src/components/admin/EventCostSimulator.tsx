@@ -270,6 +270,22 @@ export default function EventCostSimulator({ eventId }: Props) {
     return cand[0].p;
   }, [calculo, lodgingPackages]);
 
+  /** Snapshot único de `resultados`: toda edición persistida (item, alojamiento,
+   *  escenario, supuestos, paquete base) refresca el cálculo guardado. */
+  const snapshotRef = useRef<{ id: string; hash: string } | null>(null);
+  const calculoHash = calculo ? JSON.stringify(calculo) : "";
+  useEffect(() => {
+    if (!currentId || !calculoHash) return;
+    if (snapshotRef.current?.id === currentId && snapshotRef.current.hash === calculoHash) return;
+    const t = setTimeout(async () => {
+      snapshotRef.current = { id: currentId, hash: calculoHash };
+      await supabase.from("event_cost_simulations")
+        .update({ resultados: JSON.parse(calculoHash) })
+        .eq("id", currentId);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [currentId, calculoHash]);
+
 
   /* ─── CRUD simulaciones ─── */
   const nuevaVersion = async (duplicarDe?: SimRow) => {
