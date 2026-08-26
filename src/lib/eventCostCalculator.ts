@@ -69,6 +69,8 @@ export interface Supuestos {
   rentabilidad_modo?: RentabilidadModo | string;
   /** Honorario por participante en moneda base (modo honorario_participante). */
   honorario_por_participante?: number;
+  /** Paquete cuyo alojamiento define el precio base del viaje. */
+  paquete_base_id?: string | null;
 }
 
 export interface CalculoResult {
@@ -97,7 +99,36 @@ export interface CalculoResult {
   /** Costo general por participante según el escenario activo */
   prorrateo_general_por_persona: number;
   rentabilidad_modo: RentabilidadModo;
+
+  /* ─── Modelo precio base + suplementos (todos CON imprevistos) ─── */
+  /** Inscriptos del escenario activo usados para prorratear staff/generales */
+  escenario_inscriptos: number;
+  /** Costo directo por participante (grupo Participante) */
+  costo_participante_directo_unitario: number;
+  costo_staff_total: number;
+  costo_staff_por_persona: number;
+  costo_general_total: number;
+  costo_general_por_persona: number;
+  /** Costo de alojamiento por persona de cada modalidad */
+  costo_alojamiento_unitario_por_modalidad: Record<string, number>;
+  paquete_base_id: string | null;
+  costo_alojamiento_base_unitario: number;
+  costo_base_unitario: number;
+  precio_base_sugerido: number;
+  suplemento_costo_por_modalidad: Record<string, number>;
+  suplemento_precio_por_modalidad: Record<string, number>;
+  precio_final_por_modalidad: Record<string, number>;
+  /** true si la distribución por paquetes suma exactamente los inscriptos del escenario */
+  distribucion_valida: boolean;
+  distribucion_total: number;
+  /** Métricas del escenario; null cuando la distribución no es válida */
+  escenario_costo_total: number | null;
+  escenario_ingreso_total: number | null;
+  escenario_ganancia_total: number | null;
+  escenario_margen: number | null;
+  escenario_ganancia_por_participante: number | null;
 }
+
 
 
 export const CATEGORIAS_COSTO = [
@@ -155,6 +186,37 @@ export function toBase(monto: number, moneda: string, sup: Supuestos): number {
   if (sup.moneda_base === "EUR") return arsAmount / (sup.tc_eur || 1);
   return arsAmount;
 }
+
+/**
+ * Costo de alojamiento POR PERSONA de una línea, sin imprevistos.
+ * Es independiente de la distribución cuando la cotización ya es por persona.
+ */
+export function lodgingUnitCost(
+  it: CostItem,
+  mod: Modalidad | undefined,
+  sup: Supuestos,
+): number {
+  const det = (it.detalle || {}) as CostItemDetalle;
+  const unit = toBase(Number(it.precio_unitario || 0), it.moneda, sup);
+  const noches = Number(det.noches || 0);
+  const pax = Number(mod?.esperados) || 0;
+  const capacidad = (Number(det.habitaciones) || 0) * (Number(det.personas_por_habitacion) || 0);
+
+  if (det.cost_basis === "persona_estadia") return unit;
+  if (det.cost_basis === "persona_noche") return unit * noches;
+  if (det.cost_basis === "habitacion_noche") {
+    const porHab = unit * noches;
+    const ppp = Number(det.personas_por_habitacion) || 0;
+    if (ppp > 0) return porHab / ppp;
+    if (pax > 0) return ((Number(det.habitaciones) || 0) * porHab) / pax;
+    return porHab;
+  }
+  // "total" u otras: total contratado repartido entre las plazas conocidas
+  const total = unit * (Number(it.cantidad) > 0 ? Number(it.cantidad) : 1);
+  const den = pax > 0 ? pax : capacidad;
+  return den > 0 ? total / den : total;
+}
+
 
 export function calcularSimulacion(
   items: CostItem[],
@@ -278,6 +340,12 @@ export function calcularSimulacion(
   (Object.keys(por_grupo) as GrupoCosto[]).forEach((k) => {
     por_grupo[k] = por_grupo[k] * factorImp;
   });
+  // por_categoria queda en la misma base que por_grupo (con imprevistos),
+  // para que todo lo que se muestra en resumen sea comparable.
+  Object.keys(por_categoria).forEach((k) => {
+    por_categoria[k] = por_categoria[k] * factorImp;
+  });
+
 
   const modo: RentabilidadModo = supuestos.rentabilidad_modo === "honorario_participante"
     ? "honorario_participante"
@@ -318,6 +386,101 @@ export function calcularSimulacion(
   const punto_equilibrio =
     margen_unit_prom > 0 ? Math.ceil((costos_fijos * factorImp) / margen_unit_prom) : 0;
 
+  /* ═══ Modelo precio base + suplementos ═══
+     El precio del viaje se arma UNA sola vez por persona: alojamiento base +
+     participante directo + staff/pax + generales/pax. Cada otra modalidad sólo
+     agrega la diferencia de alojamiento como suplemento. Staff y generales
+     nunca se duplican por modalidad. */
+  const escenario_inscriptos = prorrateoBase > 0 ? prorrateoBase : totalEsperados;
+
+  let participanteDirecto = 0;
+  let staffTotalRaw = 0;
+  let generalTotalRaw = 0;
+  const costo_alojamiento_unitario_por_modalidad: Record<string, number> = {};
+  modalidades.forEach((m) => (costo_alojamiento_unitario_por_modalidad[m.key] = 0));
+
+  for (const it of items) {
+    const grupo = inferGrupoCosto(it);
+    const det = (it.detalle || {}) as CostItemDetalle;
+    if (grupo === "alojamiento") {
+      if (!det.package_id) continue;
+      const mod = modalidades.find((m) => m.key === det.package_id);
+      const unit = lodgingUnitCost(it, mod, supuestos) * factorImp;
+      costo_alojamiento_unitario_por_modalidad[det.package_id] =
+        (costo_alojamiento_unitario_por_modalidad[det.package_id] || 0) + unit;
+      continue;
+    }
+    const totalItem = toBase(
+      Number(it.cantidad || 0) * Number(it.precio_unitario || 0),
+      it.moneda,
+      supuestos,
+    );
+    if (grupo === "participante") participanteDirecto += totalItem;
+    else if (grupo === "staff") staffTotalRaw += totalItem;
+    else generalTotalRaw += totalItem;
+  }
+
+  const costo_participante_directo_unitario = participanteDirecto * factorImp;
+  const costo_staff_total = staffTotalRaw * factorImp;
+  const costo_general_total = generalTotalRaw * factorImp;
+  const costo_staff_por_persona = escenario_inscriptos > 0 ? costo_staff_total / escenario_inscriptos : 0;
+  const costo_general_por_persona = escenario_inscriptos > 0 ? costo_general_total / escenario_inscriptos : 0;
+
+  const paquete_base_id = supuestos.paquete_base_id || null;
+  const costo_alojamiento_base_unitario = paquete_base_id
+    ? (costo_alojamiento_unitario_por_modalidad[paquete_base_id] || 0)
+    : 0;
+
+  const costo_base_unitario = costo_alojamiento_base_unitario
+    + costo_participante_directo_unitario
+    + costo_staff_por_persona
+    + costo_general_por_persona;
+
+  const aPrecio = (costo: number) => modo === "honorario_participante"
+    ? costo + honorario
+    : (margen < 1 ? costo / (1 - margen) : costo);
+
+  const precio_base_sugerido = paquete_base_id ? aPrecio(costo_base_unitario) : 0;
+
+  const suplemento_costo_por_modalidad: Record<string, number> = {};
+  const suplemento_precio_por_modalidad: Record<string, number> = {};
+  const precio_final_por_modalidad: Record<string, number> = {};
+  modalidades.forEach((m) => {
+    const dif = (costo_alojamiento_unitario_por_modalidad[m.key] || 0) - costo_alojamiento_base_unitario;
+    const supCosto = m.key === paquete_base_id ? 0 : Math.max(0, dif);
+    // El honorario se cobra una sola vez por persona: el suplemento no lo repite.
+    const supPrecio = modo === "honorario_participante"
+      ? supCosto
+      : (margen < 1 ? supCosto / (1 - margen) : supCosto);
+    suplemento_costo_por_modalidad[m.key] = supCosto;
+    suplemento_precio_por_modalidad[m.key] = supPrecio;
+    precio_final_por_modalidad[m.key] = paquete_base_id ? precio_base_sugerido + supPrecio : 0;
+  });
+
+  const distribucion_total = totalEsperados;
+  const distribucion_valida = escenario_inscriptos > 0 && distribucion_total === escenario_inscriptos;
+
+  let escenario_costo_total: number | null = null;
+  let escenario_ingreso_total: number | null = null;
+  let escenario_ganancia_total: number | null = null;
+  let escenario_margen: number | null = null;
+  let escenario_ganancia_por_participante: number | null = null;
+  if (distribucion_valida && paquete_base_id) {
+    let extraCosto = 0;
+    let extraPrecio = 0;
+    modalidades.forEach((m) => {
+      const pax = Number(m.esperados) || 0;
+      extraCosto += pax * (suplemento_costo_por_modalidad[m.key] || 0);
+      extraPrecio += pax * (suplemento_precio_por_modalidad[m.key] || 0);
+    });
+    escenario_costo_total = escenario_inscriptos * costo_base_unitario + extraCosto;
+    escenario_ingreso_total = escenario_inscriptos * precio_base_sugerido + extraPrecio;
+    escenario_ganancia_total = escenario_ingreso_total - escenario_costo_total;
+    escenario_margen = escenario_ingreso_total > 0 ? escenario_ganancia_total / escenario_ingreso_total : 0;
+    escenario_ganancia_por_participante = escenario_ganancia_total / escenario_inscriptos;
+  }
+
+
   return {
     total_costos_base,
     total_con_imprevistos,
@@ -338,5 +501,26 @@ export function calcularSimulacion(
     costos_generales_prorrateables: costos_generales_prorrateables * factorImp,
     prorrateo_general_por_persona: prorrateo_general_por_persona * factorImp,
     rentabilidad_modo: modo,
+    escenario_inscriptos,
+    costo_participante_directo_unitario,
+    costo_staff_total,
+    costo_staff_por_persona,
+    costo_general_total,
+    costo_general_por_persona,
+    costo_alojamiento_unitario_por_modalidad,
+    paquete_base_id,
+    costo_alojamiento_base_unitario,
+    costo_base_unitario,
+    precio_base_sugerido,
+    suplemento_costo_por_modalidad,
+    suplemento_precio_por_modalidad,
+    precio_final_por_modalidad,
+    distribucion_valida,
+    distribucion_total,
+    escenario_costo_total,
+    escenario_ingreso_total,
+    escenario_ganancia_total,
+    escenario_margen,
+    escenario_ganancia_por_participante,
   };
 }

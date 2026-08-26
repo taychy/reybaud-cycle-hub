@@ -3826,6 +3826,7 @@ export type Database = {
           noches: number
           nombre: string | null
           notas: string | null
+          paquete_base_id: string | null
           pct_imprevistos: number
           pct_margen_objetivo: number
           rentabilidad_modo: string
@@ -3853,6 +3854,7 @@ export type Database = {
           noches?: number
           nombre?: string | null
           notas?: string | null
+          paquete_base_id?: string | null
           pct_imprevistos?: number
           pct_margen_objetivo?: number
           rentabilidad_modo?: string
@@ -3880,6 +3882,7 @@ export type Database = {
           noches?: number
           nombre?: string | null
           notas?: string | null
+          paquete_base_id?: string | null
           pct_imprevistos?: number
           pct_margen_objetivo?: number
           rentabilidad_modo?: string
@@ -3896,6 +3899,13 @@ export type Database = {
             columns: ["event_id"]
             isOneToOne: false
             referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_cost_simulations_paquete_base_id_fkey"
+            columns: ["paquete_base_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
             referencedColumns: ["id"]
           },
         ]

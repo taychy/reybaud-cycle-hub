@@ -232,3 +232,112 @@ describe("modalidades sin participantes esperados", () => {
     expect(r.costo_unitario_por_modalidad.ind).toBeNull();
   });
 });
+
+describe("modelo precio base + suplementos (Rimini 2027)", () => {
+  const IND = "ind";
+  const DOB = "dob";
+  const riminiItems = (): CostItem[] => [
+    base({ grupo_costo: "alojamiento", categoria: "alojamiento", precio_unitario: 1039, moneda: "EUR",
+      detalle: { package_id: IND, cost_basis: "persona_estadia", habitaciones: 6, noches: 8, personas_por_habitacion: 1 } }),
+    base({ grupo_costo: "alojamiento", categoria: "alojamiento", precio_unitario: 799, moneda: "EUR",
+      detalle: { package_id: DOB, cost_basis: "persona_estadia", habitaciones: 5, noches: 8, personas_por_habitacion: 2 } }),
+    // participante directo: 152 por persona
+    base({ grupo_costo: "participante", categoria: "servicios", precio_unitario: 8, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "participante", categoria: "servicios", precio_unitario: 35, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "participante", categoria: "comida", cantidad: 8, precio_unitario: 1.5, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "participante", categoria: "comida", cantidad: 8, precio_unitario: 2, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "participante", categoria: "comida", precio_unitario: 35, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "participante", categoria: "servicios", precio_unitario: 6, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "participante", categoria: "otros", precio_unitario: 40, moneda: "EUR", es_por_persona: true }),
+    // staff: 2482
+    base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 1200, moneda: "EUR" }),
+    base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 200, moneda: "EUR" }),
+    base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 8, moneda: "EUR" }),
+    base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 35, moneda: "EUR" }),
+    base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 1039, moneda: "EUR" }),
+    // generales: 1450
+    base({ grupo_costo: "general", categoria: "transporte", cantidad: 2, precio_unitario: 650, moneda: "EUR" }),
+    base({ grupo_costo: "general", categoria: "marketing", precio_unitario: 150, moneda: "EUR" }),
+  ];
+  const riminiSup: Supuestos = {
+    tc_usd: 1, tc_eur: 1, moneda_base: "EUR",
+    pct_imprevistos: 5, pct_margen_objetivo: 30,
+    participantes_prorrateo: 8, paquete_base_id: DOB,
+  };
+  const mods6y7: Modalidad[] = [
+    { key: IND, label: "Individual", esperados: 6 },
+    { key: DOB, label: "Doble", esperados: 7 },
+  ];
+  const round = (n: number | null) => Math.round((n ?? 0) * 100) / 100;
+
+  it("reproduce los números de Rimini con escenario conservador de 8", () => {
+    const r = calcularSimulacion(riminiItems(), mods6y7, riminiSup);
+    expect(r.escenario_inscriptos).toBe(8);
+    expect(round(r.costo_participante_directo_unitario)).toBe(159.6);
+    expect(round(r.costo_staff_total)).toBe(2606.1);
+    expect(round(r.costo_staff_por_persona)).toBe(325.76);
+    expect(round(r.costo_general_total)).toBe(1522.5);
+    expect(round(r.costo_general_por_persona)).toBe(190.31);
+    expect(round(r.costo_alojamiento_unitario_por_modalidad[DOB])).toBe(838.95);
+    expect(round(r.costo_alojamiento_unitario_por_modalidad[IND])).toBe(1090.95);
+    expect(round(r.costo_base_unitario)).toBe(1514.63);
+    expect(round(r.precio_base_sugerido)).toBe(2163.75);
+    expect(round(r.suplemento_costo_por_modalidad[IND])).toBe(252);
+    expect(round(r.suplemento_precio_por_modalidad[IND])).toBe(360);
+    expect(round(r.precio_final_por_modalidad[IND])).toBe(2523.75);
+    expect(round(r.precio_final_por_modalidad[DOB])).toBe(2163.75);
+  });
+
+  it("marca la distribución inválida cuando no suma el escenario activo", () => {
+    const r = calcularSimulacion(riminiItems(), mods6y7, riminiSup);
+    expect(r.distribucion_total).toBe(13);
+    expect(r.distribucion_valida).toBe(false);
+    expect(r.escenario_ingreso_total).toBeNull();
+    expect(r.escenario_ganancia_total).toBeNull();
+    expect(r.escenario_margen).toBeNull();
+    // los precios sí se calculan igual
+    expect(round(r.precio_base_sugerido)).toBe(2163.75);
+  });
+
+  it("con distribución válida (4+4=8) calcula ingreso y margen sin duplicar staff/generales", () => {
+    const mods: Modalidad[] = [
+      { key: IND, label: "Individual", esperados: 4 },
+      { key: DOB, label: "Doble", esperados: 4 },
+    ];
+    const r = calcularSimulacion(riminiItems(), mods, riminiSup);
+    expect(r.distribucion_valida).toBe(true);
+    const esperadoIngreso = 4 * 2523.75 + 4 * 2163.75;
+    expect(round(r.escenario_ingreso_total)).toBe(round(esperadoIngreso));
+    // staff y generales entran una sola vez sobre 8 personas
+    const esperadoCosto = 8 * 1514.625 + 4 * 252;
+    expect(round(r.escenario_costo_total)).toBe(round(esperadoCosto));
+    expect(round((r.escenario_margen ?? 0) * 100)).toBe(30);
+  });
+
+  it("modo honorario por participante cobra el honorario una sola vez", () => {
+    const mods: Modalidad[] = [
+      { key: IND, label: "Individual", esperados: 4 },
+      { key: DOB, label: "Doble", esperados: 4 },
+    ];
+    const r = calcularSimulacion(riminiItems(), mods, {
+      ...riminiSup, rentabilidad_modo: "honorario_participante", honorario_por_participante: 500,
+    });
+    expect(round(r.precio_base_sugerido)).toBe(round(1514.625 + 500));
+    expect(round(r.suplemento_precio_por_modalidad[IND])).toBe(252);
+    expect(round(r.precio_final_por_modalidad[IND])).toBe(round(1514.625 + 500 + 252));
+  });
+
+  it("sin paquete base no inventa precios base ni finales", () => {
+    const r = calcularSimulacion(riminiItems(), mods6y7, { ...riminiSup, paquete_base_id: null });
+    expect(r.paquete_base_id).toBeNull();
+    expect(r.precio_base_sugerido).toBe(0);
+    expect(r.precio_final_por_modalidad[IND]).toBe(0);
+  });
+
+  it("por_grupo y por_categoria quedan en la misma base (con imprevistos)", () => {
+    const r = calcularSimulacion(riminiItems(), mods6y7, riminiSup);
+    const sumaCat = Object.values(r.por_categoria).reduce((a, b) => a + b, 0);
+    const sumaGrupo = Object.values(r.por_grupo).reduce((a, b) => a + b, 0);
+    expect(round(sumaCat)).toBe(round(sumaGrupo));
+  });
+});
