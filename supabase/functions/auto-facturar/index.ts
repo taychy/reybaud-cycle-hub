@@ -75,6 +75,17 @@ Deno.serve(async (req) => {
     } = body;
 
 
+    // Normalizar alias de segmento: la cola histórica/legacy usa 'eventos'/'evento'
+    // para lo que fiscalmente es el segmento 'viajes'.
+    const SEGMENTO_ALIASES: Record<string, Segmento> = {
+      eventos: "viajes",
+      evento: "viajes",
+      viajes: "viajes",
+      escuela: "escuela",
+      tienda: "tienda",
+    };
+    const segmentoNormalizado = SEGMENTO_ALIASES[String(segmento ?? "").toLowerCase().trim()];
+
     if (!alumno_id || !concepto || !monto) {
       return new Response(
         JSON.stringify({ error: "alumno_id, concepto y monto son requeridos" }),
@@ -82,12 +93,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!segmento || !["escuela", "viajes", "tienda"].includes(segmento)) {
+    if (!segmentoNormalizado) {
       return new Response(
-        JSON.stringify({ error: "segmento inválido (escuela | viajes | tienda)" }),
+        JSON.stringify({ error: `segmento inválido: "${segmento}" (escuela | viajes | tienda)` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     // ============================================================
     // IDEMPOTENCIA: una fila de `facturacion_cola` = una sola factura
