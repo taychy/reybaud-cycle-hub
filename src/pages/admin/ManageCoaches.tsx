@@ -43,6 +43,8 @@ const ManageCoaches = () => {
   const [saving, setSaving] = useState(false);
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
   const [sedes, setSedes] = useState<Sede[]>([]);
+  const [whatsapp, setWhatsapp] = useState("");
+
 
   const [showCreate, setShowCreate] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: "", email: "" });
@@ -137,6 +139,7 @@ const ManageCoaches = () => {
     setSelectedGrupos(coach.grupos || []);
     setSelectedEstado(coach.estado);
     setSelectedSedeId(coach.sede_id || null);
+    setWhatsapp((coach as any).whatsapp || "");
   };
 
   const toggleGrupo = (grupo: string) => {
@@ -150,13 +153,19 @@ const ManageCoaches = () => {
     setSaving(true);
     await supabase
       .from("coaches")
-      .update({ grupos: selectedGrupos, estado: selectedEstado, sede_id: selectedSedeId } as any)
+      .update({
+        grupos: selectedGrupos,
+        estado: selectedEstado,
+        sede_id: selectedSedeId,
+        whatsapp: whatsapp.trim() || null,
+      } as any)
       .eq("id", editCoach.id);
     toast.success(`Coach ${editCoach.nombre} actualizado`);
     setEditCoach(null);
     setSaving(false);
     fetchCoaches();
   };
+
 
   const pendingCount = coaches.filter((c) => !(c as any).password_set && (c as any).invited_at).length;
   const filteredCoaches = coaches.filter((c) => {
@@ -405,7 +414,20 @@ const ManageCoaches = () => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="space-y-2">
+              <Label>Teléfono WhatsApp</Label>
+              <Input
+                value={whatsapp}
+                onChange={(e) => setWhatsapp(e.target.value)}
+                placeholder="Ej: 11 5555-4444"
+                className="bg-secondary border-border"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se usa para los recordatorios de turnos por WhatsApp. Dejalo vacío si no corresponde.
+              </p>
+            </div>
+            <div className="space-y-2">
               <Label>Estado</Label>
+
               <Select value={selectedEstado} onValueChange={setSelectedEstado}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>

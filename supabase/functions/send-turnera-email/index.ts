@@ -411,8 +411,25 @@ Deno.serve(async (req) => {
     });
 
     if (qErr) {
+      await supabase.from("turnera_notificaciones").upsert({
+        reserva_id: r.id, tipo, canal: "email", destinatario: recipientEmail,
+        estado: "error", idempotency_key: `turnera-${tipo}-email-${r.id}`,
+        provider: "lovable_email", error_code: "queue_failed", error_message: qErr.message,
+        failed_at: new Date().toISOString(),
+      }, { onConflict: "idempotency_key" });
       return new Response(JSON.stringify({ error: "queue_failed", detail: qErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    // Bitácora: aceptado por la cola de emails. El estado "sent" real lo resuelve
+    // la reconciliación contra email_send_log (nunca se marca enviado de antemano).
+    await supabase.from("turnera_notificaciones").upsert({
+      reserva_id: r.id, tipo, canal: "email", destinatario: recipientEmail,
+      estado: "queued", idempotency_key: `turnera-${tipo}-email-${r.id}`,
+      provider: "lovable_email", provider_message_id: messageId,
+      error_code: null, error_message: null, failed_at: null,
+      queued_at: new Date().toISOString(),
+    }, { onConflict: "idempotency_key" });
+
 
     // Copia al admin para confirmacion / coach_aviso
     if (tipo === "confirmacion" || tipo === "coach_aviso") {
@@ -523,7 +540,7 @@ Deno.serve(async (req) => {
     }
 
 
-    return new Response(JSON.stringify({ success: true, tipo, recipient: recipientEmail }), {
+    return new Response(JSON.stringify({ success: true, tipo, recipient: recipientEmail, message_id: messageId }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {

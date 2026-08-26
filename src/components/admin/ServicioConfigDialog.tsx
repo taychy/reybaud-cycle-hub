@@ -44,6 +44,9 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
   const [emailConf, setEmailConf] = useState(true);
   const [emailRec, setEmailRec] = useState(true);
   const [emailCoach, setEmailCoach] = useState(true);
+  const [waRec, setWaRec] = useState(false);
+  const [waCoach, setWaCoach] = useState(false);
+
   const [recHoras, setRecHoras] = useState("24");
   const [anticipHoras, setAnticipHoras] = useState("24");
   const [ics, setIcs] = useState(true);
@@ -64,6 +67,8 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     setEmailConf(servicio.email_confirmacion_enabled ?? true);
     setEmailRec(servicio.email_recordatorio_enabled ?? true);
     setEmailCoach(servicio.email_coach_enabled ?? true);
+    setWaRec((servicio as any).whatsapp_recordatorio_enabled ?? false);
+    setWaCoach((servicio as any).whatsapp_coach_recordatorio_enabled ?? false);
     setRecHoras(String(servicio.recordatorio_horas_antes ?? 24));
     setAnticipHoras(String(servicio.anticipacion_horas_minima ?? 24));
     setIcs(servicio.ics_adjunto ?? true);
@@ -108,6 +113,8 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         email_confirmacion_enabled: emailConf,
         email_recordatorio_enabled: emailRec,
         email_coach_enabled: emailCoach,
+        whatsapp_recordatorio_enabled: waRec,
+        whatsapp_coach_recordatorio_enabled: waCoach,
         recordatorio_horas_antes: Number(recHoras),
         anticipacion_horas_minima: Math.max(0, Number(anticipHoras) || 0),
         ics_adjunto: ics,
@@ -270,7 +277,29 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
               </div>
               <Switch checked={emailCoach} onCheckedChange={setEmailCoach} />
             </div>
+
+            <div className="pt-3 border-t border-border space-y-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">WhatsApp</p>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <Label>Recordatorio al alumno por WhatsApp</Label>
+                  <p className="text-xs text-muted-foreground">Usa el mismo horario que el recordatorio por email. Requiere la plantilla aprobada configurada.</p>
+                </div>
+                <Switch checked={waRec} onCheckedChange={setWaRec} />
+              </div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex-1">
+                  <Label>Recordatorio al coach por WhatsApp</Label>
+                  <p className="text-xs text-muted-foreground">Se envía al teléfono de WhatsApp cargado en la ficha del coach.</p>
+                </div>
+                <Switch checked={waCoach} onCheckedChange={setWaCoach} />
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Si la integración de WhatsApp todavía no está habilitada, no se envía nada y el aviso queda como “No configurado” en el detalle de la reserva. El email nunca se ve afectado.
+              </p>
+            </div>
           </Section>
+
 
           {/* Política */}
           <Section icon={<FileText className="w-4 h-4" />} title="Política de cancelación" subtitle="Aparecerá en el formulario de reserva y en los emails.">

@@ -1831,6 +1831,7 @@ export type Database = {
           sede_id: string | null
           updated_at: string
           user_id: string
+          whatsapp: string | null
         }
         Insert: {
           created_at?: string
@@ -1846,6 +1847,7 @@ export type Database = {
           sede_id?: string | null
           updated_at?: string
           user_id: string
+          whatsapp?: string | null
         }
         Update: {
           created_at?: string
@@ -1861,6 +1863,7 @@ export type Database = {
           sede_id?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp?: string | null
         }
         Relationships: [
           {
@@ -9526,6 +9529,8 @@ export type Database = {
           slug: string
           tipo_actividad: string
           updated_at: string
+          whatsapp_coach_recordatorio_enabled: boolean
+          whatsapp_recordatorio_enabled: boolean
         }
         Insert: {
           activo?: boolean
@@ -9554,6 +9559,8 @@ export type Database = {
           slug: string
           tipo_actividad?: string
           updated_at?: string
+          whatsapp_coach_recordatorio_enabled?: boolean
+          whatsapp_recordatorio_enabled?: boolean
         }
         Update: {
           activo?: boolean
@@ -9582,6 +9589,8 @@ export type Database = {
           slug?: string
           tipo_actividad?: string
           updated_at?: string
+          whatsapp_coach_recordatorio_enabled?: boolean
+          whatsapp_recordatorio_enabled?: boolean
         }
         Relationships: [
           {
@@ -11430,6 +11439,84 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      turnera_notificaciones: {
+        Row: {
+          canal: string
+          created_at: string
+          destinatario: string
+          error_code: string | null
+          error_message: string | null
+          estado: string
+          failed_at: string | null
+          id: string
+          idempotency_key: string
+          metadata: Json
+          provider: string | null
+          provider_message_id: string | null
+          queued_at: string | null
+          reserva_id: string
+          scheduled_for: string | null
+          sent_at: string | null
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          canal: string
+          created_at?: string
+          destinatario?: string
+          error_code?: string | null
+          error_message?: string | null
+          estado?: string
+          failed_at?: string | null
+          id?: string
+          idempotency_key: string
+          metadata?: Json
+          provider?: string | null
+          provider_message_id?: string | null
+          queued_at?: string | null
+          reserva_id: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          canal?: string
+          created_at?: string
+          destinatario?: string
+          error_code?: string | null
+          error_message?: string | null
+          estado?: string
+          failed_at?: string | null
+          id?: string
+          idempotency_key?: string
+          metadata?: Json
+          provider?: string | null
+          provider_message_id?: string | null
+          queued_at?: string | null
+          reserva_id?: string
+          scheduled_for?: string | null
+          sent_at?: string | null
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "turnera_notificaciones_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "reservas_turnera"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "turnera_notificaciones_reserva_id_fkey"
+            columns: ["reserva_id"]
+            isOneToOne: false
+            referencedRelation: "vw_turnera_sede_backfill"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       user_roles: {
         Row: {
