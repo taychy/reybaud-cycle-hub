@@ -386,6 +386,101 @@ export function calcularSimulacion(
   const punto_equilibrio =
     margen_unit_prom > 0 ? Math.ceil((costos_fijos * factorImp) / margen_unit_prom) : 0;
 
+  /* ═══ Modelo precio base + suplementos ═══
+     El precio del viaje se arma UNA sola vez por persona: alojamiento base +
+     participante directo + staff/pax + generales/pax. Cada otra modalidad sólo
+     agrega la diferencia de alojamiento como suplemento. Staff y generales
+     nunca se duplican por modalidad. */
+  const escenario_inscriptos = prorrateoBase > 0 ? prorrateoBase : totalEsperados;
+
+  let participanteDirecto = 0;
+  let staffTotalRaw = 0;
+  let generalTotalRaw = 0;
+  const costo_alojamiento_unitario_por_modalidad: Record<string, number> = {};
+  modalidades.forEach((m) => (costo_alojamiento_unitario_por_modalidad[m.key] = 0));
+
+  for (const it of items) {
+    const grupo = inferGrupoCosto(it);
+    const det = (it.detalle || {}) as CostItemDetalle;
+    if (grupo === "alojamiento") {
+      if (!det.package_id) continue;
+      const mod = modalidades.find((m) => m.key === det.package_id);
+      const unit = lodgingUnitCost(it, mod, supuestos) * factorImp;
+      costo_alojamiento_unitario_por_modalidad[det.package_id] =
+        (costo_alojamiento_unitario_por_modalidad[det.package_id] || 0) + unit;
+      continue;
+    }
+    const totalItem = toBase(
+      Number(it.cantidad || 0) * Number(it.precio_unitario || 0),
+      it.moneda,
+      supuestos,
+    );
+    if (grupo === "participante") participanteDirecto += totalItem;
+    else if (grupo === "staff") staffTotalRaw += totalItem;
+    else generalTotalRaw += totalItem;
+  }
+
+  const costo_participante_directo_unitario = participanteDirecto * factorImp;
+  const costo_staff_total = staffTotalRaw * factorImp;
+  const costo_general_total = generalTotalRaw * factorImp;
+  const costo_staff_por_persona = escenario_inscriptos > 0 ? costo_staff_total / escenario_inscriptos : 0;
+  const costo_general_por_persona = escenario_inscriptos > 0 ? costo_general_total / escenario_inscriptos : 0;
+
+  const paquete_base_id = supuestos.paquete_base_id || null;
+  const costo_alojamiento_base_unitario = paquete_base_id
+    ? (costo_alojamiento_unitario_por_modalidad[paquete_base_id] || 0)
+    : 0;
+
+  const costo_base_unitario = costo_alojamiento_base_unitario
+    + costo_participante_directo_unitario
+    + costo_staff_por_persona
+    + costo_general_por_persona;
+
+  const aPrecio = (costo: number) => modo === "honorario_participante"
+    ? costo + honorario
+    : (margen < 1 ? costo / (1 - margen) : costo);
+
+  const precio_base_sugerido = paquete_base_id ? aPrecio(costo_base_unitario) : 0;
+
+  const suplemento_costo_por_modalidad: Record<string, number> = {};
+  const suplemento_precio_por_modalidad: Record<string, number> = {};
+  const precio_final_por_modalidad: Record<string, number> = {};
+  modalidades.forEach((m) => {
+    const dif = (costo_alojamiento_unitario_por_modalidad[m.key] || 0) - costo_alojamiento_base_unitario;
+    const supCosto = m.key === paquete_base_id ? 0 : Math.max(0, dif);
+    // El honorario se cobra una sola vez por persona: el suplemento no lo repite.
+    const supPrecio = modo === "honorario_participante"
+      ? supCosto
+      : (margen < 1 ? supCosto / (1 - margen) : supCosto);
+    suplemento_costo_por_modalidad[m.key] = supCosto;
+    suplemento_precio_por_modalidad[m.key] = supPrecio;
+    precio_final_por_modalidad[m.key] = paquete_base_id ? precio_base_sugerido + supPrecio : 0;
+  });
+
+  const distribucion_total = totalEsperados;
+  const distribucion_valida = escenario_inscriptos > 0 && distribucion_total === escenario_inscriptos;
+
+  let escenario_costo_total: number | null = null;
+  let escenario_ingreso_total: number | null = null;
+  let escenario_ganancia_total: number | null = null;
+  let escenario_margen: number | null = null;
+  let escenario_ganancia_por_participante: number | null = null;
+  if (distribucion_valida && paquete_base_id) {
+    let extraCosto = 0;
+    let extraPrecio = 0;
+    modalidades.forEach((m) => {
+      const pax = Number(m.esperados) || 0;
+      extraCosto += pax * (suplemento_costo_por_modalidad[m.key] || 0);
+      extraPrecio += pax * (suplemento_precio_por_modalidad[m.key] || 0);
+    });
+    escenario_costo_total = escenario_inscriptos * costo_base_unitario + extraCosto;
+    escenario_ingreso_total = escenario_inscriptos * precio_base_sugerido + extraPrecio;
+    escenario_ganancia_total = escenario_ingreso_total - escenario_costo_total;
+    escenario_margen = escenario_ingreso_total > 0 ? escenario_ganancia_total / escenario_ingreso_total : 0;
+    escenario_ganancia_por_participante = escenario_ganancia_total / escenario_inscriptos;
+  }
+
+
   return {
     total_costos_base,
     total_con_imprevistos,
