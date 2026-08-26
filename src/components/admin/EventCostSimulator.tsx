@@ -48,6 +48,7 @@ interface SimRow {
   cantidades_esperadas: Record<string, number>;
   escenarios_inscripcion: EscenarioInscripcion[] | null;
   escenario_activo_id: string | null;
+  paquete_base_id: string | null;
   resultados: any;
   resultados_reales: any;
   estado: "borrador" | "activa" | "archivada";
@@ -213,6 +214,7 @@ export default function EventCostSimulator({ eventId }: Props) {
     participantes_prorrateo: Number(escenarioActivo?.inscriptos) || 0,
     rentabilidad_modo: current.rentabilidad_modo || "margen",
     honorario_por_participante: Number(current.honorario_por_participante) || 0,
+    paquete_base_id: current.paquete_base_id || null,
   } : null;
 
 
@@ -272,6 +274,7 @@ export default function EventCostSimulator({ eventId }: Props) {
       cantidades_esperadas: duplicarDe.cantidades_esperadas,
       escenarios_inscripcion: duplicarDe.escenarios_inscripcion || [],
       escenario_activo_id: duplicarDe.escenario_activo_id,
+      paquete_base_id: duplicarDe.paquete_base_id,
 
     } : {};
     const { data, error } = await supabase.from("event_cost_simulations").insert({
@@ -332,6 +335,7 @@ export default function EventCostSimulator({ eventId }: Props) {
       cantidades_esperadas: current.cantidades_esperadas,
       escenarios_inscripcion: (current.escenarios_inscripcion || []) as any,
       escenario_activo_id: current.escenario_activo_id,
+      paquete_base_id: current.paquete_base_id,
 
       resultados: calculo as any,
     }).eq("id", current.id);
