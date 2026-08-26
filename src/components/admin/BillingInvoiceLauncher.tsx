@@ -5,7 +5,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { FileText, Loader2, CheckCircle2 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { InvoiceModal } from "@/pages/admin/billing/InvoiceModal";
-import { isFacturaEmitida } from "@/lib/billingInvoiceLink";
+import { isFacturaEmitida, edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
 
 export type InvoiceSource = {
   alumno_id: string;
@@ -133,8 +133,10 @@ export function BillingInvoiceLauncher({ source, variant = "icon", className, on
           },
         });
 
-        if (error) throw error;
-        if (data?.error) throw new Error(data.error);
+        if (error || data?.error) {
+          throw new Error(await edgeFunctionErrorMessage(error, data));
+        }
+
 
         // Volver a leer la factura recién creada (por vínculo exacto si lo hay)
         factura = await fetchExisting();

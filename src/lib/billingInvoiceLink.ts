@@ -43,7 +43,36 @@ export function isFacturaEmitida(f: Pick<FacturaLike, "estado" | "cae"> | null |
   return !!f && f.estado === "emitida" && !!f.cae;
 }
 
+/**
+ * Extrae el mensaje real de error de una edge function.
+ * `supabase.functions.invoke` devuelve "Edge Function returned a non-2xx status code"
+ * y deja la respuesta HTTP en `error.context`; ahí está el JSON `{ error: "..." }`.
+ */
+export async function edgeFunctionErrorMessage(
+  error: unknown,
+  data?: { error?: string } | null,
+): Promise<string> {
+  if (data?.error) return data.error;
+  const ctx = (error as { context?: unknown } | null)?.context as Response | undefined;
+  if (ctx && typeof (ctx as Response).text === "function") {
+    try {
+      const raw = await (ctx as Response).clone().text();
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed?.error) return String(parsed.error);
+        if (parsed?.message) return String(parsed.message);
+      } catch {
+        if (raw?.trim()) return raw.trim().slice(0, 300);
+      }
+    } catch {
+      /* ignorar: nos quedamos con el mensaje genérico */
+    }
+  }
+  return (error as { message?: string } | null)?.message || "Error inesperado";
+}
+
 /** Problema en lenguaje humano para la bandeja "Problemas". */
+
 export function describeFacturaProblem(
   f: Pick<FacturaLike, "estado" | "cae"> | null | undefined,
 ): string | null {

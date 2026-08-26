@@ -67,13 +67,24 @@ Deno.serve(async (req) => {
       moneda?: string;
       referencia_tipo?: string;
       referencia_id?: string;
-      segmento: Segmento;
+      segmento: string;
       origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
       metodo_pago?: string | null;
       origen_registro?: string | null;
       facturacion_cola_id?: string | null;
     } = body;
 
+
+    // Normalizar alias de segmento: la cola histórica/legacy usa 'eventos'/'evento'
+    // para lo que fiscalmente es el segmento 'viajes'.
+    const SEGMENTO_ALIASES: Record<string, Segmento> = {
+      eventos: "viajes",
+      evento: "viajes",
+      viajes: "viajes",
+      escuela: "escuela",
+      tienda: "tienda",
+    };
+    const segmentoNormalizado = SEGMENTO_ALIASES[String(segmento ?? "").toLowerCase().trim()];
 
     if (!alumno_id || !concepto || !monto) {
       return new Response(
@@ -82,12 +93,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!segmento || !["escuela", "viajes", "tienda"].includes(segmento)) {
+    if (!segmentoNormalizado) {
       return new Response(
-        JSON.stringify({ error: "segmento inválido (escuela | viajes | tienda)" }),
+        JSON.stringify({ error: `segmento inválido: "${segmento}" (escuela | viajes | tienda)` }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
 
     // ============================================================
     // IDEMPOTENCIA: una fila de `facturacion_cola` = una sola factura
@@ -153,7 +165,7 @@ Deno.serve(async (req) => {
     // ============================================================
     // RUTEO: elegir el mejor emisor para este segmento
     // ============================================================
-    const emisorElegido = await elegirEmisor(adminClient, segmento, monto);
+    const emisorElegido = await elegirEmisor(adminClient, segmentoNormalizado, monto);
 
     if (!emisorElegido) {
       // No hay emisor disponible -> crear factura sin emitir
@@ -166,7 +178,7 @@ Deno.serve(async (req) => {
         moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
-        segmento,
+        segmento: segmentoNormalizado,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
         metodo_pago: resolvedMetodo,
@@ -188,7 +200,7 @@ Deno.serve(async (req) => {
           success: true,
           created: true,
           emitted: false,
-          message: `Sin emisor disponible para "${segmento}". Configurá uno habilitado con cupo y certificado en Configuración → Finanzas → Emisores fiscales.`,
+          message: `Sin emisor disponible para "${segmentoNormalizado}". Configurá uno habilitado con cupo y certificado en Configuración → Finanzas → Emisores fiscales.`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -206,7 +218,7 @@ Deno.serve(async (req) => {
         moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
-        segmento,
+        segmento: segmentoNormalizado,
         emisor_id: emisorElegido.id,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",

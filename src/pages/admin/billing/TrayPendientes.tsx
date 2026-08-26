@@ -10,7 +10,7 @@ import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
-import { isFacturaEmitida } from "@/lib/billingInvoiceLink";
+import { isFacturaEmitida, edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
 
 const PAGE_SIZE = 50;
 
@@ -178,6 +178,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
     setPreparing(true);
     try {
       const prepared: BulkFacturaRow[] = [];
+      const fallos: string[] = [];
       let alreadyEmitted = 0;
 
       for (const r of targets) {
@@ -199,7 +200,9 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
           },
         });
         if (error || (data as any)?.error) {
-          console.warn("auto-facturar falló para", r.id, error || (data as any)?.error);
+          const msg = await edgeFunctionErrorMessage(error, data as any);
+          console.warn("auto-facturar falló para", r.id, msg);
+          fallos.push(`${r.cliente_nombre}: ${msg}`);
           continue;
         }
         if ((data as any)?.emitted) { alreadyEmitted++; continue; }
@@ -210,7 +213,10 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
           .select("id, condicion_fiscal")
           .eq("facturacion_cola_id", r.id)
           .maybeSingle();
-        if (!fac?.id) continue;
+        if (!fac?.id) {
+          fallos.push(`${r.cliente_nombre}: no se encontró la factura preparada`);
+          continue;
+        }
 
         prepared.push({
           id: fac.id,
@@ -224,13 +230,24 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
         });
       }
 
-      if (prepared.length === 0) {
+      if (fallos.length > 0) {
         toast({
-          title: "Nada para facturar",
-          description: alreadyEmitted > 0 ? `${alreadyEmitted} ya estaban facturadas.` : "No se pudieron preparar las facturas.",
+          title: `${fallos.length} cobro(s) no se pudieron preparar`,
+          description: fallos.slice(0, 3).join(" · ") + (fallos.length > 3 ? ` · y ${fallos.length - 3} más` : ""),
+          variant: "destructive",
         });
+      }
+
+      if (prepared.length === 0) {
+        if (fallos.length === 0) {
+          toast({
+            title: "Nada para facturar",
+            description: alreadyEmitted > 0 ? `${alreadyEmitted} ya estaban facturadas.` : "No había cobros pendientes en la selección.",
+          });
+        }
         return;
       }
+
       setBulkRows(prepared);
       setBulkOpen(true);
     } finally {

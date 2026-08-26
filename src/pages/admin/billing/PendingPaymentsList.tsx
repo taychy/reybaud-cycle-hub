@@ -11,6 +11,8 @@ import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 import { AgeGroupedList } from "./AgeGroupedList";
+import { edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
+
 
 /**
  * Lee directamente de `facturacion_cola` — cola de pagos confirmados.
@@ -224,8 +226,10 @@ export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boole
     setPreparing(true);
     try {
       const prepared: BulkFacturaRow[] = [];
+      const fallos: string[] = [];
       let createdCount = 0;
       let alreadyEmittedCount = 0;
+
 
       for (const r of targets) {
         if (r.estado === "facturada" || (r.factura_estado === "emitida" && r.factura_cae)) {
@@ -252,9 +256,12 @@ export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boole
             },
           });
           if (error || (data as any)?.error) {
-            console.warn("auto-facturar falló para", r.id, error || (data as any)?.error);
+            const msg = await edgeFunctionErrorMessage(error, data as any);
+            console.warn("auto-facturar falló para", r.id, msg);
+            fallos.push(`${r.cliente_nombre}: ${msg}`);
             continue;
           }
+
           if ((data as any)?.emitted) {
             alreadyEmittedCount++;
             continue;
@@ -286,15 +293,26 @@ export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boole
         });
       }
 
-      if (prepared.length === 0) {
+      if (fallos.length > 0) {
         toast({
-          title: "Nada para facturar",
-          description: alreadyEmittedCount > 0
-            ? `${alreadyEmittedCount} ya tenían CAE emitido.`
-            : "No se pudieron preparar las facturas.",
+          title: `${fallos.length} cobro(s) no se pudieron preparar`,
+          description: fallos.slice(0, 3).join(" · ") + (fallos.length > 3 ? ` · y ${fallos.length - 3} más` : ""),
+          variant: "destructive",
         });
+      }
+
+      if (prepared.length === 0) {
+        if (fallos.length === 0) {
+          toast({
+            title: "Nada para facturar",
+            description: alreadyEmittedCount > 0
+              ? `${alreadyEmittedCount} ya tenían CAE emitido.`
+              : "No había cobros pendientes en la selección.",
+          });
+        }
         return;
       }
+
 
       if (createdCount > 0) {
         toast({
