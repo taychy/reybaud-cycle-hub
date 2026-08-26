@@ -219,14 +219,14 @@ Deno.serve(async (req) => {
 
     const { data: r, error: errR } = await supabase
       .from("reservas_turnera")
-      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota, sede_id, pago_monto, moneda_snapshot, upload_token, hold_expira_at")
+      .select("id, servicio_id, coach_id, alumno_id, fecha, hora_inicio, hora_fin, nombre, apellido, email, celular, documento, nota, sede_id, pago_monto, moneda_snapshot, upload_token, hold_expira_at, form_responses")
       .eq("id", reservation_id)
       .maybeSingle();
     if (errR || !r) return new Response(JSON.stringify({ error: "reservation_not_found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: s } = await supabase
       .from("servicios_turnera")
-      .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, email_coach_enabled, email_coach_recordatorio_enabled, ics_adjunto, sedes:sede_id(nombre)")
+      .select("nombre, descripcion, modalidad, politica_cancelacion, email_confirmacion_enabled, email_recordatorio_enabled, email_coach_enabled, email_coach_recordatorio_enabled, ics_adjunto, form_fields, sedes:sede_id(nombre)")
       .eq("id", r.servicio_id)
       .maybeSingle();
 
@@ -288,6 +288,15 @@ Deno.serve(async (req) => {
       if (sedeRow?.nombre) sedeNombre = sedeRow.nombre;
     }
     const esCoach = tipo === "coach_aviso" || tipo === "coach_recordatorio";
+
+    // Respuestas del formulario del servicio (sólo para el coach / calendario)
+    const camposServicio: Array<{ key: string; label: string }> =
+      Array.isArray((s as any)?.form_fields) ? (s as any).form_fields : [];
+    const respuestas = ((r as any).form_responses || {}) as Record<string, unknown>;
+    const respuestasList = camposServicio
+      .map((f) => ({ label: f.label || f.key, value: String(respuestas?.[f.key] ?? "").trim() }))
+      .filter((x) => x.value);
+
     const gcalTitle = esCoach
       ? `${servicioNombre} · ${r.nombre} ${r.apellido || ""}`.trim()
       : servicioNombre;
@@ -298,8 +307,10 @@ Deno.serve(async (req) => {
           r.celular ? `Celular: ${r.celular}` : "",
           r.documento ? `DNI: ${r.documento}` : "",
           r.nota ? `Nota: ${r.nota}` : "",
+          ...respuestasList.map((x) => `${x.label}: ${x.value}`),
         ].filter(Boolean).join("\n")
       : (s?.descripcion || "");
+
     const gcal = googleCalLink(
       gcalTitle,
       r.fecha as string,
@@ -357,8 +368,15 @@ Deno.serve(async (req) => {
           ${r.nota ? `<br/><em>${escapeHtml(r.nota)}</em>` : ""}
         </div>
       </div>
+      ${respuestasList.length > 0 ? `<div style="background:#f6f7f9;border:1px solid #e2e5ea;border-radius:12px;padding:16px;margin-top:12px;">
+        <div style="font-size:11px;text-transform:uppercase;letter-spacing:2px;color:#888;margin-bottom:8px;">Respuestas del alumno</div>
+        <div style="font-size:14px;color:#0f1115;line-height:1.6;">
+          ${respuestasList.map((x) => `<div style="margin-bottom:8px;"><strong>${escapeHtml(x.label)}</strong><br/>${escapeHtml(x.value)}</div>`).join("")}
+        </div>
+      </div>` : ""}
       ${waBlock}`;
       html = html.replace("</div></body></html>", `${contactBlock}</div></body></html>`);
+
     }
 
 
@@ -496,6 +514,14 @@ Deno.serve(async (req) => {
     if (tipo === "coach_recordatorio") {
       await supabase.from("reservas_turnera").update({ coach_recordatorio_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
     }
+    // Trazabilidad para el admin (no condiciona reenvíos)
+    if (tipo === "confirmacion") {
+      await supabase.from("reservas_turnera").update({ confirmacion_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
+    }
+    if (tipo === "coach_aviso") {
+      await supabase.from("reservas_turnera").update({ coach_aviso_enviado_at: new Date().toISOString() } as any).eq("id", r.id);
+    }
+
 
     return new Response(JSON.stringify({ success: true, tipo, recipient: recipientEmail }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -24,6 +24,8 @@ import { DisponibilidadAjustadaManager } from "@/components/admin/Disponibilidad
 import TurneraTransferenciasTab from "@/components/admin/TurneraTransferenciasTab";
 import TurneraBancariosConfig from "@/components/admin/TurneraBancariosConfig";
 import TurneraReprogramarDialog from "@/components/admin/TurneraReprogramarDialog";
+import TurneraComunicacionesCell from "@/components/admin/TurneraComunicacionesCell";
+
 
 const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
@@ -607,12 +609,14 @@ const AdminTurnera = () => {
                 <TableHead>Nota</TableHead>
                 <TableHead>Coach/Sede</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Avisos</TableHead>
                 <TableHead className="w-10"></TableHead>
+
               </TableRow>
             </TableHeader>
             <TableBody>
               {reservasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={7} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
                 reservasFiltradas.map(r => (
                   <TableRow key={r.id}>
@@ -650,6 +654,13 @@ const AdminTurnera = () => {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell>
+                      <TurneraComunicacionesCell
+                        reserva={r}
+                        servicio={servicios.find(s => s.id === r.servicio_id)}
+                      />
+                    </TableCell>
+
                     <TableCell>
                       <Button
                         size="icon"

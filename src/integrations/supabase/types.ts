@@ -8041,10 +8041,12 @@ export type Database = {
           alumno_id: string | null
           apellido: string
           celular: string | null
+          coach_aviso_enviado_at: string | null
           coach_id: string
           coach_recordatorio_enviado_at: string | null
           comprobante_subido_at: string | null
           comprobante_url: string | null
+          confirmacion_enviado_at: string | null
           created_at: string
           documento: string | null
           email: string
@@ -8089,10 +8091,12 @@ export type Database = {
           alumno_id?: string | null
           apellido: string
           celular?: string | null
+          coach_aviso_enviado_at?: string | null
           coach_id: string
           coach_recordatorio_enviado_at?: string | null
           comprobante_subido_at?: string | null
           comprobante_url?: string | null
+          confirmacion_enviado_at?: string | null
           created_at?: string
           documento?: string | null
           email: string
@@ -8137,10 +8141,12 @@ export type Database = {
           alumno_id?: string | null
           apellido?: string
           celular?: string | null
+          coach_aviso_enviado_at?: string | null
           coach_id?: string
           coach_recordatorio_enviado_at?: string | null
           comprobante_subido_at?: string | null
           comprobante_url?: string | null
+          confirmacion_enviado_at?: string | null
           created_at?: string
           documento?: string | null
           email?: string
@@ -13142,6 +13148,29 @@ export type Database = {
           order_id: string
         }[]
       }
+      create_turnera_reservation: {
+        Args: {
+          p_acepto_politica: boolean
+          p_alumno_id?: string
+          p_apellido: string
+          p_celular: string
+          p_coach_id: string
+          p_documento: string
+          p_email: string
+          p_fecha: string
+          p_fecha_nacimiento: string
+          p_form_responses?: Json
+          p_hora_fin: string
+          p_hora_inicio: string
+          p_nombre: string
+          p_nota: string
+          p_origen_link: string
+          p_reservation_id: string
+          p_sede_id: string
+          p_servicio_id: string
+        }
+        Returns: string
+      }
       cuenta_publica_consume_credit: {
         Args: { p_fuente_id: string; p_fuente_tabla: string; p_token: string }
         Returns: Json
@@ -13310,6 +13339,18 @@ export type Database = {
       finalize_supplier_order_entry: {
         Args: { _order_id: string }
         Returns: Json
+      }
+      find_alumno_for_turnera: {
+        Args: { p_documento: string; p_email: string }
+        Returns: {
+          alumno_id: string
+          apellido_inicial: string
+          celular: string
+          documento: string
+          email: string
+          fecha_nacimiento: string
+          nombre: string
+        }[]
       }
       fn_imputar_credito_a_suscripcion: {
         Args: { _ajuste_id: string; _suscripcion_id: string }
@@ -13645,6 +13686,7 @@ export type Database = {
         Returns: {
           coach_id: string
           fecha: string
+          hora_fin: string
           hora_inicio: string
         }[]
       }
