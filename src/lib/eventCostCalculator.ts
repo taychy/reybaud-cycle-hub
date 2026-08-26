@@ -97,7 +97,36 @@ export interface CalculoResult {
   /** Costo general por participante según el escenario activo */
   prorrateo_general_por_persona: number;
   rentabilidad_modo: RentabilidadModo;
+
+  /* ─── Modelo precio base + suplementos (todos CON imprevistos) ─── */
+  /** Inscriptos del escenario activo usados para prorratear staff/generales */
+  escenario_inscriptos: number;
+  /** Costo directo por participante (grupo Participante) */
+  costo_participante_directo_unitario: number;
+  costo_staff_total: number;
+  costo_staff_por_persona: number;
+  costo_general_total: number;
+  costo_general_por_persona: number;
+  /** Costo de alojamiento por persona de cada modalidad */
+  costo_alojamiento_unitario_por_modalidad: Record<string, number>;
+  paquete_base_id: string | null;
+  costo_alojamiento_base_unitario: number;
+  costo_base_unitario: number;
+  precio_base_sugerido: number;
+  suplemento_costo_por_modalidad: Record<string, number>;
+  suplemento_precio_por_modalidad: Record<string, number>;
+  precio_final_por_modalidad: Record<string, number>;
+  /** true si la distribución por paquetes suma exactamente los inscriptos del escenario */
+  distribucion_valida: boolean;
+  distribucion_total: number;
+  /** Métricas del escenario; null cuando la distribución no es válida */
+  escenario_costo_total: number | null;
+  escenario_ingreso_total: number | null;
+  escenario_ganancia_total: number | null;
+  escenario_margen: number | null;
+  escenario_ganancia_por_participante: number | null;
 }
+
 
 
 export const CATEGORIAS_COSTO = [
