@@ -105,6 +105,9 @@ export interface CalculoResult {
   escenario_inscriptos: number;
   /** Costo directo por participante (grupo Participante) */
   costo_participante_directo_unitario: number;
+  /** Total del grupo Participantes = unitario × inscriptos del escenario activo */
+  costo_participante_total: number;
+
   costo_staff_total: number;
   costo_staff_por_persona: number;
   costo_general_total: number;
@@ -428,6 +431,9 @@ export function calcularSimulacion(
   }
 
   const costo_participante_directo_unitario = participanteDirecto * factorImp;
+  /** Total del grupo Participantes según el escenario activo (única verdad). */
+  const costo_participante_total = costo_participante_directo_unitario * escenario_inscriptos;
+
   const costo_staff_total = staffTotalRaw * factorImp;
   const costo_general_total = generalTotalRaw * factorImp;
   const costo_staff_por_persona = escenario_inscriptos > 0 ? costo_staff_total / escenario_inscriptos : 0;
