@@ -69,6 +69,8 @@ export interface Supuestos {
   rentabilidad_modo?: RentabilidadModo | string;
   /** Honorario por participante en moneda base (modo honorario_participante). */
   honorario_por_participante?: number;
+  /** Paquete cuyo alojamiento define el precio base del viaje. */
+  paquete_base_id?: string | null;
 }
 
 export interface CalculoResult {
