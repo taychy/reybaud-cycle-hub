@@ -80,31 +80,17 @@ const calcAge = (y: string, m: string, d: string): number | null => {
   return age;
 };
 
-const normalizeAlumnoForBooking = (raw: any, fallbackEmail: string): AlumnoLogged => {
-  const fullNombre = String(raw?.nombre || "").trim();
-  const rawApellido = String(raw?.apellido || "").trim();
-  let nombre = fullNombre;
-  let apellido = rawApellido;
+// Nunca reinterpretamos la identidad guardada: nombre y apellido se usan tal
+// cual figuran en la ficha del alumno (no se parten, ni se recortan, ni se infieren).
+const normalizeAlumnoForBooking = (raw: any, fallbackEmail: string): AlumnoLogged => ({
+  id: String(raw?.id || ""),
+  nombre: String(raw?.nombre || "").trim(),
+  apellido: String(raw?.apellido || "").trim(),
+  email: String(raw?.email || fallbackEmail).toLowerCase().trim(),
+  celular: raw?.telefono || "",
+  documento: raw?.documento || "",
+});
 
-  if (apellido && nombre.toLowerCase().endsWith(` ${apellido.toLowerCase()}`)) {
-    nombre = nombre.slice(0, -apellido.length).trim();
-  }
-
-  if (!apellido && nombre.includes(" ")) {
-    const parts = nombre.split(/\s+/).filter(Boolean);
-    apellido = parts.pop() || "";
-    nombre = parts.join(" ");
-  }
-
-  return {
-    id: String(raw?.id || ""),
-    nombre: nombre || fullNombre || "Alumno",
-    apellido: apellido || "—",
-    email: String(raw?.email || fallbackEmail).toLowerCase().trim(),
-    celular: raw?.telefono || "",
-    documento: raw?.documento || "",
-  };
-};
 
 const BookingFlow = () => {
   const { slug } = useParams<{ slug: string }>();
