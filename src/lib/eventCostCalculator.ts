@@ -288,17 +288,24 @@ export function calcularSimulacion(
 
     if (grupo === "participante") {
       // Costo VARIABLE por participante: el total de la fila es el costo por pax.
-      let totalVar = 0;
+      // El TOTAL del grupo se calcula sobre el escenario activo (única verdad);
+      // el reparto por modalidad sigue la distribución (ocupación).
+      let repartoPorModalidad = 0;
       applyTo.forEach((m) => {
         const cost = totalItem * (Number(m.esperados) || 0);
         costo_por_modalidad[m.key] += cost;
-        totalVar += cost;
+        repartoPorModalidad += cost;
       });
+      const aplicaATodas = !it.aplica_a_modalidades?.length;
+      const totalVar = aplicaATodas && prorrateoBase > 0
+        ? totalItem * prorrateoBase
+        : repartoPorModalidad;
       costos_variables += totalVar;
       addCat(it.categoria, totalVar);
       por_grupo.participante += totalVar;
       continue;
     }
+
 
     // ── staff / general / alojamiento sin detalle: costo fijo general prorrateado ──
     costos_fijos += totalItem;
