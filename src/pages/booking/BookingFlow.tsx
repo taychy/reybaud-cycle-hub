@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveServicioSlug } from "@/lib/turneraSlug";
+import {
+  isSlotBooked,
+  validateFormResponses,
+  pickUniqueAlumnoMatch,
+  type FormFieldDef,
+} from "@/lib/turneraAvailability";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +29,9 @@ type Servicio = {
   duracion_minutos: number; precio: number | null; moneda: string;
   modalidad: string; politica_cancelacion: string | null; tipo_actividad?: string | null;
   pago_modo?: string | null; pago_monto_sena?: number | null;
+  anticipacion_horas_minima?: number | null;
+  form_fields?: FormFieldDef[] | null;
+
 };
 
 type Disponibilidad = {
@@ -117,6 +127,20 @@ const BookingFlow = () => {
   const [submitting, setSubmitting] = useState(false);
   const [authChecking, setAuthChecking] = useState(true);
   const [alumnoLogged, setAlumnoLogged] = useState<AlumnoLogged | null>(null);
+
+  // Identificación de alumno existente sin login
+  const [perfilTipo, setPerfilTipo] = useState<"nuevo" | "existente" | null>(null);
+  const [lookup, setLookup] = useState({ email: "", documento: "" });
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [alumnoEncontrado, setAlumnoEncontrado] = useState<
+    { alumno_id: string; nombre: string; apellido_inicial: string | null } | null
+  >(null);
+
+  // Respuestas a los campos configurables del servicio
+  const [formResponses, setFormResponses] = useState<Record<string, string>>({});
+
+
 
   const [form, setForm] = useState({
     nombre: "", apellido: "", email: "", celular: "", documento: "",
@@ -372,13 +396,14 @@ const BookingFlow = () => {
         while (cur + duration <= r.fin) {
           const h = String(Math.floor(cur / 60)).padStart(2, "0");
           const m = String(cur % 60).padStart(2, "0");
-          const t = `${h}:${m}:00`;
+          
           const slotStart = `${h}:${m}`;
           const slotEndMin = cur + duration;
           const slotEnd = `${String(Math.floor(slotEndMin / 60)).padStart(2, "0")}:${String(slotEndMin % 60).padStart(2, "0")}`;
-          const isBooked = reservasExistentes.some(
-            rv => rv.fecha === dateStr && rv.hora_inicio === t && rv.coach_id === coachId,
-          );
+          // Bloquea por solapamiento real de intervalos del mismo coach
+          // (cualquier servicio), no sólo por hora de inicio idéntica.
+          const isBooked = isSlotBooked(reservasExistentes, dateStr, coachId, slotStart, slotEnd);
+
           const ausente = isCoachAusente(coachId, dateStr, slotStart, slotEnd);
           const [yy, mm2, dd] = dateStr.split("-").map(Number);
           const slotDate = new Date(yy, mm2 - 1, dd, Math.floor(cur / 60), cur % 60, 0);
@@ -400,31 +425,13 @@ const BookingFlow = () => {
     );
   };
 
+  // Un día se habilita SÓLO si existe al menos un slot realmente reservable.
+  // Misma función que alimenta los horarios visibles: una sola regla, sin duplicar.
   const disabledDay = (date: Date) => {
     if (date < new Date(new Date().setHours(0, 0, 0, 0))) return true;
-    const dow = date.getDay();
-    const dayDisps = filteredDisps.filter(d => d.dia_semana === dow);
-    const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-
-    // Coaches con disponibilidad ese día (semanal o por ajuste agregar/reemplazar)
-    const coachesSemana = Array.from(new Set(dayDisps.map(d => d.coach_id)));
-    const coachesExtra = Array.from(new Set(
-      ajustes.filter(a => a.fecha === dateStr && a.tipo !== "bloquear" && a.coach_id).map(a => a.coach_id as string)
-    ));
-    const coachesDelDia = Array.from(new Set([...coachesSemana, ...coachesExtra]));
-    if (coachesDelDia.length === 0) return true;
-
-    // Bloqueo global ese día
-    if (ajustes.some(a => a.fecha === dateStr && a.tipo === "bloquear" && a.coach_id === null)) return true;
-
-    // Todos los coaches del día están bloqueados/ausentes ese día
-    const todosFuera = coachesDelDia.every(cid => {
-      const blockedByAjuste = ajustes.some(a => a.fecha === dateStr && a.tipo === "bloquear" && (a.coach_id === null || a.coach_id === cid));
-      const ausenteTodoElDia = ausencias.some(a => a.coach_id === cid && a.todo_el_dia && dateStr >= a.fecha_inicio && dateStr <= a.fecha_fin);
-      return blockedByAjuste || ausenteTodoElDia;
-    });
-    return todosFuera;
+    return getAvailableSlots(date).length === 0;
   };
+
 
 
 
@@ -433,18 +440,68 @@ const BookingFlow = () => {
   const edad = calcAge(form.fnac_anio, form.fnac_mes, form.fnac_dia);
   const esMenor = edad !== null && edad < 18;
 
+  const camposServicio: FormFieldDef[] = Array.isArray(servicio?.form_fields)
+    ? (servicio!.form_fields as FormFieldDef[])
+    : [];
+
+  // Búsqueda server-side segura: exige email + DNI de una misma y única ficha.
+  const buscarFicha = async () => {
+    setLookupError(null);
+    if (!lookup.email.trim() || lookup.documento.replace(/\D/g, "").length < 7) {
+      setLookupError("Completá tu email y tu DNI para buscar tu ficha.");
+      return;
+    }
+    setLookupLoading(true);
+    const { data, error } = await supabase.rpc("find_alumno_for_turnera" as any, {
+      p_email: lookup.email.trim(),
+      p_documento: lookup.documento.trim(),
+    });
+    setLookupLoading(false);
+    const match = pickUniqueAlumnoMatch<any>(data as any[]);
+    if (error || !match) {
+      setAlumnoEncontrado(null);
+      setLookupError("No pudimos encontrar una ficha con esos datos. Revisalos o continuá como primera vez.");
+      return;
+    }
+    setAlumnoEncontrado({
+      alumno_id: match.alumno_id,
+      nombre: match.nombre,
+      apellido_inicial: match.apellido_inicial,
+    });
+    const nombreFull = String(match.nombre || "").trim();
+    const partes = nombreFull.split(/\s+/).filter(Boolean);
+    setForm(f => ({
+      ...f,
+      nombre: partes.length > 1 ? partes.slice(0, -1).join(" ") : nombreFull,
+      apellido: partes.length > 1 ? partes[partes.length - 1] : (match.apellido_inicial || "—"),
+      email: String(match.email || lookup.email).trim(),
+      celular: match.celular || f.celular,
+      documento: match.documento || lookup.documento,
+      fnac_dia: match.fecha_nacimiento ? String(Number(String(match.fecha_nacimiento).split("-")[2])) : f.fnac_dia,
+      fnac_mes: match.fecha_nacimiento ? String(Number(String(match.fecha_nacimiento).split("-")[1])) : f.fnac_mes,
+      fnac_anio: match.fecha_nacimiento ? String(match.fecha_nacimiento).split("-")[0] : f.fnac_anio,
+    }));
+  };
+
   const validForm = () => {
     if (authChecking) return "Esperá un segundo mientras cargamos tus datos.";
     if (!alumnoLogged) {
+      if (!perfilTipo) return "Contanos si ya sos alumno o si es tu primera vez.";
+      if (perfilTipo === "existente" && !alumnoEncontrado) return "Buscá tu ficha con tu email y DNI, o continuá como primera vez.";
       if (!form.nombre.trim() || !form.apellido.trim() || !form.email.trim()) return "Completá nombre, apellido y email.";
       if (!form.celular.trim()) return "El celular es obligatorio.";
       if (!form.documento.trim() || form.documento.trim().length < 7) return "El DNI es obligatorio (mínimo 7 dígitos).";
-      if (!form.fnac_dia || !form.fnac_mes || !form.fnac_anio) return "Completá tu fecha de nacimiento.";
-      if (esMenor && !form.acepto_tutor) return "Como menor de edad, confirmá la autorización del tutor.";
+      if (perfilTipo === "nuevo") {
+        if (!form.fnac_dia || !form.fnac_mes || !form.fnac_anio) return "Completá tu fecha de nacimiento.";
+        if (esMenor && !form.acepto_tutor) return "Como menor de edad, confirmá la autorización del tutor.";
+      }
     }
+    const errCampos = validateFormResponses(camposServicio, formResponses);
+    if (errCampos) return errCampos;
     if (servicio?.politica_cancelacion && !form.acepto_politica) return "Debés aceptar la política de cancelación.";
     return null;
   };
+
 
 
   const handleSubmit = async (metodoPago?: "mp" | "transferencia") => {
@@ -461,15 +518,9 @@ const BookingFlow = () => {
 
     const fechaNac = `${form.fnac_anio}-${form.fnac_mes.padStart(2, "0")}-${form.fnac_dia.padStart(2, "0")}`;
 
-    let alumnoId: string | null = alumnoLogged?.id || null;
-    if (!alumnoId && form.documento) {
-      const { data: byDoc } = await supabase.from("alumnos").select("id").eq("documento", form.documento).limit(1);
-      if (byDoc && byDoc.length > 0) alumnoId = byDoc[0].id;
-    }
-    if (!alumnoId) {
-      const { data: byEmail } = await supabase.from("alumnos").select("id").eq("email", form.email).limit(1);
-      if (byEmail && byEmail.length > 0) alumnoId = byEmail[0].id;
-    }
+    // Identidad: sesión activa, o ficha confirmada server-side. Sin lecturas
+    // públicas directas sobre alumnos; el trigger de la DB completa el resto.
+    const alumnoId: string | null = alumnoLogged?.id || alumnoEncontrado?.alumno_id || null;
 
     const notaFinal = [
       form.nota?.trim() || "",
@@ -478,33 +529,58 @@ const BookingFlow = () => {
 
     const reservationId = (crypto as any).randomUUID ? (crypto as any).randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 
-    const { error } = await supabase.from("reservas_turnera").insert({
-      id: reservationId,
-      servicio_id: servicio.id,
-      coach_id: selectedSlot.coach_id,
-      sede_id: selectedSlot.sede_id || null,
-      alumno_id: alumnoId,
-      fecha: dateStr,
-      hora_inicio: `${selectedSlot.time}:00`,
-      hora_fin: `${endTime}:00`,
-      nombre: form.nombre,
-      apellido: form.apellido,
-      email: form.email,
-      celular: form.celular || null,
-      documento: form.documento || null,
-      fecha_nacimiento: fechaNac && !fechaNac.startsWith("--") ? fechaNac : null,
-      nota: notaFinal || null,
-      acepto_politica: form.acepto_politica,
-      precio_snapshot: servicio.precio,
-      moneda_snapshot: servicio.moneda,
-      origen_link: window.location.href,
-    } as any);
+    // Respuestas normalizadas por key estable, sólo campos configurados
+    const respuestas: Record<string, string> = {};
+    for (const f of camposServicio) {
+      const v = (formResponses[f.key] ?? "").toString().trim();
+      if (v) respuestas[f.key] = v;
+    }
+
+    const { error } = await supabase.rpc("create_turnera_reservation" as any, {
+      p_reservation_id: reservationId,
+      p_servicio_id: servicio.id,
+      p_coach_id: selectedSlot.coach_id,
+      p_sede_id: selectedSlot.sede_id || null,
+      p_fecha: dateStr,
+      p_hora_inicio: `${selectedSlot.time}:00`,
+      p_hora_fin: `${endTime}:00`,
+      p_nombre: form.nombre,
+      p_apellido: form.apellido,
+      p_email: form.email,
+      p_celular: form.celular || null,
+      p_documento: form.documento || null,
+      p_fecha_nacimiento: fechaNac && !fechaNac.startsWith("--") && !fechaNac.includes("--") ? fechaNac : null,
+      p_nota: notaFinal || null,
+      p_acepto_politica: form.acepto_politica,
+      p_origen_link: window.location.href,
+      p_form_responses: respuestas,
+      p_alumno_id: alumnoId,
+    });
 
     if (error) {
-      toast({ title: "Error al reservar", description: error.message, variant: "destructive" });
+      const ocupado = /acaba de ocuparse/i.test(error.message || "");
+      toast({
+        title: ocupado ? "Ese horario acaba de ocuparse. Elegí otro turno." : "Error al reservar",
+        description: ocupado ? "Actualizamos la disponibilidad para que elijas otro." : error.message,
+        variant: "destructive",
+      });
+      if (ocupado) {
+        // Refrescar disponibilidad y volver a la elección de horario
+        const hoy = new Date().toISOString().split("T")[0];
+        const fut = new Date(); fut.setDate(fut.getDate() + 60);
+        const { data: res } = await supabase.rpc("get_reservas_turnera_ocupadas", {
+          p_servicio_id: servicio.id,
+          p_desde: hoy,
+          p_hasta: fut.toISOString().split("T")[0],
+        } as any);
+        setReservasExistentes((res as any[]) || []);
+        setSelectedSlot(null);
+        setStep(3);
+      }
       setSubmitting(false);
       return;
     }
+
 
     const requierePagoOnline = servicio.pago_modo && servicio.pago_modo !== "ninguno";
 
@@ -734,6 +810,8 @@ const BookingFlow = () => {
                 selected={selectedDate}
                 onSelect={(d) => { setSelectedDate(d); setSelectedSlot(null); }}
                 disabled={disabledDay}
+                showOutsideDays={false}
+
                 locale={es}
                 weekStartsOn={1}
                 className="pointer-events-auto"
@@ -951,6 +1029,84 @@ const BookingFlow = () => {
                 </Card>
               ) : (
                 <>
+                  {!perfilTipo && (
+                    <div className="space-y-2">
+                      <p className="text-sm text-muted-foreground">Para agilizar, contanos quién sos:</p>
+                      <PickCard
+                        label="Ya soy o fui alumno"
+                        sub="Buscamos tu ficha con tu email y DNI"
+                        onClick={() => setPerfilTipo("existente")}
+                      />
+                      <PickCard
+                        label="Es mi primera vez"
+                        sub="Completás tus datos una sola vez"
+                        onClick={() => setPerfilTipo("nuevo")}
+                      />
+                    </div>
+                  )}
+
+                  {perfilTipo === "existente" && !alumnoEncontrado && (
+                    <Card className="border-border bg-card">
+                      <CardContent className="p-4 space-y-3">
+                        <div className="space-y-1">
+                          <Label className="text-xs">Email *</Label>
+                          <Input
+                            type="email"
+                            value={lookup.email}
+                            onChange={e => setLookup(p => ({ ...p, email: e.target.value }))}
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-xs">DNI *</Label>
+                          <Input
+                            value={lookup.documento}
+                            onChange={e => setLookup(p => ({ ...p, documento: e.target.value }))}
+                          />
+                        </div>
+                        {lookupError && <p className="text-xs text-destructive">{lookupError}</p>}
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={buscarFicha} disabled={lookupLoading}>
+                            {lookupLoading ? "Buscando..." : "Buscar mi ficha"}
+                          </Button>
+                          <Button size="sm" variant="ghost" onClick={() => { setPerfilTipo("nuevo"); setLookupError(null); }}>
+                            Continuar como primera vez
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {perfilTipo === "existente" && alumnoEncontrado && (
+                    <>
+                      <Card className="border-primary/40 bg-primary/5">
+                        <CardContent className="p-4 flex items-start gap-3">
+                          <CheckCircle className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                          <div className="space-y-1 text-sm flex-1">
+                            <p className="font-medium text-foreground">
+                              Encontramos tu ficha: {alumnoEncontrado.nombre} {alumnoEncontrado.apellido_inicial || ""}
+                            </p>
+                            <p className="text-xs text-muted-foreground">Usamos tus datos guardados.</p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 px-2 text-xs"
+                              onClick={() => { setAlumnoEncontrado(null); setPerfilTipo(null); }}
+                            >
+                              No soy yo
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Celular *</Label>
+                        <Input value={form.celular} onChange={e => setForm({ ...form, celular: e.target.value })} />
+                      </div>
+                    </>
+                  )}
+
+                  {perfilTipo === "nuevo" && (
+                    <>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
                       <Label className="text-xs">Nombre *</Label>
@@ -1033,8 +1189,35 @@ const BookingFlow = () => {
                       </CardContent>
                     </Card>
                   )}
+                    </>
+                  )}
                 </>
               )}
+
+              {camposServicio.length > 0 && (
+                <div className="space-y-3 pt-1">
+                  {camposServicio.map(f => (
+                    <div key={f.key} className="space-y-1">
+                      <Label className="text-xs">{f.label}{f.required ? " *" : ""}</Label>
+                      {f.type === "textarea" ? (
+                        <Textarea
+                          rows={3}
+                          value={formResponses[f.key] || ""}
+                          onChange={e => setFormResponses(p => ({ ...p, [f.key]: e.target.value }))}
+                        />
+                      ) : (
+                        <Input
+                          type={f.type === "number" ? "number" : f.type === "tel" ? "tel" : "text"}
+                          value={formResponses[f.key] || ""}
+                          onChange={e => setFormResponses(p => ({ ...p, [f.key]: e.target.value }))}
+                        />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+
 
 
               <div className="space-y-1">
