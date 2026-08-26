@@ -903,8 +903,9 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={participanteItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.costo_participante_directo_unitario || 0, current.moneda_base)}
-              subheadline={calculo ? `por participante · total ${formatPrice(calculo.por_grupo.participante, current.moneda_base)}` : "por participante"}
+              headline={`${formatPrice(calculo?.costo_participante_directo_unitario || 0, current.moneda_base)} por participante`}
+              subheadline={calculo ? `${formatPrice(calculo.costo_participante_total, current.moneda_base)} total · escenario ${calculo.escenario_inscriptos} pax` : "por participante"}
+
               onAdd={() => addItem("participante")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -920,8 +921,9 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={staffItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.costo_staff_total || 0, current.moneda_base)}
-              subheadline={calculo ? `total · ${formatPrice(calculo.costo_staff_por_persona, current.moneda_base)} por participante` : "total"}
+              headline={`${formatPrice(calculo?.costo_staff_total || 0, current.moneda_base)} total staff`}
+              subheadline={calculo ? `${formatPrice(calculo.costo_staff_por_persona, current.moneda_base)} por participante · escenario ${calculo.escenario_inscriptos} pax` : "total"}
+
               onAdd={() => addItem("staff")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -937,8 +939,9 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={generalItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.costo_general_total || 0, current.moneda_base)}
-              subheadline={calculo ? `total · ${formatPrice(calculo.costo_general_por_persona, current.moneda_base)} por participante` : "total"}
+              headline={`${formatPrice(calculo?.costo_general_total || 0, current.moneda_base)} total generales`}
+              subheadline={calculo ? `${formatPrice(calculo.costo_general_por_persona, current.moneda_base)} por participante · sin staff` : "total"}
+
               onAdd={() => addItem("general")}
               onPatch={patchItem as any}
               onCommit={commitItem}
