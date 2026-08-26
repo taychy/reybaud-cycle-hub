@@ -222,18 +222,6 @@ export default function EventCostSimulator({ eventId }: Props) {
     () => packages.filter((p) => p.sin_alojamiento !== true),
     [packages],
   );
-  /** Sugerencia no destructiva: el alojamiento por persona más barato, sólo si es inequívoco. */
-  const sugerenciaPaqueteBase = useMemo(() => {
-    if (!calculo) return null;
-    const cand = lodgingPackages
-      .map((p) => ({ p, costo: calculo.costo_alojamiento_unitario_por_modalidad[p.id] || 0 }))
-      .filter((x) => x.costo > 0)
-      .sort((a, b) => a.costo - b.costo);
-    if (cand.length === 0) return null;
-    if (cand.length > 1 && cand[0].costo === cand[1].costo) return null;
-    return cand[0].p;
-  }, [calculo, lodgingPackages]);
-
   const grupoDe = (it: ItemRow): GrupoCosto => inferGrupoCosto(it);
   const lodgingItems = useMemo(() => items.filter((i) => grupoDe(i) === "alojamiento"), [items]);
   const participanteItems = useMemo(() => items.filter((i) => grupoDe(i) === "participante"), [items]);
@@ -269,6 +257,19 @@ export default function EventCostSimulator({ eventId }: Props) {
     }));
     return calcularSimulacion(fakeItems, modsReales, supuestos);
   }, [actuals, modalidades, participantesReales, supuestos]);
+
+  /** Sugerencia no destructiva: el alojamiento por persona más barato, sólo si es inequívoco. */
+  const sugerenciaPaqueteBase = useMemo(() => {
+    if (!calculo) return null;
+    const cand = lodgingPackages
+      .map((p) => ({ p, costo: calculo.costo_alojamiento_unitario_por_modalidad[p.id] || 0 }))
+      .filter((x) => x.costo > 0)
+      .sort((a, b) => a.costo - b.costo);
+    if (cand.length === 0) return null;
+    if (cand.length > 1 && cand[0].costo === cand[1].costo) return null;
+    return cand[0].p;
+  }, [calculo, lodgingPackages]);
+
 
   /* ─── CRUD simulaciones ─── */
   const nuevaVersion = async (duplicarDe?: SimRow) => {
