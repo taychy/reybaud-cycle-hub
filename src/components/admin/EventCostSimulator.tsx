@@ -222,6 +222,18 @@ export default function EventCostSimulator({ eventId }: Props) {
     () => packages.filter((p) => p.sin_alojamiento !== true),
     [packages],
   );
+  /** Sugerencia no destructiva: el alojamiento por persona más barato, sólo si es inequívoco. */
+  const sugerenciaPaqueteBase = useMemo(() => {
+    if (!calculo) return null;
+    const cand = lodgingPackages
+      .map((p) => ({ p, costo: calculo.costo_alojamiento_unitario_por_modalidad[p.id] || 0 }))
+      .filter((x) => x.costo > 0)
+      .sort((a, b) => a.costo - b.costo);
+    if (cand.length === 0) return null;
+    if (cand.length > 1 && cand[0].costo === cand[1].costo) return null;
+    return cand[0].p;
+  }, [calculo, lodgingPackages]);
+
   const grupoDe = (it: ItemRow): GrupoCosto => inferGrupoCosto(it);
   const lodgingItems = useMemo(() => items.filter((i) => grupoDe(i) === "alojamiento"), [items]);
   const participanteItems = useMemo(() => items.filter((i) => grupoDe(i) === "participante"), [items]);
@@ -1034,47 +1046,72 @@ export default function EventCostSimulator({ eventId }: Props) {
                 <CardContent className="space-y-4">
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Costo total (con imprevistos)</div>
-                      <div className="font-semibold">{formatPrice(calculo.total_con_imprevistos, current.moneda_base)}</div>
+                      <div className="text-xs text-muted-foreground">Costo por participante (base)</div>
+                      <div className="font-semibold">{formatPrice(calculo.costo_base_unitario, current.moneda_base)}</div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Ingreso esperado</div>
-                      <div className="font-semibold">{formatPrice(calculo.ingreso_esperado, current.moneda_base)}</div>
-                    </div>
-                    <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Margen estimado</div>
-                      <div className={`font-semibold ${calculo.margen_estimado < 0 ? "text-destructive" : "text-emerald-500"}`}>
-                        {(calculo.margen_estimado * 100).toFixed(1)}%
+                      <div className="text-xs text-muted-foreground">Precio base sugerido</div>
+                      <div className="font-semibold">
+                        {calculo.paquete_base_id ? formatPrice(calculo.precio_base_sugerido, current.moneda_base) : "—"}
                       </div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Punto de equilibrio</div>
-                      <div className="font-semibold">{calculo.punto_equilibrio} personas</div>
+                      <div className="text-xs text-muted-foreground">Ingreso del escenario</div>
+                      <div className="font-semibold">
+                        {calculo.escenario_ingreso_total != null
+                          ? formatPrice(calculo.escenario_ingreso_total, current.moneda_base) : "—"}
+                      </div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Margen del escenario</div>
+                      <div className={`font-semibold ${(calculo.escenario_margen ?? 0) < 0 ? "text-destructive" : "text-emerald-500"}`}>
+                        {calculo.escenario_margen != null ? `${(calculo.escenario_margen * 100).toFixed(1)}%` : "—"}
+                      </div>
                     </div>
                   </div>
 
+                  <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 rounded p-3">
+                    <div>
+                      Precio base = alojamiento base {formatPrice(calculo.costo_alojamiento_base_unitario, current.moneda_base)}
+                      {" + "}participantes {formatPrice(calculo.costo_participante_directo_unitario, current.moneda_base)}
+                      {" + "}staff {formatPrice(calculo.costo_staff_por_persona, current.moneda_base)}
+                      {" + "}generales {formatPrice(calculo.costo_general_por_persona, current.moneda_base)}
+                      {" "}(prorrateados sobre {calculo.escenario_inscriptos} inscriptos del escenario activo).
+                    </div>
+                    <div>Cada otra modalidad se vende como precio base + suplemento por la diferencia de alojamiento.</div>
+                    {!calculo.distribucion_valida && (
+                      <div className="text-amber-500">
+                        La distribución por paquetes suma {calculo.distribucion_total} y el escenario activo tiene {calculo.escenario_inscriptos}:
+                        ingreso, ganancia y margen del escenario quedan ocultos hasta que coincidan.
+                      </div>
+                    )}
+                  </div>
+
                   <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Costo y precio sugerido por modalidad</div>
+                    <div className="text-xs text-muted-foreground">Precio base + suplemento por modalidad</div>
                     <div className="grid gap-2">
                       {modalidades.map((m) => {
-                        const unit = calculo.costo_unitario_por_modalidad[m.key];
-                        const sinCalculo = m.esperados <= 0 || unit == null;
+                        const esBase = m.key === calculo.paquete_base_id;
+                        const supl = calculo.suplemento_precio_por_modalidad[m.key] || 0;
+                        const final = calculo.precio_final_por_modalidad[m.key] || 0;
+                        const sinCalculo = !calculo.paquete_base_id || final <= 0;
                         return (
                           <div key={m.key} className="flex items-center gap-3 text-sm border rounded-md p-2">
                             <div className="flex-1 truncate">
                               {m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span>
-                              {sinCalculo && (
-                                <div className="text-[11px] text-muted-foreground">Definí participantes esperados para calcular</div>
+                              {esBase && <span className="text-xs text-emerald-500"> · base</span>}
+                              {!calculo.paquete_base_id && (
+                                <div className="text-[11px] text-muted-foreground">Elegí el alojamiento base para calcular</div>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              Costo por participante: {sinCalculo ? "—" : formatPrice(unit as number, current.moneda_base)}
-                              {!sinCalculo && calculo.prorrateo_general_por_persona > 0 && (
-                                <span> · incl. general {formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)}</span>
+                              Alojamiento: {formatPrice(calculo.costo_alojamiento_unitario_por_modalidad[m.key] || 0, current.moneda_base)}
+                              {!esBase && supl > 0 && (
+                                <span> · suplemento {formatPrice(supl, current.moneda_base)}</span>
                               )}
                             </div>
                             <div className="font-semibold">
-                              Precio sugerido: {sinCalculo ? "—" : formatPrice(calculo.precio_sugerido_por_modalidad[m.key] || 0, current.moneda_base)}
+                              Precio: {sinCalculo ? "—" : formatPrice(final, current.moneda_base)}
                             </div>
                           </div>
                         );
