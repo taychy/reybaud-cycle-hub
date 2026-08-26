@@ -165,7 +165,7 @@ Deno.serve(async (req) => {
     // ============================================================
     // RUTEO: elegir el mejor emisor para este segmento
     // ============================================================
-    const emisorElegido = await elegirEmisor(adminClient, segmento, monto);
+    const emisorElegido = await elegirEmisor(adminClient, segmentoNormalizado, monto);
 
     if (!emisorElegido) {
       // No hay emisor disponible -> crear factura sin emitir
@@ -178,7 +178,7 @@ Deno.serve(async (req) => {
         moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
-        segmento,
+        segmento: segmentoNormalizado,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
         metodo_pago: resolvedMetodo,
@@ -200,7 +200,7 @@ Deno.serve(async (req) => {
           success: true,
           created: true,
           emitted: false,
-          message: `Sin emisor disponible para "${segmento}". Configurá uno habilitado con cupo y certificado en Configuración → Finanzas → Emisores fiscales.`,
+          message: `Sin emisor disponible para "${segmentoNormalizado}". Configurá uno habilitado con cupo y certificado en Configuración → Finanzas → Emisores fiscales.`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -218,7 +218,7 @@ Deno.serve(async (req) => {
         moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
-        segmento,
+        segmento: segmentoNormalizado,
         emisor_id: emisorElegido.id,
         estado: "sin_factura",
         condicion_fiscal: "consumidor_final",
