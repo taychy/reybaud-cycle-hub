@@ -291,15 +291,26 @@ export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boole
         });
       }
 
-      if (prepared.length === 0) {
+      if (fallos.length > 0) {
         toast({
-          title: "Nada para facturar",
-          description: alreadyEmittedCount > 0
-            ? `${alreadyEmittedCount} ya tenían CAE emitido.`
-            : "No se pudieron preparar las facturas.",
+          title: `${fallos.length} cobro(s) no se pudieron preparar`,
+          description: fallos.slice(0, 3).join(" · ") + (fallos.length > 3 ? ` · y ${fallos.length - 3} más` : ""),
+          variant: "destructive",
         });
+      }
+
+      if (prepared.length === 0) {
+        if (fallos.length === 0) {
+          toast({
+            title: "Nada para facturar",
+            description: alreadyEmittedCount > 0
+              ? `${alreadyEmittedCount} ya tenían CAE emitido.`
+              : "No había cobros pendientes en la selección.",
+          });
+        }
         return;
       }
+
 
       if (createdCount > 0) {
         toast({
