@@ -518,6 +518,8 @@ export function calcularSimulacion(
     rentabilidad_modo: modo,
     escenario_inscriptos,
     costo_participante_directo_unitario,
+    costo_participante_total,
+
     costo_staff_total,
     costo_staff_por_persona,
     costo_general_total,
