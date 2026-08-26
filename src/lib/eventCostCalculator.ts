@@ -340,6 +340,12 @@ export function calcularSimulacion(
   (Object.keys(por_grupo) as GrupoCosto[]).forEach((k) => {
     por_grupo[k] = por_grupo[k] * factorImp;
   });
+  // por_categoria queda en la misma base que por_grupo (con imprevistos),
+  // para que todo lo que se muestra en resumen sea comparable.
+  Object.keys(por_categoria).forEach((k) => {
+    por_categoria[k] = por_categoria[k] * factorImp;
+  });
+
 
   const modo: RentabilidadModo = supuestos.rentabilidad_modo === "honorario_participante"
     ? "honorario_participante"
