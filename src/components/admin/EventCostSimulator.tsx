@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -269,6 +269,22 @@ export default function EventCostSimulator({ eventId }: Props) {
     if (cand.length > 1 && cand[0].costo === cand[1].costo) return null;
     return cand[0].p;
   }, [calculo, lodgingPackages]);
+
+  /** Snapshot único de `resultados`: toda edición persistida (item, alojamiento,
+   *  escenario, supuestos, paquete base) refresca el cálculo guardado. */
+  const snapshotRef = useRef<{ id: string; hash: string } | null>(null);
+  const calculoHash = calculo ? JSON.stringify(calculo) : "";
+  useEffect(() => {
+    if (!currentId || !calculoHash) return;
+    if (snapshotRef.current?.id === currentId && snapshotRef.current.hash === calculoHash) return;
+    const t = setTimeout(async () => {
+      snapshotRef.current = { id: currentId, hash: calculoHash };
+      await supabase.from("event_cost_simulations")
+        .update({ resultados: JSON.parse(calculoHash) })
+        .eq("id", currentId);
+    }, 900);
+    return () => clearTimeout(t);
+  }, [currentId, calculoHash]);
 
 
   /* ─── CRUD simulaciones ─── */
@@ -608,7 +624,16 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
   const aplicarPrecios = async () => {
     if (!calculo || !current) return;
+    if (!calculo.distribucion_valida) {
+      toast({
+        title: "Distribución desalineada",
+        description: `El escenario activo tiene ${calculo.escenario_inscriptos} participantes y la distribución suma ${calculo.distribucion_total}. Alineala antes de aplicar precios.`,
+        variant: "destructive",
+      });
+      return;
+    }
     const targets = modalidades.filter((m) => applyMap[m.key] && modalidadAplicable(m.key));
+
     if (targets.length === 0) {
       toast({
         title: "No hay precios sugeridos válidos para aplicar",
@@ -903,8 +928,9 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={participanteItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.costo_participante_directo_unitario || 0, current.moneda_base)}
-              subheadline={calculo ? `por participante · total ${formatPrice(calculo.por_grupo.participante, current.moneda_base)}` : "por participante"}
+              headline={`${formatPrice(calculo?.costo_participante_directo_unitario || 0, current.moneda_base)} por participante`}
+              subheadline={calculo ? `${formatPrice(calculo.costo_participante_total, current.moneda_base)} total · escenario ${calculo.escenario_inscriptos} pax` : "por participante"}
+
               onAdd={() => addItem("participante")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -920,8 +946,9 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={staffItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.costo_staff_total || 0, current.moneda_base)}
-              subheadline={calculo ? `total · ${formatPrice(calculo.costo_staff_por_persona, current.moneda_base)} por participante` : "total"}
+              headline={`${formatPrice(calculo?.costo_staff_total || 0, current.moneda_base)} total staff`}
+              subheadline={calculo ? `${formatPrice(calculo.costo_staff_por_persona, current.moneda_base)} por participante · escenario ${calculo.escenario_inscriptos} pax` : "total"}
+
               onAdd={() => addItem("staff")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -937,8 +964,9 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={generalItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.costo_general_total || 0, current.moneda_base)}
-              subheadline={calculo ? `total · ${formatPrice(calculo.costo_general_por_persona, current.moneda_base)} por participante` : "total"}
+              headline={`${formatPrice(calculo?.costo_general_total || 0, current.moneda_base)} total generales`}
+              subheadline={calculo ? `${formatPrice(calculo.costo_general_por_persona, current.moneda_base)} por participante · sin staff` : "total"}
+
               onAdd={() => addItem("general")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -1040,27 +1068,108 @@ export default function EventCostSimulator({ eventId }: Props) {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm">Resultados</CardTitle>
                   <Button size="sm" variant="gold" onClick={abrirAplicar}
-                    disabled={modalidades.length === 0}>
+                    disabled={modalidades.length === 0 || !calculo.distribucion_valida || !calculo.paquete_base_id}>
                     Aplicar precios a paquetes
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Costo por participante (base)</div>
-                      <div className="font-semibold">{formatPrice(calculo.costo_base_unitario, current.moneda_base)}</div>
-                    </div>
-                    <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Precio base sugerido</div>
+                  {!calculo.distribucion_valida && (
+                    <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
                       <div className="font-semibold">
-                        {calculo.paquete_base_id ? formatPrice(calculo.precio_base_sugerido, current.moneda_base) : "—"}
+                        Distribución desalineada: el escenario activo tiene {calculo.escenario_inscriptos} participantes
+                        y la distribución por paquetes suma {calculo.distribucion_total}
+                        {" "}({calculo.distribucion_total > calculo.escenario_inscriptos
+                          ? `sobran ${calculo.distribucion_total - calculo.escenario_inscriptos}`
+                          : `faltan ${calculo.escenario_inscriptos - calculo.distribucion_total}`} plazas).
+                      </div>
+                      <div>
+                        La proyección de ingreso, ganancia y margen no es válida y no se pueden aplicar precios a los paquetes
+                        hasta alinear la distribución. Los costos y precios unitarios base sí siguen siendo una simulación válida.
                       </div>
                     </div>
+                  )}
+
+                  {/* Precio base del viaje */}
+                  <div className="rounded-md border p-3 space-y-1 text-sm">
+                    <div className="text-xs text-muted-foreground">Precio base del viaje</div>
+                    <div className="font-semibold">
+                      {calculo.paquete_base_id
+                        ? `${modalidades.find((m) => m.key === calculo.paquete_base_id)?.label || "Paquete base"} (base)`
+                        : "Elegí el alojamiento base del precio"}
+                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-x-4 gap-y-1 text-xs text-muted-foreground pt-1">
+                      <div>Alojamiento base: {formatPrice(calculo.costo_alojamiento_base_unitario, current.moneda_base)}/pax</div>
+                      <div>Participante: {formatPrice(calculo.costo_participante_directo_unitario, current.moneda_base)}/pax</div>
+                      <div>Staff: {formatPrice(calculo.costo_staff_por_persona, current.moneda_base)}/pax</div>
+                      <div>Generales: {formatPrice(calculo.costo_general_por_persona, current.moneda_base)}/pax</div>
+                      <div>Imprevistos: {Number(current.pct_imprevistos) || 0}% (ya incluidos)</div>
+                      <div>Escenario activo: {calculo.escenario_inscriptos} pax</div>
+                    </div>
+                    <div className="flex flex-wrap gap-6 pt-2">
+                      <div>
+                        <div className="text-xs text-muted-foreground">Costo base por participante</div>
+                        <div className="font-semibold">{formatPrice(calculo.costo_base_unitario, current.moneda_base)}</div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Precio base sugerido</div>
+                        <div className="font-semibold">
+                          {calculo.paquete_base_id ? formatPrice(calculo.precio_base_sugerido, current.moneda_base) : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs text-muted-foreground">Staff + generales prorrateados</div>
+                        <div className="font-semibold">
+                          {formatPrice(calculo.costo_staff_por_persona + calculo.costo_general_por_persona, current.moneda_base)}/pax
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Suplementos de alojamiento */}
+                  <div className="space-y-2">
+                    <div className="text-xs text-muted-foreground">Suplementos de alojamiento</div>
+                    {modalidades.filter((m) => m.key !== calculo.paquete_base_id).map((m) => {
+                      const dif = (calculo.costo_alojamiento_unitario_por_modalidad[m.key] || 0)
+                        - calculo.costo_alojamiento_base_unitario;
+                      const difSinImp = dif / (1 + (Number(current.pct_imprevistos) || 0) / 100);
+                      const supl = calculo.suplemento_precio_por_modalidad[m.key] || 0;
+                      const final = calculo.precio_final_por_modalidad[m.key] || 0;
+                      const signo = (v: number) => (v >= 0 ? "+" : "−");
+                      return (
+                        <div key={m.key} className="border rounded-md p-3 text-sm space-y-1">
+                          <div className="font-medium">
+                            {m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span>
+                            {dif < 0 && <span className="text-xs text-emerald-500"> · descuento sobre la base</span>}
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                            <div>Diferencia alojamiento: {signo(difSinImp)}{formatPrice(Math.abs(difSinImp), current.moneda_base)}</div>
+                            <div>Con imprevistos: {signo(dif)}{formatPrice(Math.abs(dif), current.moneda_base)}</div>
+                            <div>Suplemento sugerido: {signo(supl)}{formatPrice(Math.abs(supl), current.moneda_base)}</div>
+                            <div className="text-foreground font-semibold">
+                              Precio final: {calculo.paquete_base_id ? formatPrice(final, current.moneda_base) : "—"}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                    {modalidades.filter((m) => m.key !== calculo.paquete_base_id).length === 0 && (
+                      <p className="text-xs text-muted-foreground">No hay otras modalidades de alojamiento.</p>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
                     <div className="bg-muted/40 rounded p-3">
                       <div className="text-xs text-muted-foreground">Ingreso del escenario</div>
                       <div className="font-semibold">
                         {calculo.escenario_ingreso_total != null
                           ? formatPrice(calculo.escenario_ingreso_total, current.moneda_base) : "—"}
+                      </div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Ganancia del escenario</div>
+                      <div className="font-semibold">
+                        {calculo.escenario_ganancia_total != null
+                          ? formatPrice(calculo.escenario_ganancia_total, current.moneda_base) : "—"}
                       </div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
@@ -1071,29 +1180,12 @@ export default function EventCostSimulator({ eventId }: Props) {
                     </div>
                   </div>
 
-                  <div className="text-xs text-muted-foreground space-y-1 bg-muted/30 rounded p-3">
-                    <div>
-                      Precio base = alojamiento base {formatPrice(calculo.costo_alojamiento_base_unitario, current.moneda_base)}
-                      {" + "}participantes {formatPrice(calculo.costo_participante_directo_unitario, current.moneda_base)}
-                      {" + "}staff {formatPrice(calculo.costo_staff_por_persona, current.moneda_base)}
-                      {" + "}generales {formatPrice(calculo.costo_general_por_persona, current.moneda_base)}
-                      {" "}(prorrateados sobre {calculo.escenario_inscriptos} inscriptos del escenario activo).
-                    </div>
-                    <div>Cada otra modalidad se vende como precio base + suplemento por la diferencia de alojamiento.</div>
-                    {!calculo.distribucion_valida && (
-                      <div className="text-amber-500">
-                        La distribución por paquetes suma {calculo.distribucion_total} y el escenario activo tiene {calculo.escenario_inscriptos}:
-                        ingreso, ganancia y margen del escenario quedan ocultos hasta que coincidan.
-                      </div>
-                    )}
-                  </div>
-
+                  {/* Vista compacta por paquete */}
                   <div className="space-y-1">
-                    <div className="text-xs text-muted-foreground">Precio base + suplemento por modalidad</div>
+                    <div className="text-xs text-muted-foreground">Resumen por paquete</div>
                     <div className="grid gap-2">
                       {modalidades.map((m) => {
                         const esBase = m.key === calculo.paquete_base_id;
-                        const supl = calculo.suplemento_precio_por_modalidad[m.key] || 0;
                         const final = calculo.precio_final_por_modalidad[m.key] || 0;
                         const sinCalculo = !calculo.paquete_base_id || final <= 0;
                         return (
@@ -1101,15 +1193,9 @@ export default function EventCostSimulator({ eventId }: Props) {
                             <div className="flex-1 truncate">
                               {m.label} <span className="text-xs text-muted-foreground">({m.esperados} pax)</span>
                               {esBase && <span className="text-xs text-emerald-500"> · base</span>}
-                              {!calculo.paquete_base_id && (
-                                <div className="text-[11px] text-muted-foreground">Elegí el alojamiento base para calcular</div>
-                              )}
                             </div>
                             <div className="text-xs text-muted-foreground">
                               Alojamiento: {formatPrice(calculo.costo_alojamiento_unitario_por_modalidad[m.key] || 0, current.moneda_base)}
-                              {!esBase && supl > 0 && (
-                                <span> · suplemento {formatPrice(supl, current.moneda_base)}</span>
-                              )}
                             </div>
                             <div className="font-semibold">
                               Precio: {sinCalculo ? "—" : formatPrice(final, current.moneda_base)}
@@ -1117,9 +1203,10 @@ export default function EventCostSimulator({ eventId }: Props) {
                           </div>
                         );
                       })}
-
                     </div>
                   </div>
+
+
 
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">Por categoría</div>

@@ -105,6 +105,9 @@ export interface CalculoResult {
   escenario_inscriptos: number;
   /** Costo directo por participante (grupo Participante) */
   costo_participante_directo_unitario: number;
+  /** Total del grupo Participantes = unitario × inscriptos del escenario activo */
+  costo_participante_total: number;
+
   costo_staff_total: number;
   costo_staff_por_persona: number;
   costo_general_total: number;
@@ -288,17 +291,24 @@ export function calcularSimulacion(
 
     if (grupo === "participante") {
       // Costo VARIABLE por participante: el total de la fila es el costo por pax.
-      let totalVar = 0;
+      // El TOTAL del grupo se calcula sobre el escenario activo (única verdad);
+      // el reparto por modalidad sigue la distribución (ocupación).
+      let repartoPorModalidad = 0;
       applyTo.forEach((m) => {
         const cost = totalItem * (Number(m.esperados) || 0);
         costo_por_modalidad[m.key] += cost;
-        totalVar += cost;
+        repartoPorModalidad += cost;
       });
+      const aplicaATodas = !it.aplica_a_modalidades?.length;
+      const totalVar = aplicaATodas && prorrateoBase > 0
+        ? totalItem * prorrateoBase
+        : repartoPorModalidad;
       costos_variables += totalVar;
       addCat(it.categoria, totalVar);
       por_grupo.participante += totalVar;
       continue;
     }
+
 
     // ── staff / general / alojamiento sin detalle: costo fijo general prorrateado ──
     costos_fijos += totalItem;
@@ -421,6 +431,9 @@ export function calcularSimulacion(
   }
 
   const costo_participante_directo_unitario = participanteDirecto * factorImp;
+  /** Total del grupo Participantes según el escenario activo (única verdad). */
+  const costo_participante_total = costo_participante_directo_unitario * escenario_inscriptos;
+
   const costo_staff_total = staffTotalRaw * factorImp;
   const costo_general_total = generalTotalRaw * factorImp;
   const costo_staff_por_persona = escenario_inscriptos > 0 ? costo_staff_total / escenario_inscriptos : 0;
@@ -447,7 +460,9 @@ export function calcularSimulacion(
   const precio_final_por_modalidad: Record<string, number> = {};
   modalidades.forEach((m) => {
     const dif = (costo_alojamiento_unitario_por_modalidad[m.key] || 0) - costo_alojamiento_base_unitario;
-    const supCosto = m.key === paquete_base_id ? 0 : Math.max(0, dif);
+    // Diferencia negativa = descuento respecto de la base (no se recorta a 0).
+    const supCosto = m.key === paquete_base_id ? 0 : dif;
+
     // El honorario se cobra una sola vez por persona: el suplemento no lo repite.
     const supPrecio = modo === "honorario_participante"
       ? supCosto
@@ -503,6 +518,8 @@ export function calcularSimulacion(
     rentabilidad_modo: modo,
     escenario_inscriptos,
     costo_participante_directo_unitario,
+    costo_participante_total,
+
     costo_staff_total,
     costo_staff_por_persona,
     costo_general_total,
