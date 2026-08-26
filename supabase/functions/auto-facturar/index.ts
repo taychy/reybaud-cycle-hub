@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
       moneda?: string;
       referencia_tipo?: string;
       referencia_id?: string;
-      segmento: Segmento;
+      segmento: string;
       origen?: "app_online" | "manual_admin" | "efectivo" | "transferencia";
       metodo_pago?: string | null;
       origen_registro?: string | null;
