@@ -341,3 +341,78 @@ describe("modelo precio base + suplementos (Rimini 2027)", () => {
     expect(round(sumaCat)).toBe(round(sumaGrupo));
   });
 });
+
+describe("escenario activo como única verdad y suplementos", () => {
+  const IND = "ind";
+  const DOB = "dob";
+  const sup8: Supuestos = {
+    tc_usd: 1, tc_eur: 1, moneda_base: "EUR",
+    pct_imprevistos: 5, pct_margen_objetivo: 30,
+    participantes_prorrateo: 8, paquete_base_id: DOB,
+  };
+  const mods6y7: Modalidad[] = [
+    { key: IND, label: "Individual", esperados: 6 },
+    { key: DOB, label: "Doble", esperados: 7 },
+  ];
+  const items = (): CostItem[] => [
+    base({ grupo_costo: "alojamiento", categoria: "alojamiento", precio_unitario: 1039, moneda: "EUR",
+      detalle: { package_id: IND, cost_basis: "persona_estadia" } }),
+    base({ grupo_costo: "alojamiento", categoria: "alojamiento", precio_unitario: 799, moneda: "EUR",
+      detalle: { package_id: DOB, cost_basis: "persona_estadia" } }),
+    base({ grupo_costo: "participante", categoria: "comida", precio_unitario: 152, moneda: "EUR", es_por_persona: true }),
+    base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 2482, moneda: "EUR" }),
+    base({ grupo_costo: "general", categoria: "otros", precio_unitario: 1450, moneda: "EUR" }),
+  ];
+  const round = (n: number | null) => Math.round((n ?? 0) * 100) / 100;
+
+  it("suplemento Rimini: 1039−799=240, +5%=252, margen 30% ⇒ 360", () => {
+    const r = calcularSimulacion(items(), mods6y7, sup8);
+    expect(round(r.costo_alojamiento_unitario_por_modalidad[IND] - r.costo_alojamiento_unitario_por_modalidad[DOB])).toBe(252);
+    expect(round(r.suplemento_costo_por_modalidad[IND])).toBe(252);
+    expect(round(r.suplemento_precio_por_modalidad[IND])).toBe(360);
+  });
+
+  it("el total del grupo Participantes usa el escenario activo, no la suma de modalidades", () => {
+    const r = calcularSimulacion(items(), mods6y7, sup8);
+    expect(round(r.costo_participante_directo_unitario)).toBe(159.6);
+    expect(round(r.costo_participante_total)).toBe(1276.8); // 159.60 × 8, no × 13
+    expect(round(r.por_grupo.participante)).toBe(1276.8);
+  });
+
+  it("distribución distinta del escenario bloquea la proyección", () => {
+    const r = calcularSimulacion(items(), mods6y7, sup8);
+    expect(r.distribucion_valida).toBe(false);
+    expect(r.escenario_ingreso_total).toBeNull();
+    expect(r.escenario_margen).toBeNull();
+    expect(r.precio_base_sugerido).toBeGreaterThan(0);
+  });
+
+  it("staff y generales prorratean por separado y su suma coincide con el combinado", () => {
+    const r = calcularSimulacion(items(), mods6y7, sup8);
+    expect(round(r.costo_staff_por_persona)).toBe(round(2482 * 1.05 / 8));
+    expect(round(r.costo_general_por_persona)).toBe(round(1450 * 1.05 / 8));
+    expect(round(r.costo_staff_por_persona + r.costo_general_por_persona))
+      .toBe(round((2482 + 1450) * 1.05 / 8));
+  });
+
+  it("por_categoria y por_grupo mantienen la misma política de imprevistos", () => {
+    const r = calcularSimulacion(items(), mods6y7, sup8);
+    const sumaCat = Object.values(r.por_categoria).reduce((a, b) => a + b, 0);
+    const sumaGrupo = Object.values(r.por_grupo).reduce((a, b) => a + b, 0);
+    expect(Math.abs(sumaCat - sumaGrupo)).toBeLessThan(0.01);
+  });
+
+  it("el snapshot del cálculo cambia al eliminar una línea", () => {
+    const antes = calcularSimulacion(items(), mods6y7, sup8);
+    const menos = items().filter((_, i) => i !== 4); // sin generales
+    const despues = calcularSimulacion(menos, mods6y7, sup8);
+    expect(JSON.stringify(antes)).not.toBe(JSON.stringify(despues));
+    expect(despues.costo_general_total).toBe(0);
+  });
+
+  it("alojamiento más barato que la base se muestra como descuento (suplemento negativo)", () => {
+    const r = calcularSimulacion(items(), mods6y7, { ...sup8, paquete_base_id: IND });
+    expect(r.suplemento_costo_por_modalidad[DOB]).toBeLessThan(0);
+    expect(r.precio_final_por_modalidad[DOB]).toBeLessThan(r.precio_base_sugerido);
+  });
+});
