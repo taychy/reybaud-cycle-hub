@@ -224,8 +224,10 @@ export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boole
     setPreparing(true);
     try {
       const prepared: BulkFacturaRow[] = [];
+      const fallos: string[] = [];
       let createdCount = 0;
       let alreadyEmittedCount = 0;
+
 
       for (const r of targets) {
         if (r.estado === "facturada" || (r.factura_estado === "emitida" && r.factura_cae)) {
@@ -252,9 +254,12 @@ export function PendingPaymentsList({ groupByAge = false }: { groupByAge?: boole
             },
           });
           if (error || (data as any)?.error) {
-            console.warn("auto-facturar falló para", r.id, error || (data as any)?.error);
+            const msg = await edgeFunctionErrorMessage(error, data as any);
+            console.warn("auto-facturar falló para", r.id, msg);
+            fallos.push(`${r.cliente_nombre}: ${msg}`);
             continue;
           }
+
           if ((data as any)?.emitted) {
             alreadyEmittedCount++;
             continue;
