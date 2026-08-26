@@ -11,6 +11,8 @@ import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 import { AgeGroupedList } from "./AgeGroupedList";
+import { edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
+
 
 /**
  * Lee directamente de `facturacion_cola` — cola de pagos confirmados.
