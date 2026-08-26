@@ -579,11 +579,13 @@ export default function EventCostSimulator({ eventId }: Props) {
   /* ─── aplicar precios ─── */
   /** Sólo se puede aplicar precio si hay esperados y un precio sugerido válido. */
   const modalidadAplicable = (key: string) => {
-    const m = modalidades.find((x) => x.key === key);
-    if (!m || m.esperados <= 0 || !calculo) return false;
-    const unit = calculo.costo_unitario_por_modalidad[key];
-    return unit != null && (calculo.precio_sugerido_por_modalidad[key] || 0) > 0;
+    if (!calculo || !calculo.paquete_base_id) return false;
+    return (calculo.precio_final_por_modalidad[key] || 0) > 0;
   };
+
+  /** Precio que se aplicaría: paquete base = precio base; el resto = base + suplemento. */
+  const precioAAplicar = (key: string) =>
+    Math.round(calculo?.precio_final_por_modalidad[key] || 0);
 
   const abrirAplicar = () => {
     const initial: Record<string, boolean> = {};
@@ -595,11 +597,15 @@ export default function EventCostSimulator({ eventId }: Props) {
     if (!calculo || !current) return;
     const targets = modalidades.filter((m) => applyMap[m.key] && modalidadAplicable(m.key));
     if (targets.length === 0) {
-      toast({ title: "No hay precios sugeridos válidos para aplicar", variant: "destructive" });
+      toast({
+        title: "No hay precios sugeridos válidos para aplicar",
+        description: "Elegí el alojamiento base del precio para poder calcular precio base y suplementos.",
+        variant: "destructive",
+      });
       return;
     }
     const updates = targets.map((m) => {
-      const precio = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
+      const precio = precioAAplicar(m.key);
       return supabase.from("event_packages").update({ precio }).eq("id", m.key);
     });
     await Promise.all(updates);
@@ -756,14 +762,53 @@ export default function EventCostSimulator({ eventId }: Props) {
                       onBlur={guardarCambios} /></div>
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-xs">Distribución estimada por paquete (ocupación e ingresos)</Label>
+                  <Label className="text-xs">Alojamiento base del precio</Label>
                   <p className="text-xs text-muted-foreground">
-                    Esta distribución sirve para proyectar ocupación e ingresos. El prorrateo general usa el total de inscriptos del escenario activo.
+                    El precio del viaje se calcula sobre este alojamiento. Las demás modalidades se venden como precio base + suplemento.
+                  </p>
+                  <Select
+                    value={current.paquete_base_id || "none"}
+                    onValueChange={(v) => {
+                      patchCurrent({ paquete_base_id: v === "none" ? null : v });
+                      supabase.from("event_cost_simulations")
+                        .update({ paquete_base_id: v === "none" ? null : v })
+                        .eq("id", current.id).then(() => {});
+                    }}>
+                    <SelectTrigger className="w-full md:w-96">
+                      <SelectValue placeholder="Elegí el alojamiento base" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin definir</SelectItem>
+                      {lodgingPackages.map((p) => (
+                        <SelectItem key={p.id} value={p.id}>{p.nombre}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {!current.paquete_base_id && sugerenciaPaqueteBase && (
+                    <p className="text-xs text-muted-foreground">
+                      Sugerencia: el alojamiento más económico es <b>{sugerenciaPaqueteBase.nombre}</b>.{" "}
+                      <Button variant="link" className="h-auto p-0 text-xs"
+                        onClick={() => {
+                          patchCurrent({ paquete_base_id: sugerenciaPaqueteBase.id });
+                          supabase.from("event_cost_simulations")
+                            .update({ paquete_base_id: sugerenciaPaqueteBase.id })
+                            .eq("id", current.id).then(() => {});
+                        }}>
+                        Usarlo como base
+                      </Button>
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-xs">Distribución del escenario activo</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Asignados {sumaDistribucion} de {escenarioActivo?.inscriptos ?? 0}. Sirve para ocupación y suplementos;
+                    staff y generales siempre se prorratean sobre los inscriptos del escenario activo.
                   </p>
                   {escenarioActivo && sumaDistribucion !== escenarioActivo.inscriptos && (
                     <p className="text-xs text-amber-500">
-                      La distribución por paquetes suma {sumaDistribucion} y el escenario activo tiene {escenarioActivo.inscriptos} inscriptos:
-                      precio y proyección de ingresos usan supuestos distintos.
+                      El escenario activo tiene {escenarioActivo.inscriptos} participantes pero la distribución suma {sumaDistribucion}:
+                      no se muestran ingreso, ganancia ni margen del escenario hasta que coincidan. Los precios base y suplementos sí son válidos.
                     </p>
                   )}
 
@@ -845,8 +890,8 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={participanteItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.por_grupo?.participante || 0, current.moneda_base)}
-              subheadline="por participante (según escenario)"
+              headline={formatPrice(calculo?.costo_participante_directo_unitario || 0, current.moneda_base)}
+              subheadline={calculo ? `por participante · total ${formatPrice(calculo.por_grupo.participante, current.moneda_base)}` : "por participante"}
               onAdd={() => addItem("participante")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -862,8 +907,8 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={staffItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.por_grupo?.staff || 0, current.moneda_base)}
-              subheadline="total fijo"
+              headline={formatPrice(calculo?.costo_staff_total || 0, current.moneda_base)}
+              subheadline={calculo ? `total · ${formatPrice(calculo.costo_staff_por_persona, current.moneda_base)} por participante` : "total"}
               onAdd={() => addItem("staff")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -879,8 +924,8 @@ export default function EventCostSimulator({ eventId }: Props) {
               items={generalItems as any}
               modalidades={modalidades}
               monedaBase={current.moneda_base}
-              headline={formatPrice(calculo?.por_grupo?.general || 0, current.moneda_base)}
-              subheadline={calculo ? `${formatPrice(calculo.prorrateo_general_por_persona, current.moneda_base)} por persona` : undefined}
+              headline={formatPrice(calculo?.costo_general_total || 0, current.moneda_base)}
+              subheadline={calculo ? `total · ${formatPrice(calculo.costo_general_por_persona, current.moneda_base)} por participante` : "total"}
               onAdd={() => addItem("general")}
               onPatch={patchItem as any}
               onCommit={commitItem}
@@ -1195,7 +1240,9 @@ export default function EventCostSimulator({ eventId }: Props) {
             {calculo && modalidades.map((m) => {
               const pkg = packages.find((p) => p.id === m.key);
               const aplicable = modalidadAplicable(m.key);
-              const sug = Math.round(calculo.precio_sugerido_por_modalidad[m.key] || 0);
+              const sug = precioAAplicar(m.key);
+              const esBase = m.key === calculo.paquete_base_id;
+              const supl = Math.round(calculo.suplemento_precio_por_modalidad[m.key] || 0);
               return (
                 <label key={m.key}
                   className={`flex items-center gap-2 text-sm border rounded-md p-2 ${aplicable ? "" : "opacity-60"}`}>
@@ -1205,7 +1252,9 @@ export default function EventCostSimulator({ eventId }: Props) {
                     <div className="font-medium">{m.label}</div>
                     <div className="text-xs text-muted-foreground">
                       Actual: {formatPrice(Number(pkg?.precio ?? 0), pkg?.currency || current.moneda_base)} →{" "}
-                      {aplicable ? `Sugerido: ${formatPrice(sug, current.moneda_base)}` : "Sin cálculo"}
+                      {aplicable
+                        ? `${esBase ? "Precio base" : `Base + suplemento ${formatPrice(supl, current.moneda_base)}`}: ${formatPrice(sug, current.moneda_base)}`
+                        : "Sin cálculo"}
                     </div>
                   </div>
                 </label>
