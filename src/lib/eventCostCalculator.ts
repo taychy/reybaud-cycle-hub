@@ -187,6 +187,37 @@ export function toBase(monto: number, moneda: string, sup: Supuestos): number {
   return arsAmount;
 }
 
+/**
+ * Costo de alojamiento POR PERSONA de una línea, sin imprevistos.
+ * Es independiente de la distribución cuando la cotización ya es por persona.
+ */
+export function lodgingUnitCost(
+  it: CostItem,
+  mod: Modalidad | undefined,
+  sup: Supuestos,
+): number {
+  const det = (it.detalle || {}) as CostItemDetalle;
+  const unit = toBase(Number(it.precio_unitario || 0), it.moneda, sup);
+  const noches = Number(det.noches || 0);
+  const pax = Number(mod?.esperados) || 0;
+  const capacidad = (Number(det.habitaciones) || 0) * (Number(det.personas_por_habitacion) || 0);
+
+  if (det.cost_basis === "persona_estadia") return unit;
+  if (det.cost_basis === "persona_noche") return unit * noches;
+  if (det.cost_basis === "habitacion_noche") {
+    const porHab = unit * noches;
+    const ppp = Number(det.personas_por_habitacion) || 0;
+    if (ppp > 0) return porHab / ppp;
+    if (pax > 0) return ((Number(det.habitaciones) || 0) * porHab) / pax;
+    return porHab;
+  }
+  // "total" u otras: total contratado repartido entre las plazas conocidas
+  const total = unit * (Number(it.cantidad) > 0 ? Number(it.cantidad) : 1);
+  const den = pax > 0 ? pax : capacidad;
+  return den > 0 ? total / den : total;
+}
+
+
 export function calcularSimulacion(
   items: CostItem[],
   modalidades: Modalidad[],
