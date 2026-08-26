@@ -454,7 +454,9 @@ export function calcularSimulacion(
   const precio_final_por_modalidad: Record<string, number> = {};
   modalidades.forEach((m) => {
     const dif = (costo_alojamiento_unitario_por_modalidad[m.key] || 0) - costo_alojamiento_base_unitario;
-    const supCosto = m.key === paquete_base_id ? 0 : Math.max(0, dif);
+    // Diferencia negativa = descuento respecto de la base (no se recorta a 0).
+    const supCosto = m.key === paquete_base_id ? 0 : dif;
+
     // El honorario se cobra una sola vez por persona: el suplemento no lo repite.
     const supPrecio = modo === "honorario_participante"
       ? supCosto
