@@ -47,6 +47,9 @@ const ManageCoaches = () => {
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [whatsapp, setWhatsapp] = useState("");
+  const [whatsappSource, setWhatsappSource] = useState<"coach" | "alumno" | "none">("none");
+  const [gruposDisponibles, setGruposDisponibles] = useState<string[]>(buildGrupoOptions([]));
+
 
 
   const [showCreate, setShowCreate] = useState(false);
