@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTareas, type Tarea } from "@/hooks/useTareas";
 import { GraduacionTareaCard } from "@/components/coach/GraduacionTareaCard";
+import { ORIGENES_CAMBIO_GRUPO } from "@/lib/graduacion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
