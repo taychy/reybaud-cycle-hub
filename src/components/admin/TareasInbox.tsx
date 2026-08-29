@@ -10,6 +10,7 @@ function getTareaRoute(t: Tarea): string | null {
   const alumnoId = meta.alumno_id as string | undefined;
   switch (t.origen) {
     case "whatsapp_check":
+    case "whatsapp_grupo":
       return "/admin/comunicaciones?tab=whatsapp";
     case "alumno_inactivo_30d":
     case "certificado_no_cargado":
@@ -66,6 +67,7 @@ const ROL_LABEL: Record<TareaRol, string> = {
 
 const ORIGEN_LABEL: Record<string, string> = {
   whatsapp_check: "WhatsApp",
+  whatsapp_grupo: "WhatsApp · cambio de grupo",
   alumno_inactivo_30d: "Inactividad",
   coach_sin_feedback_14d: "Feedback",
   certificado_por_vencer: "Certificado por vencer",
