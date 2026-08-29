@@ -11,6 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { calcularEdad } from "@/lib/dates";
+import {
+  defaultScope,
+  isScopeAvailable,
+  scopeLabel,
+  visiblePrograms,
+  type StaffProgram,
+  type StaffScope,
+} from "@/lib/staffScope";
 
 type AlumnoRow = {
   id: string;
