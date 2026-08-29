@@ -511,8 +511,11 @@ const ManageCoaches = () => {
                 className="bg-secondary border-border"
               />
               <p className="text-[11px] text-muted-foreground">
-                Se usa para los recordatorios de turnos por WhatsApp. Dejalo vacío si no corresponde.
+                {whatsappSource === "alumno"
+                  ? "Tomado de la ficha de alumno. Si lo editás, queda guardado como número propio del coach."
+                  : "Se usa para los recordatorios de turnos por WhatsApp. Dejalo vacío si no corresponde."}
               </p>
+
             </div>
             <div className="space-y-2">
               <Label>Estado</Label>
@@ -529,7 +532,7 @@ const ManageCoaches = () => {
             <div className="space-y-2">
               <Label>Grupos asignados</Label>
               <div className="grid grid-cols-2 gap-2">
-                {GRUPOS.filter((g) => g !== "Sin grupo").map((grupo) => (
+                {buildGrupoOptions([...gruposDisponibles, ...selectedGrupos]).map((grupo) => (
                   <label key={grupo} className="flex items-center gap-2 p-2 rounded-md glass-card cursor-pointer">
                     <Checkbox checked={selectedGrupos.includes(grupo)} onCheckedChange={() => toggleGrupo(grupo)} />
                     <span className="text-sm text-foreground">{grupo}</span>
