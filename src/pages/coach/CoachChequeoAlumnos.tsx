@@ -691,22 +691,37 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     const nuevoGrupo = e.target.value || null;
                     const prevGrupo = openAlumno.grupo;
                     if (nuevoGrupo === prevGrupo) return;
-                    const { error } = await supabase
-                      .from("alumnos")
-                      .update({ grupo: nuevoGrupo as any })
-                      .eq("id", openAlumno.id);
+                    const { data, error } = await (supabase as any).rpc("registrar_cambio_grupo_alumno", {
+                      p_alumno_id: openAlumno.id,
+                      p_nuevo_grupo: nuevoGrupo,
+                    });
                     if (error) {
                       toast.error("No se pudo actualizar el grupo");
                       return;
                     }
+                    const accion = (data as any)?.accion as string | undefined;
                     setOpenAlumno({ ...openAlumno, grupo: nuevoGrupo });
                     setAlumnos(prev =>
                       scope?.tipo !== "grupo" || nuevoGrupo === scope.value
                         ? prev.map(a => a.id === openAlumno.id ? { ...a, grupo: nuevoGrupo } : a)
                         : prev.filter(a => a.id !== openAlumno.id)
                     );
-                    toast.success(`Grupo actualizado a ${nuevoGrupo ?? "—"}`);
+                    setWaSync(prev => ({
+                      ...prev,
+                      [openAlumno.id]: accion === "cancelada" || accion === "sin_cambio"
+                        ? nuevoGrupo
+                        : ((data as any)?.grupo_origen ?? prev[openAlumno.id] ?? prevGrupo),
+                    }));
+                    toast.success("Grupo actualizado en la ficha", {
+                      description:
+                        accion === "creada" || accion === "actualizada"
+                          ? "Admin recibió la tarea de actualizar WhatsApp"
+                          : accion === "cancelada"
+                            ? "Se canceló la tarea de WhatsApp: volvió al grupo original"
+                            : undefined,
+                    });
                   }}
+
                 >
                   {!openAlumno.grupo && <option value="">— sin grupo —</option>}
                   {grupos.map(g => (
