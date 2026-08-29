@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { MessageCircle, Check, GraduationCap, PhoneOff } from "lucide-react";
 import { normalizePhoneAR } from "@/lib/phoneNormalize";
+import { cambioGrupoBadge, clasificarCambioGrupo, type TipoCambioGrupo } from "@/lib/graduacion";
 import type { Tarea } from "@/hooks/useTareas";
 
 interface Props {
@@ -18,6 +19,13 @@ export const GraduacionTareaCard = ({ tarea, onDone }: Props) => {
   const [saving, setSaving] = useState(false);
   const telefono = normalizePhoneAR(meta.alumno_telefono);
   const hecha = tarea.estado === "hecha";
+  const tipo: TipoCambioGrupo =
+    (meta.tipo_cambio as TipoCambioGrupo) ||
+    (tarea.origen === "descenso_grupo_alumno"
+      ? "descenso"
+      : tarea.origen === "cambio_grupo_alumno"
+        ? "cambio_grupo"
+        : clasificarCambioGrupo(meta.grupo_origen, meta.grupo_destino));
 
   const abrirWhatsapp = () => {
     if (!telefono) return;
@@ -32,6 +40,7 @@ export const GraduacionTareaCard = ({ tarea, onDone }: Props) => {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-medium text-foreground">{tarea.titulo}</p>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <Badge variant="outline" className="text-[10px]">{cambioGrupoBadge(tipo)}</Badge>
               <Badge variant="outline" className="text-[10px]">
                 {meta.grupo_origen ?? "sin grupo"} → {meta.grupo_destino ?? "-"}
               </Badge>
@@ -48,6 +57,7 @@ export const GraduacionTareaCard = ({ tarea, onDone }: Props) => {
             </div>
           </div>
         </div>
+
 
         <Textarea
           value={mensaje}
