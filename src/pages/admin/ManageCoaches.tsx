@@ -48,6 +48,8 @@ const ManageCoaches = () => {
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [whatsapp, setWhatsapp] = useState("");
   const [whatsappSource, setWhatsappSource] = useState<"coach" | "alumno" | "none">("none");
+  const [derivedWhatsapp, setDerivedWhatsapp] = useState("");
+
   const [gruposDisponibles, setGruposDisponibles] = useState<string[]>(buildGrupoOptions([]));
 
 
@@ -238,7 +240,13 @@ const ManageCoaches = () => {
         grupos: selectedGrupos,
         estado: selectedEstado,
         sede_id: principal,
-        whatsapp: whatsapp.trim() || null,
+        // Si el número mostrado vino de la ficha de alumno y no se editó, no lo
+        // duplicamos en `coaches.whatsapp`: sigue resolviéndose dinámicamente.
+        whatsapp:
+          whatsappSource === "alumno" && whatsapp.trim() === derivedWhatsapp
+            ? null
+            : whatsapp.trim() || null,
+
       } as any)
       .eq("id", editCoach.id);
     toast.success(`Coach ${editCoach.nombre} actualizado`);
