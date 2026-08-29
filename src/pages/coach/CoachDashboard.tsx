@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote, Plane, ClipboardCheck } from "lucide-react";
+import { LogOut, Users, Calendar, ClipboardList, Trophy, CheckSquare, MessageSquare, Banknote, ListTodo, Plane, ClipboardCheck } from "lucide-react";
 import logo from "@/assets/logo.png";
 import type { Tables } from "@/integrations/supabase/types";
 import MisClasesHoy from "@/components/coach/MisClasesHoy";
@@ -100,6 +100,7 @@ const CoachDashboard = () => {
     { icon: CheckSquare, label: "Registrar asistencia", onClick: () => navigate("/coach/asistencia") },
     { icon: MessageSquare, label: "Dar feedback", onClick: () => navigate("/coach/feedback") },
     { icon: ClipboardCheck, label: "Chequeo de alumnos", onClick: () => navigate("/coach/chequeo-alumnos") },
+    { icon: ListTodo, label: "Mis tareas", onClick: () => navigate("/coach/tareas") },
     { icon: Banknote, label: "Liquidaciones", onClick: () => navigate("/coach/liquidaciones") },
   ];
 

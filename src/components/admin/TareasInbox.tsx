@@ -78,8 +78,10 @@ const ORIGEN_LABEL: Record<string, string> = {
   renovacion_proxima_7d: "Renovación próxima",
   alumno_estado_intermedio_15d: "Revisar estado alumno",
   datos_emergencia_incompletos: "Datos incompletos",
+  graduacion_alumno: "Graduación · felicitar",
   manual: "Manual",
 };
+
 
 interface Props {
   userId: string | null;

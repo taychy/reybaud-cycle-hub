@@ -710,12 +710,14 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     const { data, error } = await (supabase as any).rpc("registrar_cambio_grupo_alumno", {
                       p_alumno_id: openAlumno.id,
                       p_nuevo_grupo: nuevoGrupo,
+                      p_contexto: "chequeo_alumnos",
                     });
                     if (error) {
                       toast.error("No se pudo actualizar el grupo");
                       return;
                     }
                     const accion = (data as any)?.accion as string | undefined;
+                    const grad = (data as any)?.graduacion_detalle as any;
                     setOpenAlumno({ ...openAlumno, grupo: nuevoGrupo });
                     setAlumnos(prev =>
                       scope?.tipo !== "grupo" || nuevoGrupo === scope.value
@@ -728,6 +730,18 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                         ? nuevoGrupo
                         : ((data as any)?.grupo_origen ?? prev[openAlumno.id] ?? prevGrupo),
                     }));
+                    if (grad?.graduacion) {
+                      toast.success(`🎓 Graduación registrada: ${prevGrupo ?? "sin grupo"} → ${nuevoGrupo}`, {
+                        description: "Admin recibió la actualización de WhatsApp y tenés una tarea para felicitar al alumno.",
+                      });
+                      return;
+                    }
+                    if (grad?.revertida) {
+                      toast.success("Grupo actualizado en la ficha", {
+                        description: "Se canceló la tarea de felicitación: la graduación fue revertida.",
+                      });
+                      return;
+                    }
                     toast.success("Grupo actualizado en la ficha", {
                       description:
                         accion === "creada" || accion === "actualizada"
@@ -737,6 +751,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                             : undefined,
                     });
                   }}
+
 
                 >
                   {!openAlumno.grupo && <option value="">— sin grupo —</option>}

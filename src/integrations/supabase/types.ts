@@ -13944,6 +13944,7 @@ export type Database = {
           telefono: string
         }[]
       }
+      grupo_rank: { Args: { p_grupo: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -14165,6 +14166,15 @@ export type Database = {
           variante: string
         }[]
       }
+      procesar_graduacion_alumno: {
+        Args: {
+          p_actor_uid?: string
+          p_alumno_id: string
+          p_grupo_previo: string
+          p_nuevo_grupo: string
+        }
+        Returns: Json
+      }
       publish_month: { Args: { p_mes: string }; Returns: number }
       reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }
       read_email_batch: {
@@ -14287,7 +14297,11 @@ export type Database = {
             Returns: string
           }
       registrar_cambio_grupo_alumno: {
-        Args: { p_alumno_id: string; p_nuevo_grupo: string }
+        Args: {
+          p_alumno_id: string
+          p_contexto?: string
+          p_nuevo_grupo: string
+        }
         Returns: Json
       }
       registrar_devolucion: {
