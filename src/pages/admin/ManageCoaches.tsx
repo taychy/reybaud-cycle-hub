@@ -165,14 +165,41 @@ const ManageCoaches = () => {
     }
   };
 
-  const openEdit = (coach: Coach) => {
+  const openEdit = async (coach: Coach) => {
     setEditCoach(coach);
     setSelectedGrupos(coach.grupos || []);
     setSelectedEstado(coach.estado);
     setSelectedSedeId(coach.sede_id || null);
     setSelectedSedeIds(effectiveCoachSedes(coachSedesMap[coach.id], coach.sede_id));
-    setWhatsapp((coach as any).whatsapp || "");
+
+    const explicito = ((coach as any).whatsapp || "").trim();
+    setWhatsapp(explicito);
+    setWhatsappSource(explicito ? "coach" : "none");
+    if (explicito) return;
+
+    // Sin override explícito: reutilizamos la ficha de alumno/staff vinculada
+    // por user_id y, sólo como fallback, por email exacto normalizado.
+    const filtros: string[] = [];
+    if (coach.user_id) filtros.push(`user_id.eq.${coach.user_id}`);
+    if (coach.email) filtros.push(`email.eq.${coach.email.trim().toLowerCase()}`);
+    if (!filtros.length) return;
+
+    const { data } = await supabase
+      .from("alumnos")
+      .select("user_id, email, telefono")
+      .or(filtros.join(","))
+      .limit(20);
+
+    const resolved = resolveCoachPhone(
+      { whatsapp: null, user_id: coach.user_id, email: coach.email },
+      ((data as any[]) || []) as AlumnoContactRow[],
+    );
+    if (resolved.phone) {
+      setWhatsapp(resolved.phone);
+      setWhatsappSource("alumno");
+    }
   };
+
 
   const toggleGrupo = (grupo: string) => {
     setSelectedGrupos((prev) =>
