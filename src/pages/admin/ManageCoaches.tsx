@@ -14,8 +14,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 import { effectiveCoachSedes, diffCoachSedes, resolvePrincipalSede } from "@/lib/coachSedes";
+import { buildGrupoOptions, resolveCoachPhone, type AlumnoContactRow } from "@/lib/coachContact";
 
-const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
 interface Coach {
   id: string;
