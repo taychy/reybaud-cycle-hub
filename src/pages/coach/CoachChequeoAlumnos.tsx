@@ -745,7 +745,21 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     <option value={openAlumno.grupo}>{openAlumno.grupo}</option>
                   )}
                 </select>
+                {(() => {
+                  const st = { confirmado: waSync[openAlumno.id] ?? null, actual: openAlumno.grupo };
+                  return (
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${isWhatsappSynced(st)
+                        ? "text-emerald-600 border-emerald-500/30 bg-emerald-500/10"
+                        : "text-amber-600 border-amber-500/30 bg-amber-500/10"}`}
+                    >
+                      {whatsappSyncLabel(st)}
+                    </Badge>
+                  );
+                })()}
               </div>
+
             )}
           </SheetHeader>
 
