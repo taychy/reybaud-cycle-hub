@@ -19,6 +19,8 @@ import {
   type StaffProgram,
   type StaffScope,
 } from "@/lib/staffScope";
+import { isWhatsappSynced, whatsappSyncLabel } from "@/lib/whatsappGroupSync";
+
 
 type AlumnoRow = {
   id: string;
