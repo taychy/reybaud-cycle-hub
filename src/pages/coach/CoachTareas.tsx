@@ -23,8 +23,14 @@ const CoachTareas = () => {
     () => tareas.filter(t => t.rol_destino === "coach" && (!t.asignado_user_id || t.asignado_user_id === userId)),
     [tareas, userId]
   );
-  const graduaciones = useMemo(() => mias.filter(t => t.origen === "graduacion_alumno"), [mias]);
-  const otras = useMemo(() => mias.filter(t => t.origen !== "graduacion_alumno" && t.estado !== "hecha"), [mias]);
+  const graduaciones = useMemo(
+    () => mias.filter(t => (ORIGENES_CAMBIO_GRUPO as readonly string[]).includes(t.origen)),
+    [mias]
+  );
+  const otras = useMemo(
+    () => mias.filter(t => !(ORIGENES_CAMBIO_GRUPO as readonly string[]).includes(t.origen) && t.estado !== "hecha"),
+    [mias]
+  );
 
   const marcarHecha = async (t: Tarea, nota?: string) => {
     try {
