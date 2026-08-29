@@ -16,6 +16,8 @@ import {
   UserPlus, Trash2, History, ArrowRightLeft, Check,
 } from "lucide-react";
 import { normalizePhoneAR, formatPhoneAR } from "@/lib/phoneNormalize";
+import WhatsAppGrupoTareas from "@/components/admin/WhatsAppGrupoTareas";
+
 
 type Alumno = {
   id: string;
