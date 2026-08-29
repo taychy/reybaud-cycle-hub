@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.17"
+    PostgrestVersion: "14.5"
   }
   public: {
     Tables: {
@@ -1809,6 +1809,46 @@ export type Database = {
           },
           {
             foreignKeyName: "clases_dictadas_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coach_sedes: {
+        Row: {
+          coach_id: string
+          created_at: string
+          sede_id: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          sede_id: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          sede_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_sedes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_sedes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_sedes_sede_id_fkey"
             columns: ["sede_id"]
             isOneToOne: false
             referencedRelation: "sedes"

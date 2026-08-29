@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
+import { effectiveCoachSedes, diffCoachSedes, resolvePrincipalSede } from "@/lib/coachSedes";
 
 const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
@@ -40,6 +41,8 @@ const ManageCoaches = () => {
   const [selectedGrupos, setSelectedGrupos] = useState<string[]>([]);
   const [selectedEstado, setSelectedEstado] = useState("pendiente");
   const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
+  const [selectedSedeIds, setSelectedSedeIds] = useState<string[]>([]);
+  const [coachSedesMap, setCoachSedesMap] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
   const [sedes, setSedes] = useState<Sede[]>([]);
@@ -53,10 +56,22 @@ const ManageCoaches = () => {
   const isMobile = useIsMobile();
 
   const fetchCoaches = async () => {
-    const { data } = await supabase.from("coaches").select("*").order("created_at", { ascending: false });
+    const [{ data }, { data: rel }] = await Promise.all([
+      supabase.from("coaches").select("*").order("created_at", { ascending: false }),
+      supabase.from("coach_sedes" as any).select("coach_id, sede_id"),
+    ]);
     setCoaches((data as any) || []);
+    const map: Record<string, string[]> = {};
+    ((rel as any[]) || []).forEach((r) => {
+      (map[r.coach_id] ||= []).push(r.sede_id);
+    });
+    setCoachSedesMap(map);
     setLoading(false);
   };
+
+  /** Sedes del coach: relación many-to-many, con fallback al sede_id legado. */
+  const sedesDeCoach = (coach: Coach) => effectiveCoachSedes(coachSedesMap[coach.id], coach.sede_id);
+  const nombreSede = (id: string) => sedes.find((s) => s.id === id)?.nombre || "—";
 
   useEffect(() => { fetchCoaches(); }, []);
 
@@ -139,6 +154,7 @@ const ManageCoaches = () => {
     setSelectedGrupos(coach.grupos || []);
     setSelectedEstado(coach.estado);
     setSelectedSedeId(coach.sede_id || null);
+    setSelectedSedeIds(effectiveCoachSedes(coachSedesMap[coach.id], coach.sede_id));
     setWhatsapp((coach as any).whatsapp || "");
   };
 
@@ -148,15 +164,37 @@ const ManageCoaches = () => {
     );
   };
 
+  const toggleSede = (sedeId: string) => {
+    setSelectedSedeIds((prev) =>
+      prev.includes(sedeId) ? prev.filter((s) => s !== sedeId) : [...prev, sedeId]
+    );
+  };
+
   const handleSave = async () => {
     if (!editCoach) return;
     setSaving(true);
+
+    // Sincronización idempotente de las sedes asignadas (sin duplicados).
+    const existentes = coachSedesMap[editCoach.id] || (editCoach.sede_id ? [editCoach.sede_id] : []);
+    const { toAdd, toRemove } = diffCoachSedes(existentes, selectedSedeIds);
+    if (toAdd.length) {
+      await supabase
+        .from("coach_sedes" as any)
+        .upsert(toAdd.map((sede_id) => ({ coach_id: editCoach.id, sede_id })), { onConflict: "coach_id,sede_id" });
+    }
+    if (toRemove.length) {
+      await supabase.from("coach_sedes" as any).delete().eq("coach_id", editCoach.id).in("sede_id", toRemove);
+    }
+
+    // `coaches.sede_id` se mantiene como sede principal para código legado.
+    const principal = resolvePrincipalSede(selectedSedeId, selectedSedeIds);
+
     await supabase
       .from("coaches")
       .update({
         grupos: selectedGrupos,
         estado: selectedEstado,
-        sede_id: selectedSedeId,
+        sede_id: principal,
         whatsapp: whatsapp.trim() || null,
       } as any)
       .eq("id", editCoach.id);
@@ -355,9 +393,17 @@ const ManageCoaches = () => {
                     {detailCoach.estado}
                   </Badge>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-muted-foreground">Sede</span>
-                  <span className="text-foreground text-xs">{sedes.find(s => s.id === detailCoach.sede_id)?.nombre || "Sin sede"}</span>
+                <div className="flex justify-between items-start gap-4">
+                  <span className="text-muted-foreground">Sedes</span>
+                  <div className="flex gap-1 flex-wrap justify-end">
+                    {sedesDeCoach(detailCoach).length > 0 ? (
+                      sedesDeCoach(detailCoach).map((id) => (
+                        <Badge key={id} variant="secondary" className="text-xs">{nombreSede(id)}</Badge>
+                      ))
+                    ) : (
+                      <span className="text-muted-foreground text-xs">Sin sede</span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col gap-2 pt-2 border-t border-border">
@@ -449,14 +495,22 @@ const ManageCoaches = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Sede</Label>
-              <Select value={selectedSedeId || "sin_sede"} onValueChange={(v) => setSelectedSedeId(v === "sin_sede" ? null : v)}>
-                <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sin_sede">Sin sede</SelectItem>
-                  {sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <Label>Sedes asignadas</Label>
+              {sedes.length === 0 ? (
+                <p className="text-[11px] text-muted-foreground">No hay sedes activas cargadas.</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {sedes.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 p-2 rounded-md glass-card cursor-pointer">
+                      <Checkbox checked={selectedSedeIds.includes(s.id)} onCheckedChange={() => toggleSede(s.id)} />
+                      <span className="text-sm text-foreground">{s.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-muted-foreground">
+                Podés marcar varias. Asignar una sede no crea disponibilidad de turnos: eso se configura en Turnera.
+              </p>
             </div>
           </div>
           <DialogFooter>
