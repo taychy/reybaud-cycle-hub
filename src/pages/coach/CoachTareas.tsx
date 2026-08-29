@@ -53,7 +53,7 @@ const CoachTareas = () => {
         </Button>
         <div>
           <h1 className="text-base font-semibold text-foreground">Mis tareas</h1>
-          <p className="text-xs text-muted-foreground">Graduaciones y pendientes asignados a vos</p>
+          <p className="text-xs text-muted-foreground">Cambios de grupo para comunicar y pendientes asignados a vos</p>
         </div>
       </header>
 
@@ -64,13 +64,13 @@ const CoachTareas = () => {
           <>
             <section className="space-y-3">
               <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                Felicitaciones por graduación
+                Cambios de grupo para comunicar
               </h2>
               {pendientes.length === 0 ? (
                 <Card className="border-border">
                   <CardContent className="py-8 text-center">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-500 mb-2" />
-                    <p className="text-sm text-muted-foreground">No tenés felicitaciones pendientes</p>
+                    <p className="text-sm text-muted-foreground">No tenés cambios de grupo para comunicar</p>
                   </CardContent>
                 </Card>
               ) : (
