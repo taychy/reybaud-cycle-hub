@@ -131,6 +131,9 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   const [scope, setScope] = useState<StaffScope | null>(null);
   const [alumnos, setAlumnos] = useState<AlumnoRow[]>([]);
   const [evalsMap, setEvalsMap] = useState<Record<string, Evaluacion>>({});
+  /** alumno_id → grupo de WhatsApp ya confirmado (null = nunca sincronizado). */
+  const [waSync, setWaSync] = useState<Record<string, string | null>>({});
+
   const [search, setSearch] = useState("");
 
   // Panel state
