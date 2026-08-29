@@ -11,6 +11,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { ArrowLeft, Search, Star, ClipboardCheck, Loader2, AlertTriangle, MessageSquarePlus, Check, Eye } from "lucide-react";
 import { toast } from "sonner";
 import { calcularEdad } from "@/lib/dates";
+import {
+  defaultScope,
+  isScopeAvailable,
+  scopeLabel,
+  visiblePrograms,
+  type StaffProgram,
+  type StaffScope,
+} from "@/lib/staffScope";
 
 type AlumnoRow = {
   id: string;
@@ -119,7 +127,8 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   const [coachId, setCoachId] = useState<string | null>(null);
   const [coachNombre, setCoachNombre] = useState<string>("");
   const [grupos, setGrupos] = useState<string[]>([]);
-  const [grupoSel, setGrupoSel] = useState<string | null>(null);
+  const [programas, setProgramas] = useState<StaffProgram[]>([]);
+  const [scope, setScope] = useState<StaffScope | null>(null);
   const [alumnos, setAlumnos] = useState<AlumnoRow[]>([]);
   const [evalsMap, setEvalsMap] = useState<Record<string, Evaluacion>>({});
   const [search, setSearch] = useState("");
@@ -165,7 +174,23 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
       }
 
       setGrupos(gruposDisponibles);
-      if (gruposDisponibles.length > 0) setGrupoSel(gruposDisponibles[0]);
+
+      // Programas cerrados/comerciales activos con alumnos activos (RPC segura)
+      const { data: progs } = await (supabase as any).rpc("get_staff_programs");
+      const progList = visiblePrograms(
+        ((progs || []) as any[]).map((p) => ({
+          plan_id: p.plan_id,
+          nombre: p.nombre,
+          alumnos_activos: Number(p.alumnos_activos) || 0,
+        })),
+      );
+      setProgramas(progList);
+
+      setScope((prev) =>
+        isScopeAvailable(prev, gruposDisponibles, progList)
+          ? prev
+          : defaultScope(gruposDisponibles, progList),
+      );
 
       // Otros coaches para asignar co-feedback al convertir
       const { data: cs } = await supabase.from("coaches").select("id, nombre").order("nombre");
@@ -176,16 +201,28 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   }, [adminMode]);
 
   useEffect(() => {
-    if (!grupoSel) return;
+    if (!scope) return;
     (async () => {
-      const { data: al } = await supabase
-        .from("alumnos")
-        .select("id, nombre, apellido, grupo, fecha_nacimiento, es_staff")
-        .eq("grupo", grupoSel as any)
-        .eq("estado", "activo")
-        .or("es_staff.is.null,es_staff.eq.false")
-        .order("nombre");
-      const list = (al || []) as AlumnoRow[];
+      let list: AlumnoRow[] = [];
+
+      if (scope.tipo === "grupo") {
+        const { data: al } = await supabase
+          .from("alumnos")
+          .select("id, nombre, apellido, grupo, fecha_nacimiento, es_staff")
+          .eq("grupo", scope.value as any)
+          .eq("estado", "activo")
+          .or("es_staff.is.null,es_staff.eq.false")
+          .order("nombre");
+        list = (al || []) as AlumnoRow[];
+      } else {
+        // Programa: la lista sale de suscripciones ACTIVAS del plan (RPC segura).
+        const { data: al, error } = await (supabase as any).rpc("get_staff_program_students", {
+          _plan_id: scope.value,
+        });
+        if (error) toast.error("No se pudieron cargar los alumnos del programa");
+        list = ((al || []) as any[]) as AlumnoRow[];
+      }
+
       setAlumnos(list);
 
       if (list.length > 0) {
@@ -201,7 +238,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
         setEvalsMap({});
       }
     })();
-  }, [grupoSel]);
+  }, [scope]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
@@ -445,27 +482,69 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
           Uso interno del staff. El alumno no ve esta información.
         </p>
 
-        {/* Grupo selector */}
-        <div className="flex gap-2 flex-wrap">
-          {grupos.length === 0 && (
-            <p className="text-sm text-muted-foreground">No tenés grupos asignados.</p>
+        {/* Selector de alcance: Grupos y Programas */}
+        <div className="space-y-3">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Ver alumnos de:
+            </span>
+            <span className="text-sm font-medium text-foreground">
+              {scopeLabel(scope, programas)}
+            </span>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Grupos</p>
+            <div className="flex gap-2 flex-wrap">
+              {grupos.length === 0 && (
+                <p className="text-sm text-muted-foreground">No tenés grupos asignados.</p>
+              )}
+              {grupos.map(g => {
+                const active = scope?.tipo === "grupo" && scope.value === g;
+                return (
+                  <button
+                    key={g}
+                    onClick={() => setScope({ tipo: "grupo", value: g })}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {programas.length > 0 && (
+            <div className="space-y-1.5 pt-1 border-t border-border/60">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 pt-2">Programas</p>
+              <div className="flex gap-2 flex-wrap">
+                {programas.map(p => {
+                  const active = scope?.tipo === "programa" && scope.value === p.plan_id;
+                  return (
+                    <button
+                      key={p.plan_id}
+                      onClick={() => setScope({ tipo: "programa", value: p.plan_id })}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition text-left ${
+                        active
+                          ? "bg-primary/15 text-primary border-primary"
+                          : "bg-card text-muted-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {p.nombre}
+                      <span className="opacity-70"> · {p.alumnos_activos} alumnos</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
-          {grupos.map(g => (
-            <button
-              key={g}
-              onClick={() => setGrupoSel(g)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                grupoSel === g
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border hover:border-primary/50"
-              }`}
-            >
-              {g}
-            </button>
-          ))}
         </div>
 
-        {grupoSel && (
+        {scope && (
           <>
             {/* Alerta: alumnos a abordar (con dimensiones < 3) */}
             {alumnosAbordar.length > 0 && (
@@ -622,7 +701,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     }
                     setOpenAlumno({ ...openAlumno, grupo: nuevoGrupo });
                     setAlumnos(prev =>
-                      nuevoGrupo === grupoSel
+                      scope?.tipo !== "grupo" || nuevoGrupo === scope.value
                         ? prev.map(a => a.id === openAlumno.id ? { ...a, grupo: nuevoGrupo } : a)
                         : prev.filter(a => a.id !== openAlumno.id)
                     );
