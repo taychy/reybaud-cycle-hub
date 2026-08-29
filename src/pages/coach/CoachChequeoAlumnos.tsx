@@ -482,27 +482,69 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
           Uso interno del staff. El alumno no ve esta información.
         </p>
 
-        {/* Grupo selector */}
-        <div className="flex gap-2 flex-wrap">
-          {grupos.length === 0 && (
-            <p className="text-sm text-muted-foreground">No tenés grupos asignados.</p>
+        {/* Selector de alcance: Grupos y Programas */}
+        <div className="space-y-3">
+          <div className="flex items-baseline gap-2 flex-wrap">
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              Ver alumnos de:
+            </span>
+            <span className="text-sm font-medium text-foreground">
+              {scopeLabel(scope, programas)}
+            </span>
+          </div>
+
+          <div className="space-y-1.5">
+            <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70">Grupos</p>
+            <div className="flex gap-2 flex-wrap">
+              {grupos.length === 0 && (
+                <p className="text-sm text-muted-foreground">No tenés grupos asignados.</p>
+              )}
+              {grupos.map(g => {
+                const active = scope?.tipo === "grupo" && scope.value === g;
+                return (
+                  <button
+                    key={g}
+                    onClick={() => setScope({ tipo: "grupo", value: g })}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
+                      active
+                        ? "bg-primary text-primary-foreground border-primary"
+                        : "bg-card text-muted-foreground border-border hover:border-primary/50"
+                    }`}
+                  >
+                    {g}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {programas.length > 0 && (
+            <div className="space-y-1.5 pt-1 border-t border-border/60">
+              <p className="text-[11px] uppercase tracking-wide text-muted-foreground/70 pt-2">Programas</p>
+              <div className="flex gap-2 flex-wrap">
+                {programas.map(p => {
+                  const active = scope?.tipo === "programa" && scope.value === p.plan_id;
+                  return (
+                    <button
+                      key={p.plan_id}
+                      onClick={() => setScope({ tipo: "programa", value: p.plan_id })}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition text-left ${
+                        active
+                          ? "bg-primary/15 text-primary border-primary"
+                          : "bg-card text-muted-foreground border-border hover:border-primary/50"
+                      }`}
+                    >
+                      {p.nombre}
+                      <span className="opacity-70"> · {p.alumnos_activos} alumnos</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           )}
-          {grupos.map(g => (
-            <button
-              key={g}
-              onClick={() => setGrupoSel(g)}
-              className={`px-3 py-1.5 rounded-full text-xs font-medium border transition ${
-                grupoSel === g
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border hover:border-primary/50"
-              }`}
-            >
-              {g}
-            </button>
-          ))}
         </div>
 
-        {grupoSel && (
+        {scope && (
           <>
             {/* Alerta: alumnos a abordar (con dimensiones < 3) */}
             {alumnosAbordar.length > 0 && (
