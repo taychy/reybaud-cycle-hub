@@ -16,6 +16,8 @@ import {
   UserPlus, Trash2, History, ArrowRightLeft, Check,
 } from "lucide-react";
 import { normalizePhoneAR, formatPhoneAR } from "@/lib/phoneNormalize";
+import WhatsAppGrupoTareas from "@/components/admin/WhatsAppGrupoTareas";
+
 
 type Alumno = {
   id: string;
@@ -456,7 +458,11 @@ const WhatsAppConciliador = ({ embedded = false }: { embedded?: boolean } = {}) 
         ))}
       </div>
 
+      {/* Tareas de sincronización de grupos (cambios hechos desde el Chequeo de Alumnos) */}
+      {step === 1 && <WhatsAppGrupoTareas />}
+
       {/* PASO 1 */}
+
       {step === 1 && (
         <Card>
           <CardHeader><CardTitle className="text-base">1. Elegí grupo y fecha</CardTitle></CardHeader>

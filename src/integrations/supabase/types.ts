@@ -670,6 +670,9 @@ export type Database = {
           ultimo_saludo_cumple_year: number | null
           updated_at: string
           user_id: string | null
+          whatsapp_grupo_confirmado: string | null
+          whatsapp_grupo_sync_at: string | null
+          whatsapp_grupo_sync_by: string | null
         }
         Insert: {
           afip_padron_snapshot?: Json | null
@@ -738,6 +741,9 @@ export type Database = {
           ultimo_saludo_cumple_year?: number | null
           updated_at?: string
           user_id?: string | null
+          whatsapp_grupo_confirmado?: string | null
+          whatsapp_grupo_sync_at?: string | null
+          whatsapp_grupo_sync_by?: string | null
         }
         Update: {
           afip_padron_snapshot?: Json | null
@@ -806,6 +812,9 @@ export type Database = {
           ultimo_saludo_cumple_year?: number | null
           updated_at?: string
           user_id?: string | null
+          whatsapp_grupo_confirmado?: string | null
+          whatsapp_grupo_sync_at?: string | null
+          whatsapp_grupo_sync_by?: string | null
         }
         Relationships: [
           {
@@ -14268,6 +14277,10 @@ export type Database = {
             }
             Returns: string
           }
+      registrar_cambio_grupo_alumno: {
+        Args: { p_alumno_id: string; p_nuevo_grupo: string }
+        Returns: Json
+      }
       registrar_devolucion: {
         Args: {
           p_alumno_id: string

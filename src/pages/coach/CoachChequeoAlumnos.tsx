@@ -19,6 +19,8 @@ import {
   type StaffProgram,
   type StaffScope,
 } from "@/lib/staffScope";
+import { isWhatsappSynced, whatsappSyncLabel } from "@/lib/whatsappGroupSync";
+
 
 type AlumnoRow = {
   id: string;
@@ -131,6 +133,9 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   const [scope, setScope] = useState<StaffScope | null>(null);
   const [alumnos, setAlumnos] = useState<AlumnoRow[]>([]);
   const [evalsMap, setEvalsMap] = useState<Record<string, Evaluacion>>({});
+  /** alumno_id → grupo de WhatsApp ya confirmado (null = nunca sincronizado). */
+  const [waSync, setWaSync] = useState<Record<string, string | null>>({});
+
   const [search, setSearch] = useState("");
 
   // Panel state
@@ -234,9 +239,20 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
         const m: Record<string, Evaluacion> = {};
         (evs || []).forEach((e: any) => { m[e.alumno_id] = e; });
         setEvalsMap(m);
+
+        // Estado de sincronización de grupos de WhatsApp (sólo lectura)
+        const { data: wa } = await (supabase as any)
+          .from("alumnos")
+          .select("id, whatsapp_grupo_confirmado")
+          .in("id", ids);
+        const w: Record<string, string | null> = {};
+        ((wa || []) as any[]).forEach(r => { w[r.id] = r.whatsapp_grupo_confirmado ?? null; });
+        setWaSync(w);
       } else {
         setEvalsMap({});
+        setWaSync({});
       }
+
     })();
   }, [scope]);
 
@@ -691,22 +707,37 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     const nuevoGrupo = e.target.value || null;
                     const prevGrupo = openAlumno.grupo;
                     if (nuevoGrupo === prevGrupo) return;
-                    const { error } = await supabase
-                      .from("alumnos")
-                      .update({ grupo: nuevoGrupo as any })
-                      .eq("id", openAlumno.id);
+                    const { data, error } = await (supabase as any).rpc("registrar_cambio_grupo_alumno", {
+                      p_alumno_id: openAlumno.id,
+                      p_nuevo_grupo: nuevoGrupo,
+                    });
                     if (error) {
                       toast.error("No se pudo actualizar el grupo");
                       return;
                     }
+                    const accion = (data as any)?.accion as string | undefined;
                     setOpenAlumno({ ...openAlumno, grupo: nuevoGrupo });
                     setAlumnos(prev =>
                       scope?.tipo !== "grupo" || nuevoGrupo === scope.value
                         ? prev.map(a => a.id === openAlumno.id ? { ...a, grupo: nuevoGrupo } : a)
                         : prev.filter(a => a.id !== openAlumno.id)
                     );
-                    toast.success(`Grupo actualizado a ${nuevoGrupo ?? "—"}`);
+                    setWaSync(prev => ({
+                      ...prev,
+                      [openAlumno.id]: accion === "cancelada" || accion === "sin_cambio"
+                        ? nuevoGrupo
+                        : ((data as any)?.grupo_origen ?? prev[openAlumno.id] ?? prevGrupo),
+                    }));
+                    toast.success("Grupo actualizado en la ficha", {
+                      description:
+                        accion === "creada" || accion === "actualizada"
+                          ? "Admin recibió la tarea de actualizar WhatsApp"
+                          : accion === "cancelada"
+                            ? "Se canceló la tarea de WhatsApp: volvió al grupo original"
+                            : undefined,
+                    });
                   }}
+
                 >
                   {!openAlumno.grupo && <option value="">— sin grupo —</option>}
                   {grupos.map(g => (
@@ -716,7 +747,21 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     <option value={openAlumno.grupo}>{openAlumno.grupo}</option>
                   )}
                 </select>
+                {(() => {
+                  const st = { confirmado: waSync[openAlumno.id] ?? null, actual: openAlumno.grupo };
+                  return (
+                    <Badge
+                      variant="outline"
+                      className={`text-[10px] ${isWhatsappSynced(st)
+                        ? "text-emerald-600 border-emerald-500/30 bg-emerald-500/10"
+                        : "text-amber-600 border-amber-500/30 bg-amber-500/10"}`}
+                    >
+                      {whatsappSyncLabel(st)}
+                    </Badge>
+                  );
+                })()}
               </div>
+
             )}
           </SheetHeader>
 
