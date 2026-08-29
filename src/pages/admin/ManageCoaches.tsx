@@ -84,6 +84,19 @@ const ManageCoaches = () => {
     });
   }, []);
 
+  // Opciones de "Grupos asignados": base conocida + grupos reales de alumnos.
+  useEffect(() => {
+    supabase
+      .from("alumnos")
+      .select("grupo")
+      .not("grupo", "is", null)
+      .then(({ data }) => {
+        const reales = ((data as any[]) || []).map((r) => r.grupo as string);
+        setGruposDisponibles(buildGrupoOptions(reales));
+      });
+  }, []);
+
+
   const handleCreateCoach = async () => {
     if (!createForm.nombre.trim() || !createForm.email.trim()) {
       toast.error("Nombre y email son obligatorios");
