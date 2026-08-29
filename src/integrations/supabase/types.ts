@@ -14209,6 +14209,15 @@ export type Database = {
         Args: { p_reservation_id: string }
         Returns: undefined
       }
+      reconciliar_tarea_whatsapp_grupo: {
+        Args: {
+          p_actor_uid?: string
+          p_alumno_id: string
+          p_grupo_previo: string
+          p_nuevo_grupo: string
+        }
+        Returns: Json
+      }
       redeem_promo_code: {
         Args: { _alumno_id: string; _codigo: string; _evento_id: string }
         Returns: Json
