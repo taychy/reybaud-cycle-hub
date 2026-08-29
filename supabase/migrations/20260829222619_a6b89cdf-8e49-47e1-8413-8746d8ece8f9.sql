@@ -1,0 +1,1 @@
+REVOKE ALL ON FUNCTION public.trg_alumnos_grupo_whatsapp_sync() FROM PUBLIC, anon, authenticated;
