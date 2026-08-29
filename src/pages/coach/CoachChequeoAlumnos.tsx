@@ -701,7 +701,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                     }
                     setOpenAlumno({ ...openAlumno, grupo: nuevoGrupo });
                     setAlumnos(prev =>
-                      nuevoGrupo === grupoSel
+                      scope?.tipo !== "grupo" || nuevoGrupo === scope.value
                         ? prev.map(a => a.id === openAlumno.id ? { ...a, grupo: nuevoGrupo } : a)
                         : prev.filter(a => a.id !== openAlumno.id)
                     );
