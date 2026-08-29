@@ -75,11 +75,40 @@ Deno.serve(async (req) => {
   const coachCache = new Map<string, { nombre: string; whatsapp: string | null }>();
   const getCoach = async (id: string) => {
     if (!coachCache.has(id)) {
-      const { data } = await supabase.from("coaches").select("nombre, whatsapp").eq("id", id).maybeSingle();
-      coachCache.set(id, { nombre: data?.nombre || "", whatsapp: (data as any)?.whatsapp || null });
+      const { data } = await supabase
+        .from("coaches")
+        .select("nombre, whatsapp, user_id, email")
+        .eq("id", id)
+        .maybeSingle();
+      let phone: string | null = ((data as any)?.whatsapp || "").trim() || null;
+      // Sin override explícito: reutilizamos la ficha de alumno/staff vinculada
+      // por user_id y, sólo como fallback, por email exacto normalizado.
+      if (!phone && data) {
+        const email = String((data as any).email || "").trim().toLowerCase();
+        const filtros: string[] = [];
+        if ((data as any).user_id) filtros.push(`user_id.eq.${(data as any).user_id}`);
+        if (email) filtros.push(`email.eq.${email}`);
+        if (filtros.length) {
+          const { data: alumnos } = await supabase
+            .from("alumnos")
+            .select("user_id, email, telefono")
+            .or(filtros.join(","))
+            .limit(20);
+          const rows = ((alumnos as any[]) || []).filter((a) => String(a.telefono || "").trim());
+          const byUserId = (data as any).user_id
+            ? rows.find((a) => a.user_id === (data as any).user_id)
+            : undefined;
+          const byEmail = email
+            ? rows.find((a) => String(a.email || "").trim().toLowerCase() === email)
+            : undefined;
+          phone = String((byUserId || byEmail)?.telefono || "").trim() || null;
+        }
+      }
+      coachCache.set(id, { nombre: (data as any)?.nombre || "", whatsapp: phone });
     }
     return coachCache.get(id)!;
   };
+
 
   const stats = {
     scanned: reservas?.length || 0,
