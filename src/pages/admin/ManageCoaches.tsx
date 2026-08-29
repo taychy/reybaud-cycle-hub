@@ -177,6 +177,8 @@ const ManageCoaches = () => {
     const explicito = ((coach as any).whatsapp || "").trim();
     setWhatsapp(explicito);
     setWhatsappSource(explicito ? "coach" : "none");
+    setDerivedWhatsapp("");
+
     if (explicito) return;
 
     // Sin override explícito: reutilizamos la ficha de alumno/staff vinculada
@@ -199,6 +201,8 @@ const ManageCoaches = () => {
     if (resolved.phone) {
       setWhatsapp(resolved.phone);
       setWhatsappSource("alumno");
+      setDerivedWhatsapp(resolved.phone);
+
     }
   };
 
