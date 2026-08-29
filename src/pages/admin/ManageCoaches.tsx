@@ -14,8 +14,8 @@ import { useIsMobile } from "@/hooks/use-mobile";
 import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 import { effectiveCoachSedes, diffCoachSedes, resolvePrincipalSede } from "@/lib/coachSedes";
+import { buildGrupoOptions, resolveCoachPhone, type AlumnoContactRow } from "@/lib/coachContact";
 
-const GRUPOS = ["G1", "G2", "G3", "G4", "Principiante", "Sin grupo"] as const;
 
 interface Coach {
   id: string;
@@ -47,6 +47,11 @@ const ManageCoaches = () => {
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
   const [sedes, setSedes] = useState<Sede[]>([]);
   const [whatsapp, setWhatsapp] = useState("");
+  const [whatsappSource, setWhatsappSource] = useState<"coach" | "alumno" | "none">("none");
+  const [derivedWhatsapp, setDerivedWhatsapp] = useState("");
+
+  const [gruposDisponibles, setGruposDisponibles] = useState<string[]>(buildGrupoOptions([]));
+
 
 
   const [showCreate, setShowCreate] = useState(false);
@@ -80,6 +85,19 @@ const ManageCoaches = () => {
       setSedes(data || []);
     });
   }, []);
+
+  // Opciones de "Grupos asignados": base conocida + grupos reales de alumnos.
+  useEffect(() => {
+    supabase
+      .from("alumnos")
+      .select("grupo")
+      .not("grupo", "is", null)
+      .then(({ data }) => {
+        const reales = ((data as any[]) || []).map((r) => r.grupo as string);
+        setGruposDisponibles(buildGrupoOptions(reales));
+      });
+  }, []);
+
 
   const handleCreateCoach = async () => {
     if (!createForm.nombre.trim() || !createForm.email.trim()) {
@@ -149,14 +167,45 @@ const ManageCoaches = () => {
     }
   };
 
-  const openEdit = (coach: Coach) => {
+  const openEdit = async (coach: Coach) => {
     setEditCoach(coach);
     setSelectedGrupos(coach.grupos || []);
     setSelectedEstado(coach.estado);
     setSelectedSedeId(coach.sede_id || null);
     setSelectedSedeIds(effectiveCoachSedes(coachSedesMap[coach.id], coach.sede_id));
-    setWhatsapp((coach as any).whatsapp || "");
+
+    const explicito = ((coach as any).whatsapp || "").trim();
+    setWhatsapp(explicito);
+    setWhatsappSource(explicito ? "coach" : "none");
+    setDerivedWhatsapp("");
+
+    if (explicito) return;
+
+    // Sin override explícito: reutilizamos la ficha de alumno/staff vinculada
+    // por user_id y, sólo como fallback, por email exacto normalizado.
+    const filtros: string[] = [];
+    if (coach.user_id) filtros.push(`user_id.eq.${coach.user_id}`);
+    if (coach.email) filtros.push(`email.eq.${coach.email.trim().toLowerCase()}`);
+    if (!filtros.length) return;
+
+    const { data } = await supabase
+      .from("alumnos")
+      .select("user_id, email, telefono")
+      .or(filtros.join(","))
+      .limit(20);
+
+    const resolved = resolveCoachPhone(
+      { whatsapp: null, user_id: coach.user_id, email: coach.email },
+      ((data as any[]) || []) as AlumnoContactRow[],
+    );
+    if (resolved.phone) {
+      setWhatsapp(resolved.phone);
+      setWhatsappSource("alumno");
+      setDerivedWhatsapp(resolved.phone);
+
+    }
   };
+
 
   const toggleGrupo = (grupo: string) => {
     setSelectedGrupos((prev) =>
@@ -195,7 +244,13 @@ const ManageCoaches = () => {
         grupos: selectedGrupos,
         estado: selectedEstado,
         sede_id: principal,
-        whatsapp: whatsapp.trim() || null,
+        // Si el número mostrado vino de la ficha de alumno y no se editó, no lo
+        // duplicamos en `coaches.whatsapp`: sigue resolviéndose dinámicamente.
+        whatsapp:
+          whatsappSource === "alumno" && whatsapp.trim() === derivedWhatsapp
+            ? null
+            : whatsapp.trim() || null,
+
       } as any)
       .eq("id", editCoach.id);
     toast.success(`Coach ${editCoach.nombre} actualizado`);
@@ -468,8 +523,11 @@ const ManageCoaches = () => {
                 className="bg-secondary border-border"
               />
               <p className="text-[11px] text-muted-foreground">
-                Se usa para los recordatorios de turnos por WhatsApp. Dejalo vacío si no corresponde.
+                {whatsappSource === "alumno"
+                  ? "Tomado de la ficha de alumno. Si lo editás, queda guardado como número propio del coach."
+                  : "Se usa para los recordatorios de turnos por WhatsApp. Dejalo vacío si no corresponde."}
               </p>
+
             </div>
             <div className="space-y-2">
               <Label>Estado</Label>
@@ -486,7 +544,7 @@ const ManageCoaches = () => {
             <div className="space-y-2">
               <Label>Grupos asignados</Label>
               <div className="grid grid-cols-2 gap-2">
-                {GRUPOS.filter((g) => g !== "Sin grupo").map((grupo) => (
+                {buildGrupoOptions([...gruposDisponibles, ...selectedGrupos]).map((grupo) => (
                   <label key={grupo} className="flex items-center gap-2 p-2 rounded-md glass-card cursor-pointer">
                     <Checkbox checked={selectedGrupos.includes(grupo)} onCheckedChange={() => toggleGrupo(grupo)} />
                     <span className="text-sm text-foreground">{grupo}</span>
