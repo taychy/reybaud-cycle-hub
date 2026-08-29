@@ -174,7 +174,23 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
       }
 
       setGrupos(gruposDisponibles);
-      if (gruposDisponibles.length > 0) setGrupoSel(gruposDisponibles[0]);
+
+      // Programas cerrados/comerciales activos con alumnos activos (RPC segura)
+      const { data: progs } = await (supabase as any).rpc("get_staff_programs");
+      const progList = visiblePrograms(
+        ((progs || []) as any[]).map((p) => ({
+          plan_id: p.plan_id,
+          nombre: p.nombre,
+          alumnos_activos: Number(p.alumnos_activos) || 0,
+        })),
+      );
+      setProgramas(progList);
+
+      setScope((prev) =>
+        isScopeAvailable(prev, gruposDisponibles, progList)
+          ? prev
+          : defaultScope(gruposDisponibles, progList),
+      );
 
       // Otros coaches para asignar co-feedback al convertir
       const { data: cs } = await supabase.from("coaches").select("id, nombre").order("nombre");
@@ -185,16 +201,28 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
   }, [adminMode]);
 
   useEffect(() => {
-    if (!grupoSel) return;
+    if (!scope) return;
     (async () => {
-      const { data: al } = await supabase
-        .from("alumnos")
-        .select("id, nombre, apellido, grupo, fecha_nacimiento, es_staff")
-        .eq("grupo", grupoSel as any)
-        .eq("estado", "activo")
-        .or("es_staff.is.null,es_staff.eq.false")
-        .order("nombre");
-      const list = (al || []) as AlumnoRow[];
+      let list: AlumnoRow[] = [];
+
+      if (scope.tipo === "grupo") {
+        const { data: al } = await supabase
+          .from("alumnos")
+          .select("id, nombre, apellido, grupo, fecha_nacimiento, es_staff")
+          .eq("grupo", scope.value as any)
+          .eq("estado", "activo")
+          .or("es_staff.is.null,es_staff.eq.false")
+          .order("nombre");
+        list = (al || []) as AlumnoRow[];
+      } else {
+        // Programa: la lista sale de suscripciones ACTIVAS del plan (RPC segura).
+        const { data: al, error } = await (supabase as any).rpc("get_staff_program_students", {
+          _plan_id: scope.value,
+        });
+        if (error) toast.error("No se pudieron cargar los alumnos del programa");
+        list = ((al || []) as any[]) as AlumnoRow[];
+      }
+
       setAlumnos(list);
 
       if (list.length > 0) {
@@ -210,7 +238,7 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
         setEvalsMap({});
       }
     })();
-  }, [grupoSel]);
+  }, [scope]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
