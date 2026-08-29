@@ -14166,6 +14166,15 @@ export type Database = {
           variante: string
         }[]
       }
+      procesar_cambio_grupo_alumno: {
+        Args: {
+          p_actor_uid?: string
+          p_alumno_id: string
+          p_grupo_previo: string
+          p_nuevo_grupo: string
+        }
+        Returns: Json
+      }
       procesar_graduacion_alumno: {
         Args: {
           p_actor_uid?: string

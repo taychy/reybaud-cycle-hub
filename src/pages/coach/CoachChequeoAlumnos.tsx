@@ -730,18 +730,26 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
                         ? nuevoGrupo
                         : ((data as any)?.grupo_origen ?? prev[openAlumno.id] ?? prevGrupo),
                     }));
-                    if (grad?.graduacion) {
+                    const tipoCambio = (data as any)?.comunicacion?.tipo_cambio as string | undefined;
+                    if (tipoCambio === "graduacion") {
                       toast.success(`🎓 Graduación registrada: ${prevGrupo ?? "sin grupo"} → ${nuevoGrupo}`, {
-                        description: "Admin recibió la actualización de WhatsApp y tenés una tarea para felicitar al alumno.",
+                        description: "Tenés una tarea en Mis tareas para felicitar al alumno por WhatsApp.",
                       });
                       return;
                     }
-                    if (grad?.revertida) {
+                    if (tipoCambio === "descenso" || tipoCambio === "cambio_grupo") {
+                      toast.success(`Grupo actualizado: ${prevGrupo ?? "sin grupo"} → ${nuevoGrupo}`, {
+                        description: "Tenés una tarea en Mis tareas para comunicárselo al alumno.",
+                      });
+                      return;
+                    }
+                    if (tipoCambio === "corregido" || grad?.revertida) {
                       toast.success("Grupo actualizado en la ficha", {
-                        description: "Se canceló la tarea de felicitación: la graduación fue revertida.",
+                        description: "Se canceló la comunicación pendiente: volvió al grupo original.",
                       });
                       return;
                     }
+
                     toast.success("Grupo actualizado en la ficha", {
                       description:
                         accion === "creada" || accion === "actualizada"

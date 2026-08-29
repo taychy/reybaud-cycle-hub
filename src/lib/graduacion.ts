@@ -30,7 +30,35 @@ export function isReversion(grupoPrevio: string | null | undefined, grupoNuevo: 
   return next < prev;
 }
 
-/** Clave de deduplicación: una tarea abierta por alumno + destino. */
+/** Tipos de cambio de grupo comunicables al alumno. */
+export type TipoCambioGrupo = "graduacion" | "descenso" | "cambio_grupo" | "sin_cambio";
+
+/** Orígenes de tarea de comunicación de cambio de grupo. */
+export const ORIGENES_CAMBIO_GRUPO = [
+  "graduacion_alumno",
+  "descenso_grupo_alumno",
+  "cambio_grupo_alumno",
+] as const;
+
+/** Clasificación server-side equivalente. */
+export function clasificarCambioGrupo(
+  grupoPrevio: string | null | undefined,
+  grupoNuevo: string | null | undefined
+): TipoCambioGrupo {
+  const prevNorm = (grupoPrevio ?? "").trim().toLowerCase();
+  const nextNorm = (grupoNuevo ?? "").trim().toLowerCase();
+  if (prevNorm === nextNorm) return "sin_cambio";
+  if (isGraduacion(grupoPrevio, grupoNuevo)) return "graduacion";
+  if (isReversion(grupoPrevio, grupoNuevo)) return "descenso";
+  return "cambio_grupo";
+}
+
+/** Clave de deduplicación: una tarea de comunicación abierta por alumno. */
+export function cambioGrupoDedupeKey(alumnoId: string): string {
+  return `gcom_${alumnoId}`;
+}
+
+/** Clave de deduplicación legacy (graduaciones por destino). */
 export function graduacionDedupeKey(alumnoId: string, grupoDestino: string): string {
   return `grad_${alumnoId}_${grupoDestino.toLowerCase()}`;
 }
@@ -53,7 +81,58 @@ export function buildMensajeGraduacion(params: {
   return [base, nota ? nota : null, firma ? firma : null].filter(Boolean).join("\n\n");
 }
 
+/** Borrador para cambio a un grupo de menor exigencia (tono no punitivo). */
+export function buildMensajeDescenso(params: {
+  alumnoNombre: string;
+  grupoDestino: string;
+  coachNombre?: string | null;
+}): string {
+  const primer = (params.alumnoNombre || "").trim().split(/\s+/)[0] || "Hola";
+  const base =
+    `${primer}, quería contarte personalmente que por ahora vamos a pasar a ${params.grupoDestino}. ` +
+    `La idea es que puedas seguir entrenando en un grupo que acompañe mejor este momento de tu proceso y te permita ` +
+    `trabajar con más confianza y seguridad. Esto no borra todo lo que ya avanzaste ni es una sanción; es una decisión ` +
+    `para ayudarte a seguir progresando paso a paso. Vamos a acompañarte en esta etapa y revisar juntos cómo vas evolucionando. 💪🚴`;
+  const firma = (params.coachNombre || "").trim();
+  return [base, firma ? firma : null].filter(Boolean).join("\n\n");
+}
+
+/** Borrador neutro para cambios no clasificables. */
+export function buildMensajeCambioNeutro(params: {
+  alumnoNombre: string;
+  grupoDestino: string;
+  coachNombre?: string | null;
+}): string {
+  const primer = (params.alumnoNombre || "").trim().split(/\s+/)[0] || "Hola";
+  const base =
+    `${primer}, quería avisarte personalmente que a partir de ahora vas a estar en ${params.grupoDestino}. ` +
+    `Este cambio busca que tu entrenamiento quede mejor alineado con el trabajo que estamos haciendo con vos. ` +
+    `Si tenés alguna duda, lo conversamos antes de la próxima clase. 🚴`;
+  const firma = (params.coachNombre || "").trim();
+  return [base, firma ? firma : null].filter(Boolean).join("\n\n");
+}
+
 /** Título de la tarea de felicitación. */
 export function graduacionTareaTitulo(alumnoNombre: string, grupoDestino: string): string {
   return `🎓 Felicitar a ${alumnoNombre} por su graduación a ${grupoDestino}`;
 }
+
+/** Título según el tipo de cambio. */
+export function cambioGrupoTareaTitulo(
+  tipo: TipoCambioGrupo,
+  alumnoNombre: string,
+  grupoOrigen: string | null | undefined,
+  grupoDestino: string
+): string {
+  if (tipo === "graduacion") return graduacionTareaTitulo(alumnoNombre, grupoDestino);
+  if (tipo === "descenso") return `💬 Hablar con ${alumnoNombre} sobre su cambio a ${grupoDestino}`;
+  return `💬 Avisar a ${alumnoNombre} su cambio de grupo: ${grupoOrigen ?? "sin grupo"} → ${grupoDestino}`;
+}
+
+/** Etiqueta visible (nunca humillante para el alumno). */
+export function cambioGrupoBadge(tipo: TipoCambioGrupo): string {
+  if (tipo === "graduacion") return "🎓 Graduación";
+  if (tipo === "descenso") return "↘ Cambio a menor exigencia";
+  return "↔ Cambio de grupo";
+}
+

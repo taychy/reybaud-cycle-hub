@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useTareas, type Tarea } from "@/hooks/useTareas";
 import { GraduacionTareaCard } from "@/components/coach/GraduacionTareaCard";
+import { ORIGENES_CAMBIO_GRUPO } from "@/lib/graduacion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +24,14 @@ const CoachTareas = () => {
     () => tareas.filter(t => t.rol_destino === "coach" && (!t.asignado_user_id || t.asignado_user_id === userId)),
     [tareas, userId]
   );
-  const graduaciones = useMemo(() => mias.filter(t => t.origen === "graduacion_alumno"), [mias]);
-  const otras = useMemo(() => mias.filter(t => t.origen !== "graduacion_alumno" && t.estado !== "hecha"), [mias]);
+  const graduaciones = useMemo(
+    () => mias.filter(t => (ORIGENES_CAMBIO_GRUPO as readonly string[]).includes(t.origen)),
+    [mias]
+  );
+  const otras = useMemo(
+    () => mias.filter(t => !(ORIGENES_CAMBIO_GRUPO as readonly string[]).includes(t.origen) && t.estado !== "hecha"),
+    [mias]
+  );
 
   const marcarHecha = async (t: Tarea, nota?: string) => {
     try {
@@ -46,7 +53,7 @@ const CoachTareas = () => {
         </Button>
         <div>
           <h1 className="text-base font-semibold text-foreground">Mis tareas</h1>
-          <p className="text-xs text-muted-foreground">Graduaciones y pendientes asignados a vos</p>
+          <p className="text-xs text-muted-foreground">Cambios de grupo para comunicar y pendientes asignados a vos</p>
         </div>
       </header>
 
@@ -57,13 +64,13 @@ const CoachTareas = () => {
           <>
             <section className="space-y-3">
               <h2 className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-                Felicitaciones por graduación
+                Cambios de grupo para comunicar
               </h2>
               {pendientes.length === 0 ? (
                 <Card className="border-border">
                   <CardContent className="py-8 text-center">
                     <CheckCircle2 className="w-8 h-8 mx-auto text-emerald-500 mb-2" />
-                    <p className="text-sm text-muted-foreground">No tenés felicitaciones pendientes</p>
+                    <p className="text-sm text-muted-foreground">No tenés cambios de grupo para comunicar</p>
                   </CardContent>
                 </Card>
               ) : (

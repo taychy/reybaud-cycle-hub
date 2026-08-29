@@ -79,6 +79,8 @@ const ORIGEN_LABEL: Record<string, string> = {
   alumno_estado_intermedio_15d: "Revisar estado alumno",
   datos_emergencia_incompletos: "Datos incompletos",
   graduacion_alumno: "Graduación · felicitar",
+  descenso_grupo_alumno: "Cambio de grupo · conversar",
+  cambio_grupo_alumno: "Cambio de grupo · avisar",
   manual: "Manual",
 };
 

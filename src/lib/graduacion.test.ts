@@ -2,7 +2,53 @@ import { describe, it, expect } from "vitest";
 import {
   grupoRank, isGraduacion, isReversion, graduacionDedupeKey,
   buildMensajeGraduacion, graduacionTareaTitulo,
+  clasificarCambioGrupo, cambioGrupoDedupeKey, cambioGrupoTareaTitulo,
+  cambioGrupoBadge, buildMensajeDescenso, buildMensajeCambioNeutro,
 } from "./graduacion";
+
+describe("cambios de grupo", () => {
+  it("clasifica graduación, descenso y neutro", () => {
+    expect(clasificarCambioGrupo("G4", "G3")).toBe("graduacion");
+    expect(clasificarCambioGrupo("G4", "G2")).toBe("graduacion");
+    expect(clasificarCambioGrupo("G2", "G3")).toBe("descenso");
+    expect(clasificarCambioGrupo("Personalizado", "G3")).toBe("cambio_grupo");
+    expect(clasificarCambioGrupo("G2", "G2")).toBe("sin_cambio");
+    expect(clasificarCambioGrupo(null, null)).toBe("sin_cambio");
+  });
+
+  it("dedupe de comunicación es único por alumno", () => {
+    expect(cambioGrupoDedupeKey("abc")).toBe("gcom_abc");
+    expect(cambioGrupoDedupeKey("abc")).toBe(cambioGrupoDedupeKey("abc"));
+  });
+
+  it("títulos por tipo", () => {
+    expect(cambioGrupoTareaTitulo("graduacion", "Ana Perez", "G3", "G2")).toContain("🎓 Felicitar a Ana Perez");
+    expect(cambioGrupoTareaTitulo("descenso", "Ana Perez", "G2", "G3")).toBe("💬 Hablar con Ana Perez sobre su cambio a G3");
+    expect(cambioGrupoTareaTitulo("cambio_grupo", "Ana Perez", "Personalizado", "G3")).toBe(
+      "💬 Avisar a Ana Perez su cambio de grupo: Personalizado → G3"
+    );
+  });
+
+  it("badges no humillan al alumno", () => {
+    expect(cambioGrupoBadge("graduacion")).toBe("🎓 Graduación");
+    expect(cambioGrupoBadge("descenso")).toBe("↘ Cambio a menor exigencia");
+    expect(cambioGrupoBadge("cambio_grupo")).toBe("↔ Cambio de grupo");
+    expect(cambioGrupoBadge("descenso")).not.toMatch(/bajaste|descenso/i);
+  });
+
+  it("mensajes de descenso y neutro incluyen nombre y grupo, sin tono punitivo", () => {
+    const d = buildMensajeDescenso({ alumnoNombre: "Ana Perez", grupoDestino: "G3", coachNombre: "Claudio" });
+    expect(d).toContain("Ana,");
+    expect(d).toContain("G3");
+    expect(d).not.toMatch(/bajaste|no estás a la altura/i);
+    expect(d.endsWith("Claudio")).toBe(true);
+
+    const n = buildMensajeCambioNeutro({ alumnoNombre: "Ana Perez", grupoDestino: "Personalizado" });
+    expect(n).toContain("Ana,");
+    expect(n).toContain("Personalizado");
+  });
+});
+
 
 describe("graduacion", () => {
   it("rankea la progresión", () => {
