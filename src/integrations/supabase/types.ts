@@ -13864,6 +13864,25 @@ export type Database = {
           ultimo_movimiento: string
         }[]
       }
+      get_staff_program_students: {
+        Args: { _plan_id: string }
+        Returns: {
+          apellido: string
+          es_staff: boolean
+          fecha_nacimiento: string
+          grupo: string
+          id: string
+          nombre: string
+        }[]
+      }
+      get_staff_programs: {
+        Args: never
+        Returns: {
+          alumnos_activos: number
+          nombre: string
+          plan_id: string
+        }[]
+      }
       get_survey_by_token: {
         Args: { _token: string }
         Returns: {
