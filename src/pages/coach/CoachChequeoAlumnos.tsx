@@ -234,9 +234,20 @@ export default function CoachChequeoAlumnos({ adminMode = false }: { adminMode?:
         const m: Record<string, Evaluacion> = {};
         (evs || []).forEach((e: any) => { m[e.alumno_id] = e; });
         setEvalsMap(m);
+
+        // Estado de sincronización de grupos de WhatsApp (sólo lectura)
+        const { data: wa } = await (supabase as any)
+          .from("alumnos")
+          .select("id, whatsapp_grupo_confirmado")
+          .in("id", ids);
+        const w: Record<string, string | null> = {};
+        ((wa || []) as any[]).forEach(r => { w[r.id] = r.whatsapp_grupo_confirmado ?? null; });
+        setWaSync(w);
       } else {
         setEvalsMap({});
+        setWaSync({});
       }
+
     })();
   }, [scope]);
 
