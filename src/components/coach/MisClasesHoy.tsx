@@ -59,6 +59,21 @@ export default function MisClasesHoy() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Slot | null>(null);
   const [open, setOpen] = useState(false);
+  const [marking, setMarking] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const marcarRealizada = async (reservaId: string) => {
+    setMarking(reservaId);
+    const { error } = await supabase.rpc("marcar_reserva_turnera_realizada" as any, { p_reserva_id: reservaId });
+    setMarking(null);
+    if (error) {
+      toast({ title: "No se pudo confirmar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Turno confirmado como realizado" });
+    load();
+  };
+
 
   const today = new Date();
   const dow = today.getDay();
