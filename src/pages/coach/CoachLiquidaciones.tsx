@@ -144,14 +144,17 @@ const CoachLiquidaciones = () => {
   const [mes, setMes] = useState(getCurrentMonth);
   const [showClaseForm, setShowClaseForm] = useState(false);
   const [showViaticoForm, setShowViaticoForm] = useState(false);
+  const [honorariosOpts, setHonorariosOpts] = useState<{ id: string; nombre_concepto: string; valor: number }[]>([]);
   const [claseForm, setClaseForm] = useState({
     tipo_actividad: "grupal_1h30",
     fecha: new Date().toISOString().split("T")[0],
     grupo: "",
     nombre_externo: "",
     alumno_ids: [] as string[],
+    honorario_id: "",
     observaciones: "",
   });
+
   const [viaticoForm, setViaticoForm] = useState({
     fecha: new Date().toISOString().split("T")[0],
     monto: "",
