@@ -450,7 +450,7 @@ const CoachLiquidaciones = () => {
             size="sm"
             onClick={() => setShowClaseForm(true)}
           >
-            <Plus className="w-4 h-4 mr-2" /> Registrar clase
+            <Plus className="w-4 h-4 mr-2" /> Agregar clase manual
           </Button>
           <Button
             variant="outline"
