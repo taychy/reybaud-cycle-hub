@@ -54,30 +54,8 @@ const TIPO_LABELS: Record<string, string> = {
 
 const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "viaticos", "ajustes"] as const;
 
-const HONORARIO_SEARCH_TERMS: Record<string, string[]> = {
-  grupal_1h30: ["grupal 1h30", "1h30", "1h 30", "90min"],
-  grupal_2h: ["grupal 2h", "2h", "2 h", "120min"],
-  fondo_salida: ["fondo", "salida"],
-  tecnica: ["tecnica", "técnica"],
-  evento_escuela: ["evento escuela"],
-  evaluatoria: ["evaluatoria", "evaluacion", "evaluación"],
-  personalizada: ["personalizada", "particular", "particular circuito", "circuito 1h"],
-  ajuste: ["ajuste"],
-};
 
-const normalizeText = (value: string | null | undefined) =>
-  (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
 
-const matchesHonorario = (tipoActividad: string, nombreConcepto: string | null | undefined) => {
-  const normalizedName = normalizeText(nombreConcepto);
-  const terms = HONORARIO_SEARCH_TERMS[tipoActividad] ?? [tipoActividad];
-
-  return terms.some((term) => normalizedName.includes(normalizeText(term)));
-};
 
 type Movimiento = {
   id: string;
