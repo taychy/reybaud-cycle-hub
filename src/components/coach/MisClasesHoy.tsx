@@ -26,10 +26,12 @@ interface TurneraSlot {
   celular: string | null;
   sede_nombre: string | null;
   pago_estado: string | null;
+  estado_operativo: string | null;
   fecha: string;
   descripcion: string;
   modalidad: string;
 }
+
 
 const googleCalLink = (s: TurneraSlot) => {
   const pad = (n: number) => String(n).padStart(2, "0");
