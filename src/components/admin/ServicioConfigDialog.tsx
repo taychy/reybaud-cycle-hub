@@ -54,6 +54,18 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
   const [pagoSena, setPagoSena] = useState("");
   const [fields, setFields] = useState<FormFieldDef[]>([]);
   const [saving, setSaving] = useState(false);
+  const [honorarioId, setHonorarioId] = useState("");
+  const [honorarios, setHonorarios] = useState<{ id: string; nombre_concepto: string; valor: number }[]>([]);
+
+  useEffect(() => {
+    supabase
+      .from("honorarios")
+      .select("id, nombre_concepto, valor")
+      .eq("activo", true)
+      .order("nombre_concepto")
+      .then(({ data }) => setHonorarios((data as any[]) || []));
+  }, []);
+
 
   useEffect(() => {
     if (!servicio) return;
