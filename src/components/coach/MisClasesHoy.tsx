@@ -119,7 +119,9 @@ export default function MisClasesHoy() {
       celular: r.celular,
       sede_nombre: r.sedes?.nombre || null,
       pago_estado: r.pago_estado,
+      estado_operativo: r.estado_operativo,
     }));
+
     setTurneraSlots(tMapped);
 
     setLoading(false);
