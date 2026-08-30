@@ -224,44 +224,14 @@ const CoachLiquidaciones = () => {
     }
   }, [mes, coachId, loadMovimientos]);
 
-  const lookupHonorarioValue = async (tipoActividad: string, cId: string): Promise<number> => {
-    // Try coach-specific honorario first, then generic
-    for (const coachFilter of [cId, null]) {
-      let query = supabase
-        .from("honorarios")
-        .select("valor, nombre_concepto")
-        .eq("activo", true);
-
-      if (coachFilter) {
-        query = query.eq("coach_id", coachFilter);
-      } else {
-        query = query.is("coach_id", null);
-      }
-
-      const { data: honorarios } = await query;
-      if (honorarios && honorarios.length > 0) {
-        const match = (honorarios as { valor: number; nombre_concepto: string | null }[]).find((h) =>
-          matchesHonorario(tipoActividad, h.nombre_concepto)
-        );
-
-        if (match) return Number(match.valor);
-      }
-    }
-
-    // Fallback: try from agenda_grupal linked honorario
-    const { data: agenda } = await supabase
-      .from("agenda_grupal")
-      .select("honorario_id, honorarios(valor)")
-      .eq("coach_id", cId)
-      .not("honorario_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-    if (agenda && (agenda as any).honorarios?.valor) {
-      return Number((agenda as any).honorarios.valor);
-    }
-
-    return 0;
-  };
+  useEffect(() => {
+    supabase
+      .from("honorarios")
+      .select("id, nombre_concepto, valor")
+      .eq("activo", true)
+      .order("nombre_concepto")
+      .then(({ data }) => setHonorariosOpts((data as any[]) || []));
+  }, []);
 
   const isIndividualType = (tipo: string) =>
     tipo === "personalizada" || tipo === "evaluatoria";
@@ -269,58 +239,37 @@ const CoachLiquidaciones = () => {
   const submitClase = async () => {
     if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
 
-    const valorBase = await lookupHonorarioValue(claseForm.tipo_actividad, coachId);
+    const nombreExterno = isIndividualType(claseForm.tipo_actividad)
+      ? (claseForm.alumno_ids.length > 0
+        ? claseForm.alumno_ids.map((aid) => {
+            const a = alumnos.find((al) => al.id === aid);
+            return a ? `${a.nombre} ${a.apellido || ""}`.trim() : "";
+          }).filter(Boolean).join(", ")
+        : claseForm.nombre_externo || null)
+      : null;
 
-    // Determine estado_economico based on reglas_liquidacion
-    let estadoEconomico = "pendiente_revision";
-    let finalValor = valorBase;
-    try {
-      const { data: regla } = await supabase
-        .from("reglas_liquidacion")
-        .select("liquida, porcentaje_pago")
-        .eq("tipo_actividad", claseForm.tipo_actividad)
-        .eq("estado_operativo", "realizada")
-        .maybeSingle();
-
-      if (regla && !regla.liquida) {
-        estadoEconomico = "no_liquidable";
-        finalValor = 0;
-      } else if (regla) {
-        finalValor = valorBase * (regla.porcentaje_pago / 100);
-      }
-    } catch {
-      // proceed with default
-    }
-
-    const { error } = await supabase.from("movimientos_liquidacion").insert({
-      coach_id: coachId,
-      fecha: claseForm.fecha,
-      tipo_actividad: claseForm.tipo_actividad,
-      grupo: isIndividualType(claseForm.tipo_actividad) ? null : (claseForm.grupo || null),
-      nombre_externo: isIndividualType(claseForm.tipo_actividad)
-        ? (claseForm.alumno_ids.length > 0
-          ? claseForm.alumno_ids.map(aid => {
-              const a = alumnos.find(al => al.id === aid);
-              return a ? `${a.nombre} ${a.apellido || ""}`.trim() : "";
-            }).filter(Boolean).join(", ")
-          : claseForm.nombre_externo || null)
-        : null,
-      origen: "carga_coach",
-      valor_base: finalValor,
-      total: finalValor,
-      estado_operativo: "realizada",
-      estado_economico: estadoEconomico,
-      observaciones: claseForm.observaciones || null,
-    } as any);
+    // El cálculo económico lo resuelve la base: siempre entra como pendiente de revisión.
+    const { error } = await supabase.rpc("cargar_clase_manual_coach" as any, {
+      p_fecha: claseForm.fecha,
+      p_tipo_actividad: claseForm.tipo_actividad,
+      p_honorario_id: claseForm.honorario_id || null,
+      p_grupo: isIndividualType(claseForm.tipo_actividad) ? null : (claseForm.grupo || null),
+      p_nombre_externo: nombreExterno,
+      p_observaciones: claseForm.observaciones || null,
+    });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Clase registrada", description: finalValor > 0 ? `Valor: $${finalValor.toLocaleString("es-AR")} — Pendiente de revisión.` : "Queda pendiente de revisión por el administrador." });
+    toast({
+      title: "Clase registrada",
+      description: "Queda pendiente de revisión del administrador antes de sumar a tu liquidación.",
+    });
     setShowClaseForm(false);
-    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", nombre_externo: "", alumno_ids: [], observaciones: "" });
+    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", nombre_externo: "", alumno_ids: [], honorario_id: "", observaciones: "" });
     loadMovimientos(coachId, mes);
   };
+
 
   const submitViatico = async () => {
     if (!coachId || !viaticoForm.fecha || !viaticoForm.monto || !viaticoForm.concepto) {
