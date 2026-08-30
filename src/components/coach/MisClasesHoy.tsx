@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Camera, CheckCircle2, MapPin, User, Phone, CalendarPlus } from "lucide-react";
+import { Camera, CheckCircle2, MapPin, User, Phone, CalendarPlus, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 import ConfirmarClaseDialog from "./ConfirmarClaseDialog";
+
 
 interface Slot {
   id: string;
@@ -26,10 +28,12 @@ interface TurneraSlot {
   celular: string | null;
   sede_nombre: string | null;
   pago_estado: string | null;
+  estado_operativo: string | null;
   fecha: string;
   descripcion: string;
   modalidad: string;
 }
+
 
 const googleCalLink = (s: TurneraSlot) => {
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -55,6 +59,21 @@ export default function MisClasesHoy() {
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState<Slot | null>(null);
   const [open, setOpen] = useState(false);
+  const [marking, setMarking] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const marcarRealizada = async (reservaId: string) => {
+    setMarking(reservaId);
+    const { error } = await supabase.rpc("marcar_reserva_turnera_realizada" as any, { p_reserva_id: reservaId });
+    setMarking(null);
+    if (error) {
+      toast({ title: "No se pudo confirmar", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Turno confirmado como realizado" });
+    load();
+  };
+
 
   const today = new Date();
   const dow = today.getDay();
@@ -117,7 +136,9 @@ export default function MisClasesHoy() {
       celular: r.celular,
       sede_nombre: r.sedes?.nombre || null,
       pago_estado: r.pago_estado,
+      estado_operativo: r.estado_operativo,
     }));
+
     setTurneraSlots(tMapped);
 
     setLoading(false);
@@ -194,16 +215,29 @@ export default function MisClasesHoy() {
                 )}
               </div>
             </div>
-            <a
-              href={googleCalLink(t)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <CalendarPlus className="w-3.5 h-3.5" /> Agregar a Google Calendar
-            </a>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <a
+                href={googleCalLink(t)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <CalendarPlus className="w-3.5 h-3.5" /> Agregar a Google Calendar
+              </a>
+              {t.estado_operativo === "realizada" ? (
+                <Badge variant="outline" className="gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-green-500" /> Realizada
+                </Badge>
+              ) : (
+                <Button size="sm" variant="outline" disabled={marking === t.id} onClick={() => marcarRealizada(t.id)}>
+                  {marking === t.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                  Confirmar realizada
+                </Button>
+              )}
+            </div>
           </div>
         ))}
+
       </CardContent>
 
       <ConfirmarClaseDialog

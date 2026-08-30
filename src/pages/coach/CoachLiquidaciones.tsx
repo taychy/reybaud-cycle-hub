@@ -54,30 +54,8 @@ const TIPO_LABELS: Record<string, string> = {
 
 const FILTROS = ["todas", "grupales", "personalizadas", "evaluatorias", "viaticos", "ajustes"] as const;
 
-const HONORARIO_SEARCH_TERMS: Record<string, string[]> = {
-  grupal_1h30: ["grupal 1h30", "1h30", "1h 30", "90min"],
-  grupal_2h: ["grupal 2h", "2h", "2 h", "120min"],
-  fondo_salida: ["fondo", "salida"],
-  tecnica: ["tecnica", "técnica"],
-  evento_escuela: ["evento escuela"],
-  evaluatoria: ["evaluatoria", "evaluacion", "evaluación"],
-  personalizada: ["personalizada", "particular", "particular circuito", "circuito 1h"],
-  ajuste: ["ajuste"],
-};
 
-const normalizeText = (value: string | null | undefined) =>
-  (value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .trim();
 
-const matchesHonorario = (tipoActividad: string, nombreConcepto: string | null | undefined) => {
-  const normalizedName = normalizeText(nombreConcepto);
-  const terms = HONORARIO_SEARCH_TERMS[tipoActividad] ?? [tipoActividad];
-
-  return terms.some((term) => normalizedName.includes(normalizeText(term)));
-};
 
 type Movimiento = {
   id: string;
@@ -144,14 +122,17 @@ const CoachLiquidaciones = () => {
   const [mes, setMes] = useState(getCurrentMonth);
   const [showClaseForm, setShowClaseForm] = useState(false);
   const [showViaticoForm, setShowViaticoForm] = useState(false);
+  const [honorariosOpts, setHonorariosOpts] = useState<{ id: string; nombre_concepto: string; valor: number }[]>([]);
   const [claseForm, setClaseForm] = useState({
     tipo_actividad: "grupal_1h30",
     fecha: new Date().toISOString().split("T")[0],
     grupo: "",
     nombre_externo: "",
     alumno_ids: [] as string[],
+    honorario_id: "",
     observaciones: "",
   });
+
   const [viaticoForm, setViaticoForm] = useState({
     fecha: new Date().toISOString().split("T")[0],
     monto: "",
@@ -221,44 +202,14 @@ const CoachLiquidaciones = () => {
     }
   }, [mes, coachId, loadMovimientos]);
 
-  const lookupHonorarioValue = async (tipoActividad: string, cId: string): Promise<number> => {
-    // Try coach-specific honorario first, then generic
-    for (const coachFilter of [cId, null]) {
-      let query = supabase
-        .from("honorarios")
-        .select("valor, nombre_concepto")
-        .eq("activo", true);
-
-      if (coachFilter) {
-        query = query.eq("coach_id", coachFilter);
-      } else {
-        query = query.is("coach_id", null);
-      }
-
-      const { data: honorarios } = await query;
-      if (honorarios && honorarios.length > 0) {
-        const match = (honorarios as { valor: number; nombre_concepto: string | null }[]).find((h) =>
-          matchesHonorario(tipoActividad, h.nombre_concepto)
-        );
-
-        if (match) return Number(match.valor);
-      }
-    }
-
-    // Fallback: try from agenda_grupal linked honorario
-    const { data: agenda } = await supabase
-      .from("agenda_grupal")
-      .select("honorario_id, honorarios(valor)")
-      .eq("coach_id", cId)
-      .not("honorario_id", "is", null)
-      .limit(1)
-      .maybeSingle();
-    if (agenda && (agenda as any).honorarios?.valor) {
-      return Number((agenda as any).honorarios.valor);
-    }
-
-    return 0;
-  };
+  useEffect(() => {
+    supabase
+      .from("honorarios")
+      .select("id, nombre_concepto, valor")
+      .eq("activo", true)
+      .order("nombre_concepto")
+      .then(({ data }) => setHonorariosOpts((data as any[]) || []));
+  }, []);
 
   const isIndividualType = (tipo: string) =>
     tipo === "personalizada" || tipo === "evaluatoria";
@@ -266,58 +217,37 @@ const CoachLiquidaciones = () => {
   const submitClase = async () => {
     if (!coachId || !claseForm.fecha || !claseForm.tipo_actividad) return;
 
-    const valorBase = await lookupHonorarioValue(claseForm.tipo_actividad, coachId);
+    const nombreExterno = isIndividualType(claseForm.tipo_actividad)
+      ? (claseForm.alumno_ids.length > 0
+        ? claseForm.alumno_ids.map((aid) => {
+            const a = alumnos.find((al) => al.id === aid);
+            return a ? `${a.nombre} ${a.apellido || ""}`.trim() : "";
+          }).filter(Boolean).join(", ")
+        : claseForm.nombre_externo || null)
+      : null;
 
-    // Determine estado_economico based on reglas_liquidacion
-    let estadoEconomico = "pendiente_revision";
-    let finalValor = valorBase;
-    try {
-      const { data: regla } = await supabase
-        .from("reglas_liquidacion")
-        .select("liquida, porcentaje_pago")
-        .eq("tipo_actividad", claseForm.tipo_actividad)
-        .eq("estado_operativo", "realizada")
-        .maybeSingle();
-
-      if (regla && !regla.liquida) {
-        estadoEconomico = "no_liquidable";
-        finalValor = 0;
-      } else if (regla) {
-        finalValor = valorBase * (regla.porcentaje_pago / 100);
-      }
-    } catch {
-      // proceed with default
-    }
-
-    const { error } = await supabase.from("movimientos_liquidacion").insert({
-      coach_id: coachId,
-      fecha: claseForm.fecha,
-      tipo_actividad: claseForm.tipo_actividad,
-      grupo: isIndividualType(claseForm.tipo_actividad) ? null : (claseForm.grupo || null),
-      nombre_externo: isIndividualType(claseForm.tipo_actividad)
-        ? (claseForm.alumno_ids.length > 0
-          ? claseForm.alumno_ids.map(aid => {
-              const a = alumnos.find(al => al.id === aid);
-              return a ? `${a.nombre} ${a.apellido || ""}`.trim() : "";
-            }).filter(Boolean).join(", ")
-          : claseForm.nombre_externo || null)
-        : null,
-      origen: "carga_coach",
-      valor_base: finalValor,
-      total: finalValor,
-      estado_operativo: "realizada",
-      estado_economico: estadoEconomico,
-      observaciones: claseForm.observaciones || null,
-    } as any);
+    // El cálculo económico lo resuelve la base: siempre entra como pendiente de revisión.
+    const { error } = await supabase.rpc("cargar_clase_manual_coach" as any, {
+      p_fecha: claseForm.fecha,
+      p_tipo_actividad: claseForm.tipo_actividad,
+      p_honorario_id: claseForm.honorario_id || null,
+      p_grupo: isIndividualType(claseForm.tipo_actividad) ? null : (claseForm.grupo || null),
+      p_nombre_externo: nombreExterno,
+      p_observaciones: claseForm.observaciones || null,
+    });
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Clase registrada", description: finalValor > 0 ? `Valor: $${finalValor.toLocaleString("es-AR")} — Pendiente de revisión.` : "Queda pendiente de revisión por el administrador." });
+    toast({
+      title: "Clase registrada",
+      description: "Queda pendiente de revisión del administrador antes de sumar a tu liquidación.",
+    });
     setShowClaseForm(false);
-    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", nombre_externo: "", alumno_ids: [], observaciones: "" });
+    setClaseForm({ tipo_actividad: "grupal_1h30", fecha: new Date().toISOString().split("T")[0], grupo: "", nombre_externo: "", alumno_ids: [], honorario_id: "", observaciones: "" });
     loadMovimientos(coachId, mes);
   };
+
 
   const submitViatico = async () => {
     if (!coachId || !viaticoForm.fecha || !viaticoForm.monto || !viaticoForm.concepto) {
@@ -514,29 +444,35 @@ const CoachLiquidaciones = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowClaseForm(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Registrar clase
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowViaticoForm(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Registrar viático
-          </Button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowClaseForm(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Agregar clase manual
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowViaticoForm(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Registrar viático
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Uso excepcional · requiere revisión de Admin. Tus clases de agenda y turnos se confirman desde “Mis clases de hoy”.
+          </p>
         </div>
 
         {/* Class registration dialog */}
         <Dialog open={showClaseForm} onOpenChange={setShowClaseForm}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Registrar clase realizada</DialogTitle>
+              <DialogTitle>Agregar clase manual</DialogTitle>
             </DialogHeader>
+
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Fecha</label>
@@ -612,6 +548,28 @@ const CoachLiquidaciones = () => {
                 </div>
               ) : null}
               <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Concepto / honorario</label>
+                <Select
+                  value={claseForm.honorario_id || "none"}
+                  onValueChange={(v) => setClaseForm({ ...claseForm, honorario_id: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Elegí el concepto" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin definir (queda en $0)</SelectItem>
+                    {honorariosOpts.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.nombre_concepto} · ${Number(h.valor).toLocaleString("es-AR")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!claseForm.honorario_id && (
+                  <p className="text-[11px] text-amber-500 mt-1">
+                    Si no elegís concepto, la clase entra en $0 y el Admin tendrá que completarla.
+                  </p>
+                )}
+              </div>
+              <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
                 <Textarea
                   placeholder="Detalle de la clase..."
@@ -620,9 +578,10 @@ const CoachLiquidaciones = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                La clase quedará en estado "Pendiente de revisión" hasta que el administrador la apruebe.
+                Uso excepcional: siempre queda en "Pendiente de revisión" hasta que el administrador la apruebe.
               </p>
-              <Button onClick={submitClase} className="w-full">Registrar clase</Button>
+              <Button onClick={submitClase} className="w-full">Agregar clase manual</Button>
+
             </div>
           </DialogContent>
         </Dialog>
