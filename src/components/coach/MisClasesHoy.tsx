@@ -198,16 +198,29 @@ export default function MisClasesHoy() {
                 )}
               </div>
             </div>
-            <a
-              href={googleCalLink(t)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
-            >
-              <CalendarPlus className="w-3.5 h-3.5" /> Agregar a Google Calendar
-            </a>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <a
+                href={googleCalLink(t)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline"
+              >
+                <CalendarPlus className="w-3.5 h-3.5" /> Agregar a Google Calendar
+              </a>
+              {t.estado_operativo === "realizada" ? (
+                <Badge variant="outline" className="gap-1">
+                  <CheckCircle2 className="w-3 h-3 text-green-500" /> Realizada
+                </Badge>
+              ) : (
+                <Button size="sm" variant="outline" disabled={marking === t.id} onClick={() => marcarRealizada(t.id)}>
+                  {marking === t.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <CheckCircle2 className="w-4 h-4 mr-1" />}
+                  Confirmar realizada
+                </Button>
+              )}
+            </div>
           </div>
         ))}
+
       </CardContent>
 
       <ConfirmarClaseDialog
