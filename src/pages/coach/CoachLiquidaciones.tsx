@@ -548,6 +548,28 @@ const CoachLiquidaciones = () => {
                 </div>
               ) : null}
               <div>
+                <label className="text-sm text-muted-foreground mb-1 block">Concepto / honorario</label>
+                <Select
+                  value={claseForm.honorario_id || "none"}
+                  onValueChange={(v) => setClaseForm({ ...claseForm, honorario_id: v === "none" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Elegí el concepto" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin definir (queda en $0)</SelectItem>
+                    {honorariosOpts.map((h) => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.nombre_concepto} · ${Number(h.valor).toLocaleString("es-AR")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!claseForm.honorario_id && (
+                  <p className="text-[11px] text-amber-500 mt-1">
+                    Si no elegís concepto, la clase entra en $0 y el Admin tendrá que completarla.
+                  </p>
+                )}
+              </div>
+              <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Observaciones (opcional)</label>
                 <Textarea
                   placeholder="Detalle de la clase..."
@@ -556,9 +578,10 @@ const CoachLiquidaciones = () => {
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                La clase quedará en estado "Pendiente de revisión" hasta que el administrador la apruebe.
+                Uso excepcional: siempre queda en "Pendiente de revisión" hasta que el administrador la apruebe.
               </p>
-              <Button onClick={submitClase} className="w-full">Registrar clase</Button>
+              <Button onClick={submitClase} className="w-full">Agregar clase manual</Button>
+
             </div>
           </DialogContent>
         </Dialog>
