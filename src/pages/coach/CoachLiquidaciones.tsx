@@ -444,29 +444,35 @@ const CoachLiquidaciones = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowClaseForm(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Agregar clase manual
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowViaticoForm(true)}
-          >
-            <Plus className="w-4 h-4 mr-2" /> Registrar viático
-          </Button>
+        <div className="space-y-2">
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowClaseForm(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Agregar clase manual
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowViaticoForm(true)}
+            >
+              <Plus className="w-4 h-4 mr-2" /> Registrar viático
+            </Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground text-center">
+            Uso excepcional · requiere revisión de Admin. Tus clases de agenda y turnos se confirman desde “Mis clases de hoy”.
+          </p>
         </div>
 
         {/* Class registration dialog */}
         <Dialog open={showClaseForm} onOpenChange={setShowClaseForm}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Registrar clase realizada</DialogTitle>
+              <DialogTitle>Agregar clase manual</DialogTitle>
             </DialogHeader>
+
             <div className="space-y-3">
               <div>
                 <label className="text-sm text-muted-foreground mb-1 block">Fecha</label>
