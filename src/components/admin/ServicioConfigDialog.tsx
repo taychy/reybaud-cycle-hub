@@ -87,6 +87,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
     setPagoModo((servicio.pago_modo as any) || "ninguno");
     setPagoSena(servicio.pago_monto_sena != null ? String(servicio.pago_monto_sena) : "");
     setFields(Array.isArray(servicio.form_fields) ? servicio.form_fields : []);
+    setHonorarioId((servicio as any).honorario_id || "");
   }, [servicio]);
 
   const addField = () => {
@@ -133,6 +134,7 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
         pago_modo: pagoModo,
         pago_monto_sena: pagoModo === "sena" ? Number(pagoSena) : null,
         form_fields: fields as any,
+        honorario_id: honorarioId || null,
       } as any)
       .eq("id", servicio.id);
     setSaving(false);
@@ -184,6 +186,23 @@ export function ServicioConfigDialog({ servicio, open, onOpenChange, onSaved }: 
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div>
+                <Label className="text-xs">Honorario del profesor</Label>
+                <Select value={honorarioId || "none"} onValueChange={v => setHonorarioId(v === "none" ? "" : v)}>
+                  <SelectTrigger><SelectValue placeholder="Sin honorario" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sin honorario</SelectItem>
+                    {honorarios.map(h => (
+                      <SelectItem key={h.id} value={h.id}>
+                        {h.nombre_concepto} · ${Number(h.valor).toLocaleString("es-AR")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Es lo que se le liquida al profesor por cada turno realizado. No es el precio que paga el alumno.
+                </p>
               </div>
               <div>
                 <Label className="text-xs">Anticipación mínima para reservar (horas)</Label>
