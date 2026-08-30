@@ -40,7 +40,7 @@ type Coach = { id: string; nombre: string };
 const money = (n: number) => `$${Number(n || 0).toLocaleString("es-AR")}`;
 
 const AdminLiquidaciones = () => {
-  const [tab, setTab] = useState("resumen");
+  const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "resumen");
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedCoach, setSelectedCoach] = useState<string>("all");
   const [mes, setMes] = useState(() => {
