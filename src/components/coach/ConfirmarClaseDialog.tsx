@@ -61,18 +61,15 @@ export default function ConfirmarClaseDialog({ open, onOpenChange, slot, fecha, 
         fotoUrl = signed?.signedUrl ?? null;
       }
 
-      const { error } = await supabase.from("clases_dictadas").insert({
-        coach_id: slot.coach_id,
-        agenda_id: slot.id,
-        sede_id: slot.sede_id,
-        honorario_id: slot.honorario_id,
-        fecha,
-        hora_inicio: slot.hora_inicio,
-        hora_fin: slot.hora_fin,
-        foto_grupal_url: fotoUrl,
-        notas: notas.trim() || null,
-      } as any);
+      // La lógica económica (honorario, regla, movimiento) vive en la base.
+      const { error } = await supabase.rpc("confirmar_clase_grupal" as any, {
+        p_agenda_id: slot.id,
+        p_fecha: fecha,
+        p_foto_url: fotoUrl,
+        p_notas: notas.trim() || null,
+      });
       if (error) throw error;
+
 
       toast({
         title: "Clase confirmada",
