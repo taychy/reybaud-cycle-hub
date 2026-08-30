@@ -9564,6 +9564,7 @@ export type Database = {
           email_confirmacion_enabled: boolean
           email_recordatorio_enabled: boolean
           form_fields: Json
+          honorario_id: string | null
           ics_adjunto: boolean
           id: string
           modalidad: string | null
@@ -9594,6 +9595,7 @@ export type Database = {
           email_confirmacion_enabled?: boolean
           email_recordatorio_enabled?: boolean
           form_fields?: Json
+          honorario_id?: string | null
           ics_adjunto?: boolean
           id?: string
           modalidad?: string | null
@@ -9624,6 +9626,7 @@ export type Database = {
           email_confirmacion_enabled?: boolean
           email_recordatorio_enabled?: boolean
           form_fields?: Json
+          honorario_id?: string | null
           ics_adjunto?: boolean
           id?: string
           modalidad?: string | null
@@ -9642,6 +9645,13 @@ export type Database = {
           whatsapp_recordatorio_enabled?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "servicios_turnera_honorario_id_fkey"
+            columns: ["honorario_id"]
+            isOneToOne: false
+            referencedRelation: "honorarios"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "servicios_turnera_sede_id_fkey"
             columns: ["sede_id"]
@@ -13029,6 +13039,18 @@ export type Database = {
         Args: { _id: string; _motivo?: string }
         Returns: boolean
       }
+      aplicar_regla_liquidacion: {
+        Args: {
+          p_estado_operativo: string
+          p_tipo_actividad: string
+          p_valor_base: number
+        }
+        Returns: {
+          estado_economico: string
+          nota: string
+          total: number
+        }[]
+      }
       aplicar_saldo_disponible: {
         Args: {
           _monto: number
@@ -13184,6 +13206,17 @@ export type Database = {
         Args: { p_solicitud_id: string }
         Returns: undefined
       }
+      cargar_clase_manual_coach: {
+        Args: {
+          p_fecha: string
+          p_grupo?: string
+          p_honorario_id?: string
+          p_nombre_externo?: string
+          p_observaciones?: string
+          p_tipo_actividad: string
+        }
+        Returns: string
+      }
       cerrar_vehiculo_carga: { Args: { _carga_id: string }; Returns: undefined }
       check_admin_or_coach_email: { Args: { _email: string }; Returns: boolean }
       check_programa_enrollment: {
@@ -13243,6 +13276,15 @@ export type Database = {
           p_room_id: string
         }
         Returns: Json
+      }
+      confirmar_clase_grupal: {
+        Args: {
+          p_agenda_id: string
+          p_fecha: string
+          p_foto_url?: string
+          p_notas?: string
+        }
+        Returns: string
       }
       consume_survey_token: { Args: { _token: string }; Returns: boolean }
       consumir_clase_bono: {
@@ -13703,6 +13745,16 @@ export type Database = {
         Args: { _token: string }
         Returns: Json
       }
+      get_liquidaciones_alertas: {
+        Args: never
+        Returns: {
+          pendientes_carga_coach: number
+          pendientes_count: number
+          pendientes_monto: number
+          pendientes_sin_honorario: number
+          turnera_sin_movimiento: number
+        }[]
+      }
       get_my_reservation: {
         Args: { _external_token?: string; _reservation_id: string }
         Returns: Json
@@ -14031,6 +14083,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      marcar_reserva_turnera_realizada: {
+        Args: { p_reserva_id: string }
+        Returns: undefined
+      }
       mark_admin_section_seen: {
         Args: { p_section_key: string }
         Returns: undefined
@@ -14136,6 +14192,10 @@ export type Database = {
           p_monto: number
         }
         Returns: undefined
+      }
+      preparar_liquidacion_mensual: {
+        Args: { p_coach_id: string; p_mes: string }
+        Returns: string
       }
       preview_baja_programa: {
         Args: { _suscripcion_id: string }
