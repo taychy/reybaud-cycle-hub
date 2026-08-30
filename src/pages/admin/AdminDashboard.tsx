@@ -490,7 +490,36 @@ const AdminDashboard = () => {
         });
       }
 
+      // Liquidaciones que necesitan revisión del admin
+      try {
+        const { data: liqAlertas } = await supabase.rpc("get_liquidaciones_alertas" as any);
+        const la: any = Array.isArray(liqAlertas) ? liqAlertas[0] : liqAlertas;
+        const pendientes = Number(la?.pendientes_count || 0);
+        const turneraSinMov = Number(la?.turnera_sin_movimiento || 0);
+        if (pendientes > 0) {
+          alertsList.push({
+            type: "warning",
+            icon: FileText,
+            message: `${pendientes} movimiento(s) de liquidación pendiente(s) de revisión`,
+            count: pendientes,
+            link: "/admin/liquidaciones?tab=revisar",
+            bucket: "hoy",
+          });
+        }
+        if (turneraSinMov > 0) {
+          alertsList.push({
+            type: "info",
+            icon: CalendarClock,
+            message: `${turneraSinMov} turno(s) realizado(s) sin honorario liquidado`,
+            count: turneraSinMov,
+            link: "/admin/liquidaciones?tab=revisar",
+            bucket: "sin_fecha",
+          });
+        }
+      } catch { /* alerta opcional */ }
+
       setAlerts(alertsList);
+
       setDatedItems(dated.sort((a, b) => (a.date < b.date ? -1 : 1)));
 
 
