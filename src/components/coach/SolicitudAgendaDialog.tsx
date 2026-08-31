@@ -9,7 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import { DIAS_SEMANA, hhmm } from "@/lib/agenda";
-import { TIPO_SOLICITUD_LABEL, type SolicitudTipo } from "@/lib/agendaSolicitudes";
+import { TIPO_SOLICITUD_LABEL, type SolicitudTipo, type TipoAjuste } from "@/lib/agendaSolicitudes";
+
 
 export type SolicitudSeed = {
   tipo: SolicitudTipo;
@@ -43,10 +44,13 @@ export const SolicitudAgendaDialog = ({ seed, sedes, servicios, onOpenChange, on
     alcance: "desde_fecha" as "solo_fecha" | "desde_fecha" | "toda_serie",
     fecha_efectiva: "",
     motivo: "",
+    tipo_ajuste: "bloquear" as TipoAjuste,
   });
 
   const esGrupal = (seed?.tipo || "").startsWith("grupal");
+  const esAjuste = (seed?.tipo || "").startsWith("ajuste");
   const esEdicionSerie = seed?.tipo === "grupal_editar";
+
 
   useEffect(() => {
     if (!seed) return;
