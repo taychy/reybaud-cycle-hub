@@ -9,7 +9,7 @@ import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } f
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
 import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
 import {
-  diasAfuera, esPrueba, esPruebaActiva, resultadoClass, resultadoLabel, tipoRegistro,
+  esPrueba, esPruebaActiva, resultadoClass, resultadoLabel, tipoRegistro,
 } from "@/lib/pruebas";
 
 type Cambio = any;
