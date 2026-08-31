@@ -359,6 +359,10 @@ export const SolicitudAgendaDialog = ({ seed, sedes, servicios, onOpenChange, on
               <Input type="date" value={form.fecha_efectiva} onChange={(e) => setForm({ ...form, fecha_efectiva: e.target.value })} />
             </div>
           )}
+            </>
+          )}
+
+
 
           <div className="space-y-1.5">
             <Label>Motivo / comentario</Label>
