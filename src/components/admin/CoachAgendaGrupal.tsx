@@ -150,8 +150,8 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
   };
 
   // Group items by day
-  const byDay = DIAS.map((nombre, idx) => ({
-    nombre,
+  const byDay = ORDEN_SEMANA_LUNES.map((idx) => ({
+    nombre: DIAS[idx],
     items: items.filter(i => i.dia_semana === idx),
   })).filter(d => d.items.length > 0);
 
