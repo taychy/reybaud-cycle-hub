@@ -83,7 +83,7 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ honorario_id: "", dia_semana: 0, hora_inicio: "08:00", hora_fin: "09:30", grupo: "General", sede_id: "", activo: true, notas: "" });
+    setForm({ honorario_id: "", dia_semana: 1, hora_inicio: "08:00", hora_fin: "09:30", grupo: "General", sede_id: "", activo: true, notas: "" });
     setShowForm(true);
   };
 
