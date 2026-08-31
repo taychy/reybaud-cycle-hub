@@ -198,8 +198,11 @@ const CoachAgenda = () => {
                               {e.tipo === "grupal" ? "Clase grupal" : "Turno"}
                             </Badge>
                             {e.tipo === "grupal" && (
-                              <Badge variant="secondary" className="text-[10px]">↻ Semanal</Badge>
+                              <Badge variant="secondary" className="text-[10px]">
+                                {esClasePuntual(e.raw) ? "Puntual" : "↻ Semanal"}
+                              </Badge>
                             )}
+
                             {e.estado === "realizada" && (
                               <Badge variant="outline" className="text-[10px]">Realizada</Badge>
                             )}
