@@ -533,7 +533,7 @@ const AdminTurnera = () => {
         </TabsContent>
 
         <TabsContent value="disponibilidad" className="space-y-4 mt-4">
-          <DisponibilidadEditor
+          <DisponibilidadManager
             coaches={coaches}
             servicios={servicios}
             sedes={sedes}
