@@ -47,7 +47,7 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
 
   useEffect(() => { load(); }, [load]);
 
-  const run = async (id: string, fn: () => Promise<{ error: any }>, okTitle: string) => {
+  const run = async (id: string, fn: () => PromiseLike<{ error: any }>, okTitle: string) => {
     setBusy(id);
     const { error } = await fn();
     setBusy(null);
