@@ -334,13 +334,23 @@ Deno.serve(async (req) => {
           { apiKey, sendUrl: Deno.env.get('LOVABLE_SEND_URL') }
         )
 
-        // Log success
+        // Log success. Guardamos además el snapshot exacto de lo enviado para
+        // poder auditar el histórico aunque la plantilla cambie después.
+        // Sólo aplica a envíos NUEVOS: no se migran logs anteriores.
         await supabase.from('email_send_log').insert({
           message_id: payload.message_id,
           template_name: payload.label || queue,
           recipient_email: payload.to,
           status: 'sent',
+          metadata: {
+            snapshot: {
+              subject: typeof payload.subject === 'string' ? payload.subject : null,
+              html: typeof payload.html === 'string' ? payload.html.slice(0, 200000) : null,
+              text: typeof text === 'string' ? text.slice(0, 50000) : null,
+            },
+          },
         })
+
 
         // Delete from queue
         const { error: delError } = await supabase.rpc('delete_email', {
