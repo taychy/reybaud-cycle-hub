@@ -327,7 +327,7 @@ const CoachAgenda = () => {
 
             <TabsContent value="ausencias" className="mt-4 space-y-6">
               <AusenciasCoachManager coachId={coach.id} coachNombre={coach.nombre} readOnly />
-              <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} readOnly />
+              <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} readOnly onPropose={(tipo, entidad) => solicitar(tipo as SolicitudSeed["tipo"], entidad)} />
             </TabsContent>
 
           </Tabs>
