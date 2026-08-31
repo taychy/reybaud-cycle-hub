@@ -428,12 +428,34 @@ const AdminAgenda = () => {
             : "Clase grupal recurrente creada",
       });
 
+    } else if (form.disp_modalidad === "puntual") {
+      // Cambio puntual en una fecha → `disponibilidad_ajustada` (no hay serie semanal nueva).
+      if (!form.fecha_ajuste) {
+        setSaving(false);
+        toast({ title: "Elegí la fecha del cambio puntual", variant: "destructive" });
+        return;
+      }
+      const { error } = await supabase.from("disponibilidad_ajustada" as any).insert({
+        coach_id: form.coach_id,
+        fecha: form.fecha_ajuste,
+        tipo: form.tipo_ajuste,
+        hora_inicio: form.tipo_ajuste === "bloquear" ? null : `${form.hora_inicio}:00`,
+        hora_fin: form.tipo_ajuste === "bloquear" ? null : `${form.hora_fin}:00`,
+        motivo: form.motivo_ajuste.trim() || null,
+      } as any);
+      setSaving(false);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({
+        title: "Cambio puntual guardado",
+        description: `${TIPO_AJUSTE_LABEL[form.tipo_ajuste]} · ${form.fecha_ajuste}`,
+      });
     } else {
       if (form.servicio_ids.length === 0) {
         setSaving(false);
         toast({ title: "Elegí al menos un servicio", variant: "destructive" });
         return;
       }
+
       const actuales = editBloque ? editBloque.servicio_ids : [];
       const { toAdd, toRemove } = diffServicios(actuales, form.servicio_ids);
 
