@@ -5,6 +5,9 @@ import {
   TIPO_SOLICITUD_LABEL,
   camposModificados,
   resumenBloque,
+  resumenAjuste,
+  esSolicitudAjustePuntual,
+
 } from "./agendaSolicitudes";
 
 describe("etiquetas de solicitudes de agenda", () => {
