@@ -45,7 +45,7 @@ function toIso(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly = false }: { coaches: Coach[]; lockedCoachId?: string; readOnly?: boolean }) {
+export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly = false, onPropose }: { coaches: Coach[]; lockedCoachId?: string; readOnly?: boolean; onPropose?: (tipo: "ajuste_crear" | "ajuste_eliminar", entidad: any) => void }) {
   const [ajustes, setAjustes] = useState<Ajuste[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
