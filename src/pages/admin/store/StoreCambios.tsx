@@ -18,7 +18,7 @@ type Cambio = any;
 const AdminCambios = () => {
   const [items, setItems] = useState<Cambio[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"nuevos" | "seguimiento" | "cerrados">("nuevos");
+  const [tab, setTab] = useState<"nuevos" | "seguimiento" | "pruebas" | "cerrados">("nuevos");
   const [selected, setSelected] = useState<Cambio | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const { toast } = useToast();
@@ -142,12 +142,15 @@ const AdminCambios = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
           <TabsTrigger value="nuevos">
             🔴 Nuevos <span className="ml-1 text-[10px] opacity-70">({buckets.nuevos.length})</span>
           </TabsTrigger>
           <TabsTrigger value="seguimiento">
             👀 En seguimiento <span className="ml-1 text-[10px] opacity-70">({buckets.seguimiento.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="pruebas">
+            🧪 Pruebas <span className="ml-1 text-[10px] opacity-70">({buckets.pruebas.filter(esPruebaActiva).length})</span>
           </TabsTrigger>
           <TabsTrigger value="cerrados">
             ✅ Cerrados <span className="ml-1 text-[10px] opacity-70">({buckets.cerrados.length})</span>
@@ -155,8 +158,15 @@ const AdminCambios = () => {
         </TabsList>
         <TabsContent value="nuevos" className="mt-3">{renderList(buckets.nuevos)}</TabsContent>
         <TabsContent value="seguimiento" className="mt-3">{renderList(buckets.seguimiento)}</TabsContent>
+        <TabsContent value="pruebas" className="mt-3 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Prendas enviadas a prueba: no son venta ni cambio. Se gestionan desde el detalle del pedido.
+          </p>
+          {renderList(buckets.pruebas)}
+        </TabsContent>
         <TabsContent value="cerrados" className="mt-3">{renderList(buckets.cerrados)}</TabsContent>
       </Tabs>
+
       {totalAbiertos > 0 && (
         <p className="text-[11px] text-muted-foreground">
           {totalAbiertos} cambio{totalAbiertos === 1 ? "" : "s"} abierto{totalAbiertos === 1 ? "" : "s"} esperando cierre.
