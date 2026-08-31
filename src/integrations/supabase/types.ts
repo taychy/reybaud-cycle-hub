@@ -12992,6 +12992,26 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_create_turnera_reservation: {
+        Args: {
+          p_alumno_id?: string
+          p_apellido: string
+          p_celular?: string
+          p_coach_id: string
+          p_documento?: string
+          p_email: string
+          p_estado_economico?: string
+          p_fecha: string
+          p_hora_fin: string
+          p_hora_inicio: string
+          p_nombre: string
+          p_nota?: string
+          p_precio?: number
+          p_sede_id: string
+          p_servicio_id: string
+        }
+        Returns: string
+      }
       admin_get_or_create_cuenta_token: {
         Args: { p_alumno_id: string }
         Returns: {
