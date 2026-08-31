@@ -1,0 +1,640 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/hooks/use-toast";
+import {
+  AlertTriangle,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Clock,
+  MapPin,
+  Plus,
+  User,
+  Users,
+} from "lucide-react";
+import {
+  DIAS_SEMANA,
+  addDays,
+  agruparDisponibilidad,
+  detectarConflictos,
+  diffServicios,
+  hhmm,
+  ocurrenciasEnSemana,
+  parseIso,
+  startOfWeek,
+  toLocalIso,
+  weekDays,
+  type AgendaEvento,
+} from "@/lib/agenda";
+import { buildGrupoOptions } from "@/lib/coachContact";
+import { effectiveCoachSedes } from "@/lib/coachSedes";
+
+type TipoFiltro = "todos" | "grupal" | "turno" | "disponibilidad";
+
+const TIPO_LABEL: Record<string, string> = {
+  grupal: "Clase grupal",
+  turno: "Turno",
+  disponibilidad: "Disponibilidad",
+};
+
+const AdminAgenda = () => {
+  const [monday, setMonday] = useState<Date>(() => startOfWeek(new Date()));
+  const [sedeFiltro, setSedeFiltro] = useState("all");
+  const [coachFiltro, setCoachFiltro] = useState("all");
+  const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
+
+  const [coaches, setCoaches] = useState<any[]>([]);
+  const [sedes, setSedes] = useState<any[]>([]);
+  const [servicios, setServicios] = useState<any[]>([]);
+  const [honorarios, setHonorarios] = useState<any[]>([]);
+  const [grupal, setGrupal] = useState<any[]>([]);
+  const [turnos, setTurnos] = useState<any[]>([]);
+  const [disp, setDisp] = useState<any[]>([]);
+  const [coachSedes, setCoachSedes] = useState<any[]>([]);
+  const [gruposExistentes, setGruposExistentes] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const dias = useMemo(() => weekDays(monday), [monday]);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    const desde = dias[0];
+    const hasta = dias[6];
+    const [coachRes, sedeRes, servRes, honRes, agRes, resRes, dispRes, csRes, alumnosRes] =
+      await Promise.all([
+        supabase.from("coaches").select("id, nombre, estado, sede_id").order("nombre"),
+        supabase.from("sedes").select("id, nombre, activa").order("nombre"),
+        supabase.from("servicios_turnera").select("id, nombre, activo, archivado, duracion_minutos").order("nombre"),
+        supabase.from("honorarios").select("id, nombre_concepto, valor").eq("activo", true).eq("categoria", "clase"),
+        supabase.from("agenda_grupal").select("*"),
+        supabase
+          .from("reservas_turnera")
+          .select("id, fecha, hora_inicio, hora_fin, coach_id, sede_id, nombre, apellido, estado_operativo, pago_estado, servicio_id")
+          .gte("fecha", desde)
+          .lte("fecha", hasta),
+        supabase.from("disponibilidad_coaches").select("*"),
+        supabase.from("coach_sedes").select("coach_id, sede_id"),
+        supabase.from("alumnos").select("grupo").limit(2000),
+      ]);
+    setCoaches((coachRes.data as any[]) || []);
+    setSedes((sedeRes.data as any[]) || []);
+    setServicios((servRes.data as any[]) || []);
+    setHonorarios((honRes.data as any[]) || []);
+    setGrupal((agRes.data as any[]) || []);
+    setTurnos((resRes.data as any[]) || []);
+    setDisp((dispRes.data as any[]) || []);
+    setCoachSedes((csRes.data as any[]) || []);
+    setGruposExistentes(((alumnosRes.data as any[]) || []).map((a) => a.grupo));
+    setLoading(false);
+  }, [dias]);
+
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  const coachNombre = (id: string | null) => coaches.find((c) => c.id === id)?.nombre || "—";
+  const sedeNombre = (id: string | null) => (id ? sedes.find((s) => s.id === id)?.nombre || null : null);
+  const servicioNombre = (id: string | null) => servicios.find((s) => s.id === id)?.nombre || "Turno";
+
+  // ---------------- Eventos unificados ----------------
+  const eventos: AgendaEvento[] = useMemo(() => {
+    const out: AgendaEvento[] = [];
+
+    for (const g of grupal) {
+      if (g.activo === false) continue;
+      for (const fecha of ocurrenciasEnSemana(dias, g.dia_semana)) {
+        out.push({
+          id: `g-${g.id}-${fecha}`,
+          tipo: "grupal",
+          fecha,
+          hora_inicio: hhmm(g.hora_inicio),
+          hora_fin: hhmm(g.hora_fin),
+          coach_id: g.coach_id,
+          coach_nombre: coachNombre(g.coach_id),
+          sede_id: g.sede_id,
+          sede_nombre: sedeNombre(g.sede_id),
+          titulo: g.grupo || "Clase grupal",
+          detalle: g.notas,
+          raw: g,
+        });
+      }
+    }
+
+    for (const t of turnos) {
+      if ((t.estado_operativo || "").startsWith("cancelada")) continue;
+      out.push({
+        id: `t-${t.id}`,
+        tipo: "turno",
+        fecha: t.fecha,
+        hora_inicio: hhmm(t.hora_inicio),
+        hora_fin: hhmm(t.hora_fin),
+        coach_id: t.coach_id,
+        coach_nombre: coachNombre(t.coach_id),
+        sede_id: t.sede_id,
+        sede_nombre: sedeNombre(t.sede_id),
+        titulo: servicioNombre(t.servicio_id),
+        detalle: `${t.nombre || ""} ${t.apellido || ""}`.trim(),
+        estado: t.estado_operativo,
+        raw: t,
+      });
+    }
+
+    for (const b of agruparDisponibilidad(disp.filter((d) => d.activo !== false))) {
+      for (const fecha of ocurrenciasEnSemana(dias, b.dia_semana)) {
+        out.push({
+          id: `d-${b.key}-${fecha}`,
+          tipo: "disponibilidad",
+          fecha,
+          hora_inicio: b.hora_inicio,
+          hora_fin: b.hora_fin,
+          coach_id: b.coach_id,
+          coach_nombre: coachNombre(b.coach_id),
+          sede_id: b.sede_id,
+          sede_nombre: sedeNombre(b.sede_id),
+          titulo: "Disponible para turnera",
+          chips: b.servicio_ids.map((s) => servicioNombre(s)),
+          raw: b,
+        });
+      }
+    }
+
+    return out.sort(
+      (a, b) => a.fecha.localeCompare(b.fecha) || a.hora_inicio.localeCompare(b.hora_inicio),
+    );
+  }, [grupal, turnos, disp, dias, coaches, sedes, servicios]);
+
+  const filtrados = useMemo(
+    () =>
+      eventos.filter((e) => {
+        if (tipoFiltro !== "todos" && e.tipo !== tipoFiltro) return false;
+        if (tipoFiltro === "todos" && e.tipo === "disponibilidad") return false;
+        if (sedeFiltro !== "all" && (e.sede_id || "none") !== sedeFiltro) return false;
+        if (coachFiltro !== "all" && e.coach_id !== coachFiltro) return false;
+        return true;
+      }),
+    [eventos, tipoFiltro, sedeFiltro, coachFiltro],
+  );
+
+  const conflictos = useMemo(() => detectarConflictos(eventos), [eventos]);
+  const conflictosVisibles = filtrados.filter((e) => conflictos.has(e.id));
+
+  // ---------------- Diálogo "Agregar bloque" ----------------
+  const [openForm, setOpenForm] = useState(false);
+  const [editBloque, setEditBloque] = useState<any | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({
+    coach_id: "",
+    sede_id: "none",
+    dia_semana: "1",
+    hora_inicio: "09:00",
+    hora_fin: "10:00",
+    tipo: "grupal" as "grupal" | "turnera",
+    grupo: "G1",
+    honorario_id: "none",
+    notas: "",
+    servicio_ids: [] as string[],
+  });
+
+  const serviciosActivos = servicios.filter((s) => s.activo !== false && !s.archivado);
+  const grupoOptions = useMemo(() => buildGrupoOptions(gruposExistentes), [gruposExistentes]);
+
+  const sedesDelCoach = useMemo(() => {
+    if (!form.coach_id) return [];
+    const rel = coachSedes.filter((cs) => cs.coach_id === form.coach_id).map((cs) => cs.sede_id);
+    const legacy = coaches.find((c) => c.id === form.coach_id)?.sede_id ?? null;
+    return effectiveCoachSedes(rel, legacy);
+  }, [form.coach_id, coachSedes, coaches]);
+
+  const sedeNoAsignada =
+    form.sede_id !== "none" && form.coach_id && !sedesDelCoach.includes(form.sede_id);
+
+  const openCreate = () => {
+    setEditBloque(null);
+    setForm((f) => ({
+      ...f,
+      coach_id: coachFiltro !== "all" ? coachFiltro : coaches[0]?.id || "",
+      sede_id: sedeFiltro !== "all" ? sedeFiltro : "none",
+      tipo: "grupal",
+      servicio_ids: [],
+    }));
+    setOpenForm(true);
+  };
+
+  const openEditDisponibilidad = (bloque: any) => {
+    setEditBloque(bloque);
+    setForm({
+      coach_id: bloque.coach_id,
+      sede_id: bloque.sede_id || "none",
+      dia_semana: String(bloque.dia_semana),
+      hora_inicio: bloque.hora_inicio,
+      hora_fin: bloque.hora_fin,
+      tipo: "turnera",
+      grupo: "G1",
+      honorario_id: "none",
+      notas: "",
+      servicio_ids: [...bloque.servicio_ids],
+    });
+    setOpenForm(true);
+  };
+
+  const toggleServicio = (id: string) =>
+    setForm((f) => ({
+      ...f,
+      servicio_ids: f.servicio_ids.includes(id)
+        ? f.servicio_ids.filter((s) => s !== id)
+        : [...f.servicio_ids, id],
+    }));
+
+  const guardarBloque = async () => {
+    if (!form.coach_id) { toast({ title: "Elegí un profesor", variant: "destructive" }); return; }
+    if (form.hora_fin <= form.hora_inicio) {
+      toast({ title: "La hora de fin debe ser posterior al inicio", variant: "destructive" });
+      return;
+    }
+    const sede_id = form.sede_id === "none" ? null : form.sede_id;
+    const dia = Number(form.dia_semana);
+    setSaving(true);
+
+    // Si la sede no está asignada al coach, la agregamos (no bloqueamos datos existentes).
+    if (sede_id && !sedesDelCoach.includes(sede_id)) {
+      await supabase.from("coach_sedes").insert({ coach_id: form.coach_id, sede_id } as any);
+    }
+
+    if (form.tipo === "grupal") {
+      const payload = {
+        coach_id: form.coach_id,
+        sede_id,
+        dia_semana: dia,
+        hora_inicio: form.hora_inicio,
+        hora_fin: form.hora_fin,
+        grupo: form.grupo,
+        honorario_id: form.honorario_id === "none" ? null : form.honorario_id,
+        notas: form.notas || null,
+        activo: true,
+      };
+      const { error } = await supabase.from("agenda_grupal").insert(payload as any);
+      setSaving(false);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({ title: "Clase grupal agregada" });
+    } else {
+      if (form.servicio_ids.length === 0) {
+        setSaving(false);
+        toast({ title: "Elegí al menos un servicio", variant: "destructive" });
+        return;
+      }
+      const actuales = editBloque ? editBloque.servicio_ids : [];
+      const { toAdd, toRemove } = diffServicios(actuales, form.servicio_ids);
+
+      if (editBloque) {
+        // Sincronizar horario/sede del conjunto
+        await supabase
+          .from("disponibilidad_coaches")
+          .update({
+            sede_id,
+            dia_semana: dia,
+            hora_inicio: form.hora_inicio,
+            hora_fin: form.hora_fin,
+          } as any)
+          .in("id", editBloque.row_ids);
+        for (const sv of toRemove) {
+          await supabase
+            .from("disponibilidad_coaches")
+            .delete()
+            .eq("coach_id", editBloque.coach_id)
+            .eq("servicio_id", sv)
+            .eq("dia_semana", editBloque.dia_semana)
+            .eq("hora_inicio", editBloque.hora_inicio)
+            .eq("hora_fin", editBloque.hora_fin);
+        }
+      }
+
+      for (const sv of toAdd) {
+        const dup = disp.some(
+          (d) =>
+            d.coach_id === form.coach_id &&
+            d.servicio_id === sv &&
+            (d.sede_id ?? null) === sede_id &&
+            d.dia_semana === dia &&
+            hhmm(d.hora_inicio) === form.hora_inicio &&
+            hhmm(d.hora_fin) === form.hora_fin,
+        );
+        if (dup) continue;
+        await supabase.from("disponibilidad_coaches").insert({
+          coach_id: form.coach_id,
+          servicio_id: sv,
+          sede_id,
+          dia_semana: dia,
+          hora_inicio: form.hora_inicio,
+          hora_fin: form.hora_fin,
+        } as any);
+      }
+      setSaving(false);
+      toast({ title: editBloque ? "Bloque actualizado" : "Bloque de trabajo agregado" });
+    }
+
+    setOpenForm(false);
+    setEditBloque(null);
+    loadAll();
+  };
+
+  const rangoLabel = `${parseIso(dias[0]).toLocaleDateString("es-AR", { day: "numeric", month: "short" })} – ${parseIso(dias[6]).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}`;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-3 flex-wrap">
+        <div>
+          <h1 className="text-lg font-heading font-semibold uppercase tracking-wider text-foreground flex items-center gap-2">
+            <CalendarDays className="w-5 h-5 text-primary" /> Agenda
+          </h1>
+          <p className="text-xs text-muted-foreground">
+            Clases grupales, turnos y disponibilidad en una sola vista semanal.
+          </p>
+        </div>
+        <Button variant="gold" size="sm" onClick={openCreate}>
+          <Plus className="w-3.5 h-3.5 mr-1" /> Agregar bloque
+        </Button>
+      </div>
+
+      {/* Filtros */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-3 space-y-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonday((m) => addDays(m, -7))}>
+              <ChevronLeft className="w-4 h-4" />
+            </Button>
+            <Button variant="outline" size="sm" className="h-8" onClick={() => setMonday(startOfWeek(new Date()))}>
+              Hoy
+            </Button>
+            <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonday((m) => addDays(m, 7))}>
+              <ChevronRight className="w-4 h-4" />
+            </Button>
+            <span className="text-sm font-medium text-foreground ml-1">{rangoLabel}</span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <Select value={sedeFiltro} onValueChange={setSedeFiltro}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Sede" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas las sedes</SelectItem>
+                <SelectItem value="none">Sin sede</SelectItem>
+                {sedes.filter((s) => s.activa !== false).map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={coachFiltro} onValueChange={setCoachFiltro}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Profesor" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos los profesores</SelectItem>
+                {coaches.filter((c) => c.estado !== "inactivo").map((c) => (
+                  <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
+              <SelectTrigger className="h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos (clases + turnos)</SelectItem>
+                <SelectItem value="grupal">Clases grupales</SelectItem>
+                <SelectItem value="turno">Turnos</SelectItem>
+                <SelectItem value="disponibilidad">Disponibilidad</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {conflictosVisibles.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2">
+          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+          <p className="text-xs text-destructive">
+            {conflictosVisibles.length} evento(s) con conflicto esta semana (mismo profesor superpuesto).
+          </p>
+        </div>
+      )}
+
+      {loading ? (
+        <p className="text-sm text-muted-foreground text-center py-10 animate-pulse">Cargando agenda…</p>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {dias.map((iso) => {
+            const delDia = filtrados.filter((e) => e.fecha === iso);
+            const esHoy = iso === toLocalIso(new Date());
+            return (
+              <Card key={iso} className={`bg-card border-border ${esHoy ? "ring-1 ring-primary/50" : ""}`}>
+                <CardContent className="p-3 space-y-2">
+                  <div className="flex items-baseline justify-between">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-primary">
+                      {DIAS_SEMANA[parseIso(iso).getDay()]}{" "}
+                      <span className="text-muted-foreground font-normal normal-case">
+                        {parseIso(iso).toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+                      </span>
+                    </h3>
+                    {esHoy && <Badge variant="outline" className="text-[10px]">Hoy</Badge>}
+                  </div>
+
+                  {delDia.length === 0 ? (
+                    <p className="text-xs text-muted-foreground/70 italic py-2">Sin actividad</p>
+                  ) : (
+                    delDia.map((e) => {
+                      const enConflicto = conflictos.has(e.id);
+                      return (
+                        <div
+                          key={e.id}
+                          onClick={() => e.tipo === "disponibilidad" && openEditDisponibilidad(e.raw)}
+                          className={`rounded-md border px-2.5 py-2 space-y-1 ${
+                            e.tipo === "disponibilidad"
+                              ? "border-dashed border-border/60 bg-muted/20 cursor-pointer"
+                              : enConflicto
+                                ? "border-destructive/50 bg-destructive/5"
+                                : "border-border bg-secondary/40"
+                          }`}
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-sm font-medium text-foreground flex items-center gap-1">
+                              <Clock className="w-3 h-3 text-muted-foreground" />
+                              {e.hora_inicio}–{e.hora_fin}
+                            </span>
+                            <Badge variant="outline" className="text-[10px]">{TIPO_LABEL[e.tipo]}</Badge>
+                            {enConflicto && (
+                              <Badge variant="destructive" className="text-[10px]">Conflicto</Badge>
+                            )}
+                          </div>
+                          <p className="text-[13px] text-foreground">{e.titulo}</p>
+                          <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
+                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{e.coach_nombre}</span>
+                            {e.sede_nombre && (
+                              <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{e.sede_nombre}</span>
+                            )}
+                            {e.detalle && (
+                              <span className="flex items-center gap-1"><User className="w-3 h-3" />{e.detalle}</span>
+                            )}
+                          </div>
+                          {e.chips && e.chips.length > 0 && (
+                            <div className="flex flex-wrap gap-1 pt-0.5">
+                              {e.chips.map((c) => (
+                                <Badge key={c} variant="secondary" className="text-[10px]">{c}</Badge>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Diálogo agregar / editar bloque */}
+      <Dialog open={openForm} onOpenChange={(o) => { setOpenForm(o); if (!o) setEditBloque(null); }}>
+        <DialogContent className="sm:max-w-md bg-card border-border max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading uppercase tracking-wider text-sm">
+              {editBloque ? "Editar bloque de trabajo" : "Nuevo bloque"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-3 py-1">
+            <div className="space-y-1.5">
+              <Label>Profesor</Label>
+              <Select value={form.coach_id} onValueChange={(v) => setForm({ ...form, coach_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Elegí un profesor" /></SelectTrigger>
+                <SelectContent>
+                  {coaches.filter((c) => c.estado !== "inactivo").map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Sede</Label>
+              <Select value={form.sede_id} onValueChange={(v) => setForm({ ...form, sede_id: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">Sin sede</SelectItem>
+                  {sedes.filter((s) => s.activa !== false).map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.nombre}{sedesDelCoach.includes(s.id) ? "" : " · no asignada"}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {sedeNoAsignada && (
+                <p className="text-[11px] text-amber-500">
+                  Esta sede no está asignada al profesor: se agregará automáticamente al guardar.
+                </p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-2">
+              <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                <Label>Día</Label>
+                <Select value={form.dia_semana} onValueChange={(v) => setForm({ ...form, dia_semana: v })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6, 0].map((i) => (
+                      <SelectItem key={i} value={String(i)}>{DIAS_SEMANA[i]}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Inicio</Label>
+                <Input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Fin</Label>
+                <Input type="time" value={form.hora_fin} onChange={(e) => setForm({ ...form, hora_fin: e.target.value })} />
+              </div>
+            </div>
+
+            {!editBloque && (
+              <div className="space-y-1.5">
+                <Label>Tipo de bloque</Label>
+                <Select value={form.tipo} onValueChange={(v) => setForm({ ...form, tipo: v as any })}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="grupal">Clase grupal</SelectItem>
+                    <SelectItem value="turnera">Disponible para turnera</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            {form.tipo === "grupal" ? (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Grupo</Label>
+                  <Select value={form.grupo} onValueChange={(v) => setForm({ ...form, grupo: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {grupoOptions.map((g) => <SelectItem key={g} value={g}>{g}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Concepto de honorario (opcional)</Label>
+                  <Select value={form.honorario_id} onValueChange={(v) => setForm({ ...form, honorario_id: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sin asignar</SelectItem>
+                      {honorarios.map((h) => (
+                        <SelectItem key={h.id} value={h.id}>
+                          {h.nombre_concepto} (${Number(h.valor).toLocaleString("es-AR")})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Notas</Label>
+                  <Textarea rows={2} value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} />
+                </div>
+              </>
+            ) : (
+              <div className="space-y-1.5">
+                <Label>Servicios habilitados</Label>
+                <div className="rounded-md border border-border divide-y divide-border max-h-56 overflow-y-auto">
+                  {serviciosActivos.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer">
+                      <Checkbox
+                        checked={form.servicio_ids.includes(s.id)}
+                        onCheckedChange={() => toggleServicio(s.id)}
+                      />
+                      <span className="text-sm text-foreground">{s.nombre}</span>
+                    </label>
+                  ))}
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Se guarda un bloque único de trabajo; internamente habilita cada servicio elegido.
+                </p>
+              </div>
+            )}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenForm(false)}>Cancelar</Button>
+            <Button variant="gold" disabled={saving} onClick={guardarBloque}>
+              {saving ? "Guardando…" : "Guardar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+};
+
+export default AdminAgenda;
