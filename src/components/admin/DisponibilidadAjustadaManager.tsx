@@ -183,6 +183,12 @@ export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   )}
+                  {readOnly && onPropose && (!lockedCoachId || a.coach_id === lockedCoachId) && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => onPropose("ajuste_eliminar", a)}>
+                      Proponer quitar
+                    </Button>
+                  )}
+
                 </div>
               </CardContent>
             </Card>
