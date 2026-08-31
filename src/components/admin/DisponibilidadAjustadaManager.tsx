@@ -45,14 +45,15 @@ function toIso(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function DisponibilidadAjustadaManager({ coaches }: { coaches: Coach[] }) {
+export function DisponibilidadAjustadaManager({ coaches, lockedCoachId }: { coaches: Coach[]; lockedCoachId?: string }) {
   const [ajustes, setAjustes] = useState<Ajuste[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
 
   // form
   const [fecha, setFecha] = useState<Date | undefined>();
-  const [coachScope, setCoachScope] = useState<string>("global"); // 'global' | coach.id
+  const [coachScope, setCoachScope] = useState<string>(lockedCoachId || "global"); // 'global' | coach.id
+
   const [tipo, setTipo] = useState<"bloquear" | "reemplazar" | "agregar">("bloquear");
   const [horaIni, setHoraIni] = useState("09:00");
   const [horaFin, setHoraFin] = useState("17:00");
@@ -68,15 +69,16 @@ export function DisponibilidadAjustadaManager({ coaches }: { coaches: Coach[] })
       .select("*")
       .gte("fecha", today)
       .order("fecha", { ascending: true });
-    setAjustes((data as any[]) || []);
+    const rows = (data as any[]) || [];
+    setAjustes(lockedCoachId ? rows.filter(r => r.coach_id === lockedCoachId || r.coach_id === null) : rows);
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [lockedCoachId]);
 
   const reset = () => {
     setFecha(undefined);
-    setCoachScope("global");
+    setCoachScope(lockedCoachId || "global");
     setTipo("bloquear");
     setHoraIni("09:00");
     setHoraFin("17:00");
@@ -167,9 +169,11 @@ export function DisponibilidadAjustadaManager({ coaches }: { coaches: Coach[] })
                       </p>
                     )}
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(a.id)}>
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                  {(!lockedCoachId || a.coach_id === lockedCoachId) && (
+                    <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(a.id)}>
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -204,6 +208,7 @@ export function DisponibilidadAjustadaManager({ coaches }: { coaches: Coach[] })
               </Popover>
             </div>
 
+            {!lockedCoachId && (
             <div>
               <Label className="text-xs">Alcance</Label>
               <Select value={coachScope} onValueChange={setCoachScope}>
@@ -214,6 +219,7 @@ export function DisponibilidadAjustadaManager({ coaches }: { coaches: Coach[] })
                 </SelectContent>
               </Select>
             </div>
+            )}
 
             <div>
               <Label className="text-xs">Tipo de ajuste</Label>
