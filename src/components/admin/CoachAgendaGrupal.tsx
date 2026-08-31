@@ -222,7 +222,7 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
               <Select value={String(form.dia_semana)} onValueChange={v => setForm({ ...form, dia_semana: Number(v) })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DIAS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                  {ORDEN_SEMANA_LUNES.map((i) => <SelectItem key={i} value={String(i)}>{DIAS[i]}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
