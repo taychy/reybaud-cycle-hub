@@ -95,17 +95,32 @@ export const AgendaSolicitudes = ({ onResolved }: { onResolved?: () => void }) =
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px]">
-            <div className="rounded-md border border-border bg-muted/20 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Antes</p>
-              <p className="text-foreground">{resumenBloque(s.valores_anteriores)}</p>
+          {esSolicitudAjustePuntual(s.tipo) ? (
+            <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5 text-[12px]">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Cambio puntual propuesto</p>
+              <p className="text-foreground">
+                {s.tipo === "ajuste_eliminar"
+                  ? `Quitar: ${resumenAjuste(s.valores_anteriores)}`
+                  : resumenAjuste(s.valores_nuevos)}
+              </p>
+              <p className="text-[11px] text-muted-foreground">
+                Aplica a toda la agenda de turnera del profesor esa fecha (no distingue servicio ni sede).
+              </p>
             </div>
-            <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5">
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Propuesto</p>
-              <p className="text-foreground">{resumenBloque(s.valores_nuevos)}</p>
-              {sede && <p className="text-muted-foreground">Sede: {sede}</p>}
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[12px]">
+              <div className="rounded-md border border-border bg-muted/20 px-2 py-1.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Antes</p>
+                <p className="text-foreground">{resumenBloque(s.valores_anteriores)}</p>
+              </div>
+              <div className="rounded-md border border-primary/30 bg-primary/5 px-2 py-1.5">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Propuesto</p>
+                <p className="text-foreground">{resumenBloque(s.valores_nuevos)}</p>
+                {sede && <p className="text-muted-foreground">Sede: {sede}</p>}
+              </div>
             </div>
-          </div>
+          )}
+
 
           <div className="flex flex-wrap gap-3 text-[11px] text-muted-foreground">
             {s.fecha_efectiva && <span>Efectivo desde {String(s.fecha_efectiva).slice(0, 10)}</span>}
