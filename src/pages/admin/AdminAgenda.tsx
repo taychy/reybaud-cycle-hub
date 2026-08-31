@@ -906,24 +906,94 @@ const AdminAgenda = () => {
 
               </>
             ) : (
-              <div className="space-y-1.5">
-                <Label>Servicios habilitados</Label>
-                <div className="rounded-md border border-border divide-y divide-border max-h-56 overflow-y-auto">
-                  {serviciosActivos.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer">
-                      <Checkbox
-                        checked={form.servicio_ids.includes(s.id)}
-                        onCheckedChange={() => toggleServicio(s.id)}
+              <div className="space-y-3">
+                {!editBloque && (
+                  <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Repeat className="w-3.5 h-3.5 text-primary" /> Tipo de disponibilidad
+                    </p>
+                    <Select
+                      value={form.disp_modalidad}
+                      onValueChange={(v) => setForm({ ...form, disp_modalidad: v as any })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="habitual">Horario habitual (semanal)</SelectItem>
+                        <SelectItem value="puntual">Cambio puntual en una fecha</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {form.disp_modalidad === "habitual"
+                        ? `Se repite todos los ${DIAS_SEMANA[Number(form.dia_semana)]} mientras esté activo.`
+                        : "Se aplica una sola vez, sobre el horario habitual de esa fecha."}
+                    </p>
+                  </div>
+                )}
+
+                {form.disp_modalidad === "puntual" && !editBloque ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Fecha del cambio</Label>
+                      <Input
+                        type="date"
+                        value={form.fecha_ajuste}
+                        onChange={(ev) => setForm({ ...form, fecha_ajuste: ev.target.value })}
                       />
-                      <span className="text-sm text-foreground">{s.nombre}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Se guarda un bloque único de trabajo; internamente habilita cada servicio elegido.
-                </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tipo de ajuste</Label>
+                      <Select value={form.tipo_ajuste} onValueChange={(v) => setForm({ ...form, tipo_ajuste: v as TipoAjuste })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bloquear">🚫 Bloquear el día completo</SelectItem>
+                          <SelectItem value="reemplazar">🔁 Reemplazar el horario del día</SelectItem>
+                          <SelectItem value="agregar">➕ Agregar un tramo extra</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        {form.tipo_ajuste === "bloquear"
+                          ? "No habrá turnos disponibles ese día."
+                          : form.tipo_ajuste === "reemplazar"
+                            ? "Esa fecha ignora el horario habitual y solo vale el rango indicado arriba."
+                            : "El rango indicado arriba se suma al horario habitual de ese día."}
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Motivo (solo admin)</Label>
+                      <Input
+                        value={form.motivo_ajuste}
+                        maxLength={200}
+                        placeholder="Ej: feriado, capacitación, viaje…"
+                        onChange={(ev) => setForm({ ...form, motivo_ajuste: ev.target.value })}
+                      />
+                    </div>
+                    <p className="text-[11px] text-amber-500">
+                      Un cambio puntual aplica a toda la agenda del profesor en esa fecha: no se puede limitar
+                      por servicio ni por sede. Si necesitás eso, usá un horario habitual.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Servicios habilitados</Label>
+                    <div className="rounded-md border border-border divide-y divide-border max-h-56 overflow-y-auto">
+                      {serviciosActivos.map((s) => (
+                        <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer">
+                          <Checkbox
+                            checked={form.servicio_ids.includes(s.id)}
+                            onCheckedChange={() => toggleServicio(s.id)}
+                          />
+                          <span className="text-sm text-foreground">{s.nombre}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Se guarda un bloque único de trabajo; internamente habilita cada servicio elegido.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
+
           </div>
 
           <DialogFooter>
