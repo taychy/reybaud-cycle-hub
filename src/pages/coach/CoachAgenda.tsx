@@ -11,6 +11,7 @@ import { DisponibilidadAjustadaManager } from "@/components/admin/Disponibilidad
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 import {
   addDays,
+  dentroDeVigencia,
   hhmm,
   labelFechaLarga,
   parseIso,
@@ -77,6 +78,7 @@ const CoachAgenda = () => {
       const iso = toLocalIso(d);
       for (const g of grupal) {
         if (g.activo === false || g.dia_semana !== d.getDay()) continue;
+        if (!dentroDeVigencia(iso, g.vigente_desde, g.vigente_hasta)) continue;
         if (iso === hoyIso && hhmm(g.hora_fin) <= nowHM) continue;
         out.push({
           id: `g-${g.id}-${iso}`,
@@ -179,6 +181,9 @@ const CoachAgenda = () => {
                             <Badge variant="outline" className="text-[10px]">
                               {e.tipo === "grupal" ? "Clase grupal" : "Turno"}
                             </Badge>
+                            {e.tipo === "grupal" && (
+                              <Badge variant="secondary" className="text-[10px]">↻ Semanal</Badge>
+                            )}
                             {e.estado === "realizada" && (
                               <Badge variant="outline" className="text-[10px]">Realizada</Badge>
                             )}

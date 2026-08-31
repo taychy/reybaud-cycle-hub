@@ -3,9 +3,11 @@ import {
   DIAS_SEMANA,
   ORDEN_SEMANA_LUNES,
   agruparDisponibilidad,
+  dentroDeVigencia,
   detectarConflictos,
   diffServicios,
   ocurrenciasEnSemana,
+  ocurrenciasSerie,
   overlaps,
   parseIso,
   startOfWeek,
@@ -156,5 +158,39 @@ describe("detectarConflictos", () => {
       ev({ id: "b", sede_id: "s2", hora_inicio: "09:30", hora_fin: "10:30" }),
     ]);
     expect(c.size).toBe(2);
+  });
+});
+
+describe("series semanales recurrentes", () => {
+  const dias = weekDays(new Date(2026, 2, 2)); // lun 2/3 → dom 8/3
+
+  it("sin vigencia, la serie aparece siempre", () => {
+    expect(ocurrenciasSerie(dias, { dia_semana: 3 })).toEqual(["2026-03-04"]);
+  });
+
+  it("no aparece antes de vigente_desde", () => {
+    expect(ocurrenciasSerie(dias, { dia_semana: 3, vigente_desde: "2026-03-05" })).toEqual([]);
+  });
+
+  it("no aparece después de vigente_hasta", () => {
+    expect(ocurrenciasSerie(dias, { dia_semana: 3, vigente_hasta: "2026-03-03" })).toEqual([]);
+  });
+
+  it("aparece dentro del rango, incluyendo extremos", () => {
+    expect(
+      ocurrenciasSerie(dias, { dia_semana: 3, vigente_desde: "2026-03-04", vigente_hasta: "2026-03-04" }),
+    ).toEqual(["2026-03-04"]);
+  });
+
+  it("dentroDeVigencia tolera timestamps y nulls", () => {
+    expect(dentroDeVigencia("2026-03-04", null, null)).toBe(true);
+    expect(dentroDeVigencia("2026-03-04", "2026-03-04T00:00:00Z", undefined)).toBe(true);
+  });
+
+  it("finalizar una serie deja de proyectar futuras ocurrencias sin borrar el pasado", () => {
+    const serie = { dia_semana: 3, vigente_hasta: "2026-03-04" };
+    expect(ocurrenciasSerie(dias, serie)).toEqual(["2026-03-04"]);
+    const siguiente = weekDays(new Date(2026, 2, 9));
+    expect(ocurrenciasSerie(siguiente, serie)).toEqual([]);
   });
 });

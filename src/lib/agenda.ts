@@ -155,6 +155,31 @@ export function ocurrenciasEnSemana(dias: string[], dia_semana: number): string[
 }
 
 /**
+ * Vigencia de una serie semanal recurrente. `null` = sin límite.
+ * Se comparan strings ISO (YYYY-MM-DD), lexicográficamente seguro.
+ */
+export function dentroDeVigencia(
+  fechaIso: string,
+  vigente_desde?: string | null,
+  vigente_hasta?: string | null,
+): boolean {
+  if (vigente_desde && fechaIso < vigente_desde.slice(0, 10)) return false;
+  if (vigente_hasta && fechaIso > vigente_hasta.slice(0, 10)) return false;
+  return true;
+}
+
+/** Ocurrencias de una serie semanal dentro de la semana, respetando su vigencia. */
+export function ocurrenciasSerie(
+  dias: string[],
+  serie: { dia_semana: number; vigente_desde?: string | null; vigente_hasta?: string | null },
+): string[] {
+  return ocurrenciasEnSemana(dias, serie.dia_semana).filter((iso) =>
+    dentroDeVigencia(iso, serie.vigente_desde, serie.vigente_hasta),
+  );
+}
+
+
+/**
  * Detecta conflictos REALES (clase grupal vs turno, turno vs turno) del mismo coach:
  * solapamiento horario el mismo día, o dos sedes distintas en intervalos solapados.
  * La disponibilidad NO cuenta como conflicto.
