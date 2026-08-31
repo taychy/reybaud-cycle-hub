@@ -211,7 +211,13 @@ const AdminAgenda = () => {
     vigente_hasta: "",
     alcance: "desde_fecha" as "solo_fecha" | "desde_fecha" | "toda_serie",
     fecha_efectiva: "",
+    // Disponibilidad de turnera: habitual (semanal) vs cambio puntual en una fecha.
+    disp_modalidad: "habitual" as "habitual" | "puntual",
+    tipo_ajuste: "bloquear" as TipoAjuste,
+    fecha_ajuste: "",
+    motivo_ajuste: "",
   });
+
   const [editSerie, setEditSerie] = useState<any | null>(null);
 
 
@@ -243,7 +249,12 @@ const AdminAgenda = () => {
       vigente_hasta: "",
       alcance: "desde_fecha",
       fecha_efectiva: "",
+      disp_modalidad: "habitual",
+      tipo_ajuste: "bloquear",
+      fecha_ajuste: "",
+      motivo_ajuste: "",
     }));
+
     setOpenForm(true);
   };
 
@@ -269,7 +280,12 @@ const AdminAgenda = () => {
       vigente_hasta: serie.vigente_hasta ? String(serie.vigente_hasta).slice(0, 10) : "",
       alcance: "desde_fecha",
       fecha_efectiva: fechaOcurrencia || "",
+      disp_modalidad: "habitual",
+      tipo_ajuste: "bloquear",
+      fecha_ajuste: "",
+      motivo_ajuste: "",
     });
+
     setOpenForm(true);
   };
 
@@ -323,8 +339,12 @@ const AdminAgenda = () => {
       vigente_hasta: "",
       alcance: "desde_fecha",
       fecha_efectiva: "",
-
+      disp_modalidad: "habitual",
+      tipo_ajuste: "bloquear",
+      fecha_ajuste: "",
+      motivo_ajuste: "",
     });
+
     setOpenForm(true);
   };
 
