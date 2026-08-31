@@ -20,9 +20,11 @@ interface Props {
   currency?: string;
   /** Oculta el botón de alta (vistas de solo seguimiento). */
   readOnly?: boolean;
+  /** Se dispara cuando una prueba cambia de estado (por ej. para refrescar el total del pedido). */
+  onChanged?: () => void;
 }
 
-const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false }: Props) => {
+const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false, onChanged }: Props) => {
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
