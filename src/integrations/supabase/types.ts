@@ -152,6 +152,8 @@ export type Database = {
           coach_id: string
           created_at: string
           dia_semana: number
+          fecha: string | null
+          fechas_excluidas: string[]
           grupo: string
           honorario_id: string | null
           hora_fin: string
@@ -159,6 +161,8 @@ export type Database = {
           id: string
           notas: string | null
           sede_id: string | null
+          serie_origen_id: string | null
+          tipo_clase: string
           updated_at: string
           vigente_desde: string | null
           vigente_hasta: string | null
@@ -168,6 +172,8 @@ export type Database = {
           coach_id: string
           created_at?: string
           dia_semana: number
+          fecha?: string | null
+          fechas_excluidas?: string[]
           grupo?: string
           honorario_id?: string | null
           hora_fin: string
@@ -175,6 +181,8 @@ export type Database = {
           id?: string
           notas?: string | null
           sede_id?: string | null
+          serie_origen_id?: string | null
+          tipo_clase?: string
           updated_at?: string
           vigente_desde?: string | null
           vigente_hasta?: string | null
@@ -184,6 +192,8 @@ export type Database = {
           coach_id?: string
           created_at?: string
           dia_semana?: number
+          fecha?: string | null
+          fechas_excluidas?: string[]
           grupo?: string
           honorario_id?: string | null
           hora_fin?: string
@@ -191,6 +201,8 @@ export type Database = {
           id?: string
           notas?: string | null
           sede_id?: string | null
+          serie_origen_id?: string | null
+          tipo_clase?: string
           updated_at?: string
           vigente_desde?: string | null
           vigente_hasta?: string | null
@@ -222,6 +234,88 @@ export type Database = {
             columns: ["sede_id"]
             isOneToOne: false
             referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_grupal_serie_origen_fk"
+            columns: ["serie_origen_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_grupal"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agenda_solicitudes: {
+        Row: {
+          alcance: string | null
+          coach_id: string
+          created_at: string
+          entidad_id: string | null
+          entidad_tipo: string | null
+          estado: string
+          fecha_efectiva: string | null
+          id: string
+          motivo: string | null
+          respuesta_admin: string | null
+          resuelto_at: string | null
+          resuelto_por: string | null
+          solicitado_por: string | null
+          tipo: string
+          updated_at: string
+          valores_anteriores: Json
+          valores_nuevos: Json
+        }
+        Insert: {
+          alcance?: string | null
+          coach_id: string
+          created_at?: string
+          entidad_id?: string | null
+          entidad_tipo?: string | null
+          estado?: string
+          fecha_efectiva?: string | null
+          id?: string
+          motivo?: string | null
+          respuesta_admin?: string | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          solicitado_por?: string | null
+          tipo: string
+          updated_at?: string
+          valores_anteriores?: Json
+          valores_nuevos?: Json
+        }
+        Update: {
+          alcance?: string | null
+          coach_id?: string
+          created_at?: string
+          entidad_id?: string | null
+          entidad_tipo?: string | null
+          estado?: string
+          fecha_efectiva?: string | null
+          id?: string
+          motivo?: string | null
+          respuesta_admin?: string | null
+          resuelto_at?: string | null
+          resuelto_por?: string | null
+          solicitado_por?: string | null
+          tipo?: string
+          updated_at?: string
+          valores_anteriores?: Json
+          valores_nuevos?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agenda_solicitudes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_solicitudes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
         ]
@@ -13052,6 +13146,32 @@ export type Database = {
         }
         Returns: Json
       }
+      agenda_grupal_conflicto: {
+        Args: {
+          p_coach_id: string
+          p_fecha: string
+          p_hora_fin: string
+          p_hora_inicio: string
+        }
+        Returns: {
+          grupo: string
+          hora_fin: string
+          hora_inicio: string
+        }[]
+      }
+      agenda_grupal_ocurre: {
+        Args: {
+          p_activo: boolean
+          p_dia_semana: number
+          p_excluidas: string[]
+          p_fecha: string
+          p_fecha_puntual: string
+          p_tipo_clase: string
+          p_vigente_desde: string
+          p_vigente_hasta: string
+        }
+        Returns: boolean
+      }
       announce_cash_payment: {
         Args: {
           _fecha_limite: string
@@ -13064,6 +13184,15 @@ export type Database = {
       anular_imputacion: {
         Args: { _id: string; _motivo?: string }
         Returns: boolean
+      }
+      aplicar_cambio_serie_grupal: {
+        Args: {
+          p_alcance: string
+          p_fecha_efectiva: string
+          p_payload: Json
+          p_serie_id: string
+        }
+        Returns: string
       }
       aplicar_regla_liquidacion: {
         Args: {
@@ -14568,6 +14697,14 @@ export type Database = {
         Args: { p_product_id: string; p_variante: string }
         Returns: string
       }
+      resolver_solicitud_agenda: {
+        Args: {
+          p_aprobar: boolean
+          p_respuesta?: string
+          p_solicitud_id: string
+        }
+        Returns: undefined
+      }
       reuse_pending_subscription: {
         Args: {
           p_alumno_id: string
@@ -14637,6 +14774,18 @@ export type Database = {
           nombre: string
           test: number
         }[]
+      }
+      solicitar_cambio_agenda: {
+        Args: {
+          p_alcance: string
+          p_entidad_id: string
+          p_entidad_tipo: string
+          p_fecha_efectiva: string
+          p_motivo: string
+          p_tipo: string
+          p_valores_nuevos: Json
+        }
+        Returns: string
       }
       split_mp_movement_among_alumnos: {
         Args: { _movement_id: string; _notes?: string; _splits: Json }

@@ -24,6 +24,7 @@ interface Ausencia {
 interface Props {
   coachId: string;
   coachNombre?: string;
+  readOnly?: boolean;
 }
 
 const formatFecha = (d: string) => {
@@ -36,7 +37,7 @@ const todayISO = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
-const AusenciasCoachManager = ({ coachId, coachNombre }: Props) => {
+const AusenciasCoachManager = ({ coachId, coachNombre, readOnly = false }: Props) => {
   const [items, setItems] = useState<Ausencia[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -128,13 +129,15 @@ const AusenciasCoachManager = ({ coachId, coachNombre }: Props) => {
             Ausencias / Vacaciones{coachNombre ? ` — ${coachNombre}` : ""}
           </h3>
         </div>
-        <Button variant="gold" size="sm" onClick={openCreate}>
-          <Plus className="w-3 h-3 mr-1" /> Agregar
-        </Button>
+        {!readOnly && (
+          <Button variant="gold" size="sm" onClick={openCreate}>
+            <Plus className="w-3 h-3 mr-1" /> Agregar
+          </Button>
+        )}
       </div>
 
       <p className="text-xs text-muted-foreground">
-        Cuando agregás un período acá, el coach deja de aparecer en la turnera durante esas fechas.
+        {readOnly ? "Estas ausencias forman parte de la agenda oficial. Para modificarlas, enviá una solicitud a administración." : "Cuando agregás un período acá, el coach deja de aparecer en la turnera durante esas fechas."}
       </p>
 
       {loading ? (
@@ -148,17 +151,17 @@ const AusenciasCoachManager = ({ coachId, coachNombre }: Props) => {
           {vigentes.length > 0 && (
             <div className="space-y-2">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-primary">Vigentes / próximas</h4>
-              {vigentes.map(item => (
-                <AusenciaRow key={item.id} item={item} onDelete={() => setDeleteItem(item)} />
-              ))}
-            </div>
-          )}
-          {pasadas.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pasadas</h4>
-              {pasadas.slice(0, 10).map(item => (
-                <AusenciaRow key={item.id} item={item} onDelete={() => setDeleteItem(item)} muted />
-              ))}
+                {vigentes.map(item => (
+                  <AusenciaRow key={item.id} item={item} onDelete={() => setDeleteItem(item)} readOnly={readOnly} />
+                ))}
+              </div>
+            )}
+            {pasadas.length > 0 && (
+              <div className="space-y-2">
+                <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pasadas</h4>
+                {pasadas.slice(0, 10).map(item => (
+                  <AusenciaRow key={item.id} item={item} onDelete={() => setDeleteItem(item)} muted readOnly={readOnly} />
+                ))}
             </div>
           )}
         </div>
@@ -229,7 +232,7 @@ const AusenciasCoachManager = ({ coachId, coachNombre }: Props) => {
   );
 };
 
-const AusenciaRow = ({ item, onDelete, muted }: { item: Ausencia; onDelete: () => void; muted?: boolean }) => {
+const AusenciaRow = ({ item, onDelete, muted, readOnly }: { item: Ausencia; onDelete: () => void; muted?: boolean; readOnly?: boolean }) => {
   const sameDay = item.fecha_inicio === item.fecha_fin;
   return (
     <div className={`glass-card rounded-lg p-3 flex items-start justify-between gap-2 ${muted ? "opacity-60" : ""}`}>
@@ -248,9 +251,11 @@ const AusenciaRow = ({ item, onDelete, muted }: { item: Ausencia; onDelete: () =
           {item.motivo && <span className="text-xs text-muted-foreground truncate">{item.motivo}</span>}
         </div>
       </div>
-      <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive shrink-0" onClick={onDelete}>
-        <Trash2 className="w-3 h-3" />
-      </Button>
+      {!readOnly && (
+        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive shrink-0" onClick={onDelete}>
+          <Trash2 className="w-3 h-3" />
+        </Button>
+      )}
     </div>
   );
 };

@@ -36,11 +36,14 @@ type DispEditorProps = {
   reload: () => void;
   /** Cuando se pasa, el selector de coach queda oculto y fijo (vista del propio coach). */
   lockedCoachId?: string;
+  /** Vista sin acciones para el portal del coach: solo propone cambios. */
+  readOnly?: boolean;
+  onPropose?: (tipo: string, entidad?: any) => void;
 };
 
 const DIAS_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 
-export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidades, reload, lockedCoachId }: DispEditorProps) {
+export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidades, reload, lockedCoachId, readOnly = false, onPropose }: DispEditorProps) {
 
   const [coachId, setCoachId] = useState<string>("");
   const [servicioId, setServicioId] = useState<string>("");
@@ -73,6 +76,7 @@ export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidad
   const refresh = async () => reload();
 
   const addRange = async (dia: number, hora_inicio = "09:00", hora_fin = "17:00") => {
+    if (readOnly) return;
     if (!coachId || !servicioId) {
       toast({ title: "Seleccioná coach y servicio primero", variant: "destructive" });
       return;
@@ -92,17 +96,20 @@ export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidad
   };
 
   const removeRange = async (id: string) => {
+    if (readOnly) return;
     await supabase.from("disponibilidad_coaches").delete().eq("id", id);
     refresh();
   };
 
   const updateRange = async (id: string, patch: any) => {
+    if (readOnly) return;
     const { error } = await supabase.from("disponibilidad_coaches").update(patch).eq("id", id);
     if (error) toast({ title: "Error al guardar", description: error.message, variant: "destructive" });
     refresh();
   };
 
   const copyDayTo = async (sourceDay: number, targetDays: number[]) => {
+    if (readOnly) return;
     const source = porDia[sourceDay];
     if (!source.length) return;
     setSaving(true);
@@ -191,6 +198,8 @@ export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidad
                 onUpdate={updateRange}
                 onCopyTo={(targets) => copyDayTo(idx, targets)}
                 saving={saving}
+                readOnly={readOnly}
+                onPropose={onPropose}
               />
             );
           })}
@@ -209,7 +218,7 @@ export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidad
 // ============================================================
 //  Modo principal: BLOQUES DE TRABAJO (agrupado multi-servicio)
 // ============================================================
-export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilidades, reload, lockedCoachId }: DispEditorProps) {
+export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilidades, reload, lockedCoachId, readOnly = false, onPropose }: DispEditorProps) {
   const [coachId, setCoachId] = useState<string>(lockedCoachId || "");
   const [saving, setSaving] = useState(false);
   const [openForm, setOpenForm] = useState(false);
@@ -331,9 +340,15 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
             <SelectContent>{coaches.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}</SelectContent>
           </Select>
         ) : <span className="text-xs text-muted-foreground">Tus bloques de trabajo</span>}
-        <Button size="sm" onClick={openCreate}>
-          <Plus className="w-3.5 h-3.5 mr-1" /> Agregar bloque
-        </Button>
+        {readOnly && onPropose ? (
+          <Button size="sm" variant="outline" onClick={() => onPropose("disp_crear")}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Proponer bloque
+          </Button>
+        ) : !readOnly && (
+          <Button size="sm" onClick={openCreate}>
+            <Plus className="w-3.5 h-3.5 mr-1" /> Agregar bloque
+          </Button>
+        )}
       </div>
 
       {bloques.length === 0 ? (
@@ -351,29 +366,40 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
               <Card key={d} className="bg-card border-border">
                 <CardContent className="p-3 space-y-2">
                   <h4 className="text-xs font-semibold uppercase tracking-wider text-primary">{DIAS[d]}</h4>
-                  {delDia.map(b => (
-                    <div key={b.key} className="flex items-start justify-between gap-2 border-b border-border last:border-0 pb-2 last:pb-0">
-                      <div className="space-y-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground">{b.hora_inicio}–{b.hora_fin}</p>
-                        <p className="text-[11px] text-muted-foreground">
-                          {sedes.find(s => s.id === b.sede_id)?.nombre || "Sin sede"}
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {b.servicio_ids.map(sv => (
-                            <Badge key={sv} variant="secondary" className="text-[10px]">{servicioNombre(sv)}</Badge>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1 shrink-0">
-                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(b)}>
-                          <Pencil className="w-3.5 h-3.5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" disabled={saving} onClick={() => eliminarBloque(b)}>
-                          <X className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                   {delDia.map(b => (
+                     <div key={b.key} className="flex items-start justify-between gap-2 border-b border-border last:border-0 pb-2 last:pb-0">
+                       <div className="space-y-1 min-w-0">
+                         <p className="text-sm font-medium text-foreground">{b.hora_inicio}–{b.hora_fin}</p>
+                         <p className="text-[11px] text-muted-foreground">
+                           {sedes.find(s => s.id === b.sede_id)?.nombre || "Sin sede"}
+                         </p>
+                         <div className="flex flex-wrap gap-1">
+                           {b.servicio_ids.map(sv => (
+                             <Badge key={sv} variant="secondary" className="text-[10px]">{servicioNombre(sv)}</Badge>
+                           ))}
+                         </div>
+                       </div>
+                       {readOnly && onPropose ? (
+                         <div className="flex items-center gap-1 shrink-0">
+                           <Button variant="ghost" size="icon" className="h-8 w-8" title="Proponer edición" onClick={() => onPropose("disp_editar", { ...b, row_ids: b.row_ids })}>
+                             <Pencil className="w-3.5 h-3.5" />
+                           </Button>
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Proponer eliminación" onClick={() => onPropose("disp_eliminar", { ...b, row_ids: b.row_ids })}>
+                             <X className="w-4 h-4" />
+                           </Button>
+                         </div>
+                       ) : !readOnly && (
+                         <div className="flex items-center gap-1 shrink-0">
+                           <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openEdit(b)}>
+                             <Pencil className="w-3.5 h-3.5" />
+                           </Button>
+                           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" disabled={saving} onClick={() => eliminarBloque(b)}>
+                             <X className="w-4 h-4" />
+                           </Button>
+                         </div>
+                       )}
+                     </div>
+                   ))}
                 </CardContent>
               </Card>
             );
@@ -462,12 +488,13 @@ export function DisponibilidadManager(props: DispEditorProps) {
 
 // Fila de un día
 function DayRow({
-  dia, idx, rangos, otrosDias, onAdd, onRemove, onUpdate, onCopyTo, saving,
+  dia, idx, rangos, otrosDias, onAdd, onRemove, onUpdate, onCopyTo, saving, readOnly = false, onPropose,
 }: {
   dia: string; idx: number; rangos: any[]; otrosDias: number[];
   onAdd: () => void; onRemove: (id: string) => void;
   onUpdate: (id: string, patch: any) => void;
-  onCopyTo: (targets: number[]) => void; saving: boolean;
+  onCopyTo: (targets: number[]) => void; saving: boolean; readOnly?: boolean;
+  onPropose?: (tipo: string, entidad?: any) => void;
 }) {
   const [targets, setTargets] = useState<number[]>([]);
   const [copyOpen, setCopyOpen] = useState(false);
@@ -498,6 +525,7 @@ function DayRow({
               <Input
                 type="time"
                 defaultValue={r.hora_inicio.slice(0, 5)}
+                readOnly={readOnly}
                 onBlur={e => {
                   const v = e.target.value + ":00";
                   if (v !== r.hora_inicio) onUpdate(r.id, { hora_inicio: v });
@@ -508,26 +536,39 @@ function DayRow({
               <Input
                 type="time"
                 defaultValue={r.hora_fin.slice(0, 5)}
+                readOnly={readOnly}
                 onBlur={e => {
                   const v = e.target.value + ":00";
                   if (v !== r.hora_fin) onUpdate(r.id, { hora_fin: v });
                 }}
                 className="h-9 w-[120px] font-mono text-sm"
               />
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                onClick={() => onRemove(r.id)}
-              >
-                <X className="w-4 h-4" />
-              </Button>
+              {readOnly && onPropose && (
+                <>
+                  <Button variant="ghost" size="icon" className="h-8 w-8" title="Proponer edición" onClick={() => onPropose("disp_editar", { ...r, row_ids: [r.id], servicio_ids: [r.servicio_id] })}>
+                    <Pencil className="w-3.5 h-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" title="Proponer eliminación" onClick={() => onPropose("disp_eliminar", { ...r, row_ids: [r.id] })}>
+                    <X className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
+              {!readOnly && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                  onClick={() => onRemove(r.id)}
+                >
+                  <X className="w-4 h-4" />
+                </Button>
+              )}
             </div>
           ))
         )}
       </div>
 
-      <div className="flex items-center gap-1 shrink-0 pt-1">
+      {!readOnly && <div className="flex items-center gap-1 shrink-0 pt-1">
         <Button
           variant="ghost"
           size="icon"
@@ -566,7 +607,7 @@ function DayRow({
             </DropdownMenuContent>
           </DropdownMenu>
         )}
-      </div>
+      </div>}
     </div>
   );
 }
