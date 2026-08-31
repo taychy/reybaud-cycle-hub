@@ -1,113 +1,89 @@
-# Auditoría read-only: baja de alumnos + "Aplicar a deuda" (Mastronardi)
+# Auditoría: Pedidos cancelados + Cambios vs Depósito + flujo "prueba"
 
-No se modificó código, ni migraciones, ni datos. Todo lo que sigue está verificado contra el repo y la base de producción (solo lecturas).
+Sin cambios de código ni de base. Todo lo que sigue está verificado contra el código y los datos reales.
 
----
+## 1) Pedidos cancelados ensucian la lista
 
-## Problema 1 — "Edge Function returned a non-2xx status code" al dar de baja
+**Cómo se modela hoy**
+- La cancelación es un estado más de `store_orders.status = 'cancelado'`, con `cancelled_at` y `cancel_reason` ya existentes.
+- Se aplica vía RPC `cancel_store_order(_order_id, _reason)`, que además devuelve stock (queda trazado en `stock_movements` con `reversa_de_movimiento_id`).
+- No hay borrado lógico ni columna aparte: la trazabilidad ya está completa.
 
-### Flujo exacto
+**Por qué se ve larga la lista**
+- Hoy en la base hay 27 pedidos: **14 cancelados**, 11 entregados, 2 en camioneta. O sea, más de la mitad de la tabla es ruido (varios son reintentos de checkout del mismo alumno el mismo día).
+- `StoreOrders.tsx` filtra en cliente (`filtered`): sin `restrictStatuses`, el filtro de estado arranca en `"all"` y `"all"` incluye cancelados. La pestaña "Nuevos" sí los excluye porque pasa `restrictStatuses`.
 
-| Paso | Dónde | Qué llama |
+**Propuesta (bajo riesgo, sólo frontend)**
+- Cambiar el selector de estado de la pestaña "Pedidos" para que el valor por defecto sea **"Activos"** (todos menos `cancelado`), y agregar las opciones **"Cancelados"** y **"Todos"** además de los estados individuales.
+- Mostrar junto al contador un chip discreto: `14 cancelados ocultos` que al tocarlo cambia el filtro a "Cancelados". Nada se borra ni se archiva.
+- Sin migración, sin tocar el RPC de anulación, sin perder historial.
+
+## 2) Por qué Admin > Cambios y Depósito > Cambios no muestran lo mismo
+
+Las dos vistas leen la **misma tabla** (`store_cambios`) pero con filtros distintos:
+
+| | Admin (`StoreCambios.tsx`) | Depósito (`DepositoCambios.tsx`) |
 |---|---|---|
-| Alumno solicita baja | `src/components/student/RequestBajaDialog.tsx:46` | RPC `request_baja_alumno` |
-| Admin abre la cola de bajas | `src/components/admin/BajasSolicitudesList.tsx` | lectura de `bajas_solicitudes` |
-| **Admin "Confirmar baja"** | `src/components/admin/ConfirmBajaDialog.tsx:52` | **Edge Function `process-baja-confirmacion`** |
-| Edge Function | `supabase/functions/process-baja-confirmacion/index.ts:37` | RPC `confirm_baja_alumno` → si falla, devuelve **400** con el mensaje de Postgres |
-| Baja directa (sin solicitud) | `src/components/admin/DarBajaDirectaDialog.tsx:101` | RPC `dar_baja_directa` |
+| Query | `select *` sin filtro de estado | `.in('estado', ['aprobado','en_deposito','listo_retiro'])` |
+| Buckets | Nuevos (`solicitado`, `devolucion_solicitada`) / Seguimiento (`aprobado`, `en_deposito`, `listo_retiro`) / Cerrados (`entregado`, `rechazado`, `cancelado`) | Pendientes (`aprobado`) / Esperando reemplazo (`en_deposito` y `reemplazo_estado` ≠ enviado/entregado) / Listos (`listo_retiro`) |
+| Filtro extra | Origen app/presencial | ninguno |
 
-El mensaje "Edge Function returned a non-2xx status code" es el texto genérico de `supabase.functions.invoke` cuando `process-baja-confirmacion` responde 400/401/500. La función existe y está desplegada (verificado: responde `400 {"error":"solicitud_id requerido"}` ante un body vacío), así que no es un problema de deploy ni de ruta.
+Consecuencias reales:
+- Depósito **nunca ve** `solicitado` ni `devolucion_solicitada` (falta aprobación admin) ni los cerrados. Ejemplo actual: la solicitud de Jessica Carolina Gonzalez (`solicitado`) sólo existe en Admin.
+- Un cambio en `en_deposito` con reemplazo ya `enviado/entregado` desaparece de Depósito pero sigue en "Seguimiento" de Admin.
+- No es un bug de datos ni de RLS (admin y depósito tienen políticas `ALL` sobre la tabla): es diferencia de criterio de filtrado. Propongo unificar el vocabulario de estados en pantalla y agregar en Depósito una pestaña de sólo lectura "Cerrados / histórico" para que ambos hablen del mismo universo.
 
-### Causa raíz más probable (alta evidencia)
+## 3) El caso Alejandro Najmanovich y la prenda "de prueba"
 
-`confirm_baja_alumno` hace, entre otras cosas:
+**Qué hay en datos**
+- Pedido #19 (04/08, entregado): Chaleco Rompeviento Santini, Talle L, 1 unidad.
+- `store_cambios` id `69bfe3c2…` creado 11/08 por depósito: `motivo = talle`, comentario *"Solo recibir y controlar. no hay stock para cambios, hay que cargar en stock."*, `variante_origen = {}`, **`variante_destino = null`**, `reemplazo_estado = 'sin_definir'`, estado `en_deposito`.
+- Movimiento asociado: `stock_movements` tipo `ingreso`, motivo `cambio_in`, 1 unidad de Chaleco Santini el 11/08 18:21 (`stock_devuelto_at` de ese cambio).
 
-```sql
-UPDATE public.alumnos SET estado='inactivo', grupo='Sin grupo'::grupo_ciclismo, ...
+**Por qué "cae en Cambios"**
+Hoy **no existe ningún otro registro posible**: la única forma que tienen admin y depósito de recibir una prenda de vuelta es crear un `store_cambios`. Como nunca hubo prenda de reemplazo, el registro queda con destino nulo y se congela para siempre en "Esperando reemplazo" (Depósito) / "En seguimiento" (Admin). Es una devolución de prueba disfrazada de cambio incompleto.
+
+**Propuesta de modelo (aditiva, reutiliza todo lo existente)**
+
+Agregar a `store_cambios` un discriminador en vez de crear un sistema paralelo:
+
+```text
+store_cambios.tipo  text  default 'cambio'
+   'cambio'     -> cambio real de una prenda comprada (flujo actual, sin tocar)
+   'devolucion' -> devolución/anulación de una compra (sin reemplazo)
+   'prueba'     -> prenda enviada a prueba, no vendida
+store_cambios.prueba_resultado  text  null
+   null | 'pendiente' | 'devuelta' | 'convertida_en_venta'
 ```
 
-Ese UPDATE dispara el trigger `trg_alumnos_grupo_whatsapp_sync` → `reconciliar_tarea_whatsapp_grupo(...)`. Cuando **no existe** una tarea abierta `wa_grupo_<alumno>`, la función entra en la rama de INSERT y ejecuta:
+Ciclo de vida de una prueba, mapeado sobre los estados que ya existen (no se agregan valores al enum `cambio_estado`):
 
-```sql
-INSERT INTO public.tareas (..., entidad_tipo, entidad_id, ...)
-VALUES (..., 'alumno', p_alumno_id, ...)   -- p_alumno_id es uuid
+```text
+prueba enviada     -> tipo='prueba', estado='listo_retiro', prueba_resultado='pendiente'
+                      (egreso de stock con motivo 'prueba_out', NO es venta)
+devuelta sin compra-> estado='entregado' + prueba_resultado='devuelta'
+                      (ingreso 'prueba_in', prenda original intacta, sin factura)
+se la queda        -> prueba_resultado='convertida_en_venta' + order_id del pedido nuevo
+                      (no se re-descuenta stock: el egreso de la prueba se reusa)
 ```
 
-pero `tareas.entidad_id` es de tipo **text** (verificado en `information_schema`). Postgres aborta con `42804: column "entidad_id" is of type text but expression is of type uuid`. La excepción sube por el trigger → aborta `confirm_baja_alumno` → la Edge Function devuelve 400 → la UI muestra el mensaje genérico.
+Reglas clave:
+- Una prueba **nunca** toca la prenda original comprada ni genera `store_cambios` de tipo `cambio`.
+- Contablemente sólo hay venta si se convierte; ahí se crea un `store_orders` normal con el flujo existente y se enlaza por `order_id`.
+- Movimientos de stock con motivo propio (`prueba_out` / `prueba_in`) para que el detector de inconsistencias no los lea como ventas.
 
-Nota: la función hermana `procesar_cambio_grupo_alumno` sí castea correctamente (`p_alumno_id::text`, línea 182). Solo `reconciliar_tarea_whatsapp_grupo` quedó sin el cast, en la rama de INSERT. Por eso el error aparece de forma intermitente: si el alumno ya tenía una tarea de WhatsApp abierta, se toma la rama UPDATE y la baja funciona.
+**UX propuesta**
+- Admin > Ventas > Cambios pasa a llamarse **"Cambios y pruebas"** con filtro de tipo: `Cambios | Devoluciones | Pruebas | Todos`. Por defecto sólo cambios + devoluciones.
+- Depósito > Cambios suma pestaña **"Pruebas afuera"** (lo que está en la calle esperando volver) con dos botones por ítem: *Devuelta* y *Se la quedó → generar venta*.
+- El registro presencial de depósito arranca con la pregunta simple: **"¿Qué está pasando?" → Cambia una prenda / Devuelve una compra / Envío a prueba / Vuelve una prueba**. Eso es lo que hoy falta y obliga a forzar todo a "cambio".
 
-Evidencia adicional consistente: en `bajas_solicitudes` **las 10 solicitudes más recientes están todas en estado `solicitada`** — nunca se confirmó ninguna desde la app.
+**Migración del caso real**: el registro de Najmanovich se reclasifica manualmente a `tipo='prueba'`, `prueba_resultado='devuelta'`, estado `entregado`. El ingreso de stock ya existente queda como está (sólo se corrige el motivo si querés), así que no hay impacto contable.
 
-### Otras causas posibles (menor evidencia, ordenadas)
+## Riesgos y alcance
+- Punto 1: sólo frontend, riesgo nulo.
+- Punto 2: unificación de etiquetas + pestaña histórica en Depósito, sin cambios de datos.
+- Punto 3: migración aditiva (2 columnas nullable con default) + adaptaciones de UI y de los RPC `deposito_registrar_cambio_presencial` / `deposito_recibir_cambio` para aceptar el tipo. No rompe registros existentes, que quedan todos como `tipo='cambio'`.
 
-2. `confirm_baja_alumno` exige `has_role(auth.uid(),'admin')` sin aceptar `is_super_admin` — pero los 5 perfiles admin existentes tienen el rol `admin` en `user_roles`, así que hoy no es el bloqueante.
-3. Solicitud ya no está en estado `solicitada` → `RAISE EXCEPTION 'La solicitud ya no está pendiente'` → 400. Sería un 400 con mensaje claro, no genérico.
-4. Header `Authorization` ausente/expirado → 401.
-5. **Bug adicional confirmado, no bloqueante:** `process-baja-confirmacion/index.ts:54` y `DarBajaDirectaDialog.tsx:118` invocan `cancel-mp-preapproval` con `{ preapproval_id }`, pero esa función lee `{ suscripcion_id }` y devuelve 400 "Falta suscripcion_id". Resultado: **las suscripciones MP nunca se cancelan realmente** en el flujo de baja; se reporta como `mp_failed` (aviso suave) o se traga en un `console.warn`. Riesgo real de seguir cobrando a un alumno dado de baja.
-
-### Qué mirar el lunes antes de tocar nada
-
-- Logs de la Edge Function `process-baja-confirmacion` inmediatamente después de reproducir el error (hoy no hay logs porque no se invocó recientemente): el body de la respuesta trae el mensaje exacto de Postgres.
-- Logs de Postgres filtrando por `error_severity='ERROR'` en la ventana del intento (confirmar el `42804`).
-- Confirmar sobre el alumno concreto si existe tarea abierta con `dedupe_key = 'wa_grupo_<alumno_id>'` (si existe, la baja pasaría; si no, falla).
-
-### Propuesta mínima de corrección (para ejecutar después)
-
-1. Migración de una línea: en `reconciliar_tarea_whatsapp_grupo`, cambiar `p_alumno_id` por `p_alumno_id::text` en el INSERT a `tareas`.
-2. Alinear el contrato de `cancel-mp-preapproval`: enviar `{ suscripcion_id }` desde `process-baja-confirmacion` (que ya tiene las suscripciones) y desde `DarBajaDirectaDialog`, o aceptar ambos parámetros en la función.
-3. Opcional: agregar `OR is_super_admin(auth.uid())` en `confirm_baja_alumno` para alinear con el resto de las RPC admin.
-4. Opcional: mostrar en `ConfirmBajaDialog` el mensaje de error real que devuelve la función, no el genérico.
-
-**Riesgos:** el fix 1 es de bajo riesgo (solo cast). El fix 2 sí produce efectos externos (cancela preapprovals reales en Mercado Pago) — probar primero con una suscripción de test. Las bajas ya "confirmadas" en el pasado pueden tener preapprovals vivos: conviene auditar `suscripciones` canceladas con `mp_preapproval_id` no nulo antes de tocar nada.
-
----
-
-## Problema 2 — Mastronardi, Agostina: "Aplicar a deuda" no funciona
-
-Alumna: `8380f37b-987e-409d-8885-1ffc7bce2366`, `agos1027@hotmail.com`, G3, activa.
-
-### Estado real en base
-
-- Único registro en `cuenta_ajustes`: **tipo `cargo`** de ARS 30.952, concepto "Mensualidad-Pausa-Julio.", medio `mp_externo_josi`, sin aplicar.
-- `vw_pagos_disponibles` devuelve un pago sin imputar: **mp_movement `4814f7f0-…`, op `164068106073`, "Plan Pausa 50%", ARS 30.952, disponible 30.952**. Ese es el "SALDO DISPONIBLE" que muestra la UI.
-- El otro movimiento (Plan Grupal, 65.500) ya está consumido.
-- `get_saldo_alumno` no cuenta ese mp_movement como pago porque no está imputado ni vinculado a una suscripción → cargos 161.952 / pagos 131.000 / debe 30.952. La cifra es consistente con el modelo, no es un error de display.
-
-### Lógica del botón
-
-- Componente: `src/components/admin/SaldoDisponibleSection.tsx` (embebido en `StudentCuentaCorrienteSection.tsx:537`).
-- Al abrir, llama RPC `get_alumno_payment_targets(_alumno_id)` y arma la lista de deudas con tres arrays: `subscriptions` → `type: "suscripcion"`, `reservations` → `type: "reservation"`, `cargos` → `type: "cargo"` (líneas 89-99).
-- Al aplicar, llama RPC `aplicar_saldo_disponible(..., _obligacion_tipo: target.type, _obligacion_id: target.id, _monto)` (línea 126).
-- `aplicar_saldo_disponible` delega en `imputar_pago`, que inserta en `pagos_imputaciones`.
-
-### Causa raíz probable (bug de modelo, no de UI)
-
-`pagos_imputaciones` tiene el CHECK:
-
-```sql
-obligacion_tipo IN ('suscripcion','reserva','store_order','turnera','otro')
-```
-
-El frontend envía **`'cargo'`** (y **`'reservation'`** en el caso de eventos). Ninguno de los dos está permitido → violación de check `23514` → la RPC falla y el saldo nunca se imputa.
-
-Para Agostina esto es terminal: su **única** deuda elegible que devuelve `get_alumno_payment_targets` es el cargo de cuenta corriente de 30.952 (no hay suscripciones con saldo). Es decir, el único target posible es justamente el tipo que la base rechaza.
-
-Segundo problema, encadenado: aunque la imputación se insertara, `get_saldo_alumno` calcula pagos desde `vw_cuenta_corriente_movimientos` (suscripciones, reservas, ajustes) y **no lee `pagos_imputaciones`**. Un pago imputado contra un cargo de `cuenta_ajustes` seguiría sin bajar el saldo mostrado. Y el botón alternativo (icono "Aplicar este pago a una suscripción" en la fila del ledger) no aparece acá porque solo se renderiza para filas `ajuste_credito`, y el ajuste de Agostina es un **cargo**, no un crédito.
-
-**Conclusión:** no es UI ni elegibilidad; es desalineación entre los tipos que emite el frontend y los que acepta el modelo de imputaciones, más un hueco en el cálculo del saldo para obligaciones de tipo cargo.
-
-### Propuesta mínima de corrección (para ejecutar después)
-
-1. Unificar vocabulario de `obligacion_tipo`: ampliar el CHECK a `('suscripcion','reserva','cargo','store_order','turnera','otro')` **y** mapear `reservation → reserva` en el frontend (o aceptar ambos alias en la RPC). Sin las dos mitades, sigue roto.
-2. Hacer que `get_saldo_alumno` (o `vw_cuenta_corriente_movimientos`) reconozca las imputaciones activas contra cargos de `cuenta_ajustes` como pago, para que el saldo baje al aplicar.
-3. Caso puntual Agostina: una vez aplicado 1+2, imputar el mp_movement `164068106073` (30.952) contra el cargo "Mensualidad-Pausa-Julio." → saldo queda en 0. **No** crear un ajuste manual de crédito: duplicaría el pago.
-4. Verificar cuántos casos más existen: pagos con `disponible > 0` cuya única deuda elegible sea un cargo de cuenta corriente.
-
-**Riesgos:** tocar `get_saldo_alumno` afecta la cuenta corriente de todos los alumnos y el link público — validar con un set de alumnos de control antes/después. Ampliar el CHECK es de bajo riesgo. La imputación puntual es reversible vía `anular_imputacion`.
-
----
-
-## Siguiente paso
-
-Nada para ejecutar hoy. Cuando quieras avanzar, lo natural es hacer primero el fix 1 de bajas (cast a text) porque es de una línea y desbloquea el flujo, y dejar los cambios de cuenta corriente para una segunda tanda con validación previa.
+## Qué necesito confirmar antes de implementar
+1. ¿Avanzo con los tres puntos en una sola tanda, o primero el 1 y 2 (rápidos, sin migración) y el 3 aparte?
+2. Para "prueba convertida en venta": ¿el precio sale del catálogo actual o admin lo define a mano al convertir?
