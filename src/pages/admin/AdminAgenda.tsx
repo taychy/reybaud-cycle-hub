@@ -41,6 +41,8 @@ import {
 import { buildGrupoOptions } from "@/lib/coachContact";
 import { effectiveCoachSedes } from "@/lib/coachSedes";
 import AgendaSolicitudes from "@/components/admin/AgendaSolicitudes";
+import { TIPO_AJUSTE_LABEL, type TipoAjuste } from "@/lib/agendaSolicitudes";
+
 
 type TipoFiltro = "todos" | "grupal" | "turno" | "disponibilidad";
 
@@ -211,7 +213,13 @@ const AdminAgenda = () => {
     vigente_hasta: "",
     alcance: "desde_fecha" as "solo_fecha" | "desde_fecha" | "toda_serie",
     fecha_efectiva: "",
+    // Disponibilidad de turnera: habitual (semanal) vs cambio puntual en una fecha.
+    disp_modalidad: "habitual" as "habitual" | "puntual",
+    tipo_ajuste: "bloquear" as TipoAjuste,
+    fecha_ajuste: "",
+    motivo_ajuste: "",
   });
+
   const [editSerie, setEditSerie] = useState<any | null>(null);
 
 
@@ -228,6 +236,13 @@ const AdminAgenda = () => {
   const sedeNoAsignada =
     form.sede_id !== "none" && form.coach_id && !sedesDelCoach.includes(form.sede_id);
 
+  /** Un cambio puntual (clase o disponibilidad) usa la FECHA como fuente de verdad, no el día de semana. */
+  const esPuntual =
+    form.tipo === "grupal" ? form.modalidad === "puntual" : form.disp_modalidad === "puntual";
+  const diaAplica = !esPuntual;
+  const horasAplican = !(form.tipo === "turnera" && form.disp_modalidad === "puntual" && form.tipo_ajuste === "bloquear");
+
+
   const openCreate = () => {
     setEditBloque(null);
     setEditSerie(null);
@@ -243,7 +258,12 @@ const AdminAgenda = () => {
       vigente_hasta: "",
       alcance: "desde_fecha",
       fecha_efectiva: "",
+      disp_modalidad: "habitual",
+      tipo_ajuste: "bloquear",
+      fecha_ajuste: "",
+      motivo_ajuste: "",
     }));
+
     setOpenForm(true);
   };
 
@@ -269,7 +289,12 @@ const AdminAgenda = () => {
       vigente_hasta: serie.vigente_hasta ? String(serie.vigente_hasta).slice(0, 10) : "",
       alcance: "desde_fecha",
       fecha_efectiva: fechaOcurrencia || "",
+      disp_modalidad: "habitual",
+      tipo_ajuste: "bloquear",
+      fecha_ajuste: "",
+      motivo_ajuste: "",
     });
+
     setOpenForm(true);
   };
 
@@ -323,8 +348,12 @@ const AdminAgenda = () => {
       vigente_hasta: "",
       alcance: "desde_fecha",
       fecha_efectiva: "",
-
+      disp_modalidad: "habitual",
+      tipo_ajuste: "bloquear",
+      fecha_ajuste: "",
+      motivo_ajuste: "",
     });
+
     setOpenForm(true);
   };
 
@@ -408,12 +437,34 @@ const AdminAgenda = () => {
             : "Clase grupal recurrente creada",
       });
 
+    } else if (form.disp_modalidad === "puntual") {
+      // Cambio puntual en una fecha → `disponibilidad_ajustada` (no hay serie semanal nueva).
+      if (!form.fecha_ajuste) {
+        setSaving(false);
+        toast({ title: "Elegí la fecha del cambio puntual", variant: "destructive" });
+        return;
+      }
+      const { error } = await supabase.from("disponibilidad_ajustada" as any).insert({
+        coach_id: form.coach_id,
+        fecha: form.fecha_ajuste,
+        tipo: form.tipo_ajuste,
+        hora_inicio: form.tipo_ajuste === "bloquear" ? null : `${form.hora_inicio}:00`,
+        hora_fin: form.tipo_ajuste === "bloquear" ? null : `${form.hora_fin}:00`,
+        motivo: form.motivo_ajuste.trim() || null,
+      } as any);
+      setSaving(false);
+      if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+      toast({
+        title: "Cambio puntual guardado",
+        description: `${TIPO_AJUSTE_LABEL[form.tipo_ajuste]} · ${form.fecha_ajuste}`,
+      });
     } else {
       if (form.servicio_ids.length === 0) {
         setSaving(false);
         toast({ title: "Elegí al menos un servicio", variant: "destructive" });
         return;
       }
+
       const actuales = editBloque ? editBloque.servicio_ids : [];
       const { toAdd, toRemove } = diffServicios(actuales, form.servicio_ids);
 
@@ -590,7 +641,7 @@ const AdminAgenda = () => {
                           key={e.id}
                           onClick={() => {
                             if (e.tipo === "disponibilidad") openEditDisponibilidad(e.raw);
-                            else if (e.tipo === "grupal") openEditSerie(e.raw);
+                            else if (e.tipo === "grupal") openEditSerie(e.raw, e.fecha);
                           }}
                           className={`rounded-md border px-2.5 py-2 space-y-1 ${
                             e.tipo === "disponibilidad"
@@ -656,12 +707,19 @@ const AdminAgenda = () => {
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider text-sm">
               {editSerie
-                ? "Editar serie semanal"
+                ? form.modalidad === "puntual"
+                  ? "Editar clase puntual"
+                  : "Editar serie semanal"
                 : editBloque
                   ? "Editar bloque de trabajo"
                   : form.tipo === "grupal"
-                    ? "Nueva clase grupal recurrente"
-                    : "Nuevo bloque"}
+                    ? form.modalidad === "puntual"
+                      ? "Nueva clase puntual"
+                      : "Nueva clase grupal recurrente"
+                    : form.disp_modalidad === "puntual"
+                      ? "Cambio puntual de disponibilidad"
+                      : "Nuevo horario habitual"}
+
             </DialogTitle>
           </DialogHeader>
 
@@ -698,27 +756,37 @@ const AdminAgenda = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1.5 col-span-3 sm:col-span-1">
-                <Label>Día</Label>
-                <Select value={form.dia_semana} onValueChange={(v) => setForm({ ...form, dia_semana: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 0].map((i) => (
-                      <SelectItem key={i} value={String(i)}>{DIAS_SEMANA[i]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {(diaAplica || horasAplican) && (
+              <div className={`grid gap-2 ${diaAplica ? "grid-cols-3" : "grid-cols-2"}`}>
+                {diaAplica && (
+                  <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                    <Label>Día</Label>
+                    <Select value={form.dia_semana} onValueChange={(v) => setForm({ ...form, dia_semana: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {[1, 2, 3, 4, 5, 6, 0].map((i) => (
+                          <SelectItem key={i} value={String(i)}>{DIAS_SEMANA[i]}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {horasAplican && (
+                  <>
+                    <div className="space-y-1.5">
+                      <Label>Inicio</Label>
+                      <Input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Fin</Label>
+                      <Input type="time" value={form.hora_fin} onChange={(e) => setForm({ ...form, hora_fin: e.target.value })} />
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="space-y-1.5">
-                <Label>Inicio</Label>
-                <Input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Fin</Label>
-                <Input type="time" value={form.hora_fin} onChange={(e) => setForm({ ...form, hora_fin: e.target.value })} />
-              </div>
-            </div>
+            )}
+
+
 
             {!editBloque && !editSerie && (
               <div className="space-y-1.5">
@@ -840,24 +908,94 @@ const AdminAgenda = () => {
 
               </>
             ) : (
-              <div className="space-y-1.5">
-                <Label>Servicios habilitados</Label>
-                <div className="rounded-md border border-border divide-y divide-border max-h-56 overflow-y-auto">
-                  {serviciosActivos.map((s) => (
-                    <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer">
-                      <Checkbox
-                        checked={form.servicio_ids.includes(s.id)}
-                        onCheckedChange={() => toggleServicio(s.id)}
+              <div className="space-y-3">
+                {!editBloque && (
+                  <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <Repeat className="w-3.5 h-3.5 text-primary" /> Tipo de disponibilidad
+                    </p>
+                    <Select
+                      value={form.disp_modalidad}
+                      onValueChange={(v) => setForm({ ...form, disp_modalidad: v as any })}
+                    >
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="habitual">Horario habitual (semanal)</SelectItem>
+                        <SelectItem value="puntual">Cambio puntual en una fecha</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground">
+                      {form.disp_modalidad === "habitual"
+                        ? `Se repite todos los ${DIAS_SEMANA[Number(form.dia_semana)]} mientras esté activo.`
+                        : "Se aplica una sola vez, sobre el horario habitual de esa fecha."}
+                    </p>
+                  </div>
+                )}
+
+                {form.disp_modalidad === "puntual" && !editBloque ? (
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label>Fecha del cambio</Label>
+                      <Input
+                        type="date"
+                        value={form.fecha_ajuste}
+                        onChange={(ev) => setForm({ ...form, fecha_ajuste: ev.target.value })}
                       />
-                      <span className="text-sm text-foreground">{s.nombre}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-[11px] text-muted-foreground">
-                  Se guarda un bloque único de trabajo; internamente habilita cada servicio elegido.
-                </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Tipo de ajuste</Label>
+                      <Select value={form.tipo_ajuste} onValueChange={(v) => setForm({ ...form, tipo_ajuste: v as TipoAjuste })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="bloquear">🚫 Bloquear el día completo</SelectItem>
+                          <SelectItem value="reemplazar">🔁 Reemplazar el horario del día</SelectItem>
+                          <SelectItem value="agregar">➕ Agregar un tramo extra</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-[11px] text-muted-foreground">
+                        {form.tipo_ajuste === "bloquear"
+                          ? "No habrá turnos disponibles ese día."
+                          : form.tipo_ajuste === "reemplazar"
+                            ? "Esa fecha ignora el horario habitual y solo vale el rango indicado arriba."
+                            : "El rango indicado arriba se suma al horario habitual de ese día."}
+                      </p>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Motivo (solo admin)</Label>
+                      <Input
+                        value={form.motivo_ajuste}
+                        maxLength={200}
+                        placeholder="Ej: feriado, capacitación, viaje…"
+                        onChange={(ev) => setForm({ ...form, motivo_ajuste: ev.target.value })}
+                      />
+                    </div>
+                    <p className="text-[11px] text-amber-500">
+                      Un cambio puntual aplica a toda la agenda del profesor en esa fecha: no se puede limitar
+                      por servicio ni por sede. Si necesitás eso, usá un horario habitual.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    <Label>Servicios habilitados</Label>
+                    <div className="rounded-md border border-border divide-y divide-border max-h-56 overflow-y-auto">
+                      {serviciosActivos.map((s) => (
+                        <label key={s.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer">
+                          <Checkbox
+                            checked={form.servicio_ids.includes(s.id)}
+                            onCheckedChange={() => toggleServicio(s.id)}
+                          />
+                          <span className="text-sm text-foreground">{s.nombre}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Se guarda un bloque único de trabajo; internamente habilita cada servicio elegido.
+                    </p>
+                  </div>
+                )}
               </div>
             )}
+
           </div>
 
           <DialogFooter>

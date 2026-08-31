@@ -45,7 +45,7 @@ function toIso(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly = false }: { coaches: Coach[]; lockedCoachId?: string; readOnly?: boolean }) {
+export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly = false, onPropose }: { coaches: Coach[]; lockedCoachId?: string; readOnly?: boolean; onPropose?: (tipo: "ajuste_crear" | "ajuste_eliminar", entidad: any) => void }) {
   const [ajustes, setAjustes] = useState<Ajuste[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -131,14 +131,21 @@ export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly
                 <CalendarIcon className="w-4 h-4 text-primary" /> Disponibilidad ajustada
               </p>
               <p className="text-xs text-muted-foreground">
-                {readOnly ? "Estos cambios son oficiales. Para proponer una modificación, usá una solicitud de agenda." : "Indicá a qué horas estarás disponible en fechas específicas. El motivo es interno y no se muestra al alumno."}
+                {readOnly ? "Estos cambios son oficiales. Podés proponer uno nuevo y administración lo aprueba." : "Indicá a qué horas estarás disponible en fechas específicas. El motivo es interno y no se muestra al alumno."}
               </p>
             </div>
-            {!readOnly && (
+            {readOnly ? (
+              onPropose && (
+                <Button size="sm" variant="outline" onClick={() => onPropose("ajuste_crear", {})}>
+                  <Plus className="w-4 h-4 mr-1" /> Proponer cambio puntual
+                </Button>
+              )
+            ) : (
               <Button size="sm" onClick={() => { reset(); setOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Cambiar la disponibilidad en una fecha
               </Button>
             )}
+
           </div>
         </CardContent>
       </Card>
@@ -176,6 +183,12 @@ export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   )}
+                  {readOnly && onPropose && (!lockedCoachId || a.coach_id === lockedCoachId) && (
+                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => onPropose("ajuste_eliminar", a)}>
+                      Proponer quitar
+                    </Button>
+                  )}
+
                 </div>
               </CardContent>
             </Card>

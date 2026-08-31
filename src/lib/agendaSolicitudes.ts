@@ -10,10 +10,15 @@ export type SolicitudTipo =
   | "grupal_eliminar"
   | "disp_crear"
   | "disp_editar"
-  | "disp_eliminar";
+  | "disp_eliminar"
+  | "ajuste_crear"
+  | "ajuste_eliminar";
 
 export type SolicitudAlcance = "solo_fecha" | "desde_fecha" | "toda_serie";
 export type SolicitudEstado = "pendiente" | "aprobada" | "rechazada";
+
+/** Tipos de cambio puntual soportados por `disponibilidad_ajustada`. */
+export type TipoAjuste = "bloquear" | "reemplazar" | "agregar";
 
 export type AgendaSolicitud = {
   id: string;
@@ -37,9 +42,17 @@ export const TIPO_SOLICITUD_LABEL: Record<string, string> = {
   grupal_editar: "Editar clase grupal",
   grupal_finalizar: "Finalizar clase grupal",
   grupal_eliminar: "Eliminar clase grupal",
-  disp_crear: "Nuevo bloque de disponibilidad",
-  disp_editar: "Editar disponibilidad",
-  disp_eliminar: "Eliminar disponibilidad",
+  disp_crear: "Nuevo horario habitual (semanal)",
+  disp_editar: "Editar horario habitual (semanal)",
+  disp_eliminar: "Eliminar horario habitual (semanal)",
+  ajuste_crear: "Cambio puntual en una fecha",
+  ajuste_eliminar: "Quitar cambio puntual",
+};
+
+export const TIPO_AJUSTE_LABEL: Record<string, string> = {
+  bloquear: "Bloquear el día completo",
+  reemplazar: "Reemplazar el horario del día",
+  agregar: "Agregar un tramo extra",
 };
 
 export const ALCANCE_LABEL: Record<string, string> = {
@@ -53,6 +66,29 @@ export const ESTADO_LABEL: Record<string, string> = {
   aprobada: "Aprobada",
   rechazada: "Rechazada",
 };
+
+/** ¿La solicitud es un cambio puntual de disponibilidad (no una serie semanal)? */
+export const esSolicitudAjustePuntual = (tipo: string): boolean => tipo.startsWith("ajuste_");
+
+/**
+ * Resumen legible de un cambio puntual de disponibilidad.
+ * `disponibilidad_ajustada` no guarda servicios ni sede: aplica a toda la agenda de esa fecha.
+ */
+export function resumenAjuste(
+  v: Record<string, any> | null | undefined,
+  fechaEfectiva?: string | null,
+): string {
+  const tipo = v?.tipo_ajuste || v?.tipo;
+  if (!tipo) return "—";
+  const fecha = (fechaEfectiva || v?.fecha) ? String(fechaEfectiva || v?.fecha).slice(0, 10) : null;
+  const partes = [TIPO_AJUSTE_LABEL[tipo] || String(tipo)];
+  if (fecha) partes.unshift(fecha);
+  if (tipo !== "bloquear" && v?.hora_inicio && v?.hora_fin) {
+    partes.push(`${hhmm(v.hora_inicio)}–${hhmm(v.hora_fin)}`);
+  }
+  return partes.join(" · ");
+}
+
 
 /** Resumen legible de un bloque horario guardado en jsonb. */
 export function resumenBloque(v: Record<string, any> | null | undefined): string {

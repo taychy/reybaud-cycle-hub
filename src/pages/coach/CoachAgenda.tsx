@@ -141,6 +141,12 @@ const CoachAgenda = () => {
   }, [agenda]);
 
   const pendientes = useMemo(() => solicitudes.filter((s) => s.estado === "pendiente"), [solicitudes]);
+  /** Pendientes primero, luego el historial reciente resuelto. */
+  const solicitudesVisibles = useMemo(
+    () => [...pendientes, ...solicitudes.filter((s) => s.estado !== "pendiente").slice(0, 12)],
+    [pendientes, solicitudes],
+  );
+
 
   const solicitar = (tipo: SolicitudSeed["tipo"], entidad?: any) => setSolicitudSeed({ tipo, entidad });
 
@@ -198,8 +204,11 @@ const CoachAgenda = () => {
                               {e.tipo === "grupal" ? "Clase grupal" : "Turno"}
                             </Badge>
                             {e.tipo === "grupal" && (
-                              <Badge variant="secondary" className="text-[10px]">↻ Semanal</Badge>
+                              <Badge variant="secondary" className="text-[10px]">
+                                {esClasePuntual(e.raw) ? "Puntual" : "↻ Semanal"}
+                              </Badge>
                             )}
+
                             {e.estado === "realizada" && (
                               <Badge variant="outline" className="text-[10px]">Realizada</Badge>
                             )}
@@ -267,22 +276,63 @@ const CoachAgenda = () => {
                 </div>
                 <DisponibilidadManager coaches={[coach]} servicios={servicios} sedes={sedes} disponibilidades={disponibilidades} reload={loadAll} lockedCoachId={coach.id} readOnly onPropose={(tipo, entidad) => solicitar(tipo as SolicitudSeed["tipo"], entidad)} />
               </div>
-              {pendientes.length > 0 && (
-                <div className="space-y-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">Mis solicitudes ({pendientes.length})</h2>
-                  {pendientes.map((s) => <Card key={s.id} className="border-border"><CardContent className="p-3"><div className="flex items-center gap-2"><Badge variant="outline">{ESTADO_LABEL[s.estado] || s.estado}</Badge><span className="text-sm text-foreground">{TIPO_SOLICITUD_LABEL[s.tipo] || s.tipo}</span></div>{s.alcance && <p className="text-xs text-muted-foreground mt-1">{ALCANCE_LABEL[s.alcance] || s.alcance}{s.fecha_efectiva ? ` · desde ${String(s.fecha_efectiva).slice(0, 10)}` : ""}</p>}</CardContent></Card>)}
-                </div>
-              )}
-              <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
+              <div className="space-y-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Mis solicitudes{pendientes.length > 0 ? ` (${pendientes.length} pendientes)` : ""}
+                </h2>
+                {solicitudesVisibles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Todavía no enviaste solicitudes de agenda.</p>
+                ) : (
+                  solicitudesVisibles.map((s) => (
+                    <Card key={s.id} className="border-border">
+                      <CardContent className="p-3 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={
+                              s.estado === "aprobada"
+                                ? "text-emerald-500 border-emerald-500/40"
+                                : s.estado === "rechazada"
+                                  ? "text-destructive border-destructive/40"
+                                  : "text-primary border-primary/40"
+                            }
+                          >
+                            {ESTADO_LABEL[s.estado] || s.estado}
+                          </Badge>
+                          <span className="text-sm text-foreground">{TIPO_SOLICITUD_LABEL[s.tipo] || s.tipo}</span>
+                        </div>
+                        {s.alcance && (
+                          <p className="text-xs text-muted-foreground">
+                            {ALCANCE_LABEL[s.alcance] || s.alcance}
+                            {s.fecha_efectiva ? ` · desde ${String(s.fecha_efectiva).slice(0, 10)}` : ""}
+                          </p>
+                        )}
+                        {!s.alcance && s.fecha_efectiva && (
+                          <p className="text-xs text-muted-foreground">Fecha: {String(s.fecha_efectiva).slice(0, 10)}</p>
+                        )}
+                        {s.estado !== "pendiente" && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Resuelta {s.resuelto_at ? String(s.resuelto_at).slice(0, 10) : ""}
+                            {s.respuesta_admin ? ` · “${s.respuesta_admin}”` : ""}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+
             </TabsContent>
 
             <TabsContent value="ausencias" className="mt-4 space-y-6">
               <AusenciasCoachManager coachId={coach.id} coachNombre={coach.nombre} readOnly />
-              <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} readOnly />
+              <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} readOnly onPropose={(tipo, entidad) => solicitar(tipo as SolicitudSeed["tipo"], entidad)} />
             </TabsContent>
 
-          </Tabs>
+            </Tabs>
         )}
+        <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
+
       </main>
     </div>
   );
