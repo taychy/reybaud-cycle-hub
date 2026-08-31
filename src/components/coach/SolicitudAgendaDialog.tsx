@@ -82,6 +82,56 @@ export const SolicitudAgendaDialog = ({ seed, sedes, servicios, onOpenChange, on
 
   const enviar = async () => {
     if (!seed) return;
+
+    // --- Cambio PUNTUAL de disponibilidad (disponibilidad_ajustada) ---
+    if (esAjuste) {
+      if (seed.tipo === "ajuste_crear") {
+        if (!form.fecha) {
+          toast({ title: "Elegí la fecha del cambio", variant: "destructive" });
+          return;
+        }
+        if (form.tipo_ajuste !== "bloquear" && form.hora_fin <= form.hora_inicio) {
+          toast({ title: "La hora de fin debe ser posterior al inicio", variant: "destructive" });
+          return;
+        }
+      }
+      setSaving(true);
+      const { error } = await supabase.rpc("solicitar_cambio_agenda" as any, {
+        p_tipo: seed.tipo,
+        p_entidad_tipo: "disponibilidad_ajustada",
+        p_entidad_id: seed.tipo === "ajuste_eliminar" ? seed.entidad?.id ?? null : null,
+        p_alcance: null,
+        p_fecha_efectiva:
+          seed.tipo === "ajuste_crear"
+            ? form.fecha
+            : seed.entidad?.fecha
+              ? String(seed.entidad.fecha).slice(0, 10)
+              : null,
+        p_valores_nuevos:
+          seed.tipo === "ajuste_crear"
+            ? {
+                fecha: form.fecha,
+                tipo_ajuste: form.tipo_ajuste,
+                hora_inicio: form.tipo_ajuste === "bloquear" ? null : form.hora_inicio,
+                hora_fin: form.tipo_ajuste === "bloquear" ? null : form.hora_fin,
+              }
+            : {},
+        p_motivo: form.motivo || null,
+      });
+      setSaving(false);
+      if (error) {
+        toast({ title: "No se pudo enviar", description: error.message, variant: "destructive" });
+        return;
+      }
+      toast({
+        title: "Solicitud enviada",
+        description: "Administración la va a revisar. La agenda no cambia hasta que la aprueben.",
+      });
+      onOpenChange(false);
+      onSent();
+      return;
+    }
+
     if (form.hora_fin <= form.hora_inicio) {
       toast({ title: "La hora de fin debe ser posterior al inicio", variant: "destructive" });
       return;
@@ -134,6 +184,7 @@ export const SolicitudAgendaDialog = ({ seed, sedes, servicios, onOpenChange, on
       p_valores_nuevos: valores,
       p_motivo: form.motivo || null,
     });
+
     setSaving(false);
     if (error) {
       toast({ title: "No se pudo enviar", description: error.message, variant: "destructive" });
