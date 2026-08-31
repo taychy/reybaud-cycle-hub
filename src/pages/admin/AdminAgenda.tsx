@@ -747,18 +747,20 @@ const AdminAgenda = () => {
               )}
             </div>
 
-            <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1.5 col-span-3 sm:col-span-1">
-                <Label>Día</Label>
-                <Select value={form.dia_semana} onValueChange={(v) => setForm({ ...form, dia_semana: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 0].map((i) => (
-                      <SelectItem key={i} value={String(i)}>{DIAS_SEMANA[i]}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+            <div className={`grid gap-2 ${diaAplica ? "grid-cols-3" : "grid-cols-2"}`}>
+              {diaAplica && (
+                <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                  <Label>Día</Label>
+                  <Select value={form.dia_semana} onValueChange={(v) => setForm({ ...form, dia_semana: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 0].map((i) => (
+                        <SelectItem key={i} value={String(i)}>{DIAS_SEMANA[i]}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Inicio</Label>
                 <Input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
@@ -768,6 +770,7 @@ const AdminAgenda = () => {
                 <Input type="time" value={form.hora_fin} onChange={(e) => setForm({ ...form, hora_fin: e.target.value })} />
               </div>
             </div>
+
 
             {!editBloque && !editSerie && (
               <div className="space-y-1.5">
