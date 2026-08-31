@@ -4,6 +4,8 @@ import {
   ORDEN_SEMANA_LUNES,
   agruparDisponibilidad,
   dentroDeVigencia,
+  esClasePuntual,
+
   detectarConflictos,
   diffServicios,
   ocurrenciasEnSemana,
@@ -192,5 +194,52 @@ describe("series semanales recurrentes", () => {
     expect(ocurrenciasSerie(dias, serie)).toEqual(["2026-03-04"]);
     const siguiente = weekDays(new Date(2026, 2, 9));
     expect(ocurrenciasSerie(siguiente, serie)).toEqual([]);
+  });
+});
+
+describe("clases puntuales y excepciones", () => {
+  const dias = weekDays(new Date(2026, 2, 2)); // lun 2/3 → dom 8/3
+
+  it("una clase puntual aparece solo en su fecha", () => {
+    const puntual = { dia_semana: 3, tipo_clase: "puntual", fecha: "2026-03-04" };
+    expect(ocurrenciasSerie(dias, puntual)).toEqual(["2026-03-04"]);
+  });
+
+  it("una clase puntual fuera de la semana no aparece", () => {
+    expect(
+      ocurrenciasSerie(dias, { dia_semana: 3, tipo_clase: "puntual", fecha: "2026-03-11" }),
+    ).toEqual([]);
+  });
+
+  it("una clase puntual no se repite la semana siguiente", () => {
+    const puntual = { dia_semana: 3, tipo_clase: "puntual", fecha: "2026-03-04" };
+    expect(ocurrenciasSerie(weekDays(new Date(2026, 2, 9)), puntual)).toEqual([]);
+  });
+
+  it("la serie omite las fechas excluidas por una excepción", () => {
+    const serie = { dia_semana: 3, fechas_excluidas: ["2026-03-04"] };
+    expect(ocurrenciasSerie(dias, serie)).toEqual([]);
+    expect(ocurrenciasSerie(weekDays(new Date(2026, 2, 9)), serie)).toEqual(["2026-03-11"]);
+  });
+
+  it("tolera fechas excluidas con timestamp o nulls", () => {
+    const serie = { dia_semana: 3, fechas_excluidas: ["2026-03-04T00:00:00Z", null] };
+    expect(ocurrenciasSerie(dias, serie)).toEqual([]);
+  });
+
+  it("esClasePuntual trata la ausencia de tipo como recurrente", () => {
+    expect(esClasePuntual({})).toBe(false);
+    expect(esClasePuntual({ tipo_clase: "puntual" })).toBe(true);
+  });
+
+  it("cortar una serie el día previo y abrir otra desde esa fecha no duplica ocurrencias", () => {
+    const jorge = { dia_semana: 2, vigente_hasta: "2026-09-30" };
+    const daniel = { dia_semana: 2, vigente_desde: "2026-10-01" };
+    const semana = weekDays(new Date(2026, 8, 28)); // lun 28/9 → dom 4/10
+    expect(ocurrenciasSerie(semana, jorge)).toEqual(["2026-09-29"]);
+    expect(ocurrenciasSerie(semana, daniel)).toEqual([]);
+    const siguiente = weekDays(new Date(2026, 9, 5));
+    expect(ocurrenciasSerie(siguiente, jorge)).toEqual([]);
+    expect(ocurrenciasSerie(siguiente, daniel)).toEqual(["2026-10-06"]);
   });
 });

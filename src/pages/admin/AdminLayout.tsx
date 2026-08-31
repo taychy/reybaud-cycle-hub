@@ -10,7 +10,7 @@ import { setPrevSeen } from "@/lib/adminNovelty";
 
 
 /* ─── Nav structure ─── */
-type BadgeKey = "waitlist" | "waitlist_entries" | "turnera";
+type BadgeKey = "waitlist" | "waitlist_entries" | "turnera" | "agenda_solicitudes";
 /** Secciones con "pelotita" de novedad (contenido nuevo desde la última visita) */
 type NoveltyKey = "alumnos" | "eventos" | "tienda_ventas" | "pedidos_proveedor" | "cobros_entrega" | "cambios_plan";
 type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; noveltyKey?: NoveltyKey; superAdmin?: boolean };
@@ -60,7 +60,7 @@ const modules: NavModule[] = [
       {
         label: "Entrenamiento",
         items: [
-          { to: "/admin/agenda", label: "Agenda", icon: CalendarDays },
+          { to: "/admin/agenda", label: "Agenda", icon: CalendarDays, badgeKey: "agenda_solicitudes" },
           { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
           { to: "/admin/programas", label: "Programas", icon: GraduationCap },
           { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
@@ -175,6 +175,7 @@ const AdminLayout = () => {
   const [waitlistPending, setWaitlistPending] = useState(0);
   const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
   const [turneraPending, setTurneraPending] = useState(0);
+  const [agendaSolicitudesPending, setAgendaSolicitudesPending] = useState(0);
   const [novedades, setNovedades] = useState<Record<string, number>>({});
 
   useEffect(() => {
@@ -186,16 +187,18 @@ const AdminLayout = () => {
   useEffect(() => {
     let alive = true;
     const load = async () => {
-      const [{ data: pending }, { data: newEntries }, { data: newTurnera }, { data: nov }] = await Promise.all([
+      const [{ data: pending }, { data: newEntries }, { data: newTurnera }, { data: nov }, { count: agendaPending }] = await Promise.all([
         supabase.rpc("count_pending_waitlist_requests" as any),
         supabase.rpc("count_new_waitlist_entries" as any),
         supabase.rpc("count_new_turnera_reservations" as any),
         supabase.rpc("count_admin_novedades" as any),
+        supabase.from("agenda_solicitudes" as any).select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
       ]);
       if (alive) {
         setWaitlistPending(Number(pending ?? 0));
         setWaitlistEntriesPending(Number(newEntries ?? 0));
         setTurneraPending(Number(newTurnera ?? 0));
+        setAgendaSolicitudesPending(Number(agendaPending ?? 0));
         setNovedades((nov as any) || {});
       }
     };

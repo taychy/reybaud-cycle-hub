@@ -5,19 +5,25 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ArrowLeft, MapPin, User, CalendarClock, Users } from "lucide-react";
+import { ArrowLeft, MapPin, User, CalendarClock, Users, Pencil, Plus, Trash2 } from "lucide-react";
 import { DisponibilidadManager } from "@/components/admin/DisponibilidadEditor";
 import { DisponibilidadAjustadaManager } from "@/components/admin/DisponibilidadAjustadaManager";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
+import SolicitudAgendaDialog, { type SolicitudSeed } from "@/components/coach/SolicitudAgendaDialog";
+import { ALCANCE_LABEL, ESTADO_LABEL, TIPO_SOLICITUD_LABEL, type AgendaSolicitud } from "@/lib/agendaSolicitudes";
 import {
   addDays,
   dentroDeVigencia,
+  esClasePuntual,
+  DIAS_SEMANA,
   hhmm,
   labelFechaLarga,
+  ocurrenciasSerie,
   parseIso,
   toLocalIso,
   type AgendaEvento,
 } from "@/lib/agenda";
+
 
 const DIAS_ADELANTE = 14;
 
@@ -29,7 +35,9 @@ const CoachAgenda = () => {
   const [disponibilidades, setDisponibilidades] = useState<any[]>([]);
   const [turnos, setTurnos] = useState<any[]>([]);
   const [grupal, setGrupal] = useState<any[]>([]);
+  const [solicitudes, setSolicitudes] = useState<AgendaSolicitud[]>([]);
   const [loading, setLoading] = useState(true);
+  const [solicitudSeed, setSolicitudSeed] = useState<SolicitudSeed | null>(null);
 
   const loadAll = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
@@ -42,7 +50,7 @@ const CoachAgenda = () => {
     const hoy = new Date();
     const hasta = toLocalIso(addDays(hoy, DIAS_ADELANTE));
 
-    const [servRes, sedesRes, dispRes, turnosRes, agRes] = await Promise.all([
+    const [servRes, sedesRes, dispRes, turnosRes, agRes, solRes] = await Promise.all([
       supabase.from("servicios_turnera").select("*").eq("activo", true),
       supabase.from("sedes").select("*"),
       supabase.from("disponibilidad_coaches").select("*").eq("coach_id", (c as any).id),
@@ -55,14 +63,17 @@ const CoachAgenda = () => {
         .not("estado_operativo", "like", "cancelada%")
         .order("fecha").order("hora_inicio").limit(60),
       supabase.from("agenda_grupal").select("*, sedes:sede_id(nombre)").eq("coach_id", (c as any).id),
+      supabase.from("agenda_solicitudes" as any).select("*").order("created_at", { ascending: false }).limit(30),
     ]);
     setServicios((servRes.data as any[]) || []);
     setSedes((sedesRes.data as any[]) || []);
     setDisponibilidades((dispRes.data as any[]) || []);
     setTurnos((turnosRes.data as any[]) || []);
     setGrupal((agRes.data as any[]) || []);
+    setSolicitudes(((solRes.data as any[]) || []) as AgendaSolicitud[]);
     setLoading(false);
   }, []);
+
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
@@ -73,12 +84,10 @@ const CoachAgenda = () => {
     const hoyIso = toLocalIso(now);
     const out: AgendaEvento[] = [];
 
-    for (let i = 0; i <= DIAS_ADELANTE; i++) {
-      const d = addDays(now, i);
-      const iso = toLocalIso(d);
-      for (const g of grupal) {
-        if (g.activo === false || g.dia_semana !== d.getDay()) continue;
-        if (!dentroDeVigencia(iso, g.vigente_desde, g.vigente_hasta)) continue;
+    const diasAgenda = Array.from({ length: DIAS_ADELANTE + 1 }, (_, i) => toLocalIso(addDays(now, i)));
+    for (const g of grupal) {
+      if (g.activo === false) continue;
+      for (const iso of ocurrenciasSerie(diasAgenda, g)) {
         if (iso === hoyIso && hhmm(g.hora_fin) <= nowHM) continue;
         out.push({
           id: `g-${g.id}-${iso}`,
@@ -92,9 +101,11 @@ const CoachAgenda = () => {
           sede_nombre: g.sedes?.nombre ?? null,
           titulo: "Clase grupal",
           detalle: g.grupo || null,
+          raw: g,
         });
       }
     }
+
 
     for (const t of turnos) {
       if (t.fecha === hoyIso && hhmm(t.hora_fin) <= nowHM) continue;
@@ -129,7 +140,12 @@ const CoachAgenda = () => {
     return [...map.entries()];
   }, [agenda]);
 
+  const pendientes = useMemo(() => solicitudes.filter((s) => s.estado === "pendiente"), [solicitudes]);
+
+  const solicitar = (tipo: SolicitudSeed["tipo"], entidad?: any) => setSolicitudSeed({ tipo, entidad });
+
   return (
+
     <div className="min-h-screen bg-background">
       <header className="border-b border-border px-4 py-3 flex items-center gap-3 sticky top-0 bg-card/80 backdrop-blur-sm z-10">
         <Button variant="ghost" size="icon" onClick={() => navigate("/coach")}>
@@ -212,21 +228,59 @@ const CoachAgenda = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="horarios" className="mt-4">
-              <DisponibilidadManager
-                coaches={[coach]}
-                servicios={servicios}
-                sedes={sedes}
-                disponibilidades={disponibilidades}
-                reload={loadAll}
-                lockedCoachId={coach.id}
-              />
+            <TabsContent value="horarios" className="mt-4 space-y-4">
+              <Card className="border-primary/30 bg-primary/5">
+                <CardContent className="p-3 space-y-2">
+                  <p className="text-sm font-medium text-foreground">Tus cambios requieren aprobación</p>
+                  <p className="text-xs text-muted-foreground">Podés proponer nuevos horarios, ediciones o eliminaciones. La agenda oficial no cambia hasta que administración apruebe.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={() => solicitar("disp_crear")}><Plus className="w-3.5 h-3.5 mr-1" /> Nuevo bloque</Button>
+                    <Button size="sm" variant="outline" onClick={() => solicitar("grupal_crear")}><Plus className="w-3.5 h-3.5 mr-1" /> Nueva clase</Button>
+                  </div>
+                </CardContent>
+              </Card>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">Clases grupales</h2>
+                  <span className="text-[11px] text-muted-foreground">Elegí una clase para proponer cambios</span>
+                </div>
+                {grupal.filter((g) => g.activo !== false).map((g) => (
+                  <Card key={g.id} className="border-border">
+                    <CardContent className="p-3 flex items-center gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground">{g.grupo || "Clase grupal"}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {esClasePuntual(g) ? `Puntual · ${String(g.fecha).slice(0, 10)}` : `↻ Semanal · ${DIAS_SEMANA[g.dia_semana]}`}
+                          {` · ${hhmm(g.hora_inicio)}–${hhmm(g.hora_fin)}`}
+                        </p>
+                      </div>
+                      <Button size="icon" variant="ghost" title="Proponer edición" onClick={() => solicitar("grupal_editar", g)}><Pencil className="w-4 h-4" /></Button>
+                      <Button size="icon" variant="ghost" title="Proponer finalización" onClick={() => solicitar("grupal_finalizar", g)}><Trash2 className="w-4 h-4" /></Button>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">Disponibilidad oficial</h2>
+                  <span className="text-[11px] text-muted-foreground">Solo lectura</span>
+                </div>
+                <DisponibilidadManager coaches={[coach]} servicios={servicios} sedes={sedes} disponibilidades={disponibilidades} reload={loadAll} lockedCoachId={coach.id} readOnly onPropose={(tipo, entidad) => solicitar(tipo as SolicitudSeed["tipo"], entidad)} />
+              </div>
+              {pendientes.length > 0 && (
+                <div className="space-y-2">
+                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">Mis solicitudes ({pendientes.length})</h2>
+                  {pendientes.map((s) => <Card key={s.id} className="border-border"><CardContent className="p-3"><div className="flex items-center gap-2"><Badge variant="outline">{ESTADO_LABEL[s.estado] || s.estado}</Badge><span className="text-sm text-foreground">{TIPO_SOLICITUD_LABEL[s.tipo] || s.tipo}</span></div>{s.alcance && <p className="text-xs text-muted-foreground mt-1">{ALCANCE_LABEL[s.alcance] || s.alcance}{s.fecha_efectiva ? ` · desde ${String(s.fecha_efectiva).slice(0, 10)}` : ""}</p>}</CardContent></Card>)}
+                </div>
+              )}
+              <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
             </TabsContent>
 
             <TabsContent value="ausencias" className="mt-4 space-y-6">
-              <AusenciasCoachManager coachId={coach.id} coachNombre={coach.nombre} />
-              <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} />
+              <AusenciasCoachManager coachId={coach.id} coachNombre={coach.nombre} readOnly />
+              <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} readOnly />
             </TabsContent>
+
           </Tabs>
         )}
       </main>

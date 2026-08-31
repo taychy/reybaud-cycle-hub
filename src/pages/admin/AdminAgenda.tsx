@@ -40,6 +40,7 @@ import {
 } from "@/lib/agenda";
 import { buildGrupoOptions } from "@/lib/coachContact";
 import { effectiveCoachSedes } from "@/lib/coachSedes";
+import AgendaSolicitudes from "@/components/admin/AgendaSolicitudes";
 
 type TipoFiltro = "todos" | "grupal" | "turno" | "disponibilidad";
 
@@ -200,14 +201,19 @@ const AdminAgenda = () => {
     hora_inicio: "09:00",
     hora_fin: "10:00",
     tipo: "grupal" as "grupal" | "turnera",
+    modalidad: "recurrente" as "recurrente" | "puntual",
+    fecha: "",
     grupo: "G1",
     honorario_id: "none",
     notas: "",
     servicio_ids: [] as string[],
     vigente_desde: "",
     vigente_hasta: "",
+    alcance: "desde_fecha" as "solo_fecha" | "desde_fecha" | "toda_serie",
+    fecha_efectiva: "",
   });
   const [editSerie, setEditSerie] = useState<any | null>(null);
+
 
   const serviciosActivos = servicios.filter((s) => s.activo !== false && !s.archivado);
   const grupoOptions = useMemo(() => buildGrupoOptions(gruposExistentes), [gruposExistentes]);
@@ -230,16 +236,22 @@ const AdminAgenda = () => {
       coach_id: coachFiltro !== "all" ? coachFiltro : coaches[0]?.id || "",
       sede_id: sedeFiltro !== "all" ? sedeFiltro : "none",
       tipo: "grupal",
+      modalidad: "recurrente",
+      fecha: "",
       servicio_ids: [],
       vigente_desde: "",
       vigente_hasta: "",
+      alcance: "desde_fecha",
+      fecha_efectiva: "",
     }));
     setOpenForm(true);
   };
 
-  const openEditSerie = (serie: any) => {
+  /** Abre la edición de una clase grupal. `fechaOcurrencia` = día clickeado (para "solo esta clase"). */
+  const openEditSerie = (serie: any, fechaOcurrencia?: string) => {
     setEditBloque(null);
     setEditSerie(serie);
+    const puntual = (serie.tipo_clase ?? "recurrente") === "puntual";
     setForm({
       coach_id: serie.coach_id,
       sede_id: serie.sede_id || "none",
@@ -247,15 +259,20 @@ const AdminAgenda = () => {
       hora_inicio: hhmm(serie.hora_inicio),
       hora_fin: hhmm(serie.hora_fin),
       tipo: "grupal",
+      modalidad: puntual ? "puntual" : "recurrente",
+      fecha: serie.fecha ? String(serie.fecha).slice(0, 10) : fechaOcurrencia || "",
       grupo: serie.grupo || "G1",
       honorario_id: serie.honorario_id || "none",
       notas: serie.notas || "",
       servicio_ids: [],
       vigente_desde: serie.vigente_desde ? String(serie.vigente_desde).slice(0, 10) : "",
       vigente_hasta: serie.vigente_hasta ? String(serie.vigente_hasta).slice(0, 10) : "",
+      alcance: "desde_fecha",
+      fecha_efectiva: fechaOcurrencia || "",
     });
     setOpenForm(true);
   };
+
 
   const finalizarSerie = async () => {
     if (!editSerie) return;
@@ -296,12 +313,17 @@ const AdminAgenda = () => {
       hora_inicio: bloque.hora_inicio,
       hora_fin: bloque.hora_fin,
       tipo: "turnera",
+      modalidad: "recurrente",
+      fecha: "",
       grupo: "G1",
       honorario_id: "none",
       notas: "",
       servicio_ids: [...bloque.servicio_ids],
       vigente_desde: "",
       vigente_hasta: "",
+      alcance: "desde_fecha",
+      fecha_efectiva: "",
+
     });
     setOpenForm(true);
   };
@@ -330,25 +352,62 @@ const AdminAgenda = () => {
     }
 
     if (form.tipo === "grupal") {
+      const puntual = form.modalidad === "puntual";
+      if (puntual && !form.fecha) {
+        setSaving(false);
+        toast({ title: "Elegí la fecha de la clase puntual", variant: "destructive" });
+        return;
+      }
       const payload = {
         coach_id: form.coach_id,
         sede_id,
-        dia_semana: dia,
+        dia_semana: puntual ? parseIso(form.fecha).getDay() : dia,
         hora_inicio: form.hora_inicio,
         hora_fin: form.hora_fin,
         grupo: form.grupo,
         honorario_id: form.honorario_id === "none" ? null : form.honorario_id,
         notas: form.notas || null,
-        vigente_desde: form.vigente_desde || null,
-        vigente_hasta: form.vigente_hasta || null,
+        tipo_clase: puntual ? "puntual" : "recurrente",
+        fecha: puntual ? form.fecha : null,
+        vigente_desde: puntual ? null : form.vigente_desde || null,
+        vigente_hasta: puntual ? null : form.vigente_hasta || null,
         activo: true,
       };
-      const { error } = editSerie
-        ? await supabase.from("agenda_grupal").update(payload as any).eq("id", editSerie.id)
-        : await supabase.from("agenda_grupal").insert(payload as any);
+
+      // Editar una serie recurrente pasa por el RPC de alcance (excepción / desde fecha / toda la serie).
+      const esSerieRecurrente = editSerie && (editSerie.tipo_clase ?? "recurrente") !== "puntual" && !puntual;
+      if (esSerieRecurrente && form.alcance !== "toda_serie" && !form.fecha_efectiva) {
+        setSaving(false);
+        toast({ title: "Indicá la fecha desde la que aplica el cambio", variant: "destructive" });
+        return;
+      }
+
+      const { error } = esSerieRecurrente
+        ? await supabase.rpc("aplicar_cambio_serie_grupal" as any, {
+            p_serie_id: editSerie.id,
+            p_alcance: form.alcance,
+            p_fecha_efectiva: form.alcance === "toda_serie" ? null : form.fecha_efectiva,
+            p_payload: payload as any,
+          })
+        : editSerie
+          ? await supabase.from("agenda_grupal").update(payload as any).eq("id", editSerie.id)
+          : await supabase.from("agenda_grupal").insert(payload as any);
       setSaving(false);
       if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-      toast({ title: editSerie ? "Serie semanal actualizada" : "Clase grupal recurrente creada" });
+      toast({
+        title: editSerie
+          ? esSerieRecurrente
+            ? form.alcance === "solo_fecha"
+              ? "Excepción creada para esa fecha"
+              : form.alcance === "desde_fecha"
+                ? "Nueva serie creada desde esa fecha"
+                : "Serie actualizada por completo"
+            : "Clase puntual actualizada"
+          : puntual
+            ? "Clase puntual creada"
+            : "Clase grupal recurrente creada",
+      });
+
     } else {
       if (form.servicio_ids.length === 0) {
         setSaving(false);
@@ -430,6 +489,16 @@ const AdminAgenda = () => {
           <Plus className="w-3.5 h-3.5 mr-1" /> Agregar bloque
         </Button>
       </div>
+
+      <details className="group rounded-md border border-border bg-card">
+        <summary className="flex cursor-pointer list-none items-center justify-between px-3 py-2.5 text-sm font-medium text-foreground">
+          <span>Solicitudes de agenda de profesores</span>
+          <span className="text-xs text-muted-foreground group-open:hidden">Revisar y aprobar cambios</span>
+        </summary>
+        <div className="border-t border-border p-3">
+          <AgendaSolicitudes onResolved={loadAll} />
+        </div>
+      </details>
 
       {/* Filtros */}
       <Card className="bg-card border-border">
@@ -540,10 +609,15 @@ const AdminAgenda = () => {
                             </span>
                             <Badge variant="outline" className="text-[10px]">{TIPO_LABEL[e.tipo]}</Badge>
                             {e.tipo === "grupal" && (
-                              <Badge variant="secondary" className="text-[10px] gap-1">
-                                <Repeat className="w-2.5 h-2.5" /> Semanal
-                              </Badge>
+                              (e.raw?.tipo_clase ?? "recurrente") === "puntual" ? (
+                                <Badge variant="outline" className="text-[10px]">Puntual</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px] gap-1">
+                                  <Repeat className="w-2.5 h-2.5" /> Semanal
+                                </Badge>
+                              )
                             )}
+
                             {enConflicto && (
                               <Badge variant="destructive" className="text-[10px]">Conflicto</Badge>
                             )}
@@ -689,51 +763,81 @@ const AdminAgenda = () => {
                   <Textarea rows={2} value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} />
                 </div>
 
-                <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
-                  <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
-                    <Repeat className="w-3.5 h-3.5 text-primary" /> Repetición
-                  </p>
-                  <p className="text-[12px] text-muted-foreground">
-                    Se repite todos los {DIAS_SEMANA[Number(form.dia_semana)]} de {form.hora_inicio} a {form.hora_fin}.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px]">Desde</Label>
-                      <Input
-                        type="date"
-                        value={form.vigente_desde}
-                        onChange={(ev) => setForm({ ...form, vigente_desde: ev.target.value })}
-                      />
-                    </div>
-                    <div className="space-y-1.5">
-                      <Label className="text-[11px]">Hasta (opcional)</Label>
-                      <Input
-                        type="date"
-                        value={form.vigente_hasta}
-                        onChange={(ev) => setForm({ ...form, vigente_hasta: ev.target.value })}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Sin fechas, la serie se repite indefinidamente.
-                  </p>
-                  {editSerie && (
-                    <div className="flex flex-wrap gap-2 pt-1">
-                      <Button type="button" variant="outline" size="sm" disabled={saving} onClick={finalizarSerie}>
-                        Finalizar serie
-                      </Button>
-                      <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={eliminarSerie}>
-                        <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
-                      </Button>
-                    </div>
-                  )}
-                </div>
+                 <div className="rounded-md border border-border bg-muted/20 p-3 space-y-2">
+                   <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                     <Repeat className="w-3.5 h-3.5 text-primary" /> Tipo de clase
+                   </p>
+                   <Select value={form.modalidad} onValueChange={(v) => setForm({ ...form, modalidad: v as any })}>
+                     <SelectTrigger><SelectValue /></SelectTrigger>
+                     <SelectContent>
+                       <SelectItem value="recurrente">Clase recurrente (semanal)</SelectItem>
+                       <SelectItem value="puntual">Clase puntual (una sola fecha)</SelectItem>
+                     </SelectContent>
+                   </Select>
 
-                {editSerie && (
-                  <p className="text-[11px] text-amber-500">
-                    Este cambio se aplicará a las próximas clases de esta serie.
-                  </p>
-                )}
+                   {form.modalidad === "puntual" ? (
+                     <div className="space-y-1.5">
+                       <Label className="text-[11px]">Fecha de la clase</Label>
+                       <Input type="date" value={form.fecha} onChange={(ev) => setForm({ ...form, fecha: ev.target.value })} />
+                       <p className="text-[11px] text-muted-foreground">Se mostrará una sola vez, sin repetirse.</p>
+                     </div>
+                   ) : (
+                     <>
+                       <p className="text-[12px] text-muted-foreground">
+                         Se repite todos los {DIAS_SEMANA[Number(form.dia_semana)]} de {form.hora_inicio} a {form.hora_fin}.
+                       </p>
+                       <div className="grid grid-cols-2 gap-2">
+                         <div className="space-y-1.5">
+                           <Label className="text-[11px]">Desde</Label>
+                           <Input type="date" value={form.vigente_desde} onChange={(ev) => setForm({ ...form, vigente_desde: ev.target.value })} />
+                         </div>
+                         <div className="space-y-1.5">
+                           <Label className="text-[11px]">Hasta (opcional)</Label>
+                           <Input type="date" value={form.vigente_hasta} onChange={(ev) => setForm({ ...form, vigente_hasta: ev.target.value })} />
+                         </div>
+                       </div>
+                       <p className="text-[11px] text-muted-foreground">Sin fechas, la serie se repite indefinidamente.</p>
+                     </>
+                   )}
+
+                   {editSerie && form.modalidad === "recurrente" && (
+                     <div className="border-t border-border pt-2 mt-2 space-y-2">
+                       <Label className="text-[11px]">Alcance del cambio</Label>
+                       <Select value={form.alcance} onValueChange={(v) => setForm({ ...form, alcance: v as any })}>
+                         <SelectTrigger><SelectValue /></SelectTrigger>
+                         <SelectContent>
+                           <SelectItem value="solo_fecha">Solo esta clase</SelectItem>
+                           <SelectItem value="desde_fecha">Esta y las siguientes</SelectItem>
+                           <SelectItem value="toda_serie">Toda la serie</SelectItem>
+                         </SelectContent>
+                       </Select>
+                       {form.alcance !== "toda_serie" && (
+                         <Input type="date" value={form.fecha_efectiva} onChange={(ev) => setForm({ ...form, fecha_efectiva: ev.target.value })} />
+                       )}
+                       {form.alcance === "toda_serie" && (
+                         <p className="text-[11px] text-amber-500">Advertencia: también corrige la configuración histórica de la serie.</p>
+                       )}
+                     </div>
+                   )}
+
+                   {editSerie && (
+                     <div className="flex flex-wrap gap-2 pt-1">
+                       <Button type="button" variant="outline" size="sm" disabled={saving} onClick={finalizarSerie}>
+                         Finalizar serie
+                       </Button>
+                       <Button type="button" variant="ghost" size="sm" disabled={saving} onClick={eliminarSerie}>
+                         <Trash2 className="w-3.5 h-3.5 mr-1" /> Eliminar
+                       </Button>
+                     </div>
+                   )}
+                 </div>
+
+                 {editSerie && (
+                   <p className="text-[11px] text-amber-500">
+                     {form.modalidad === "puntual" ? "Clase puntual: se verá solo en la fecha elegida." : "El alcance seleccionado preserva el histórico de la serie."}
+                   </p>
+                 )}
+
               </>
             ) : (
               <div className="space-y-1.5">

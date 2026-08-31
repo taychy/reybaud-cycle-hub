@@ -45,7 +45,7 @@ function toIso(d: Date) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-export function DisponibilidadAjustadaManager({ coaches, lockedCoachId }: { coaches: Coach[]; lockedCoachId?: string }) {
+export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly = false }: { coaches: Coach[]; lockedCoachId?: string; readOnly?: boolean }) {
   const [ajustes, setAjustes] = useState<Ajuste[]>([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -131,12 +131,14 @@ export function DisponibilidadAjustadaManager({ coaches, lockedCoachId }: { coac
                 <CalendarIcon className="w-4 h-4 text-primary" /> Disponibilidad ajustada
               </p>
               <p className="text-xs text-muted-foreground">
-                Indicá a qué horas estarás disponible en fechas específicas. El motivo es interno y no se muestra al alumno.
+                {readOnly ? "Estos cambios son oficiales. Para proponer una modificación, usá una solicitud de agenda." : "Indicá a qué horas estarás disponible en fechas específicas. El motivo es interno y no se muestra al alumno."}
               </p>
             </div>
-            <Button size="sm" onClick={() => { reset(); setOpen(true); }}>
-              <Plus className="w-4 h-4 mr-1" /> Cambiar la disponibilidad en una fecha
-            </Button>
+            {!readOnly && (
+              <Button size="sm" onClick={() => { reset(); setOpen(true); }}>
+                <Plus className="w-4 h-4 mr-1" /> Cambiar la disponibilidad en una fecha
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>
@@ -169,7 +171,7 @@ export function DisponibilidadAjustadaManager({ coaches, lockedCoachId }: { coac
                       </p>
                     )}
                   </div>
-                  {(!lockedCoachId || a.coach_id === lockedCoachId) && (
+                  {!readOnly && (!lockedCoachId || a.coach_id === lockedCoachId) && (
                     <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => remove(a.id)}>
                       <Trash2 className="w-4 h-4" />
                     </Button>

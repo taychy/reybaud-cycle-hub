@@ -168,15 +168,41 @@ export function dentroDeVigencia(
   return true;
 }
 
-/** Ocurrencias de una serie semanal dentro de la semana, respetando su vigencia. */
-export function ocurrenciasSerie(
-  dias: string[],
-  serie: { dia_semana: number; vigente_desde?: string | null; vigente_hasta?: string | null },
-): string[] {
-  return ocurrenciasEnSemana(dias, serie.dia_semana).filter((iso) =>
-    dentroDeVigencia(iso, serie.vigente_desde, serie.vigente_hasta),
+/** Serie/clase grupal tal como se guarda en `agenda_grupal`. */
+export type SerieGrupal = {
+  dia_semana: number;
+  /** "recurrente" (semanal) | "puntual" (una sola fecha). */
+  tipo_clase?: string | null;
+  /** Fecha concreta cuando `tipo_clase = "puntual"`. */
+  fecha?: string | null;
+  vigente_desde?: string | null;
+  vigente_hasta?: string | null;
+  /** Fechas donde la serie NO se dicta (excepciones puntuales). */
+  fechas_excluidas?: (string | null)[] | null;
+};
+
+/** ¿Es una clase puntual (una sola fecha) en vez de una serie semanal? */
+export const esClasePuntual = (s: { tipo_clase?: string | null }): boolean =>
+  (s?.tipo_clase ?? "recurrente") === "puntual";
+
+/**
+ * Ocurrencias de una clase dentro de la semana:
+ * - puntual: solo su `fecha`, si cae en la semana.
+ * - recurrente: su día de semana, respetando vigencia y fechas excluidas.
+ */
+export function ocurrenciasSerie(dias: string[], serie: SerieGrupal): string[] {
+  if (esClasePuntual(serie)) {
+    const f = serie.fecha ? String(serie.fecha).slice(0, 10) : null;
+    return f && dias.includes(f) ? [f] : [];
+  }
+  const excluidas = new Set(
+    (serie.fechas_excluidas || []).filter(Boolean).map((f) => String(f).slice(0, 10)),
+  );
+  return ocurrenciasEnSemana(dias, serie.dia_semana).filter(
+    (iso) => dentroDeVigencia(iso, serie.vigente_desde, serie.vigente_hasta) && !excluidas.has(iso),
   );
 }
+
 
 
 /**
