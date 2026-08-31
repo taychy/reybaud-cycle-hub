@@ -73,3 +73,34 @@ describe("camposModificados", () => {
     expect(camposModificados({ sede_id: null }, { sede_id: "s1" })).toEqual(["sede_id"]);
   });
 });
+
+describe("cambios puntuales de disponibilidad", () => {
+  it("reconoce las solicitudes de ajuste puntual", () => {
+    expect(esSolicitudAjustePuntual("ajuste_crear")).toBe(true);
+    expect(esSolicitudAjustePuntual("ajuste_eliminar")).toBe(true);
+    expect(esSolicitudAjustePuntual("disp_crear")).toBe(false);
+    expect(esSolicitudAjustePuntual("grupal_editar")).toBe(false);
+  });
+
+  it("resume un bloqueo de día completo sin horarios", () => {
+    expect(resumenAjuste({ tipo_ajuste: "bloquear", fecha: "2026-03-10" })).toBe(
+      "2026-03-10 · Bloquear el día completo",
+    );
+  });
+
+  it("incluye el rango horario cuando reemplaza o agrega", () => {
+    expect(
+      resumenAjuste({ tipo_ajuste: "agregar", fecha: "2026-03-10", hora_inicio: "18:00:00", hora_fin: "20:00:00" }),
+    ).toBe("2026-03-10 · Agregar un tramo extra · 18:00–20:00");
+  });
+
+  it("usa la fecha efectiva cuando el payload no la trae", () => {
+    expect(resumenAjuste({ tipo: "reemplazar" }, "2026-04-01")).toBe(
+      "2026-04-01 · Reemplazar el horario del día",
+    );
+  });
+
+  it("devuelve — si no hay datos", () => {
+    expect(resumenAjuste(null)).toBe("—");
+  });
+});
