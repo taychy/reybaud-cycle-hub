@@ -43,6 +43,7 @@ const ManageCoaches = () => {
   const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
   const [selectedSedeIds, setSelectedSedeIds] = useState<string[]>([]);
   const [coachSedesMap, setCoachSedesMap] = useState<Record<string, string[]>>({});
+  const [coachesConActividad, setCoachesConActividad] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
   const [sedes, setSedes] = useState<Sede[]>([]);
