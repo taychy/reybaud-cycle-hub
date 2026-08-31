@@ -135,9 +135,10 @@ export function SaldoDisponibleSection({
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message || "No se pudo aplicar el saldo");
+      toast.error(rpcErrorMessage(error, "No se pudo aplicar el saldo"));
       return;
     }
+
     toast.success(`Se aplicaron ${formatPrice(m, selected.moneda)} a ${target.label}`);
     setSelected(null);
     await fetchPagos();
