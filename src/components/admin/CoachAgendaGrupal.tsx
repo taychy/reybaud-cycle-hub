@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Edit2, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { DIAS_SEMANA, ORDEN_SEMANA_LUNES } from "@/lib/agenda";
 
 // Convención única: 0=Domingo … 6=Sábado (JS/Postgres DOW).
 // La visualización usa orden lunes → domingo.
