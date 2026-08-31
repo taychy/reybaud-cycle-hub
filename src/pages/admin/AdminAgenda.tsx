@@ -632,7 +632,7 @@ const AdminAgenda = () => {
                           key={e.id}
                           onClick={() => {
                             if (e.tipo === "disponibilidad") openEditDisponibilidad(e.raw);
-                            else if (e.tipo === "grupal") openEditSerie(e.raw);
+                            else if (e.tipo === "grupal") openEditSerie(e.raw, e.fecha);
                           }}
                           className={`rounded-md border px-2.5 py-2 space-y-1 ${
                             e.tipo === "disponibilidad"
@@ -698,12 +698,19 @@ const AdminAgenda = () => {
           <DialogHeader>
             <DialogTitle className="font-heading uppercase tracking-wider text-sm">
               {editSerie
-                ? "Editar serie semanal"
+                ? form.modalidad === "puntual"
+                  ? "Editar clase puntual"
+                  : "Editar serie semanal"
                 : editBloque
                   ? "Editar bloque de trabajo"
                   : form.tipo === "grupal"
-                    ? "Nueva clase grupal recurrente"
-                    : "Nuevo bloque"}
+                    ? form.modalidad === "puntual"
+                      ? "Nueva clase puntual"
+                      : "Nueva clase grupal recurrente"
+                    : form.disp_modalidad === "puntual"
+                      ? "Cambio puntual de disponibilidad"
+                      : "Nuevo horario habitual"}
+
             </DialogTitle>
           </DialogHeader>
 
