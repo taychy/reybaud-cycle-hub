@@ -333,7 +333,6 @@ const CoachAgenda = () => {
         )}
         <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
 
-        )}
       </main>
     </div>
   );
