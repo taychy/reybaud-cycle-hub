@@ -23,6 +23,7 @@ import { printSinglePreorderLabel } from "@/lib/preorderLabels";
 import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
+import PruebasSection from "@/components/store/PruebasSection";
 
 
 interface OrderItem {
@@ -1023,6 +1024,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <div className="text-xs text-muted-foreground italic">Elegí un método de entrega.</div>
                     )}
                   </section>
+
+                  {/* Prendas de prueba (no son venta) */}
+                  <PruebasSection
+                    orderId={detail.id}
+                    alumnoId={detail.alumno_id}
+                    currency={detail.currency}
+                    onChanged={load}
+                  />
+
+
 
                   {/* Pago */}
                   <section className="rounded-lg border border-border p-3 space-y-1 text-xs">
