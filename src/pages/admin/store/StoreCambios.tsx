@@ -101,7 +101,13 @@ const AdminCambios = () => {
                     )}
                   </p>
                 </div>
-                <Badge className={`text-[10px] uppercase ${estadoColor[c.estado]}`}>{c.estado}</Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+                  {esPrueba(c) && (
+                    <Badge className={`text-[10px] uppercase ${resultadoClass(c)}`}>{resultadoLabel(c)}</Badge>
+                  )}
+                </div>
+
               </div>
             </button>
           );
