@@ -43,6 +43,7 @@ const ManageCoaches = () => {
   const [selectedSedeId, setSelectedSedeId] = useState<string | null>(null);
   const [selectedSedeIds, setSelectedSedeIds] = useState<string[]>([]);
   const [coachSedesMap, setCoachSedesMap] = useState<Record<string, string[]>>({});
+  const [coachesConActividad, setCoachesConActividad] = useState<Set<string>>(new Set());
   const [saving, setSaving] = useState(false);
   const [detailCoach, setDetailCoach] = useState<Coach | null>(null);
   const [sedes, setSedes] = useState<Sede[]>([]);
@@ -61,9 +62,14 @@ const ManageCoaches = () => {
   const isMobile = useIsMobile();
 
   const fetchCoaches = async () => {
-    const [{ data }, { data: rel }] = await Promise.all([
+    const hoy = new Date();
+    const hoyIso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+    const [{ data }, { data: rel }, { data: ag }, { data: dc }, { data: rt }] = await Promise.all([
       supabase.from("coaches").select("*").order("created_at", { ascending: false }),
       supabase.from("coach_sedes" as any).select("coach_id, sede_id"),
+      supabase.from("agenda_grupal").select("coach_id").eq("activo", true),
+      supabase.from("disponibilidad_coaches").select("coach_id").eq("activo", true),
+      supabase.from("reservas_turnera").select("coach_id").gte("fecha", hoyIso),
     ]);
     setCoaches((data as any) || []);
     const map: Record<string, string[]> = {};
@@ -71,12 +77,20 @@ const ManageCoaches = () => {
       (map[r.coach_id] ||= []).push(r.sede_id);
     });
     setCoachSedesMap(map);
+    const activos = new Set<string>();
+    [...((ag as any[]) || []), ...((dc as any[]) || []), ...((rt as any[]) || [])].forEach((r) => {
+      if (r.coach_id) activos.add(r.coach_id);
+    });
+    setCoachesConActividad(activos);
     setLoading(false);
   };
 
   /** Sedes del coach: relación many-to-many, con fallback al sede_id legado. */
   const sedesDeCoach = (coach: Coach) => effectiveCoachSedes(coachSedesMap[coach.id], coach.sede_id);
   const nombreSede = (id: string) => sedes.find((s) => s.id === id)?.nombre || "—";
+  /** Coach activo sin clases grupales, disponibilidad ni turnos próximos. */
+  const sinActividad = (coach: Coach) =>
+    coach.estado === "activo" && !coachesConActividad.has(coach.id);
 
   useEffect(() => { fetchCoaches(); }, []);
 
@@ -335,6 +349,11 @@ const ManageCoaches = () => {
                        Activación pendiente
                     </Badge>
                   )}
+                  {sinActividad(coach) && (
+                    <Badge variant="outline" className="text-xs border-muted-foreground/40 text-muted-foreground">
+                      Sin actividad configurada
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))
@@ -386,6 +405,11 @@ const ManageCoaches = () => {
                         {!(coach as any).password_set && (coach as any).invited_at && (
                           <Badge variant="outline" className="text-xs border-yellow-500/50 text-yellow-500">
                             Activación pendiente
+                          </Badge>
+                        )}
+                        {sinActividad(coach) && (
+                          <Badge variant="outline" className="text-xs border-muted-foreground/40 text-muted-foreground">
+                            Sin actividad configurada
                           </Badge>
                         )}
                       </div>

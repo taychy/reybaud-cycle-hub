@@ -10,8 +10,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Edit2, Calendar } from "lucide-react";
 import { toast } from "sonner";
+import { DIAS_SEMANA, ORDEN_SEMANA_LUNES } from "@/lib/agenda";
 
-const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+// Convención única: 0=Domingo … 6=Sábado (JS/Postgres DOW).
+// La visualización usa orden lunes → domingo.
+const DIAS = DIAS_SEMANA;
 
 interface AgendaItem {
   id: string;
@@ -55,7 +58,7 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
 
   const [form, setForm] = useState({
     honorario_id: "",
-    dia_semana: 0,
+    dia_semana: 1,
     hora_inicio: "08:00",
     hora_fin: "09:30",
     grupo: "General",
@@ -80,7 +83,7 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
 
   const openCreate = () => {
     setEditItem(null);
-    setForm({ honorario_id: "", dia_semana: 0, hora_inicio: "08:00", hora_fin: "09:30", grupo: "General", sede_id: "", activo: true, notas: "" });
+    setForm({ honorario_id: "", dia_semana: 1, hora_inicio: "08:00", hora_fin: "09:30", grupo: "General", sede_id: "", activo: true, notas: "" });
     setShowForm(true);
   };
 
@@ -147,8 +150,8 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
   };
 
   // Group items by day
-  const byDay = DIAS.map((nombre, idx) => ({
-    nombre,
+  const byDay = ORDEN_SEMANA_LUNES.map((idx) => ({
+    nombre: DIAS[idx],
     items: items.filter(i => i.dia_semana === idx),
   })).filter(d => d.items.length > 0);
 
@@ -219,7 +222,7 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
               <Select value={String(form.dia_semana)} onValueChange={v => setForm({ ...form, dia_semana: Number(v) })}>
                 <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {DIAS.map((d, i) => <SelectItem key={i} value={String(i)}>{d}</SelectItem>)}
+                  {ORDEN_SEMANA_LUNES.map((i) => <SelectItem key={i} value={String(i)}>{DIAS[i]}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>

@@ -20,7 +20,7 @@ import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { ServicioConfigDialog } from "@/components/admin/ServicioConfigDialog";
-import { DisponibilidadEditor } from "@/components/admin/DisponibilidadEditor";
+import { DisponibilidadManager } from "@/components/admin/DisponibilidadEditor";
 import { DisponibilidadAjustadaManager } from "@/components/admin/DisponibilidadAjustadaManager";
 import TurneraTransferenciasTab from "@/components/admin/TurneraTransferenciasTab";
 import TurneraBancariosConfig from "@/components/admin/TurneraBancariosConfig";
@@ -205,36 +205,27 @@ const AdminTurnera = () => {
       return;
     }
     const precio = reservaForm.precio ? Number(reservaForm.precio) : null;
-    const insert: any = {
-      servicio_id,
-      coach_id,
-      alumno_id: reservaForm.alumno_id || null,
-      fecha,
-      hora_inicio,
-      hora_fin,
-      sede_id: reservaForm.sede_id || null,
-      nombre: nombre.trim(),
-      apellido: apellido.trim(),
-      email: email.trim(),
-      celular: reservaForm.celular?.trim() || null,
-      documento: reservaForm.documento?.trim() || null,
-      nota: reservaForm.nota?.trim() || null,
-      precio_snapshot: precio,
-      moneda_snapshot: "ARS",
-      estado_operativo: "reservada",
-      estado_economico: reservaForm.estado_economico,
-      pago_monto: reservaForm.estado_economico === "pagado" ? precio : null,
-      origen_link: "admin",
-      acepto_politica: true,
-      form_responses: {},
-    };
-    const { data: inserted, error } = await supabase
-      .from("reservas_turnera")
-      .insert(insert)
-      .select("id")
-      .single();
+    // RPC segura: valida solapamientos con otros turnos, clases grupales y ausencias del coach.
+    const { data: nuevaId, error } = await supabase.rpc("admin_create_turnera_reservation" as any, {
+      p_servicio_id: servicio_id,
+      p_coach_id: coach_id,
+      p_sede_id: reservaForm.sede_id || null,
+      p_fecha: fecha,
+      p_hora_inicio: hora_inicio,
+      p_hora_fin: hora_fin,
+      p_nombre: nombre.trim(),
+      p_apellido: apellido.trim(),
+      p_email: email.trim(),
+      p_celular: reservaForm.celular?.trim() || null,
+      p_documento: reservaForm.documento?.trim() || null,
+      p_nota: reservaForm.nota?.trim() || null,
+      p_alumno_id: reservaForm.alumno_id || null,
+      p_precio: precio,
+      p_estado_economico: reservaForm.estado_economico,
+    });
+    const inserted = nuevaId ? { id: nuevaId as string } : null;
     if (error) {
-      toast({ title: "Error al crear reserva", description: error.message, variant: "destructive" });
+      toast({ title: "No se pudo crear la reserva", description: error.message, variant: "destructive" });
       return;
     }
     // Disparar aviso al coach + confirmación al alumno (fire-and-forget)
@@ -542,7 +533,7 @@ const AdminTurnera = () => {
         </TabsContent>
 
         <TabsContent value="disponibilidad" className="space-y-4 mt-4">
-          <DisponibilidadEditor
+          <DisponibilidadManager
             coaches={coaches}
             servicios={servicios}
             sedes={sedes}

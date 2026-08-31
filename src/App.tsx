@@ -103,6 +103,7 @@ import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
 import AdminTurnera from "./pages/admin/AdminTurnera";
+import AdminAgenda from "./pages/admin/AdminAgenda";
 import AdminBajas from "./pages/admin/AdminBajas";
 import FacturasPorDiaPage from "./pages/admin/dia/FacturasPorDiaPage";
 import PagosPorDiaPage from "./pages/admin/dia/PagosPorDiaPage";
@@ -244,6 +245,7 @@ const App = () => (
             <Route path="gestion-redes" element={<AdminGestionRedes />} />
             
             <Route path="liquidaciones" element={<AdminLiquidaciones />} />
+            <Route path="agenda" element={<AdminAgenda />} />
             <Route path="turnera" element={<AdminTurnera />} />
             <Route path="bajas" element={<AdminBajas />} />
             <Route path="facturacion/por-dia" element={<FacturasPorDiaPage />} />
