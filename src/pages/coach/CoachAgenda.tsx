@@ -312,7 +312,7 @@ const CoachAgenda = () => {
                         )}
                         {s.estado !== "pendiente" && (
                           <p className="text-[11px] text-muted-foreground">
-                            Resuelta {s.resolved_at ? String(s.resolved_at).slice(0, 10) : ""}
+                            Resuelta {s.resuelto_at ? String(s.resuelto_at).slice(0, 10) : ""}
                             {s.respuesta_admin ? ` · “${s.respuesta_admin}”` : ""}
                           </p>
                         )}
