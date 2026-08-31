@@ -293,25 +293,27 @@ const AdminAgenda = () => {
       const { toAdd, toRemove } = diffServicios(actuales, form.servicio_ids);
 
       if (editBloque) {
-        // Sincronizar horario/sede del conjunto
-        await supabase
-          .from("disponibilidad_coaches")
-          .update({
-            sede_id,
-            dia_semana: dia,
-            hora_inicio: form.hora_inicio,
-            hora_fin: form.hora_fin,
-          } as any)
-          .in("id", editBloque.row_ids);
-        for (const sv of toRemove) {
+        // 1) Borrar PRIMERO los servicios removidos, por row ID (robusto aunque
+        //    cambien sede/día/hora en la misma edición).
+        const removeSet = new Set(toRemove);
+        const removeIds = editBloque.row_ids.filter((id: string) =>
+          removeSet.has(disp.find((d) => d.id === id)?.servicio_id),
+        );
+        if (removeIds.length > 0) {
+          await supabase.from("disponibilidad_coaches").delete().in("id", removeIds);
+        }
+        // 2) Actualizar horario/sede sólo de las filas conservadas.
+        const keepIds = editBloque.row_ids.filter((id: string) => !removeIds.includes(id));
+        if (keepIds.length > 0) {
           await supabase
             .from("disponibilidad_coaches")
-            .delete()
-            .eq("coach_id", editBloque.coach_id)
-            .eq("servicio_id", sv)
-            .eq("dia_semana", editBloque.dia_semana)
-            .eq("hora_inicio", editBloque.hora_inicio)
-            .eq("hora_fin", editBloque.hora_fin);
+            .update({
+              sede_id,
+              dia_semana: dia,
+              hora_inicio: form.hora_inicio,
+              hora_fin: form.hora_fin,
+            } as any)
+            .in("id", keepIds);
         }
       }
 
