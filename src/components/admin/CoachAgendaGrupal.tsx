@@ -11,7 +11,9 @@ import { Switch } from "@/components/ui/switch";
 import { Plus, Trash2, Edit2, Calendar } from "lucide-react";
 import { toast } from "sonner";
 
-const DIAS = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"];
+// Convención única: 0=Domingo … 6=Sábado (JS/Postgres DOW).
+// La visualización usa orden lunes → domingo.
+const DIAS = DIAS_SEMANA;
 
 interface AgendaItem {
   id: string;
