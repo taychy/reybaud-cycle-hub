@@ -234,6 +234,13 @@ const AdminAgenda = () => {
   const sedeNoAsignada =
     form.sede_id !== "none" && form.coach_id && !sedesDelCoach.includes(form.sede_id);
 
+  /** Un cambio puntual (clase o disponibilidad) usa la FECHA como fuente de verdad, no el día de semana. */
+  const esPuntual =
+    form.tipo === "grupal" ? form.modalidad === "puntual" : form.disp_modalidad === "puntual";
+  const diaAplica = !esPuntual;
+  const horasAplican = !(form.tipo === "turnera" && form.disp_modalidad === "puntual" && form.tipo_ajuste === "bloquear");
+
+
   const openCreate = () => {
     setEditBloque(null);
     setEditSerie(null);
