@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
+import { edgeFunctionErrorMessage, rpcErrorMessage } from "@/lib/edgeErrors";
+
 
 interface Alumno {
   id: string;
@@ -129,8 +131,14 @@ export default function DarBajaDirectaDialog({ open, onOpenChange, initialAlumno
       }
     }
 
+    if (fallidos.length > 0) {
+      toast.warning(
+        `Baja registrada. ${fallidos.length} débito(s) automático(s) de Mercado Pago no se pudieron cancelar — revisalos manualmente.`,
+      );
+    } else {
+      toast.success("Baja registrada correctamente");
+    }
 
-    toast.success("Baja registrada correctamente");
     onOpenChange(false);
     onDone?.();
   };

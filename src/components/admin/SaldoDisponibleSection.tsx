@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Wallet } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
+import { rpcErrorMessage } from "@/lib/edgeErrors";
+
 
 const sb: any = supabase;
 

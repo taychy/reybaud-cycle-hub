@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { edgeFunctionErrorMessage } from "@/lib/edgeErrors";
+
 
 interface SnapshotShape {
   planes_activos?: Array<{ id: string; plan_nombre?: string; estado?: string; fecha_fin?: string | null; auto_renovacion?: boolean }>;
