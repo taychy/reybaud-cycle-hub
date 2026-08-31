@@ -3,9 +3,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, X, CopyPlus, Ban } from "lucide-react";
+import { Plus, X, CopyPlus, Ban, Pencil } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -15,8 +20,9 @@ import {
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
+import { DIAS_SEMANA, agruparDisponibilidad, diffServicios, type BloqueDisponibilidad } from "@/lib/agenda";
 
-const DIAS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const DIAS = DIAS_SEMANA;
 
 
 // ============================================================
