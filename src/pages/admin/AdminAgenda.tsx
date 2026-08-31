@@ -109,7 +109,7 @@ const AdminAgenda = () => {
 
     for (const g of grupal) {
       if (g.activo === false) continue;
-      for (const fecha of ocurrenciasEnSemana(dias, g.dia_semana)) {
+      for (const fecha of ocurrenciasSerie(dias, g)) {
         out.push({
           id: `g-${g.id}-${fecha}`,
           tipo: "grupal",
@@ -126,6 +126,7 @@ const AdminAgenda = () => {
         });
       }
     }
+
 
     for (const t of turnos) {
       if ((t.estado_operativo || "").startsWith("cancelada")) continue;
