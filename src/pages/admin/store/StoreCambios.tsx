@@ -7,19 +7,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
+import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
+import {
+  diasAfuera, esPrueba, esPruebaActiva, resultadoClass, resultadoLabel, tipoRegistro, TIPO_LABEL,
+} from "@/lib/pruebas";
 
 type Cambio = any;
 
-const estadoColor: Record<string, string> = {
-  solicitado: "bg-muted text-muted-foreground",
-  aprobado: "bg-cyan/20 text-cyan",
-  en_deposito: "bg-primary/20 text-primary",
-  listo_retiro: "bg-green-500/20 text-green-400",
-  entregado: "bg-green-500/30 text-green-300",
-  rechazado: "bg-destructive/20 text-destructive",
-  cancelado: "bg-muted/40 text-muted-foreground",
-  devolucion_solicitada: "bg-amber-500/20 text-amber-300",
-};
 
 const AdminCambios = () => {
   const [items, setItems] = useState<Cambio[]>([]);
