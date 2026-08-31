@@ -41,6 +41,8 @@ import {
 import { buildGrupoOptions } from "@/lib/coachContact";
 import { effectiveCoachSedes } from "@/lib/coachSedes";
 import AgendaSolicitudes from "@/components/admin/AgendaSolicitudes";
+import { TIPO_AJUSTE_LABEL, type TipoAjuste } from "@/lib/agendaSolicitudes";
+
 
 type TipoFiltro = "todos" | "grupal" | "turno" | "disponibilidad";
 
