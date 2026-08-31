@@ -141,6 +141,12 @@ const CoachAgenda = () => {
   }, [agenda]);
 
   const pendientes = useMemo(() => solicitudes.filter((s) => s.estado === "pendiente"), [solicitudes]);
+  /** Pendientes primero, luego el historial reciente resuelto. */
+  const solicitudesVisibles = useMemo(
+    () => [...pendientes, ...solicitudes.filter((s) => s.estado !== "pendiente").slice(0, 12)],
+    [pendientes, solicitudes],
+  );
+
 
   const solicitar = (tipo: SolicitudSeed["tipo"], entidad?: any) => setSolicitudSeed({ tipo, entidad });
 
