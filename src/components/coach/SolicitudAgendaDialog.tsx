@@ -212,7 +212,54 @@ export const SolicitudAgendaDialog = ({ seed, sedes, servicios, onOpenChange, on
         </p>
 
         <div className="space-y-3 py-1">
+          {esAjuste ? (
+            seed?.tipo === "ajuste_eliminar" ? (
+              <div className="rounded-md border border-border bg-muted/20 p-3 text-sm text-foreground">
+                Pedís quitar el cambio puntual del{" "}
+                <span className="font-semibold">
+                  {seed?.entidad?.fecha ? String(seed.entidad.fecha).slice(0, 10) : "—"}
+                </span>
+                . Al aprobarse, esa fecha vuelve a tu horario habitual.
+              </div>
+            ) : (
+              <>
+                <div className="space-y-1.5">
+                  <Label>Fecha del cambio</Label>
+                  <Input type="date" value={form.fecha} onChange={(e) => setForm({ ...form, fecha: e.target.value })} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>¿Qué querés cambiar ese día?</Label>
+                  <Select value={form.tipo_ajuste} onValueChange={(v) => setForm({ ...form, tipo_ajuste: v as TipoAjuste })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="bloquear">🚫 No estoy disponible ese día</SelectItem>
+                      <SelectItem value="reemplazar">🔁 Ese día trabajo en otro horario</SelectItem>
+                      <SelectItem value="agregar">➕ Sumo un tramo extra</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.tipo_ajuste !== "bloquear" && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label>Inicio</Label>
+                      <Input type="time" value={form.hora_inicio} onChange={(e) => setForm({ ...form, hora_inicio: e.target.value })} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Fin</Label>
+                      <Input type="time" value={form.hora_fin} onChange={(e) => setForm({ ...form, hora_fin: e.target.value })} />
+                    </div>
+                  </div>
+                )}
+                <p className="text-[11px] text-amber-500">
+                  El cambio puntual aplica a toda tu agenda de turnera de esa fecha: no se puede
+                  limitar por servicio ni por sede.
+                </p>
+              </>
+            )
+          ) : (
+            <>
           {esGrupal && (
+
             <div className="space-y-1.5">
               <Label>Modalidad</Label>
               <Select
