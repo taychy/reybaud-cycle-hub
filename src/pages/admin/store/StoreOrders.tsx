@@ -367,6 +367,10 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     () => rows.filter((r) => getPagoStatus(r) === "deuda_entregada").length,
     [rows],
   );
+  const canceladosCount = useMemo(
+    () => rows.filter((r) => r.status === "cancelado").length,
+    [rows],
+  );
 
   const updateField = async (id: string, patch: Partial<Order>) => {
     const { error } = await supabase.from("store_orders").update(patch as any).eq("id", id);
@@ -691,9 +695,11 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           </SelectContent>
         </Select>
         <Select value={filterEstado} onValueChange={setFilterEstado}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
+            {!restrictStatuses && <SelectItem value="activos">Activos (sin cancelados)</SelectItem>}
             <SelectItem value="all">{restrictStatuses ? "Todos (nuevos)" : "Todos los estados"}</SelectItem>
+            {!restrictStatuses && <SelectItem value="cancelados">Cancelados</SelectItem>}
             {(restrictStatuses || STATUSES).map((e) => (
               <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
             ))}
@@ -713,8 +719,19 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
             {soloDeudores ? "✓ " : ""}Deudores: {deudoresCount}
             {deudaEntregadaCount > 0 && <span className="ml-1 opacity-80">({deudaEntregadaCount} entregados)</span>}
           </button>
+          {!restrictStatuses && filterEstado === "activos" && canceladosCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilterEstado("cancelados")}
+              className="text-muted-foreground hover:text-foreground underline underline-offset-2"
+              title="Los cancelados no se borran, sólo se ocultan del operativo"
+            >
+              {canceladosCount} cancelado{canceladosCount === 1 ? "" : "s"} oculto{canceladosCount === 1 ? "" : "s"}
+            </button>
+          )}
           <span className="text-muted-foreground">{filtered.length} pedido(s)</span>
         </div>
+
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
