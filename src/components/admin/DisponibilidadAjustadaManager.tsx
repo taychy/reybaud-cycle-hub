@@ -131,14 +131,21 @@ export function DisponibilidadAjustadaManager({ coaches, lockedCoachId, readOnly
                 <CalendarIcon className="w-4 h-4 text-primary" /> Disponibilidad ajustada
               </p>
               <p className="text-xs text-muted-foreground">
-                {readOnly ? "Estos cambios son oficiales. Para proponer una modificación, usá una solicitud de agenda." : "Indicá a qué horas estarás disponible en fechas específicas. El motivo es interno y no se muestra al alumno."}
+                {readOnly ? "Estos cambios son oficiales. Podés proponer uno nuevo y administración lo aprueba." : "Indicá a qué horas estarás disponible en fechas específicas. El motivo es interno y no se muestra al alumno."}
               </p>
             </div>
-            {!readOnly && (
+            {readOnly ? (
+              onPropose && (
+                <Button size="sm" variant="outline" onClick={() => onPropose("ajuste_crear", {})}>
+                  <Plus className="w-4 h-4 mr-1" /> Proponer cambio puntual
+                </Button>
+              )
+            ) : (
               <Button size="sm" onClick={() => { reset(); setOpen(true); }}>
                 <Plus className="w-4 h-4 mr-1" /> Cambiar la disponibilidad en una fecha
               </Button>
             )}
+
           </div>
         </CardContent>
       </Card>
