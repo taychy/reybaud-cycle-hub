@@ -12,6 +12,9 @@ import {
   TIPO_SOLICITUD_LABEL,
   camposModificados,
   resumenBloque,
+  resumenAjuste,
+  esSolicitudAjustePuntual,
+
   type AgendaSolicitud,
 } from "@/lib/agendaSolicitudes";
 
