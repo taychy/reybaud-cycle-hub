@@ -58,7 +58,7 @@ const CoachAgendaGrupal = ({ coachId, coachNombre }: Props) => {
 
   const [form, setForm] = useState({
     honorario_id: "",
-    dia_semana: 0,
+    dia_semana: 1,
     hora_inicio: "08:00",
     hora_fin: "09:30",
     grupo: "General",
