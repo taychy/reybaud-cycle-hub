@@ -10150,6 +10150,10 @@ export type Database = {
           preorder_id: string | null
           producto_id: string
           producto_reemplazo_id: string | null
+          prueba_cierre_at: string | null
+          prueba_order_item_id: string | null
+          prueba_resultado: string | null
+          prueba_salida_at: string | null
           recibido_en: string | null
           recibido_por: string | null
           reemplazo_estado: Database["public"]["Enums"]["cambio_reemplazo_estado"]
@@ -10157,6 +10161,7 @@ export type Database = {
           responsable_deposito_id: string | null
           stock_descontado_at: string | null
           stock_devuelto_at: string | null
+          tipo: string
           updated_at: string
           variante_destino: Json | null
           variante_origen: Json
@@ -10194,6 +10199,10 @@ export type Database = {
           preorder_id?: string | null
           producto_id: string
           producto_reemplazo_id?: string | null
+          prueba_cierre_at?: string | null
+          prueba_order_item_id?: string | null
+          prueba_resultado?: string | null
+          prueba_salida_at?: string | null
           recibido_en?: string | null
           recibido_por?: string | null
           reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
@@ -10201,6 +10210,7 @@ export type Database = {
           responsable_deposito_id?: string | null
           stock_descontado_at?: string | null
           stock_devuelto_at?: string | null
+          tipo?: string
           updated_at?: string
           variante_destino?: Json | null
           variante_origen?: Json
@@ -10238,6 +10248,10 @@ export type Database = {
           preorder_id?: string | null
           producto_id?: string
           producto_reemplazo_id?: string | null
+          prueba_cierre_at?: string | null
+          prueba_order_item_id?: string | null
+          prueba_resultado?: string | null
+          prueba_salida_at?: string | null
           recibido_en?: string | null
           recibido_por?: string | null
           reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
@@ -10245,6 +10259,7 @@ export type Database = {
           responsable_deposito_id?: string | null
           stock_descontado_at?: string | null
           stock_devuelto_at?: string | null
+          tipo?: string
           updated_at?: string
           variante_destino?: Json | null
           variante_origen?: Json
@@ -13455,6 +13470,17 @@ export type Database = {
       count_new_turnera_reservations: { Args: never; Returns: number }
       count_new_waitlist_entries: { Args: never; Returns: number }
       count_pending_waitlist_requests: { Args: never; Returns: number }
+      crear_prenda_prueba: {
+        Args: {
+          p_alumno_id?: string
+          p_comentario?: string
+          p_metodo?: Database["public"]["Enums"]["cambio_metodo"]
+          p_order_id?: string
+          p_producto_id: string
+          p_variante?: Json
+        }
+        Returns: string
+      }
       crear_suscripcion_para_imputar: {
         Args: {
           _alumno_id: string
@@ -14411,6 +14437,18 @@ export type Database = {
           p_nuevo_grupo: string
         }
         Returns: Json
+      }
+      prueba_convertir_en_venta: {
+        Args: { p_cambio_id: string; p_nota?: string; p_precio: number }
+        Returns: string
+      }
+      prueba_devolver: {
+        Args: { p_cambio_id: string; p_nota?: string }
+        Returns: undefined
+      }
+      prueba_usar_como_cambio: {
+        Args: { p_cambio_id: string; p_nota?: string }
+        Returns: undefined
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
       reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }

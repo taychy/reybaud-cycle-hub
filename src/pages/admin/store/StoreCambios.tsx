@@ -7,24 +7,18 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
+import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
+import {
+  esPrueba, esPruebaActiva, resultadoClass, resultadoLabel, tipoRegistro,
+} from "@/lib/pruebas";
 
 type Cambio = any;
 
-const estadoColor: Record<string, string> = {
-  solicitado: "bg-muted text-muted-foreground",
-  aprobado: "bg-cyan/20 text-cyan",
-  en_deposito: "bg-primary/20 text-primary",
-  listo_retiro: "bg-green-500/20 text-green-400",
-  entregado: "bg-green-500/30 text-green-300",
-  rechazado: "bg-destructive/20 text-destructive",
-  cancelado: "bg-muted/40 text-muted-foreground",
-  devolucion_solicitada: "bg-amber-500/20 text-amber-300",
-};
 
 const AdminCambios = () => {
   const [items, setItems] = useState<Cambio[]>([]);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab] = useState<"nuevos" | "seguimiento" | "cerrados">("nuevos");
+  const [tab, setTab] = useState<"nuevos" | "seguimiento" | "pruebas" | "cerrados">("nuevos");
   const [selected, setSelected] = useState<Cambio | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const { toast } = useToast();
@@ -47,14 +41,18 @@ const AdminCambios = () => {
     const filtered = origenFiltro === "all"
       ? items
       : items.filter((c) => (c.origen_solicitud || "app") === origenFiltro);
+    // Las pruebas no son cambios: viven en su propia pestaña para no ensuciar el operativo.
+    const cambios = filtered.filter((c) => tipoRegistro(c) !== "prueba");
     return {
       // Nuevos: requieren decisión de admin (sin stock, o devolución solicitada)
-      nuevos: filtered.filter((c) => ["solicitado", "devolucion_solicitada"].includes(c.estado)),
+      nuevos: cambios.filter((c) => ["solicitado", "devolucion_solicitada"].includes(c.estado)),
       // En seguimiento: cambios en curso operativo
-      seguimiento: filtered.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
-      cerrados: filtered.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
+      seguimiento: cambios.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
+      cerrados: cambios.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
+      pruebas: filtered.filter(esPrueba),
     };
   })();
+
 
   const totalAbiertos = buckets.nuevos.length + buckets.seguimiento.length;
   const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -103,7 +101,13 @@ const AdminCambios = () => {
                     )}
                   </p>
                 </div>
-                <Badge className={`text-[10px] uppercase ${estadoColor[c.estado]}`}>{c.estado}</Badge>
+                <div className="flex flex-col items-end gap-1">
+                  <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+                  {esPrueba(c) && (
+                    <Badge className={`text-[10px] uppercase ${resultadoClass(c)}`}>{resultadoLabel(c)}</Badge>
+                  )}
+                </div>
+
               </div>
             </button>
           );
@@ -138,12 +142,15 @@ const AdminCambios = () => {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
-        <TabsList className="grid grid-cols-3 w-full max-w-md">
+        <TabsList className="grid grid-cols-4 w-full max-w-2xl">
           <TabsTrigger value="nuevos">
             🔴 Nuevos <span className="ml-1 text-[10px] opacity-70">({buckets.nuevos.length})</span>
           </TabsTrigger>
           <TabsTrigger value="seguimiento">
             👀 En seguimiento <span className="ml-1 text-[10px] opacity-70">({buckets.seguimiento.length})</span>
+          </TabsTrigger>
+          <TabsTrigger value="pruebas">
+            🧪 Pruebas <span className="ml-1 text-[10px] opacity-70">({buckets.pruebas.filter(esPruebaActiva).length})</span>
           </TabsTrigger>
           <TabsTrigger value="cerrados">
             ✅ Cerrados <span className="ml-1 text-[10px] opacity-70">({buckets.cerrados.length})</span>
@@ -151,8 +158,15 @@ const AdminCambios = () => {
         </TabsList>
         <TabsContent value="nuevos" className="mt-3">{renderList(buckets.nuevos)}</TabsContent>
         <TabsContent value="seguimiento" className="mt-3">{renderList(buckets.seguimiento)}</TabsContent>
+        <TabsContent value="pruebas" className="mt-3 space-y-2">
+          <p className="text-[11px] text-muted-foreground">
+            Prendas enviadas a prueba: no son venta ni cambio. Se gestionan desde el detalle del pedido.
+          </p>
+          {renderList(buckets.pruebas)}
+        </TabsContent>
         <TabsContent value="cerrados" className="mt-3">{renderList(buckets.cerrados)}</TabsContent>
       </Tabs>
+
       {totalAbiertos > 0 && (
         <p className="text-[11px] text-muted-foreground">
           {totalAbiertos} cambio{totalAbiertos === 1 ? "" : "s"} abierto{totalAbiertos === 1 ? "" : "s"} esperando cierre.

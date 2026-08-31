@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { type PreorderLabelData } from "@/lib/preorderLabels";
 import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
+import PruebasSection from "@/components/store/PruebasSection";
 
 const STATUSES = [
   "pendiente_pago",
@@ -428,6 +429,14 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   {orderItems.length === 0 && <div className="p-3 text-muted-foreground text-center text-sm">Sin productos</div>}
                 </div>
               </div>
+
+              <PruebasSection
+                orderId={selected.id}
+                alumnoId={selected.alumno_id}
+                currency={selected.currency || "ARS"}
+              />
+
+
 
               <div>
                 <h3 className="text-xs font-heading uppercase text-muted-foreground mb-1">Tracking de envío</h3>

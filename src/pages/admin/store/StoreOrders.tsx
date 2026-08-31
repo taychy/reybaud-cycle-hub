@@ -23,6 +23,7 @@ import { printSinglePreorderLabel } from "@/lib/preorderLabels";
 import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentDialog";
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
+import PruebasSection from "@/components/store/PruebasSection";
 
 
 interface OrderItem {
@@ -170,7 +171,8 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [rows, setRows] = useState<Order[]>([]);
   const [alumnosMap, setAlumnosMap] = useState<Record<string, Alumno>>({});
   const [sedesMap, setSedesMap] = useState<Record<string, Sede>>({});
-  const [filterEstado, setFilterEstado] = useState("all");
+  // Por defecto ocultamos los cancelados: no se borran, sólo salen del operativo diario.
+  const [filterEstado, setFilterEstado] = useState(restrictStatuses ? "all" : "activos");
   const [filterEntrega, setFilterEntrega] = useState("all");
   const [filterProducto, setFilterProducto] = useState("all");
   const [search, setSearch] = useState("");
@@ -333,7 +335,9 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
 
   const filtered = rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
-    if (filterEstado !== "all" && r.status !== filterEstado) return false;
+    if (filterEstado === "activos" && r.status === "cancelado") return false;
+    if (filterEstado === "cancelados" && r.status !== "cancelado") return false;
+    if (!["all", "activos", "cancelados"].includes(filterEstado) && r.status !== filterEstado) return false;
     if (filterEntrega !== "all" && (r.entrega_metodo || "") !== filterEntrega) return false;
     if (filterProducto !== "all" && !(r.items || []).some((it) => it.producto_nombre === filterProducto)) return false;
     if (soloDeudores) {
@@ -362,6 +366,10 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   );
   const deudaEntregadaCount = useMemo(
     () => rows.filter((r) => getPagoStatus(r) === "deuda_entregada").length,
+    [rows],
+  );
+  const canceladosCount = useMemo(
+    () => rows.filter((r) => r.status === "cancelado").length,
     [rows],
   );
 
@@ -688,9 +696,11 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           </SelectContent>
         </Select>
         <Select value={filterEstado} onValueChange={setFilterEstado}>
-          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectTrigger className="w-[200px]"><SelectValue /></SelectTrigger>
           <SelectContent>
+            {!restrictStatuses && <SelectItem value="activos">Activos (sin cancelados)</SelectItem>}
             <SelectItem value="all">{restrictStatuses ? "Todos (nuevos)" : "Todos los estados"}</SelectItem>
+            {!restrictStatuses && <SelectItem value="cancelados">Cancelados</SelectItem>}
             {(restrictStatuses || STATUSES).map((e) => (
               <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
             ))}
@@ -710,8 +720,19 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
             {soloDeudores ? "✓ " : ""}Deudores: {deudoresCount}
             {deudaEntregadaCount > 0 && <span className="ml-1 opacity-80">({deudaEntregadaCount} entregados)</span>}
           </button>
+          {!restrictStatuses && filterEstado === "activos" && canceladosCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setFilterEstado("cancelados")}
+              className="text-muted-foreground hover:text-foreground underline underline-offset-2"
+              title="Los cancelados no se borran, sólo se ocultan del operativo"
+            >
+              {canceladosCount} cancelado{canceladosCount === 1 ? "" : "s"} oculto{canceladosCount === 1 ? "" : "s"}
+            </button>
+          )}
           <span className="text-muted-foreground">{filtered.length} pedido(s)</span>
         </div>
+
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-x-auto">
@@ -1003,6 +1024,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <div className="text-xs text-muted-foreground italic">Elegí un método de entrega.</div>
                     )}
                   </section>
+
+                  {/* Prendas de prueba (no son venta) */}
+                  <PruebasSection
+                    orderId={detail.id}
+                    alumnoId={detail.alumno_id}
+                    currency={detail.currency}
+                    onChanged={load}
+                  />
+
+
 
                   {/* Pago */}
                   <section className="rounded-lg border border-border p-3 space-y-1 text-xs">
