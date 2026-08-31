@@ -322,7 +322,6 @@ const CoachAgenda = () => {
                 )}
               </div>
 
-              <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
             </TabsContent>
 
             <TabsContent value="ausencias" className="mt-4 space-y-6">
@@ -330,7 +329,10 @@ const CoachAgenda = () => {
               <DisponibilidadAjustadaManager coaches={[coach]} lockedCoachId={coach.id} readOnly onPropose={(tipo, entidad) => solicitar(tipo as SolicitudSeed["tipo"], entidad)} />
             </TabsContent>
 
-          </Tabs>
+            </Tabs>
+        )}
+        <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
+
         )}
       </main>
     </div>
