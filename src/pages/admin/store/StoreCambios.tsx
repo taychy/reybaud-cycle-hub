@@ -41,14 +41,18 @@ const AdminCambios = () => {
     const filtered = origenFiltro === "all"
       ? items
       : items.filter((c) => (c.origen_solicitud || "app") === origenFiltro);
+    // Las pruebas no son cambios: viven en su propia pestaña para no ensuciar el operativo.
+    const cambios = filtered.filter((c) => tipoRegistro(c) !== "prueba");
     return {
       // Nuevos: requieren decisión de admin (sin stock, o devolución solicitada)
-      nuevos: filtered.filter((c) => ["solicitado", "devolucion_solicitada"].includes(c.estado)),
+      nuevos: cambios.filter((c) => ["solicitado", "devolucion_solicitada"].includes(c.estado)),
       // En seguimiento: cambios en curso operativo
-      seguimiento: filtered.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
-      cerrados: filtered.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
+      seguimiento: cambios.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado)),
+      cerrados: cambios.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
+      pruebas: filtered.filter(esPrueba),
     };
   })();
+
 
   const totalAbiertos = buckets.nuevos.length + buckets.seguimiento.length;
   const daysSince = (iso: string) => Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
