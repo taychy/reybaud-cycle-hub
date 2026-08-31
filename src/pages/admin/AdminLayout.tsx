@@ -60,6 +60,7 @@ const modules: NavModule[] = [
       {
         label: "Entrenamiento",
         items: [
+          { to: "/admin/agenda", label: "Agenda", icon: CalendarDays },
           { to: "/admin/entrenamientos", label: "Entrenamientos", icon: Dumbbell },
           { to: "/admin/programas", label: "Programas", icon: GraduationCap },
           { to: "/admin/turnera", label: "Turnera", icon: CalendarClock, badgeKey: "turnera" },
