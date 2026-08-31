@@ -51,7 +51,7 @@ const CoachAgenda = () => {
         .eq("coach_id", (c as any).id)
         .gte("fecha", toLocalIso(hoy))
         .lte("fecha", hasta)
-        .not("estado_operativo", "in", "(cancelada,cancelada_por_admin)")
+        .not("estado_operativo", "like", "cancelada%")
         .order("fecha").order("hora_inicio").limit(60),
       supabase.from("agenda_grupal").select("*, sedes:sede_id(nombre)").eq("coach_id", (c as any).id),
     ]);
