@@ -349,6 +349,11 @@ const ManageCoaches = () => {
                        Activación pendiente
                     </Badge>
                   )}
+                  {sinActividad(coach) && (
+                    <Badge variant="outline" className="text-xs border-muted-foreground/40 text-muted-foreground">
+                      Sin actividad configurada
+                    </Badge>
+                  )}
                 </div>
               </div>
             ))
