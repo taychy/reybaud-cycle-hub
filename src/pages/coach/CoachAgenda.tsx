@@ -270,12 +270,52 @@ const CoachAgenda = () => {
                 </div>
                 <DisponibilidadManager coaches={[coach]} servicios={servicios} sedes={sedes} disponibilidades={disponibilidades} reload={loadAll} lockedCoachId={coach.id} readOnly onPropose={(tipo, entidad) => solicitar(tipo as SolicitudSeed["tipo"], entidad)} />
               </div>
-              {pendientes.length > 0 && (
-                <div className="space-y-2">
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">Mis solicitudes ({pendientes.length})</h2>
-                  {pendientes.map((s) => <Card key={s.id} className="border-border"><CardContent className="p-3"><div className="flex items-center gap-2"><Badge variant="outline">{ESTADO_LABEL[s.estado] || s.estado}</Badge><span className="text-sm text-foreground">{TIPO_SOLICITUD_LABEL[s.tipo] || s.tipo}</span></div>{s.alcance && <p className="text-xs text-muted-foreground mt-1">{ALCANCE_LABEL[s.alcance] || s.alcance}{s.fecha_efectiva ? ` · desde ${String(s.fecha_efectiva).slice(0, 10)}` : ""}</p>}</CardContent></Card>)}
-                </div>
-              )}
+              <div className="space-y-2">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-primary">
+                  Mis solicitudes{pendientes.length > 0 ? ` (${pendientes.length} pendientes)` : ""}
+                </h2>
+                {solicitudesVisibles.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Todavía no enviaste solicitudes de agenda.</p>
+                ) : (
+                  solicitudesVisibles.map((s) => (
+                    <Card key={s.id} className="border-border">
+                      <CardContent className="p-3 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge
+                            variant="outline"
+                            className={
+                              s.estado === "aprobada"
+                                ? "text-emerald-500 border-emerald-500/40"
+                                : s.estado === "rechazada"
+                                  ? "text-destructive border-destructive/40"
+                                  : "text-primary border-primary/40"
+                            }
+                          >
+                            {ESTADO_LABEL[s.estado] || s.estado}
+                          </Badge>
+                          <span className="text-sm text-foreground">{TIPO_SOLICITUD_LABEL[s.tipo] || s.tipo}</span>
+                        </div>
+                        {s.alcance && (
+                          <p className="text-xs text-muted-foreground">
+                            {ALCANCE_LABEL[s.alcance] || s.alcance}
+                            {s.fecha_efectiva ? ` · desde ${String(s.fecha_efectiva).slice(0, 10)}` : ""}
+                          </p>
+                        )}
+                        {!s.alcance && s.fecha_efectiva && (
+                          <p className="text-xs text-muted-foreground">Fecha: {String(s.fecha_efectiva).slice(0, 10)}</p>
+                        )}
+                        {s.estado !== "pendiente" && (
+                          <p className="text-[11px] text-muted-foreground">
+                            Resuelta {s.resolved_at ? String(s.resolved_at).slice(0, 10) : ""}
+                            {s.respuesta_admin ? ` · “${s.respuesta_admin}”` : ""}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))
+                )}
+              </div>
+
               <SolicitudAgendaDialog seed={solicitudSeed} sedes={sedes} servicios={servicios} onOpenChange={(open) => { if (!open) setSolicitudSeed(null); }} onSent={loadAll} />
             </TabsContent>
 
