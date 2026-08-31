@@ -17,6 +17,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Loader2, Wallet } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
+import { rpcErrorMessage } from "@/lib/edgeErrors";
+
 
 const sb: any = supabase;
 
@@ -32,15 +34,20 @@ interface PagoDisponible {
   disponible: number;
 }
 
+/**
+ * `type` usa el vocabulario canónico de `pagos_imputaciones.obligacion_tipo`
+ * (suscripcion | reserva | otro). Los labels/iconos son los que ve el admin.
+ */
 interface Target {
   key: string;
-  type: "suscripcion" | "reservation" | "cargo";
+  type: "suscripcion" | "reserva" | "otro";
   id: string;
   label: string;
   currency: string;
   amount: number;
   icon: string;
 }
+
 
 export function SaldoDisponibleSection({
   alumnoId,
@@ -90,15 +97,16 @@ export function SaldoDisponibleSection({
         label: s.label, currency: s.currency, amount: Number(s.total) || 0, icon: "📅",
       })),
       ...((d.reservations ?? []) as any[]).map((r) => ({
-        key: `reservation:${r.id}`, type: "reservation" as const, id: r.id,
+        key: `reserva:${r.id}`, type: "reserva" as const, id: r.id,
         label: r.label, currency: r.currency, amount: Number(r.balance) || 0, icon: "🎟️",
       })),
       ...((d.cargos ?? []) as any[]).map((c) => ({
-        key: `cargo:${c.id}`, type: "cargo" as const, id: c.id,
+        key: `otro:${c.id}`, type: "otro" as const, id: c.id,
         label: c.label, currency: c.currency, amount: Number(c.balance) || 0, icon: "🧾",
       })),
     ]);
   };
+
 
   const target = useMemo(() => targets.find((t) => t.key === targetKey) || null, [targets, targetKey]);
 
@@ -129,9 +137,10 @@ export function SaldoDisponibleSection({
     });
     setSaving(false);
     if (error) {
-      toast.error(error.message || "No se pudo aplicar el saldo");
+      toast.error(rpcErrorMessage(error, "No se pudo aplicar el saldo"));
       return;
     }
+
     toast.success(`Se aplicaron ${formatPrice(m, selected.moneda)} a ${target.label}`);
     setSelected(null);
     await fetchPagos();

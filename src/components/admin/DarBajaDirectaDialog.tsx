@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { AlertTriangle, Search } from "lucide-react";
 import { toast } from "sonner";
+import { edgeFunctionErrorMessage, rpcErrorMessage } from "@/lib/edgeErrors";
+
 
 interface Alumno {
   id: string;
@@ -108,20 +110,35 @@ export default function DarBajaDirectaDialog({ open, onOpenChange, initialAlumno
     });
     setLoading(false);
     setConfirmOpen(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { toast.error(rpcErrorMessage(error, "No se pudo dar de baja al alumno")); return; }
 
     // Cancelar preapprovals MP (best-effort) usando la edge function existente
     const row = Array.isArray(data) ? data[0] : data;
     const preapprovals: string[] = (row as any)?.mp_preapproval_ids || [];
+    const fallidos: string[] = [];
     for (const pid of preapprovals.filter(Boolean)) {
       try {
-        await supabase.functions.invoke("cancel-mp-preapproval", { body: { preapproval_id: pid } });
+        const { data: mpData, error: mpErr } = await supabase.functions.invoke("cancel-mp-preapproval", {
+          body: { preapproval_id: pid },
+        });
+        if (mpErr || (mpData as any)?.error) {
+          fallidos.push(pid);
+          console.warn("cancel-mp-preapproval falló:", await edgeFunctionErrorMessage(mpErr, mpData as any));
+        }
       } catch (e) {
+        fallidos.push(pid);
         console.warn("cancel-mp-preapproval falló:", (e as Error).message);
       }
     }
 
-    toast.success("Baja registrada correctamente");
+    if (fallidos.length > 0) {
+      toast.warning(
+        `Baja registrada. ${fallidos.length} débito(s) automático(s) de Mercado Pago no se pudieron cancelar — revisalos manualmente.`,
+      );
+    } else {
+      toast.success("Baja registrada correctamente");
+    }
+
     onOpenChange(false);
     onDone?.();
   };

@@ -37,11 +37,15 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { suscripcion_id } = await req.json();
+    // Contrato retrocompatible: aceptamos `suscripcion_id` (canónico) o
+    // `preapproval_id` (usado por los orquestadores de baja).
+    const body = await req.json().catch(() => ({} as Record<string, unknown>));
+    const suscripcionIdIn = (body as { suscripcion_id?: string }).suscripcion_id;
+    const preapprovalIdIn = (body as { preapproval_id?: string }).preapproval_id;
 
-    if (!suscripcion_id) {
+    if (!suscripcionIdIn && !preapprovalIdIn) {
       return new Response(
-        JSON.stringify({ error: "Falta suscripcion_id" }),
+        JSON.stringify({ error: "Falta suscripcion_id o preapproval_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -50,6 +54,24 @@ Deno.serve(async (req) => {
       supabaseUrl,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
+
+    // Resolver la suscripción destino de forma segura
+    let suscripcion_id = suscripcionIdIn as string | undefined;
+    if (!suscripcion_id) {
+      const { data: byPreapproval, error: preErr } = await supabaseAdmin
+        .from("suscripciones")
+        .select("id")
+        .eq("mp_preapproval_id", preapprovalIdIn)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      if (preErr || !byPreapproval || byPreapproval.length === 0) {
+        return new Response(
+          JSON.stringify({ error: "Suscripción no encontrada para ese preapproval_id" }),
+          { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      suscripcion_id = byPreapproval[0].id as string;
+    }
 
     // Authz: caller must own the subscription (via alumnos.user_id) or be admin
     const { data: isAdmin } = await supabaseAdmin.rpc("has_role", { _user_id: uid, _role: "admin" });
@@ -73,6 +95,7 @@ Deno.serve(async (req) => {
       .select("id, mp_preapproval_id, auto_cobro_activo, cuenta_mp_id")
       .eq("id", suscripcion_id)
       .single();
+
 
     if (subErr || !sub) {
       return new Response(

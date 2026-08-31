@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { edgeFunctionErrorMessage } from "@/lib/edgeErrors";
+
 
 interface SnapshotShape {
   planes_activos?: Array<{ id: string; plan_nombre?: string; estado?: string; fecha_fin?: string | null; auto_renovacion?: boolean }>;
@@ -59,9 +61,11 @@ export default function ConfirmBajaDialog({ open, onOpenChange, solicitud, onCon
     setLoading(false);
     setConfirmOpen(false);
     if (error || (data as any)?.error) {
-      toast.error((data as any)?.error || error?.message || "No se pudo procesar la baja");
+      const msg = await edgeFunctionErrorMessage(error, data as { error?: string } | null);
+      toast.error(msg || "No se pudo procesar la baja");
       return;
     }
+
     const mpFailed = (data as any)?.mp_failed ?? [];
     if (mpFailed.length > 0) {
       toast.warning(`Baja procesada. ${mpFailed.length} preapproval MP fallaron al cancelarse — revisar manualmente.`);

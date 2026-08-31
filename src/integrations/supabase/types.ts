@@ -14145,9 +14145,17 @@ export type Database = {
       }
       normalizar_nombre: { Args: { _t: string }; Returns: string }
       normalizar_telefono_ar: { Args: { _t: string }; Returns: string }
+      obligacion_alumno: {
+        Args: { _id: string; _tipo: string }
+        Returns: string
+      }
       obligacion_imputado: {
         Args: { _id: string; _tipo: string }
         Returns: number
+      }
+      obligacion_moneda: {
+        Args: { _id: string; _tipo: string }
+        Returns: string
       }
       obligacion_monto: {
         Args: { _id: string; _tipo: string }
@@ -14157,6 +14165,11 @@ export type Database = {
         Args: { _id: string; _tipo: string }
         Returns: number
       }
+      obligacion_saldo_pendiente: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      obligacion_tipo_normalizado: { Args: { _tipo: string }; Returns: string }
       pago_consumido_legacy: {
         Args: { _id: string; _tipo: string }
         Returns: boolean
