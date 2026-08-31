@@ -160,6 +160,8 @@ export type Database = {
           notas: string | null
           sede_id: string | null
           updated_at: string
+          vigente_desde: string | null
+          vigente_hasta: string | null
         }
         Insert: {
           activo?: boolean
@@ -174,6 +176,8 @@ export type Database = {
           notas?: string | null
           sede_id?: string | null
           updated_at?: string
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
         }
         Update: {
           activo?: boolean
@@ -188,6 +192,8 @@ export type Database = {
           notas?: string | null
           sede_id?: string | null
           updated_at?: string
+          vigente_desde?: string | null
+          vigente_hasta?: string | null
         }
         Relationships: [
           {
