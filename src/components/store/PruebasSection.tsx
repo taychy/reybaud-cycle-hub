@@ -57,6 +57,7 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
     }
     toast({ title: okTitle });
     load();
+    onChanged?.();
     return true;
   };
 

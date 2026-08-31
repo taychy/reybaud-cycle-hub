@@ -170,7 +170,8 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [rows, setRows] = useState<Order[]>([]);
   const [alumnosMap, setAlumnosMap] = useState<Record<string, Alumno>>({});
   const [sedesMap, setSedesMap] = useState<Record<string, Sede>>({});
-  const [filterEstado, setFilterEstado] = useState("all");
+  // Por defecto ocultamos los cancelados: no se borran, sólo salen del operativo diario.
+  const [filterEstado, setFilterEstado] = useState(restrictStatuses ? "all" : "activos");
   const [filterEntrega, setFilterEntrega] = useState("all");
   const [filterProducto, setFilterProducto] = useState("all");
   const [search, setSearch] = useState("");
@@ -333,7 +334,9 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
 
   const filtered = rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
-    if (filterEstado !== "all" && r.status !== filterEstado) return false;
+    if (filterEstado === "activos" && r.status === "cancelado") return false;
+    if (filterEstado === "cancelados" && r.status !== "cancelado") return false;
+    if (!["all", "activos", "cancelados"].includes(filterEstado) && r.status !== filterEstado) return false;
     if (filterEntrega !== "all" && (r.entrega_metodo || "") !== filterEntrega) return false;
     if (filterProducto !== "all" && !(r.items || []).some((it) => it.producto_nombre === filterProducto)) return false;
     if (soloDeudores) {
