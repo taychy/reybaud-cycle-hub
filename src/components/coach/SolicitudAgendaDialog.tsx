@@ -67,7 +67,9 @@ export const SolicitudAgendaDialog = ({ seed, sedes, servicios, onOpenChange, on
       alcance: e.tipo_clase === "puntual" ? "toda_serie" : "desde_fecha",
       fecha_efectiva: "",
       motivo: "",
+      tipo_ajuste: (e.tipo || "bloquear") as TipoAjuste,
     });
+
   }, [seed]);
 
   const toggleServicio = (id: string) =>
