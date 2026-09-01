@@ -1,56 +1,50 @@
-# Auditoría: email cruzado Greco / Mantilla (1-Sep)
+# Auditoría: error al pagar con tarjeta (solo lectura)
 
-Solo lectura. No se modificó código ni datos.
+No se modificó código, datos ni configuración.
 
-## 1) Qué se buscó y qué se descartó
+## Causa raíz confirmada: la tarjeta se tokeniza con una cuenta de Mercado Pago y el cobro se hace con OTRA
 
-Se buscó el texto exacto del email ("Ya podes pagar tu mensualidad", "Descargue su Factura") en todo el repo (`src/` y las 90+ Edge Functions) y en las plantillas de base:
+- El formulario pide la clave pública a `get-mp-public-key`, que devuelve **siempre** el secret legacy `MP_PUBLIC_KEY` — corresponde a la cuenta **claudio_reybaud** (`es_default_global = true`).
+- `process-card-payment` NO usa esa cuenta: llama a `resolveCuentaMP({ unidad_negocio: "suscripcion_escuela" })`, y el routing activo (prioridad 1) apunta a la cuenta **josilene_do_nascimento**, con token `MP_ACCESS_TOKEN_JOSILENE_DO_NASCIMENTO`.
+- Un `card_token` generado con la public key de la cuenta A no es válido para cobrar con el access token de la cuenta B: Mercado Pago responde **HTTP 400** y no crea el pago.
 
-- No existe en el código: ninguna función genera ese asunto ni ese botón.
-- `email_templates` (12 filas activas) no tiene ninguna plantilla con ese asunto. La única de mensualidad es `renewal_pending`: "Tu plan {plan_nombre} se renovó — regularizá antes del 5".
-- `send-factura-email` usa asunto "Tu factura N de Reybaud Ciclismo" y botón "Descargar PDF" (no "Descargue su Factura").
-- `broadcasts`: el último envío masivo fue el 30-Ago; no hay ninguno el 1-Sep. Además el asunto de broadcast **no** se personaliza (solo el cuerpo), así que nunca podría contener un nombre propio.
-- `pgmq.a_transactional_emails` está vacía (los mensajes se borran al enviarse), no hay rastro de payloads del 1-Sep.
+Evidencia en datos reales:
+- `cuenta_mp_routing`: `suscripcion_escuela → josilene_do_nascimento` (activa, prod), actualizado el 13-Ago-2026.
+- `app_config.mp_routing_enabled = true` (el fallback legacy está desactivado).
+- Suscripción `96afd991-4286-4013-a26c-130cb89cdc15` (Agustina, $83.500, 1-Sep 01:10): quedó `pendiente`, **sin `mp_payment_id`** y con `mp_status = '400'` — la firma exacta de un rechazo HTTP de la API, no de un rechazo del emisor de la tarjeta.
+- Hay 10 suscripciones históricas con `mp_status = '400'` (mismo patrón: sin payment id).
+- Todos los pagos aprobados recientes con la cuenta josilene tienen `mp_payment_id` real y vienen del flujo de **link/preferencia** (`create-mp-preference` → `init_point`), que no tokeniza tarjeta. Por eso "el link funciona y la tarjeta en la app no".
 
-## 2) Cómo resuelven destinatario y nombre los caminos reales
+## Bug secundario (empeora el diagnóstico)
 
-Todos los caminos internos resuelven ambos datos **de la misma fila de alumno**, dentro de la misma iteración:
+En `process-card-payment` la guarda es:
 
-- `send-factura-email`: lee `facturas` → `alumnos` por `factura.alumno_id`; usa `alumno.nombre` y `alumno.email`.
-- `renew-monthly-subscriptions`: por cada renovación relee `alumnos` por `r.alumno_id` dentro del `for`; nombre y `to` salen del mismo objeto.
-- `send-monthly-plan-changes-reminder`: arma `html` por destinatario dentro del loop (`buildHtml({ nombre: r.nombre })`, `to: [{ email: r.email }]`).
-- `send-broadcast`: `Promise.all` por lotes de 8, pero `html` y `to` se construyen dentro del `map` con la variable `r` del lote — no hay estado compartido entre destinatarios.
-- `process-email-queue`: procesa mensaje por mensaje; el `to`, `subject` y `html` viajan juntos en el payload.
+```ts
+if (!mpResponse.ok && !mpData?.status) { ...mensaje legible... }
+```
 
-No se detectó ningún loop que reutilice variables entre destinatarios.
+Los errores de la API de MP traen `status: 400` numérico, así que la condición no se cumple: el código cae en la rama de "rechazo" y guarda `mp_status = '400'`, devolviendo al alumno un error genérico en vez del `cause[0].description` de MP. Por eso nadie ve el motivo real.
 
-## 3) Datos reales del caso (SELECT)
+## Respuestas puntuales
 
-- Greco `cfb2cc6f…`: nombre "Cristian Ariel", email `grecocristian@yahoo.com.ar`, `emails_adicionales` vacío, `auth.users` propio.
-- Mantilla `b2a04565…`: nombre "Christian Augusto", email `chris_mantilla@hotmail.com`, `emails_adicionales` vacío, `auth.users` propio.
-- `marketing_contacts`: una fila por cada uno, correctas.
-- Ningún alumno tiene el mail de Greco en `emails_adicionales`.
-- `email_send_log`: para ambos, el último registro es del 25-Ago (`monthly-plan-changes-reminder`). Ninguno el 1-Sep.
-- Ambos ya tenían suscripción de Septiembre creada (24 y 25 de Agosto), por lo que el cron `renew-monthly-subscriptions` del 1-Sep 09:30 **no** los procesó ni les generó mail.
+- **(A) HTTP recientes de las funciones:** no disponibles. La tabla de logs de edge functions sólo retiene ~8 minutos (registro más antiguo 17:56, más nuevo 18:04 del 1-Sep) y sólo contiene crons. **No se puede reconstruir 48-72 h desde logs**; la evidencia usada es la base de datos.
+- **(B) ¿MP rechaza pagos?** No hay rechazos de emisor recientes (`mp_status = 'rejected'`: último 7-Ago). Lo que hay es rechazo de la **API** (400) sin `status_detail` persistido.
+- **(C) ¿Dónde falla?** La tokenización en el navegador funciona (usa la public key de Claudio y es válida para esa cuenta). Falla **al crear el payment en MP**, dentro de `process-card-payment`. No falla antes ni en el retorno.
+- **(D) Alcance por medio de pago:** afecta a **todo lo que pase por el card form** — crédito y débito por igual. No afecta dinero en cuenta / link de pago / QR, porque van por preferencia.
+- **(E) Configuración:** sí, hay desalineación. `get-mp-public-key` está hardcodeado al secret legacy y no respeta el routing por unidad de negocio.
+- **(F) Flujo actual:** `PlanSelection` → `CardPaymentForm` (public key legacy → `mp.cardForm` → token) → `process-card-payment` (valida sub/monto server-side → `resolveCuentaMP` cuenta josilene → `POST /v1/payments`) → según respuesta actualiza `suscripciones` → `mp-webhook` confirma después.
+- **(G) Hipótesis ordenadas:** 1) cruce de cuentas public key / access token (confirmado por routing + `mp_status='400'` sin payment id); 2) enmascaramiento del error por la guarda incorrecta (confirmado por lectura de código); 3) rechazo por emisor (descartado en la ventana reciente).
 
-## 4) Causa raíz
+## (H) Corrección mínima propuesta (a implementar sólo si se aprueba)
 
-El email **no fue generado por esta aplicación**. Coinciden cinco señales: el texto no existe en el código ni en las plantillas, el tono es de "usted" (el resto de la app tutea), no hay registro en `email_send_log` ni en la cola, no hubo broadcast ese día y ninguna renovación los tocó.
+1. `get-mp-public-key`: resolver la clave con `resolveCuentaMP({ unidad_negocio: "suscripcion_escuela" })` y devolver `public_key` + `cuenta_slug`; mantener `MP_PUBLIC_KEY` sólo como fallback. Así token y cobro quedan en la misma cuenta.
+2. `process-card-payment`: cambiar la guarda a `if (!mpResponse.ok)` cuando `mpData.status` no sea uno de `approved | in_process | pending | rejected`, devolver `cause[0].description` y **no** escribir `mp_status = '400'` (dejar `mp_status = 'api_error'` + guardar la causa para auditoría).
+3. Opcional y de bajo riesgo: que la función devuelva `cuenta_slug` y el front lo mande de vuelta, para que el backend valide que el token se generó con la misma cuenta antes de cobrar.
 
-Escenario más probable: un envío externo con mail-merge (campaña/automatización en Brevo fuera de la app, planilla de cobranzas o sistema administrativo previo) donde la fila de contacto tiene el email de Greco asociado al nombre de Mantilla — típico corrimiento de columnas en una importación o merge de contactos.
+Tests:
+- Unitario de `resolveCuentaMP` para `suscripcion_escuela` verificando que devuelve la misma cuenta que usa la public key.
+- Test de `process-card-payment` con respuesta MP 400 (`{status:400, cause:[...]}`) verificando que devuelve el mensaje legible y no persiste `mp_status='400'`.
+- Test de contrato: `get-mp-public-key` y `process-card-payment` deben resolver el mismo `cuenta_id`.
+- Prueba manual en sandbox con tarjeta de crédito y de débito.
 
-Punto pendiente de confirmación (no deducible desde la base): hace falta el **encabezado técnico del email recibido** (Message-ID, From, Return-Path, y las cabeceras `X-Mailin-*` / `List-Unsubscribe`). Eso identifica el emisor exacto en un paso.
-
-## 5) Alcance potencial
-
-- Vía app: bajo. El único mecanismo interno donde el mail personalizado de la persona A puede llegar a la dirección B es `notify-student-update`, que envía también a `emails_adicionales`. Hoy ninguno de los dos alumnos tiene direcciones adicionales, y nadie tiene la de Greco cargada.
-- Vía externa: si el cruce viene de una lista mal importada, puede afectar a cualquier contacto de esa lista. El alcance se determina revisando la fuente del envío, no la base de la app.
-
-## 6) Corrección mínima y segura propuesta (a implementar solo si se aprueba)
-
-1. Confirmar el emisor con las cabeceras del email; si es un envío externo, corregir/regenerar esa lista desde `marketing_contacts` (que está sana) y dejar de usar planillas paralelas.
-2. Trazabilidad: registrar también en `email_send_log` los envíos que hoy no lo hacen (`send-broadcast`, `notify-*` que van directo al gateway), para que cualquier reclamo futuro se resuelva con una consulta y no con una auditoría.
-3. Guarda defensiva en el worker de cola: verificar que el `to` del payload coincida con el destinatario esperado y que el HTML no contenga otro email de la base antes de enviar (log de advertencia, sin bloquear).
-4. Tests: unitario de `personalize()` en `send-broadcast` con lote de 8 verificando que cada HTML contiene solo su propio nombre; test del worker validando `to` vs snapshot.
-
-Nada de esto se ejecuta hasta que se apruebe.
+Dato que falta para cerrar al 100%: los logs de `process-card-payment` del intento fallido (retención insuficiente) o una captura del error del alumno. Si se necesita evidencia directa, hay que aumentar la retención o registrar el `cause` de MP en base — punto 2 de la corrección.
