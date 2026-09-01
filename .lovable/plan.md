@@ -1,89 +1,56 @@
-# Auditoría: Pedidos cancelados + Cambios vs Depósito + flujo "prueba"
+# Auditoría: email cruzado Greco / Mantilla (1-Sep)
 
-Sin cambios de código ni de base. Todo lo que sigue está verificado contra el código y los datos reales.
+Solo lectura. No se modificó código ni datos.
 
-## 1) Pedidos cancelados ensucian la lista
+## 1) Qué se buscó y qué se descartó
 
-**Cómo se modela hoy**
-- La cancelación es un estado más de `store_orders.status = 'cancelado'`, con `cancelled_at` y `cancel_reason` ya existentes.
-- Se aplica vía RPC `cancel_store_order(_order_id, _reason)`, que además devuelve stock (queda trazado en `stock_movements` con `reversa_de_movimiento_id`).
-- No hay borrado lógico ni columna aparte: la trazabilidad ya está completa.
+Se buscó el texto exacto del email ("Ya podes pagar tu mensualidad", "Descargue su Factura") en todo el repo (`src/` y las 90+ Edge Functions) y en las plantillas de base:
 
-**Por qué se ve larga la lista**
-- Hoy en la base hay 27 pedidos: **14 cancelados**, 11 entregados, 2 en camioneta. O sea, más de la mitad de la tabla es ruido (varios son reintentos de checkout del mismo alumno el mismo día).
-- `StoreOrders.tsx` filtra en cliente (`filtered`): sin `restrictStatuses`, el filtro de estado arranca en `"all"` y `"all"` incluye cancelados. La pestaña "Nuevos" sí los excluye porque pasa `restrictStatuses`.
+- No existe en el código: ninguna función genera ese asunto ni ese botón.
+- `email_templates` (12 filas activas) no tiene ninguna plantilla con ese asunto. La única de mensualidad es `renewal_pending`: "Tu plan {plan_nombre} se renovó — regularizá antes del 5".
+- `send-factura-email` usa asunto "Tu factura N de Reybaud Ciclismo" y botón "Descargar PDF" (no "Descargue su Factura").
+- `broadcasts`: el último envío masivo fue el 30-Ago; no hay ninguno el 1-Sep. Además el asunto de broadcast **no** se personaliza (solo el cuerpo), así que nunca podría contener un nombre propio.
+- `pgmq.a_transactional_emails` está vacía (los mensajes se borran al enviarse), no hay rastro de payloads del 1-Sep.
 
-**Propuesta (bajo riesgo, sólo frontend)**
-- Cambiar el selector de estado de la pestaña "Pedidos" para que el valor por defecto sea **"Activos"** (todos menos `cancelado`), y agregar las opciones **"Cancelados"** y **"Todos"** además de los estados individuales.
-- Mostrar junto al contador un chip discreto: `14 cancelados ocultos` que al tocarlo cambia el filtro a "Cancelados". Nada se borra ni se archiva.
-- Sin migración, sin tocar el RPC de anulación, sin perder historial.
+## 2) Cómo resuelven destinatario y nombre los caminos reales
 
-## 2) Por qué Admin > Cambios y Depósito > Cambios no muestran lo mismo
+Todos los caminos internos resuelven ambos datos **de la misma fila de alumno**, dentro de la misma iteración:
 
-Las dos vistas leen la **misma tabla** (`store_cambios`) pero con filtros distintos:
+- `send-factura-email`: lee `facturas` → `alumnos` por `factura.alumno_id`; usa `alumno.nombre` y `alumno.email`.
+- `renew-monthly-subscriptions`: por cada renovación relee `alumnos` por `r.alumno_id` dentro del `for`; nombre y `to` salen del mismo objeto.
+- `send-monthly-plan-changes-reminder`: arma `html` por destinatario dentro del loop (`buildHtml({ nombre: r.nombre })`, `to: [{ email: r.email }]`).
+- `send-broadcast`: `Promise.all` por lotes de 8, pero `html` y `to` se construyen dentro del `map` con la variable `r` del lote — no hay estado compartido entre destinatarios.
+- `process-email-queue`: procesa mensaje por mensaje; el `to`, `subject` y `html` viajan juntos en el payload.
 
-| | Admin (`StoreCambios.tsx`) | Depósito (`DepositoCambios.tsx`) |
-|---|---|---|
-| Query | `select *` sin filtro de estado | `.in('estado', ['aprobado','en_deposito','listo_retiro'])` |
-| Buckets | Nuevos (`solicitado`, `devolucion_solicitada`) / Seguimiento (`aprobado`, `en_deposito`, `listo_retiro`) / Cerrados (`entregado`, `rechazado`, `cancelado`) | Pendientes (`aprobado`) / Esperando reemplazo (`en_deposito` y `reemplazo_estado` ≠ enviado/entregado) / Listos (`listo_retiro`) |
-| Filtro extra | Origen app/presencial | ninguno |
+No se detectó ningún loop que reutilice variables entre destinatarios.
 
-Consecuencias reales:
-- Depósito **nunca ve** `solicitado` ni `devolucion_solicitada` (falta aprobación admin) ni los cerrados. Ejemplo actual: la solicitud de Jessica Carolina Gonzalez (`solicitado`) sólo existe en Admin.
-- Un cambio en `en_deposito` con reemplazo ya `enviado/entregado` desaparece de Depósito pero sigue en "Seguimiento" de Admin.
-- No es un bug de datos ni de RLS (admin y depósito tienen políticas `ALL` sobre la tabla): es diferencia de criterio de filtrado. Propongo unificar el vocabulario de estados en pantalla y agregar en Depósito una pestaña de sólo lectura "Cerrados / histórico" para que ambos hablen del mismo universo.
+## 3) Datos reales del caso (SELECT)
 
-## 3) El caso Alejandro Najmanovich y la prenda "de prueba"
+- Greco `cfb2cc6f…`: nombre "Cristian Ariel", email `grecocristian@yahoo.com.ar`, `emails_adicionales` vacío, `auth.users` propio.
+- Mantilla `b2a04565…`: nombre "Christian Augusto", email `chris_mantilla@hotmail.com`, `emails_adicionales` vacío, `auth.users` propio.
+- `marketing_contacts`: una fila por cada uno, correctas.
+- Ningún alumno tiene el mail de Greco en `emails_adicionales`.
+- `email_send_log`: para ambos, el último registro es del 25-Ago (`monthly-plan-changes-reminder`). Ninguno el 1-Sep.
+- Ambos ya tenían suscripción de Septiembre creada (24 y 25 de Agosto), por lo que el cron `renew-monthly-subscriptions` del 1-Sep 09:30 **no** los procesó ni les generó mail.
 
-**Qué hay en datos**
-- Pedido #19 (04/08, entregado): Chaleco Rompeviento Santini, Talle L, 1 unidad.
-- `store_cambios` id `69bfe3c2…` creado 11/08 por depósito: `motivo = talle`, comentario *"Solo recibir y controlar. no hay stock para cambios, hay que cargar en stock."*, `variante_origen = {}`, **`variante_destino = null`**, `reemplazo_estado = 'sin_definir'`, estado `en_deposito`.
-- Movimiento asociado: `stock_movements` tipo `ingreso`, motivo `cambio_in`, 1 unidad de Chaleco Santini el 11/08 18:21 (`stock_devuelto_at` de ese cambio).
+## 4) Causa raíz
 
-**Por qué "cae en Cambios"**
-Hoy **no existe ningún otro registro posible**: la única forma que tienen admin y depósito de recibir una prenda de vuelta es crear un `store_cambios`. Como nunca hubo prenda de reemplazo, el registro queda con destino nulo y se congela para siempre en "Esperando reemplazo" (Depósito) / "En seguimiento" (Admin). Es una devolución de prueba disfrazada de cambio incompleto.
+El email **no fue generado por esta aplicación**. Coinciden cinco señales: el texto no existe en el código ni en las plantillas, el tono es de "usted" (el resto de la app tutea), no hay registro en `email_send_log` ni en la cola, no hubo broadcast ese día y ninguna renovación los tocó.
 
-**Propuesta de modelo (aditiva, reutiliza todo lo existente)**
+Escenario más probable: un envío externo con mail-merge (campaña/automatización en Brevo fuera de la app, planilla de cobranzas o sistema administrativo previo) donde la fila de contacto tiene el email de Greco asociado al nombre de Mantilla — típico corrimiento de columnas en una importación o merge de contactos.
 
-Agregar a `store_cambios` un discriminador en vez de crear un sistema paralelo:
+Punto pendiente de confirmación (no deducible desde la base): hace falta el **encabezado técnico del email recibido** (Message-ID, From, Return-Path, y las cabeceras `X-Mailin-*` / `List-Unsubscribe`). Eso identifica el emisor exacto en un paso.
 
-```text
-store_cambios.tipo  text  default 'cambio'
-   'cambio'     -> cambio real de una prenda comprada (flujo actual, sin tocar)
-   'devolucion' -> devolución/anulación de una compra (sin reemplazo)
-   'prueba'     -> prenda enviada a prueba, no vendida
-store_cambios.prueba_resultado  text  null
-   null | 'pendiente' | 'devuelta' | 'convertida_en_venta'
-```
+## 5) Alcance potencial
 
-Ciclo de vida de una prueba, mapeado sobre los estados que ya existen (no se agregan valores al enum `cambio_estado`):
+- Vía app: bajo. El único mecanismo interno donde el mail personalizado de la persona A puede llegar a la dirección B es `notify-student-update`, que envía también a `emails_adicionales`. Hoy ninguno de los dos alumnos tiene direcciones adicionales, y nadie tiene la de Greco cargada.
+- Vía externa: si el cruce viene de una lista mal importada, puede afectar a cualquier contacto de esa lista. El alcance se determina revisando la fuente del envío, no la base de la app.
 
-```text
-prueba enviada     -> tipo='prueba', estado='listo_retiro', prueba_resultado='pendiente'
-                      (egreso de stock con motivo 'prueba_out', NO es venta)
-devuelta sin compra-> estado='entregado' + prueba_resultado='devuelta'
-                      (ingreso 'prueba_in', prenda original intacta, sin factura)
-se la queda        -> prueba_resultado='convertida_en_venta' + order_id del pedido nuevo
-                      (no se re-descuenta stock: el egreso de la prueba se reusa)
-```
+## 6) Corrección mínima y segura propuesta (a implementar solo si se aprueba)
 
-Reglas clave:
-- Una prueba **nunca** toca la prenda original comprada ni genera `store_cambios` de tipo `cambio`.
-- Contablemente sólo hay venta si se convierte; ahí se crea un `store_orders` normal con el flujo existente y se enlaza por `order_id`.
-- Movimientos de stock con motivo propio (`prueba_out` / `prueba_in`) para que el detector de inconsistencias no los lea como ventas.
+1. Confirmar el emisor con las cabeceras del email; si es un envío externo, corregir/regenerar esa lista desde `marketing_contacts` (que está sana) y dejar de usar planillas paralelas.
+2. Trazabilidad: registrar también en `email_send_log` los envíos que hoy no lo hacen (`send-broadcast`, `notify-*` que van directo al gateway), para que cualquier reclamo futuro se resuelva con una consulta y no con una auditoría.
+3. Guarda defensiva en el worker de cola: verificar que el `to` del payload coincida con el destinatario esperado y que el HTML no contenga otro email de la base antes de enviar (log de advertencia, sin bloquear).
+4. Tests: unitario de `personalize()` en `send-broadcast` con lote de 8 verificando que cada HTML contiene solo su propio nombre; test del worker validando `to` vs snapshot.
 
-**UX propuesta**
-- Admin > Ventas > Cambios pasa a llamarse **"Cambios y pruebas"** con filtro de tipo: `Cambios | Devoluciones | Pruebas | Todos`. Por defecto sólo cambios + devoluciones.
-- Depósito > Cambios suma pestaña **"Pruebas afuera"** (lo que está en la calle esperando volver) con dos botones por ítem: *Devuelta* y *Se la quedó → generar venta*.
-- El registro presencial de depósito arranca con la pregunta simple: **"¿Qué está pasando?" → Cambia una prenda / Devuelve una compra / Envío a prueba / Vuelve una prueba**. Eso es lo que hoy falta y obliga a forzar todo a "cambio".
-
-**Migración del caso real**: el registro de Najmanovich se reclasifica manualmente a `tipo='prueba'`, `prueba_resultado='devuelta'`, estado `entregado`. El ingreso de stock ya existente queda como está (sólo se corrige el motivo si querés), así que no hay impacto contable.
-
-## Riesgos y alcance
-- Punto 1: sólo frontend, riesgo nulo.
-- Punto 2: unificación de etiquetas + pestaña histórica en Depósito, sin cambios de datos.
-- Punto 3: migración aditiva (2 columnas nullable con default) + adaptaciones de UI y de los RPC `deposito_registrar_cambio_presencial` / `deposito_recibir_cambio` para aceptar el tipo. No rompe registros existentes, que quedan todos como `tipo='cambio'`.
-
-## Qué necesito confirmar antes de implementar
-1. ¿Avanzo con los tres puntos en una sola tanda, o primero el 1 y 2 (rápidos, sin migración) y el 3 aparte?
-2. Para "prueba convertida en venta": ¿el precio sale del catálogo actual o admin lo define a mano al convertir?
+Nada de esto se ejecuta hasta que se apruebe.
