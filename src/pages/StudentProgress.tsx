@@ -79,7 +79,7 @@ export const StudentProgressContent = () => {
 
     const { data: extras } = await supabase
       .from("sesiones_extra")
-      .select("id, fecha, tipo, nombre, comentario")
+      .select("id, fecha, tipo, nombre, comentario, duracion_minutos")
       .eq("alumno_id", aId)
       .gte("fecha", fromDate)
       .lte("fecha", toDate)
@@ -93,6 +93,7 @@ export const StudentProgressContent = () => {
         titulo: (ex as any).nombre || `Sesión extra`,
         tipo: ex.tipo,
         source: "extra",
+        duracionMin: (ex as any).duracion_minutos ?? null,
       });
     }
 
