@@ -151,9 +151,11 @@ export const buildVariantKey = (
 export const urgencyText = (fechaFin: string | null, now: Date = new Date()): string | null => {
   if (!fechaFin) return null;
   const end = new Date(fechaFin);
-  const days = Math.ceil((end.getTime() - now.getTime()) / 86400000);
+  const startDay = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  const endDay = Date.UTC(end.getFullYear(), end.getMonth(), end.getDate());
+  const days = Math.round((endDay - startDay) / 86400000);
   if (days < 0) return null;
-  if (days <= 0) return "Termina hoy";
+  if (days === 0) return "Termina hoy";
   if (days === 1) return "Termina mañana";
   if (days <= 7) return `Termina en ${days} días`;
   const dd = String(end.getDate()).padStart(2, "0");
