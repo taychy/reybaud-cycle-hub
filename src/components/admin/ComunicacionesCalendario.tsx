@@ -46,6 +46,9 @@ export default function ComunicacionesCalendario() {
   const [diaSel, setDiaSel] = useState<string>(localDayKey(hoy.toISOString()));
   const [diaDrawer, setDiaDrawer] = useState<string | null>(null);
   const [focusKey, setFocusKey] = useState<string | null>(null);
+  const [detalle, setDetalle] = useState<DetalleEnvio | null>(null);
+
+
 
 
   useEffect(() => {
