@@ -135,13 +135,21 @@ const ProductCard = ({
   );
 };
 
-const QUICK_ACCESS = [
-  { label: "Ofertas", icon: Percent, color: "text-primary", filterTag: "OFERTA" },
-  { label: "Combos", icon: Flame, color: "text-accent", filterTag: null },
-  { label: "Top ventas", icon: Star, color: "text-gold", filterTag: null },
-  { label: "Nuevos", icon: Sparkles, color: "text-cyan", filterTag: "NUEVO" },
-  { label: "Últimas", icon: Clock, color: "text-destructive", filterTag: "ÚLTIMA UNIDAD" },
+/** Accesos rápidos por defecto si todavía no hay datos cargados en store_quick_access. */
+const QUICK_ACCESS_FALLBACK = [
+  { id: "fb-ofertas", name: "Ofertas", icon: "Percent", filter_tag: "OFERTA" },
+  { id: "fb-combos", name: "Combos", icon: "Flame", filter_tag: null },
+  { id: "fb-top", name: "Top ventas", icon: "Star", filter_tag: null },
+  { id: "fb-nuevos", name: "Nuevos", icon: "Sparkles", filter_tag: "NUEVO" },
+  { id: "fb-ultimas", name: "Últimas", icon: "Clock", filter_tag: "ÚLTIMA UNIDAD" },
 ];
+
+const QA_ICONS: Record<string, any> = { Percent, Flame, Star, Sparkles, Clock, Tag };
+const qaIcon = (name: string) => QA_ICONS[name] || (LucideIcons as any)[name] || Tag;
+
+/** Un acceso es de ofertas si su filtro apunta a promociones (no depende del nombre del producto). */
+const isOfertasQA = (qa: { name: string; filter_tag: string | null }) =>
+  (qa.filter_tag || "").toUpperCase() === "OFERTA" || qa.name.trim().toLowerCase() === "ofertas";
 
 const TiendaSection = () => {
   const [search, setSearch] = useState("");
@@ -154,19 +162,27 @@ const TiendaSection = () => {
   const [alumnoInfo, setAlumnoInfo] = useState<{ nombre?: string; email?: string }>({});
   const [reserveProduct, setReserveProduct] = useState<StoreProduct | null>(null);
   const [buyProduct, setBuyProduct] = useState<StoreProduct | null>(null);
+  const [promos, setPromos] = useState<Record<string, PromoRow>>({});
+  const [quickAccess, setQuickAccess] = useState(QUICK_ACCESS_FALLBACK);
+  const [soloOfertas, setSoloOfertas] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [productsRes, categoriesRes, bannersRes, sess] = await Promise.all([
+      const [productsRes, categoriesRes, bannersRes, promosRes, qaRes, sess] = await Promise.all([
         supabase.from("store_products").select("*").eq("status", "active").order("featured_order", { ascending: true, nullsFirst: false }),
         supabase.from("store_categories").select("*").eq("active", true).order("sort_order"),
         supabase.from("store_banners").select("*").eq("active", true).order("sort_order").limit(1),
+        supabase.rpc("get_promos_tienda_vigentes"),
+        supabase.from("store_quick_access").select("id, name, icon, filter_tag").eq("active", true).order("sort_order"),
         supabase.auth.getUser(),
       ]);
       setProducts(productsRes.data || []);
       setCategories(categoriesRes.data || []);
       setBanners(bannersRes.data || []);
+      setPromos(promoMap(promosRes.data as any));
+      const qa = (qaRes.data as any[]) || [];
+      setQuickAccess(qa.length ? (qa as any) : QUICK_ACCESS_FALLBACK);
       const uid = sess.data.user?.id;
       if (uid) {
         const { data: al } = await supabase.from("alumnos").select("id, nombre, apellido, email").eq("user_id", uid).maybeSingle();
@@ -192,7 +208,8 @@ const TiendaSection = () => {
   const filtered = products.filter((p) => {
     const matchCat = activeCategory === "Todos" || categories.find(c => c.id === p.category_id)?.name === activeCategory;
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+    const matchPromo = !soloOfertas || !!promos[p.id];
+    return matchCat && matchSearch && matchPromo;
   });
 
   const featured = products.filter((p) => p.featured).slice(0, 4);
