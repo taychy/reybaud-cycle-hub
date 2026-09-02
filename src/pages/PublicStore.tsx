@@ -103,7 +103,8 @@ const PublicStore = () => {
             {filtered.map((p) => {
               const st = effectiveStock(p);
               const promo = promos[p.id];
-              const hasPromo = !!promo && promo.precio_efectivo < promo.precio_lista;
+              const hasPromo = !!promo && !promo.solo_variantes && promo.precio_efectivo < promo.precio_lista;
+              const hasVariantPromo = !!promo?.solo_variantes;
               return (
                 <Link key={p.id} to={`/tienda/producto/${p.id}`} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors">
                   <div className="relative aspect-square bg-secondary overflow-hidden">

@@ -77,12 +77,12 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     let cancelled = false;
     setPriceLoading(true);
     setEffectivePrice(null);
-    supabase.rpc("resolver_precio_tienda", {
+    void supabase.rpc("resolver_precio_tienda", {
       p_product_id: product.id,
       p_variante: variante,
     }).then(({ data }) => {
       if (!cancelled) setEffectivePrice(data?.[0] || null);
-    }).finally(() => {
+    }).then(() => {
       if (!cancelled) setPriceLoading(false);
     });
     return () => { cancelled = true; };
@@ -171,7 +171,7 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
 
     try {
       const { data: pref, error: prefErr } = await supabase.functions.invoke("create-store-order-mp-preference", {
-        body: { order_id: order.id },
+        body: { order_id: order.order_id },
       });
       if (prefErr) throw prefErr;
       const url = (pref as any)?.init_point || (pref as any)?.sandbox_init_point;

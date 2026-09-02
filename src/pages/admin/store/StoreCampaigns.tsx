@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Pencil, Pause, Play, Package, Search, Trash2 } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import StorePromotions from "./StorePromotions";
 import {
   applyCampaignItem,
   campaignStatus,
@@ -518,6 +519,10 @@ const StoreCampaigns = () => {
           })()}
         </DialogContent>
       </Dialog>
+
+      <section className="border-t border-border pt-6">
+        <StorePromotions />
+      </section>
     </div>
   );
 };

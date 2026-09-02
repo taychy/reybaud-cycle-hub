@@ -57,7 +57,8 @@ const ProductCard = ({
   const isPreorder = product.is_preorder && product.preorder_status === "abierta";
   const isInApp = (product as any).checkout_mode === "in_app" && !isPreorder;
   const isInteractive = isPreorder || isInApp;
-  const hasPromo = !isPreorder && !!promo && promo.precio_efectivo < promo.precio_lista;
+  const hasPromo = !isPreorder && !!promo && !promo.solo_variantes && promo.precio_efectivo < promo.precio_lista;
+  const hasVariantPromo = !isPreorder && !!promo && promo.solo_variantes;
   const Wrapper: any = isInteractive ? "div" : "a";
   const wrapperProps = isInteractive
     ? { className: `group flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10` }
@@ -106,7 +107,7 @@ const ProductCard = ({
           <p className={`text-sm font-heading font-bold ${hasPromo ? "text-primary" : "text-foreground"}`}>
             {formatPrice(hasPromo ? promo!.precio_efectivo : product.price, product.currency || "ARS")}
           </p>
-          {hasPromo && promo!.solo_variantes && (
+          {(hasVariantPromo || hasPromo) && promo!.solo_variantes && (
             <p className="text-[10px] text-muted-foreground">Promo en talles seleccionados</p>
           )}
           {hasPromo && promo!.mostrar_urgencia && urgencyText(promo!.fecha_fin) && (
