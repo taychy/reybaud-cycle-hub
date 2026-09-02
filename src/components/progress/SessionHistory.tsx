@@ -27,7 +27,7 @@ export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
         </h2>
         {totalMin > 0 && (
           <span className="text-xs text-muted-foreground shrink-0">
-            {formatDuracion(totalMin)} registradas
+            {formatDuracion(totalMin)} de duración registrada
           </span>
         )}
       </div>
