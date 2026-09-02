@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { ChevronLeft, ChevronRight, Loader2, Mail } from "lucide-react";
 import EnvioDetalleDrawer, { EstadoBadge, type DetalleEnvio } from "./EnvioDetalleDrawer";
+import ComunicacionesDiaDrawer from "./ComunicacionesDiaDrawer";
 import {
   estadoDelDia,
   groupByDayAndTemplate,
