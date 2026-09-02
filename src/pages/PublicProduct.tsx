@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle, ShoppingBag } from "lucide-react";
 import PublicCheckoutDialog from "@/components/store/PublicCheckoutDialog";
 import { formatPrice } from "@/lib/currency";
@@ -121,16 +122,16 @@ const PublicProduct = () => {
                 <p className="text-xs font-heading uppercase text-muted-foreground">Disponibilidad</p>
                 <div className="flex flex-wrap gap-1.5">
                     {variantEntries.map(([k, v]) => (
-                      <button key={k} type="button" onClick={() => {
+                      <Button key={k} type="button" variant="outline" size="sm" disabled={v <= 0} onClick={() => {
                         const next: Record<string, string> = {};
                         for (const part of k.split("|")) {
                           const idx = part.indexOf(":");
                           if (idx > 0) next[part.slice(0, idx)] = part.slice(idx + 1);
                         }
                         setSelectedVariant(next);
-                      }} className={`text-[11px] px-2 py-1 rounded border ${v > 0 ? "border-border bg-secondary text-foreground" : "border-border bg-muted text-muted-foreground line-through"} ${prettyVariant(k) === prettyVariant(Object.entries(selectedVariant).map(([name, value]) => `${name}:${value}`).join("|")) ? "border-primary" : ""}`}>
+                      }} className={`text-[11px] px-2 py-1 h-auto ${v <= 0 ? "line-through" : ""} ${prettyVariant(k) === prettyVariant(Object.entries(selectedVariant).map(([name, value]) => `${name}:${value}`).join("|")) ? "border-primary" : ""}`}>
                         {prettyVariant(k)}{v > 0 ? ` · ${v}` : ""}
-                      </button>
+                      </Button>
                     ))}
                 </div>
               </div>
@@ -139,14 +140,14 @@ const PublicProduct = () => {
             )}
 
             <div className="mt-2 space-y-2">
-              <button
+              <Button
                 type="button"
                 disabled={total <= 0}
                 onClick={() => setBuyOpen(true)}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-primary text-primary-foreground px-6 py-3 font-heading font-semibold uppercase tracking-wider text-sm hover:opacity-90 transition-opacity disabled:opacity-50"
+                className="w-full rounded-xl px-6 py-3 font-heading font-semibold uppercase tracking-wider text-sm"
               >
                 <ShoppingBag className="w-4 h-4" /> {total > 0 ? "Comprar ahora" : "Sin stock"}
-              </button>
+              </Button>
               <a
                 href={buildWhatsAppUrl(`Hola! Quiero consultar por "${p.name}" de la tienda Reybaud. ${url}`)}
                 target="_blank"
@@ -158,7 +159,7 @@ const PublicProduct = () => {
             </div>
           </div>
         </div>
-        <PublicCheckoutDialog open={buyOpen} onOpenChange={setBuyOpen} product={p as any} />
+        <PublicCheckoutDialog open={buyOpen} onOpenChange={setBuyOpen} product={p as any} initialVariant={selectedVariant} />
         <div className="h-6" />
       </div>
     </main>

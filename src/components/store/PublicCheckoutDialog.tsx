@@ -36,6 +36,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   product: Product | null;
+  initialVariant?: Record<string, string>;
 }
 
 const ENTREGAS = [
@@ -44,7 +45,7 @@ const ENTREGAS = [
   { value: "moto", label: "Envío en moto (costo extra a cotizar)" },
 ];
 
-const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
+const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {} }: Props) => {
   const { toast } = useToast();
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -54,9 +55,13 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
   const [obs, setObs] = useState("");
   const [optIn, setOptIn] = useState(true);
   const [cantidad, setCantidad] = useState(1);
-  const [variante, setVariante] = useState<Record<string, string>>({});
+  const [variante, setVariante] = useState<Record<string, string>>(initialVariant);
   const [loading, setLoading] = useState(false);
   const [effectivePrice, setEffectivePrice] = useState<EffectivePrice | null>(null);
+
+  useEffect(() => {
+    if (open) setVariante(initialVariant);
+  }, [open, product?.id, JSON.stringify(initialVariant)]);
 
   const specs: { name: string; options: string[] }[] = useMemo(() => {
     if (!product?.variants || !Array.isArray(product.variants)) return [];
