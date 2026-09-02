@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CreditCard, AlertCircle, Banknote } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { sortVariantSpecs } from "@/lib/variantSort";
+import { urgencyText } from "@/lib/campaigns";
 
 interface Product {
   id: string;
@@ -60,6 +61,8 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
   }, [product, variantSpecs, variantSig]);
 
   const [successOrder, setSuccessOrder] = useState<{ number: number | null; metodo: "mp" | "efectivo" } | null>(null);
+  const [effectivePrice, setEffectivePrice] = useState<any>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -69,9 +72,27 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     setSuccessOrder(null);
   }, [open]);
 
+  useEffect(() => {
+    if (!product || !open) return;
+    let cancelled = false;
+    setPriceLoading(true);
+    setEffectivePrice(null);
+    supabase.rpc("resolver_precio_tienda", {
+      p_product_id: product.id,
+      p_variante: variante,
+    }).then(({ data }) => {
+      if (!cancelled) setEffectivePrice(data?.[0] || null);
+    }).finally(() => {
+      if (!cancelled) setPriceLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [open, product?.id, JSON.stringify(variante)]);
+
   if (!product) return null;
 
-  const total = Number(product.price) * cantidad;
+  const unitPrice = Number(effectivePrice?.precio_efectivo ?? product.price);
+  const listPrice = Number(effectivePrice?.precio_lista ?? product.price);
+  const total = unitPrice * cantidad;
   const variantesElegidas = variantSpecs.every((s) => variante[s.name]);
   const stockOk = stockDisp == null || stockDisp >= cantidad;
 
@@ -125,38 +146,20 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
       console.warn("[BuyProductDialog] dup-check failed", e);
     }
 
-    const { data: order, error } = await supabase
-      .from("store_orders")
-      .insert({
-        alumno_id: alumnoId,
-        customer_name: customerName || "Alumno",
-        customer_email: customerEmail || null,
-        total,
-        currency: moneda,
-        status: metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago",
-        metodo_pago: metodoPago === "efectivo" ? "efectivo" : "mp",
-      } as any)
-      .select("id, order_number")
-      .single();
+    const { data: orderRows, error } = await supabase.rpc("crear_pedido_tienda_alumno", {
+      p_alumno_id: alumnoId,
+      p_product_id: product.id,
+      p_cantidad: cantidad,
+      p_variante: variante,
+      p_metodo: metodoPago,
+      p_customer_name: customerName || "Alumno",
+      p_customer_email: customerEmail || null,
+    });
+    const order = orderRows?.[0];
 
     if (error || !order) {
       setLoading(false);
-      toast({ title: "Error", description: error?.message || "No se pudo crear el pedido", variant: "destructive" });
-      return;
-    }
-
-    const { error: itemErr } = await supabase.from("store_order_items").insert({
-      order_id: order.id,
-      product_id: product.id,
-      product_name: product.name,
-      quantity: cantidad,
-      unit_price: product.price,
-      variant_selection: variante,
-    } as any);
-
-    if (itemErr) {
-      setLoading(false);
-      toast({ title: "Error", description: itemErr.message, variant: "destructive" });
+      toast({ title: "No se pudo crear el pedido", description: error?.message || "El precio o stock cambiaron. Intentá de nuevo.", variant: "destructive" });
       return;
     }
 
@@ -245,7 +248,11 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
           </div>
 
           <div className="rounded-lg border border-border p-3 space-y-1 text-sm">
-            <div className="flex justify-between text-muted-foreground"><span>Precio unitario</span><span>{formatPrice(product.price, moneda)}</span></div>
+            {unitPrice < listPrice && <div className="flex justify-between text-muted-foreground"><span>Precio de lista</span><span className="line-through">{formatPrice(listPrice, moneda)}</span></div>}
+            <div className="flex justify-between text-muted-foreground"><span>Precio unitario</span><span>{formatPrice(unitPrice, moneda)}</span></div>
+            {effectivePrice?.descuento_pct > 0 && <div className="text-[11px] text-primary">-{effectivePrice.descuento_pct}%{effectivePrice.badge_texto ? ` · ${effectivePrice.badge_texto}` : ""}</div>}
+            {effectivePrice?.mostrar_urgencia && <div className="text-[11px] text-primary">{urgencyText(effectivePrice.fecha_fin)}</div>}
+            {priceLoading && <div className="text-[11px] text-muted-foreground">Actualizando precio...</div>}
             <div className="flex justify-between font-heading text-primary"><span>Total</span><span>{formatPrice(total, moneda)}</span></div>
           </div>
 

@@ -4,7 +4,7 @@ import { ShoppingCart, Package, Tag, Sparkles } from "lucide-react";
 import StoreProducts from "./StoreProducts";
 import StoreStock from "./StoreStock";
 import StoreCategories from "./StoreCategories";
-import StorePromotions from "./StorePromotions";
+import StoreCampaigns from "./StoreCampaigns";
 
 type Tab = "productos" | "stock" | "categorias" | "promociones";
 
@@ -38,14 +38,14 @@ const StoreProductosStock = () => {
           <Tag className="w-4 h-4" /> Categorías
         </TabsTrigger>
         <TabsTrigger value="promociones" className="gap-1.5">
-          <Sparkles className="w-4 h-4" /> Promociones
+          <Sparkles className="w-4 h-4" /> Campañas
         </TabsTrigger>
       </TabsList>
 
       <TabsContent value="productos" className="mt-0"><StoreProducts /></TabsContent>
       <TabsContent value="stock" className="mt-0"><StoreStock /></TabsContent>
       <TabsContent value="categorias" className="mt-0"><StoreCategories /></TabsContent>
-      <TabsContent value="promociones" className="mt-0"><StorePromotions /></TabsContent>
+      <TabsContent value="promociones" className="mt-0"><StoreCampaigns /></TabsContent>
     </Tabs>
   );
 };
