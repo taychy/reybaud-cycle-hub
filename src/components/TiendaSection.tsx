@@ -47,10 +47,12 @@ const ProductCard = ({
   product,
   onReserve,
   onBuy,
+  promo,
 }: {
   product: StoreProduct;
   onReserve?: (p: StoreProduct) => void;
   onBuy?: (p: StoreProduct) => void;
+  promo?: PromoRow | null;
 }) => {
   const isPreorder = product.is_preorder && product.preorder_status === "abierta";
   const isInApp = (product as any).checkout_mode === "in_app" && !isPreorder;
