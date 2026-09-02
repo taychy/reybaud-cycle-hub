@@ -34,8 +34,13 @@ describe("normalizeStatus", () => {
 describe("templateLabel", () => {
   it("usa el mapa y hace fallback legible", () => {
     expect(templateLabel("installment_overdue")).toBe("Aviso de cuota vencida");
+    expect(templateLabel("weekly_training_digest")).toBe("Resumen semanal de entrenamientos");
+    expect(templateLabel("weekly-training-digest")).toBe("Resumen semanal de entrenamientos");
+    expect(templateLabel(" weekly_training_digest ")).toBe("Resumen semanal de entrenamientos");
+    expect(templateLabel("renewal_pending")).toBe("Renovación pendiente");
     expect(templateLabel("algo_raro")).toBe("Algo raro");
     expect(templateLabel(null)).toBe("Email sin identificar");
+
   });
 });
 
