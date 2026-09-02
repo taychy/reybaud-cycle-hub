@@ -213,6 +213,9 @@ const TiendaSection = () => {
   });
 
   const featured = products.filter((p) => p.featured).slice(0, 4);
+  const promoProducts = products.filter((p) => !!promos[p.id]);
+  const promoCount = promoProducts.length;
+  const promoHeadline = promoCount ? `${promoCount} producto${promoCount === 1 ? "" : "s"} en promoción` : "";
   const banner = banners[0];
 
   const allCategories = [{ name: "Todos", icon: "🏷️" }, ...categories.map(c => ({ name: c.name, icon: c.icon }))];
