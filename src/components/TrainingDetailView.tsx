@@ -297,7 +297,7 @@ export default function TrainingDetailView({
             {totalMinutes > 0 && (
               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-card border border-border text-[11px] font-heading font-bold uppercase tracking-wider text-foreground">
                 <Activity className="w-3 h-3 text-primary" />
-                {totalMinutes} min
+                {formatDuracion(totalMinutes)}
               </span>
             )}
             {blocks.length > 0 && (
