@@ -174,7 +174,11 @@ Deno.serve(async (req) => {
       campaign_nombre: priceSnapshot.campaign_nombre,
       discount_pct: Number(priceSnapshot.descuento_pct || 0),
     });
-    if (itemErr) console.error("[create-public-store-order] item insert", itemErr);
+    if (itemErr) {
+      console.error("[create-public-store-order] item insert", itemErr);
+      await supabase.from("store_orders").delete().eq("id", order.id);
+      return json({ error: "No pudimos crear el detalle del pedido" }, 500);
+    }
 
     // Base de clientes de tienda (segmentación)
     try {
