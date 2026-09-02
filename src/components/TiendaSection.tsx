@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, ShoppingCart, Bell, ChevronRight, Tag, Flame, Star, Sparkles, Clock, Percent, ExternalLink, CalendarClock } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 import BuyProductDialog from "@/components/store/BuyProductDialog";
 import MisComprasSection from "@/components/store/MisComprasSection";
+import { promoMap, urgencyText, type PromoRow } from "@/lib/campaigns";
 
 // Fallback images
 import jerseyImg from "@/assets/store/jersey.jpg";
