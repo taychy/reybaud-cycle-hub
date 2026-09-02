@@ -280,34 +280,58 @@ const TiendaSection = () => {
         </a>
       )}
 
-      {/* Promo strip */}
-      <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5">
-        <Tag className="w-4 h-4 text-primary shrink-0" />
-        <p className="text-xs font-heading font-semibold text-primary flex-1">
-          Ofertas de la semana · Hasta 50% OFF
-        </p>
-        <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-      </div>
+      {/* Promo strip: sólo si hay campaña vigente */}
+      {promoCount > 0 && (
+        <button
+          type="button"
+          onClick={() => { setSoloOfertas(true); setSearch(""); setActiveCategory("Todos"); }}
+          className="flex items-center gap-2 w-full rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5 text-left"
+        >
+          <Tag className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-xs font-heading font-semibold text-primary flex-1">
+            {promoHeadline}
+          </p>
+          <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+        </button>
+      )}
+
+      {soloOfertas && (
+        <button
+          type="button"
+          onClick={() => setSoloOfertas(false)}
+          className="text-[11px] font-heading text-muted-foreground underline"
+        >
+          Mostrando sólo productos en promoción · Ver todo
+        </button>
+      )}
 
       {/* Quick access */}
       <div className="flex justify-between gap-1">
-        {QUICK_ACCESS.map((qa) => (
-          <button
-            key={qa.label}
-            className="flex flex-col items-center gap-1.5 flex-1 py-2 group"
-            onClick={() => {
-              if (qa.filterTag) {
-                setSearch(qa.filterTag);
-              }
-              setActiveCategory("Todos");
-            }}
-          >
-            <div className="w-11 h-11 rounded-full bg-secondary border border-border flex items-center justify-center group-hover:border-primary/40 transition-colors">
-              <qa.icon className={`w-5 h-5 ${qa.color}`} />
-            </div>
-            <span className="text-[10px] font-heading font-medium text-muted-foreground group-hover:text-foreground transition-colors">{qa.label}</span>
-          </button>
-        ))}
+        {quickAccess.map((qa) => {
+          const Icon = qaIcon(qa.icon);
+          const ofertas = isOfertasQA(qa as any);
+          return (
+            <button
+              key={qa.id}
+              className="flex flex-col items-center gap-1.5 flex-1 py-2 group"
+              onClick={() => {
+                if (ofertas) {
+                  setSoloOfertas(true);
+                  setSearch("");
+                } else {
+                  setSoloOfertas(false);
+                  if (qa.filter_tag) setSearch(qa.filter_tag);
+                }
+                setActiveCategory("Todos");
+              }}
+            >
+              <div className={`w-11 h-11 rounded-full bg-secondary border flex items-center justify-center transition-colors ${ofertas && soloOfertas ? "border-primary" : "border-border group-hover:border-primary/40"}`}>
+                <Icon className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-[10px] font-heading font-medium text-muted-foreground group-hover:text-foreground transition-colors">{qa.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Mis compras (preventas + pedidos) */}
