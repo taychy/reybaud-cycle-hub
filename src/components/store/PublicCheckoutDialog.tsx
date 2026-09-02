@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -98,6 +98,14 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
     return map;
   }, [product, specs]);
 
+  useEffect(() => {
+    if (!product || !open) return;
+    let cancelled = false;
+    supabase.rpc("resolver_precio_tienda", { p_product_id: product.id, p_variante: variante }).then(({ data }) => {
+      if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
+    });
+    return () => { cancelled = true; };
+  }, [open, product?.id, JSON.stringify(variante)]);
 
   if (!product) return null;
 
@@ -249,9 +257,14 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
             Quiero recibir novedades y ofertas de la tienda.
           </label>
 
-          <div className="rounded-lg border border-border bg-secondary/40 p-3 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-lg font-heading font-bold">{formatPrice(total, moneda)}</span>
+          <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-1">
+            {unitPrice < listPrice && <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Precio de lista</span><span className="line-through">{formatPrice(listPrice, moneda)}</span></div>}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total{effectivePrice?.descuento_pct ? ` · -${effectivePrice.descuento_pct}%` : ""}</span>
+              <span className="text-lg font-heading font-bold text-primary">{formatPrice(total, moneda)}</span>
+            </div>
+            {effectivePrice?.badge_texto && <p className="text-[11px] text-primary">{effectivePrice.badge_texto}</p>}
+            {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-[11px] text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
           </div>
 
           {moneda !== "ARS" && (

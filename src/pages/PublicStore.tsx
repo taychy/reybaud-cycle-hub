@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, ShoppingBag, MessageCircle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { promoMap, urgencyText, type PromoRow } from "@/lib/campaigns";
 import { effectiveStock } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 
@@ -29,6 +30,7 @@ const PublicStore = () => {
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState<string>("all");
   const [loading, setLoading] = useState(true);
+  const [promos, setPromos] = useState<Record<string, PromoRow>>({});
 
   useEffect(() => {
     document.title = "Tienda Reybaud | Indumentaria y accesorios de ciclismo";
@@ -38,12 +40,14 @@ const PublicStore = () => {
 
   useEffect(() => {
     const load = async () => {
-      const [pRes, cRes] = await Promise.all([
+      const [pRes, cRes, promoRes] = await Promise.all([
         supabase.from("store_products").select("id, name, description, price, old_price, currency, image_url, tag, category_id, featured, stock, variant_stock").eq("status", "active").order("featured", { ascending: false }),
         supabase.from("store_categories").select("id, name, icon").eq("active", true).order("sort_order"),
+        supabase.rpc("get_promos_tienda_vigentes"),
       ]);
       setProducts((pRes.data as any[]) || []);
       setCategories((cRes.data as any[]) || []);
+      setPromos(promoMap(promoRes.data as any));
       setLoading(false);
     };
     load();
@@ -98,6 +102,8 @@ const PublicStore = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {filtered.map((p) => {
               const st = effectiveStock(p);
+              const promo = promos[p.id];
+              const hasPromo = !!promo && promo.precio_efectivo < promo.precio_lista;
               return (
                 <Link key={p.id} to={`/tienda/producto/${p.id}`} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors">
                   <div className="relative aspect-square bg-secondary overflow-hidden">
@@ -106,14 +112,16 @@ const PublicStore = () => {
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">Sin imagen</div>
                     )}
-                    {p.tag && <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">{p.tag}</span>}
-                    {st <= 0 && <span className="absolute top-2 right-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-destructive text-destructive-foreground">Agotado</span>}
+                    {(promo?.badge_texto || p.tag) && <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">{promo?.badge_texto || p.tag}</span>}
+                    {hasPromo && <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">-{promo.descuento_pct}%</span>}
+                    {st <= 0 && <span className="absolute bottom-2 right-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-destructive text-destructive-foreground">Agotado</span>}
                   </div>
                   <div className="p-3 flex-1 flex flex-col gap-1">
                     <h2 className="text-xs font-medium leading-tight line-clamp-2">{p.name}</h2>
                     <div className="mt-auto">
-                      {p.old_price ? <p className="text-[10px] text-muted-foreground line-through">{formatPrice(p.old_price, p.currency || "ARS")}</p> : null}
-                      <p className="text-sm font-heading font-bold">{formatPrice(p.price, p.currency || "ARS")}</p>
+                      {hasPromo ? <p className="text-[10px] text-muted-foreground line-through">{formatPrice(promo.precio_lista, p.currency || "ARS")}</p> : p.old_price ? <p className="text-[10px] text-muted-foreground line-through">{formatPrice(p.old_price, p.currency || "ARS")}</p> : null}
+                      <p className={`text-sm font-heading font-bold ${hasPromo ? "text-primary" : ""}`}>{formatPrice(hasPromo ? promo.precio_efectivo : p.price, p.currency || "ARS")}</p>
+                      {hasPromo && promo.mostrar_urgencia && urgencyText(promo.fecha_fin) && <p className="text-[10px] text-primary">{urgencyText(promo.fecha_fin)}</p>}
                     </div>
                   </div>
                 </Link>
