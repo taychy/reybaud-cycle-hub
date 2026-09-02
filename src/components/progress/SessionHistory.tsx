@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle, Plus } from "lucide-react";
+import { formatDuracion, sumarMinutos } from "@/lib/duration";
 
 export interface SessionRecord {
   id: string;
@@ -7,7 +8,10 @@ export interface SessionRecord {
   titulo: string;
   tipo: string | null;
   source: "registro" | "asistencia" | "extra";
+  /** Duración real registrada, en minutos (unidad canónica). */
+  duracionMin?: number | null;
 }
+
 
 export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
   return (
