@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { ArrowLeft, MessageCircle, ShoppingBag } from "lucide-react";
 import PublicCheckoutDialog from "@/components/store/PublicCheckoutDialog";
 import { formatPrice } from "@/lib/currency";
+import { urgencyText, type EffectivePrice } from "@/lib/campaigns";
 import { effectiveStock, variantStockSum } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { compareVariantsBySize } from "@/lib/variantSort";
@@ -29,6 +30,8 @@ const PublicProduct = () => {
   const [p, setP] = useState<PubProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [buyOpen, setBuyOpen] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<Record<string, string>>({});
+  const [effectivePrice, setEffectivePrice] = useState<EffectivePrice | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -51,6 +54,15 @@ const PublicProduct = () => {
       if (meta) meta.setAttribute("content", (p.description || p.name).slice(0, 155));
     }
   }, [p]);
+
+  useEffect(() => {
+    if (!p) return;
+    let cancelled = false;
+    void supabase.rpc("resolver_precio_tienda", { p_product_id: p.id, p_variante: selectedVariant }).then(({ data }) => {
+      if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
+    });
+    return () => { cancelled = true; };
+  }, [p?.id, JSON.stringify(selectedVariant)]);
 
   if (loading) return <main className="min-h-screen bg-background flex items-center justify-center text-muted-foreground text-sm">Cargando producto...</main>;
 
@@ -88,23 +100,38 @@ const PublicProduct = () => {
             )}
           </div>
           <div className="p-5 space-y-3">
-            {p.tag && <span className="text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">{p.tag}</span>}
+            {(effectivePrice?.badge_texto || p.tag) && <span className="text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">{effectivePrice?.badge_texto || p.tag}</span>}
             <h1 className="text-xl font-heading font-bold">{p.name}</h1>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-heading font-bold">{formatPrice(p.price, p.currency || "ARS")}</span>
-              {p.old_price ? <span className="text-sm text-muted-foreground line-through">{formatPrice(p.old_price, p.currency || "ARS")}</span> : null}
+              {effectivePrice && effectivePrice.precio_efectivo < effectivePrice.precio_lista ? <>
+                <span className="text-2xl font-heading font-bold text-primary">{formatPrice(effectivePrice.precio_efectivo, p.currency || "ARS")}</span>
+                <span className="text-sm text-muted-foreground line-through">{formatPrice(effectivePrice.precio_lista, p.currency || "ARS")}</span>
+                <span className="text-xs text-primary">-{effectivePrice.descuento_pct}%</span>
+              </> : <>
+                <span className="text-2xl font-heading font-bold">{formatPrice(p.price, p.currency || "ARS")}</span>
+                {p.old_price ? <span className="text-sm text-muted-foreground line-through">{formatPrice(p.old_price, p.currency || "ARS")}</span> : null}
+              </>}
             </div>
+            {effectivePrice?.solo_variantes && effectivePrice.precio_efectivo === effectivePrice.precio_lista && <p className="text-xs text-muted-foreground">Promo en talles seleccionados</p>}
+            {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-xs text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
             {p.description && <p className="text-sm text-muted-foreground whitespace-pre-line">{p.description}</p>}
 
             {hasVariants ? (
               <div className="space-y-1.5 pt-2">
                 <p className="text-xs font-heading uppercase text-muted-foreground">Disponibilidad</p>
                 <div className="flex flex-wrap gap-1.5">
-                  {variantEntries.map(([k, v]) => (
-                    <span key={k} className={`text-[11px] px-2 py-1 rounded border ${v > 0 ? "border-border bg-secondary text-foreground" : "border-border bg-muted text-muted-foreground line-through"}`}>
-                      {prettyVariant(k)}{v > 0 ? ` · ${v}` : ""}
-                    </span>
-                  ))}
+                    {variantEntries.map(([k, v]) => (
+                      <button key={k} type="button" onClick={() => {
+                        const next: Record<string, string> = {};
+                        for (const part of k.split("|")) {
+                          const idx = part.indexOf(":");
+                          if (idx > 0) next[part.slice(0, idx)] = part.slice(idx + 1);
+                        }
+                        setSelectedVariant(next);
+                      }} className={`text-[11px] px-2 py-1 rounded border ${v > 0 ? "border-border bg-secondary text-foreground" : "border-border bg-muted text-muted-foreground line-through"} ${prettyVariant(k) === prettyVariant(Object.entries(selectedVariant).map(([name, value]) => `${name}:${value}`).join("|")) ? "border-primary" : ""}`}>
+                        {prettyVariant(k)}{v > 0 ? ` · ${v}` : ""}
+                      </button>
+                    ))}
                 </div>
               </div>
             ) : (
