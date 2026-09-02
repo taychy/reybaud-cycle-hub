@@ -63,12 +63,54 @@ export const TEMPLATE_LABELS: Record<string, string> = {
   "turnera_transferencia_expirada": "Transferencia expirada",
   "auth_emails": "Emails de acceso (login/registro)",
   "transactional_emails": "Email transaccional",
+  "weekly_training_digest": "Resumen semanal de entrenamientos",
+  "renewal_pending": "Renovación pendiente",
+  "event_announcement": "Comunicado de evento",
+  "event_manual": "Comunicado manual de evento",
+  "event_survey": "Encuesta de evento",
+  "event_survey_test": "Encuesta de evento (prueba)",
+  "medical_certificate_request": "Pedido de certificado médico",
+  "delivery-ready-pickup": "Pedido listo para retirar",
+  "supplier-order-created": "Orden a proveedor creada",
+  "preorder_payment_reminder": "Recordatorio de pago de preventa",
+  "preorder_payment_reminder_manual": "Recordatorio de preventa (manual)",
+  "price_increase_alert": "Aviso de aumento de precio",
+  "price_alert_paid_full": "Aviso de precio (plan pago)",
+  "price_alert_paid_full_test": "Aviso de precio (plan pago, prueba)",
+  "price_alert_with_balance": "Aviso de precio (con saldo)",
+  "price_alert_with_balance_test": "Aviso de precio (con saldo, prueba)",
+  "price_alert_interested_test": "Aviso de precio (interesados, prueba)",
+  "reservation_recordatorio_checklist": "Recordatorio de checklist de reserva",
+  "reservation_plan_pagos": "Plan de pagos de reserva",
+  "reservation_cuota_pendiente": "Cuota de reserva pendiente",
+  "roadbook_prospect": "Roadbook para interesados",
+  "cohort_playbook_admin_test_email": "Playbook de cohorte (prueba admin)",
+  "auto_charge_failed_bulk": "Fallo de cobro automático (lote)",
+  "auto_charge_failed_student_sim": "Fallo de cobro automático (simulación)",
+  "auto_renewal_not_authorized_student": "Renovación automática no autorizada",
+  "turnera_admin_nuevo_comprobante": "Nuevo comprobante de turno (admin)",
+  "turnera_transferencia_comprobante_recibido": "Comprobante de transferencia recibido",
+  "turnera_transferencia_aprobada": "Transferencia aprobada",
+  "turnera_transferencia_rechazada": "Transferencia rechazada",
+  "system": "Aviso del sistema",
 };
 
+/**
+ * Etiqueta amigable en español. Si la clave no está mapeada, humanizamos el
+ * `template_name` (que suele venir en inglés): eso es un fallback de último
+ * recurso — cualquier clave que aparezca en producción debe agregarse arriba.
+ */
 export function templateLabel(name: string | null | undefined): string {
   if (!name) return "Email sin identificar";
-  return TEMPLATE_LABELS[name] || name.replace(/[-_]/g, " ").replace(/^./, (c) => c.toUpperCase());
+  const key = name.trim();
+  return (
+    TEMPLATE_LABELS[key] ||
+    TEMPLATE_LABELS[key.toLowerCase()] ||
+    TEMPLATE_LABELS[key.toLowerCase().replace(/-/g, "_")] ||
+    key.replace(/[-_]/g, " ").replace(/^./, (c) => c.toUpperCase())
+  );
 }
+
 
 /** Normaliza el status crudo del log a los 4 estados que mostramos. */
 export function normalizeStatus(status: string | null | undefined): EstadoEnvio {

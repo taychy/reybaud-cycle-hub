@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDuracionCorta } from "@/lib/duration";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,7 +69,7 @@ const BookingLanding = () => {
                     )}
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       <Badge variant="secondary" className="text-xs">
-                        <Clock className="w-3 h-3 mr-1" /> {s.duracion_minutos} min
+                        <Clock className="w-3 h-3 mr-1" /> {formatDuracionCorta(s.duracion_minutos)}
                       </Badge>
                       {s.precio != null && (
                         <Badge variant="outline" className="text-xs">

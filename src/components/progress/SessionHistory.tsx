@@ -1,4 +1,5 @@
 import { CheckCircle2, XCircle, Plus } from "lucide-react";
+import { formatDuracion, sumarMinutos } from "@/lib/duration";
 
 export interface SessionRecord {
   id: string;
@@ -7,14 +8,30 @@ export interface SessionRecord {
   titulo: string;
   tipo: string | null;
   source: "registro" | "asistencia" | "extra";
+  /** Duración real registrada, en minutos (unidad canónica). */
+  duracionMin?: number | null;
 }
 
+
 export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
+  // Sólo se suma la duración REAL de sesiones realizadas (no infla totales
+  // con sesiones no realizadas ni con duraciones planificadas).
+  const totalMin = sumarMinutos(
+    sessions.filter((s) => s.estado === "realizada").map((s) => s.duracionMin),
+  );
   return (
     <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-      <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-        Historial de sesiones
-      </h2>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+          Historial de sesiones
+        </h2>
+        {totalMin > 0 && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            {formatDuracion(totalMin)} registradas
+          </span>
+        )}
+      </div>
+
       {sessions.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Todavía no registraste sesiones</p>
       ) : (
@@ -33,6 +50,8 @@ export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
                   {new Date(s.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                   {s.tipo ? ` · ${s.tipo}` : ""}
                   {s.source === "extra" ? " · Extra" : s.source === "asistencia" ? " · Presencial" : " · Plan"}
+                  {s.duracionMin ? ` · ${formatDuracion(s.duracionMin)}` : ""}
+
                 </p>
               </div>
               <span className={`text-xs font-medium ${s.source === "extra" ? "text-primary" : s.estado === "realizada" ? "text-emerald-500" : "text-destructive"}`}>
