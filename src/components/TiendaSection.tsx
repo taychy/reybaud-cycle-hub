@@ -74,14 +74,18 @@ const ProductCard = ({
           <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">
             Preventa
           </span>
+        ) : hasPromo && promo?.badge_texto ? (
+          <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">
+            {promo.badge_texto}
+          </span>
         ) : product.tag ? (
           <span className={`absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(product.tag)}`}>
             {product.tag}
           </span>
         ) : null}
-        {product.discount && product.discount > 0 && (
+        {(hasPromo ? promo!.descuento_pct : product.discount || 0) > 0 && (
           <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
-            -{product.discount}%
+            -{hasPromo ? promo!.descuento_pct : product.discount}%
           </span>
         )}
       </div>
@@ -93,10 +97,20 @@ const ProductCard = ({
           </p>
         )}
         <div className="mt-auto">
-          {product.old_price && !isPreorder && (
+          {hasPromo ? (
+            <p className="text-[10px] text-muted-foreground line-through">{formatPrice(promo!.precio_lista, product.currency || "ARS")}</p>
+          ) : product.old_price && !isPreorder ? (
             <p className="text-[10px] text-muted-foreground line-through">{formatPrice(product.old_price)}</p>
+          ) : null}
+          <p className={`text-sm font-heading font-bold ${hasPromo ? "text-primary" : "text-foreground"}`}>
+            {formatPrice(hasPromo ? promo!.precio_efectivo : product.price, product.currency || "ARS")}
+          </p>
+          {hasPromo && promo!.solo_variantes && (
+            <p className="text-[10px] text-muted-foreground">Promo en talles seleccionados</p>
           )}
-          <p className="text-sm font-heading font-bold text-foreground">{formatPrice(product.price, product.currency || "ARS")}</p>
+          {hasPromo && promo!.mostrar_urgencia && urgencyText(promo!.fecha_fin) && (
+            <p className="text-[10px] text-primary">{urgencyText(promo!.fecha_fin)}</p>
+          )}
           {isPreorder ? (
             <button
               type="button"
