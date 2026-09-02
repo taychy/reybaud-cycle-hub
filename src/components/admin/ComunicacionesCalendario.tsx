@@ -125,12 +125,28 @@ export default function ComunicacionesCalendario() {
             const evs = eventosPorDia.get(c.dia) || [];
             const estado = evs.length ? estadoDelDia(evs) : null;
             const sel = c.dia === diaSel;
+            const abrir = (key?: string) => {
+              if (!evs.length) return;
+              setDiaSel(c.dia);
+              setFocusKey(key ?? null);
+              setDiaDrawer(c.dia);
+            };
             return (
-              <button
+              <div
                 key={c.dia}
-                onClick={() => setDiaSel(c.dia)}
+                role={evs.length ? "button" : undefined}
+                tabIndex={evs.length ? 0 : undefined}
+                onClick={() => abrir()}
+                onKeyDown={(e) => {
+                  if (evs.length && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    abrir();
+                  }
+                }}
                 className={`min-h-[58px] sm:min-h-[86px] rounded-lg border p-1.5 text-left transition-colors ${
-                  sel ? "border-primary bg-primary/10" : `${estado ? bordeClass[estado] : "border-border"} hover:bg-secondary/60`
+                  evs.length ? "cursor-pointer" : ""
+                } ${
+                  sel ? "border-primary bg-primary/10 ring-1 ring-primary" : `${estado ? bordeClass[estado] : "border-border"} ${evs.length ? "hover:bg-secondary/60" : ""}`
                 }`}
               >
                 <div className="flex items-center justify-between">
@@ -141,19 +157,28 @@ export default function ComunicacionesCalendario() {
                 </div>
                 <div className="mt-1 hidden sm:block space-y-0.5">
                   {evs.slice(0, 2).map((ev) => (
-                    <p key={ev.key} className="truncate text-[10px] text-muted-foreground">
+                    <p
+                      key={ev.key}
+                      onClick={(e) => { e.stopPropagation(); abrir(ev.key); }}
+                      className="truncate text-[10px] text-muted-foreground hover:text-foreground"
+                    >
                       <span className={`inline-block h-1.5 w-1.5 rounded-full mr-1 ${puntoClass[ev.estado]}`} />
                       {ev.label} · {ev.enviados}/{ev.total}
                     </p>
                   ))}
                   {evs.length > 2 && (
-                    <p className="text-[10px] text-primary">+{evs.length - 2} más</p>
+                    <p
+                      onClick={(e) => { e.stopPropagation(); abrir(); }}
+                      className="text-[10px] text-primary underline-offset-2 hover:underline"
+                    >
+                      +{evs.length - 2} más
+                    </p>
                   )}
                 </div>
                 {evs.length > 0 && (
                   <p className="sm:hidden text-[10px] text-muted-foreground">{evs.length}</p>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -171,7 +196,7 @@ export default function ComunicacionesCalendario() {
           eventosDelDia.map((ev) => (
             <button
               key={ev.key}
-              onClick={() => setDetalle({ tipo: "automatico", evento: ev })}
+              onClick={() => { setFocusKey(ev.key); setDiaDrawer(ev.dia); }}
               className="w-full rounded-lg border border-border bg-card p-3 text-left hover:bg-secondary/60 transition-colors"
             >
               <div className="flex items-start justify-between gap-2">
@@ -194,6 +219,13 @@ export default function ComunicacionesCalendario() {
         )}
       </div>
 
+      <ComunicacionesDiaDrawer
+        dia={diaDrawer}
+        eventos={diaDrawer ? eventosPorDia.get(diaDrawer) || [] : []}
+        focusKey={focusKey}
+        onClose={() => setDiaDrawer(null)}
+        onVerEnvio={(ev) => setDetalle({ tipo: "automatico", evento: ev })}
+      />
       <EnvioDetalleDrawer detalle={detalle} onClose={() => setDetalle(null)} />
     </div>
   );
