@@ -1,11 +1,13 @@
 import { useState, useRef, useEffect } from "react";
 import { Search, ShoppingCart, Bell, ChevronRight, Tag, Flame, Star, Sparkles, Clock, Percent, ExternalLink, CalendarClock } from "lucide-react";
+import * as LucideIcons from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 import BuyProductDialog from "@/components/store/BuyProductDialog";
 import MisComprasSection from "@/components/store/MisComprasSection";
+import { promoMap, urgencyText, type PromoRow } from "@/lib/campaigns";
 
 // Fallback images
 import jerseyImg from "@/assets/store/jersey.jpg";
@@ -45,14 +47,18 @@ const ProductCard = ({
   product,
   onReserve,
   onBuy,
+  promo,
 }: {
   product: StoreProduct;
   onReserve?: (p: StoreProduct) => void;
   onBuy?: (p: StoreProduct) => void;
+  promo?: PromoRow | null;
 }) => {
   const isPreorder = product.is_preorder && product.preorder_status === "abierta";
   const isInApp = (product as any).checkout_mode === "in_app" && !isPreorder;
   const isInteractive = isPreorder || isInApp;
+  const hasPromo = !isPreorder && !!promo && !promo.solo_variantes && promo.precio_efectivo < promo.precio_lista;
+  const hasVariantPromo = !isPreorder && !!promo && promo.solo_variantes;
   const Wrapper: any = isInteractive ? "div" : "a";
   const wrapperProps = isInteractive
     ? { className: `group flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10` }
@@ -70,14 +76,18 @@ const ProductCard = ({
           <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">
             Preventa
           </span>
+        ) : hasPromo && promo?.badge_texto ? (
+          <span className="absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded bg-primary text-primary-foreground">
+            {promo.badge_texto}
+          </span>
         ) : product.tag ? (
           <span className={`absolute top-2 left-2 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${tagColor(product.tag)}`}>
             {product.tag}
           </span>
         ) : null}
-        {product.discount && product.discount > 0 && (
+        {(hasPromo ? promo!.descuento_pct : product.discount || 0) > 0 && (
           <span className="absolute top-2 right-2 text-[10px] font-heading font-bold bg-primary text-primary-foreground px-1.5 py-0.5 rounded">
-            -{product.discount}%
+            -{hasPromo ? promo!.descuento_pct : product.discount}%
           </span>
         )}
       </div>
@@ -89,10 +99,20 @@ const ProductCard = ({
           </p>
         )}
         <div className="mt-auto">
-          {product.old_price && !isPreorder && (
+          {hasPromo ? (
+            <p className="text-[10px] text-muted-foreground line-through">{formatPrice(promo!.precio_lista, product.currency || "ARS")}</p>
+          ) : product.old_price && !isPreorder ? (
             <p className="text-[10px] text-muted-foreground line-through">{formatPrice(product.old_price)}</p>
+          ) : null}
+          <p className={`text-sm font-heading font-bold ${hasPromo ? "text-primary" : "text-foreground"}`}>
+            {formatPrice(hasPromo ? promo!.precio_efectivo : product.price, product.currency || "ARS")}
+          </p>
+          {(hasVariantPromo || hasPromo) && promo!.solo_variantes && (
+            <p className="text-[10px] text-muted-foreground">Promo en talles seleccionados</p>
           )}
-          <p className="text-sm font-heading font-bold text-foreground">{formatPrice(product.price, product.currency || "ARS")}</p>
+          {hasPromo && promo!.mostrar_urgencia && urgencyText(promo!.fecha_fin) && (
+            <p className="text-[10px] text-primary">{urgencyText(promo!.fecha_fin)}</p>
+          )}
           {isPreorder ? (
             <button
               type="button"
@@ -116,13 +136,21 @@ const ProductCard = ({
   );
 };
 
-const QUICK_ACCESS = [
-  { label: "Ofertas", icon: Percent, color: "text-primary", filterTag: "OFERTA" },
-  { label: "Combos", icon: Flame, color: "text-accent", filterTag: null },
-  { label: "Top ventas", icon: Star, color: "text-gold", filterTag: null },
-  { label: "Nuevos", icon: Sparkles, color: "text-cyan", filterTag: "NUEVO" },
-  { label: "Últimas", icon: Clock, color: "text-destructive", filterTag: "ÚLTIMA UNIDAD" },
+/** Accesos rápidos por defecto si todavía no hay datos cargados en store_quick_access. */
+const QUICK_ACCESS_FALLBACK = [
+  { id: "fb-ofertas", name: "Ofertas", icon: "Percent", filter_tag: "OFERTA" },
+  { id: "fb-combos", name: "Combos", icon: "Flame", filter_tag: null },
+  { id: "fb-top", name: "Top ventas", icon: "Star", filter_tag: null },
+  { id: "fb-nuevos", name: "Nuevos", icon: "Sparkles", filter_tag: "NUEVO" },
+  { id: "fb-ultimas", name: "Últimas", icon: "Clock", filter_tag: "ÚLTIMA UNIDAD" },
 ];
+
+const QA_ICONS: Record<string, any> = { Percent, Flame, Star, Sparkles, Clock, Tag };
+const qaIcon = (name: string) => QA_ICONS[name] || (LucideIcons as any)[name] || Tag;
+
+/** Un acceso es de ofertas si su filtro apunta a promociones (no depende del nombre del producto). */
+const isOfertasQA = (qa: { name: string; filter_tag: string | null }) =>
+  (qa.filter_tag || "").toUpperCase() === "OFERTA" || qa.name.trim().toLowerCase() === "ofertas";
 
 const TiendaSection = () => {
   const [search, setSearch] = useState("");
@@ -135,19 +163,27 @@ const TiendaSection = () => {
   const [alumnoInfo, setAlumnoInfo] = useState<{ nombre?: string; email?: string }>({});
   const [reserveProduct, setReserveProduct] = useState<StoreProduct | null>(null);
   const [buyProduct, setBuyProduct] = useState<StoreProduct | null>(null);
+  const [promos, setPromos] = useState<Record<string, PromoRow>>({});
+  const [quickAccess, setQuickAccess] = useState(QUICK_ACCESS_FALLBACK);
+  const [soloOfertas, setSoloOfertas] = useState(false);
   const catRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const load = async () => {
-      const [productsRes, categoriesRes, bannersRes, sess] = await Promise.all([
+      const [productsRes, categoriesRes, bannersRes, promosRes, qaRes, sess] = await Promise.all([
         supabase.from("store_products").select("*").eq("status", "active").order("featured_order", { ascending: true, nullsFirst: false }),
         supabase.from("store_categories").select("*").eq("active", true).order("sort_order"),
         supabase.from("store_banners").select("*").eq("active", true).order("sort_order").limit(1),
+        supabase.rpc("get_promos_tienda_vigentes"),
+        supabase.from("store_quick_access").select("id, name, icon, filter_tag").eq("active", true).order("sort_order"),
         supabase.auth.getUser(),
       ]);
       setProducts(productsRes.data || []);
       setCategories(categoriesRes.data || []);
       setBanners(bannersRes.data || []);
+      setPromos(promoMap(promosRes.data as any));
+      const qa = (qaRes.data as any[]) || [];
+      setQuickAccess(qa.length ? (qa as any) : QUICK_ACCESS_FALLBACK);
       const uid = sess.data.user?.id;
       if (uid) {
         const { data: al } = await supabase.from("alumnos").select("id, nombre, apellido, email").eq("user_id", uid).maybeSingle();
@@ -173,10 +209,14 @@ const TiendaSection = () => {
   const filtered = products.filter((p) => {
     const matchCat = activeCategory === "Todos" || categories.find(c => c.id === p.category_id)?.name === activeCategory;
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
-    return matchCat && matchSearch;
+    const matchPromo = !soloOfertas || !!promos[p.id];
+    return matchCat && matchSearch && matchPromo;
   });
 
   const featured = products.filter((p) => p.featured).slice(0, 4);
+  const promoProducts = products.filter((p) => !!promos[p.id]);
+  const promoCount = promoProducts.length;
+  const promoHeadline = promoCount ? `${promoCount} producto${promoCount === 1 ? "" : "s"} en promoción` : "";
   const banner = banners[0];
 
   const allCategories = [{ name: "Todos", icon: "🏷️" }, ...categories.map(c => ({ name: c.name, icon: c.icon }))];
@@ -244,34 +284,58 @@ const TiendaSection = () => {
         </a>
       )}
 
-      {/* Promo strip */}
-      <div className="flex items-center gap-2 rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5">
-        <Tag className="w-4 h-4 text-primary shrink-0" />
-        <p className="text-xs font-heading font-semibold text-primary flex-1">
-          Ofertas de la semana · Hasta 50% OFF
-        </p>
-        <ChevronRight className="w-4 h-4 text-primary shrink-0" />
-      </div>
+      {/* Promo strip: sólo si hay campaña vigente */}
+      {promoCount > 0 && (
+        <button
+          type="button"
+          onClick={() => { setSoloOfertas(true); setSearch(""); setActiveCategory("Todos"); }}
+          className="flex items-center gap-2 w-full rounded-lg bg-primary/10 border border-primary/20 px-4 py-2.5 text-left"
+        >
+          <Tag className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-xs font-heading font-semibold text-primary flex-1">
+            {promoHeadline}
+          </p>
+          <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+        </button>
+      )}
+
+      {soloOfertas && (
+        <button
+          type="button"
+          onClick={() => setSoloOfertas(false)}
+          className="text-[11px] font-heading text-muted-foreground underline"
+        >
+          Mostrando sólo productos en promoción · Ver todo
+        </button>
+      )}
 
       {/* Quick access */}
       <div className="flex justify-between gap-1">
-        {QUICK_ACCESS.map((qa) => (
-          <button
-            key={qa.label}
-            className="flex flex-col items-center gap-1.5 flex-1 py-2 group"
-            onClick={() => {
-              if (qa.filterTag) {
-                setSearch(qa.filterTag);
-              }
-              setActiveCategory("Todos");
-            }}
-          >
-            <div className="w-11 h-11 rounded-full bg-secondary border border-border flex items-center justify-center group-hover:border-primary/40 transition-colors">
-              <qa.icon className={`w-5 h-5 ${qa.color}`} />
-            </div>
-            <span className="text-[10px] font-heading font-medium text-muted-foreground group-hover:text-foreground transition-colors">{qa.label}</span>
-          </button>
-        ))}
+        {quickAccess.map((qa) => {
+          const Icon = qaIcon(qa.icon);
+          const ofertas = isOfertasQA(qa as any);
+          return (
+            <button
+              key={qa.id}
+              className="flex flex-col items-center gap-1.5 flex-1 py-2 group"
+              onClick={() => {
+                if (ofertas) {
+                  setSoloOfertas(true);
+                  setSearch("");
+                } else {
+                  setSoloOfertas(false);
+                  if (qa.filter_tag) setSearch(qa.filter_tag);
+                }
+                setActiveCategory("Todos");
+              }}
+            >
+              <div className={`w-11 h-11 rounded-full bg-secondary border flex items-center justify-center transition-colors ${ofertas && soloOfertas ? "border-primary" : "border-border group-hover:border-primary/40"}`}>
+                <Icon className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-[10px] font-heading font-medium text-muted-foreground group-hover:text-foreground transition-colors">{qa.name}</span>
+            </button>
+          );
+        })}
       </div>
 
       {/* Mis compras (preventas + pedidos) */}
@@ -288,7 +352,7 @@ const TiendaSection = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {featured.map((p) => (
-              <ProductCard key={p.id} product={p} onReserve={handleReserve} onBuy={handleBuy} />
+              <ProductCard key={p.id} product={p} promo={promos[p.id]} onReserve={handleReserve} onBuy={handleBuy} />
             ))}
           </div>
         </section>
@@ -305,7 +369,7 @@ const TiendaSection = () => {
         {filtered.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} onReserve={handleReserve} onBuy={handleBuy} />
+              <ProductCard key={p.id} product={p} promo={promos[p.id]} onReserve={handleReserve} onBuy={handleBuy} />
             ))}
           </div>
         ) : (

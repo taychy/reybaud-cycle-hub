@@ -71,7 +71,16 @@ Deno.serve(async (req) => {
       return json({ error: `Solo quedan ${disponible} unidades` }, 400);
     }
 
-    const unit = Number(product.price) || 0;
+    const { data: priceRows, error: priceErr } = await supabase.rpc("resolver_precio_tienda", {
+      p_product_id: product.id,
+      p_variante: variante,
+    });
+    if (priceErr || !priceRows?.[0]) {
+      console.error("[create-public-store-order] price resolver", priceErr);
+      return json({ error: "No pudimos validar el precio del producto" }, 409);
+    }
+    const priceSnapshot = priceRows[0] as any;
+    const unit = Number(priceSnapshot.precio_efectivo) || 0;
 
     // Mercado Pago sólo cobra en ARS: convertimos precios en USD/EUR con el tipo de cambio fijo.
     const moneda = String(product.currency || "ARS").toUpperCase();
@@ -159,8 +168,17 @@ Deno.serve(async (req) => {
       quantity: cantidad,
       unit_price: unit,
       variant_selection: variante,
+      precio_lista: Number(priceSnapshot.precio_lista),
+      precio_cobrado: unit,
+      campaign_id: priceSnapshot.campaign_id,
+      campaign_nombre: priceSnapshot.campaign_nombre,
+      discount_pct: Number(priceSnapshot.descuento_pct || 0),
     });
-    if (itemErr) console.error("[create-public-store-order] item insert", itemErr);
+    if (itemErr) {
+      console.error("[create-public-store-order] item insert", itemErr);
+      await supabase.from("store_orders").delete().eq("id", order.id);
+      return json({ error: "No pudimos crear el detalle del pedido" }, 500);
+    }
 
     // Base de clientes de tienda (segmentación)
     try {

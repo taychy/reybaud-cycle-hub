@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
 
     const { data: items } = await supabaseAdmin
       .from("store_order_items")
-      .select("product_name, quantity, unit_price")
+      .select("product_name, quantity, unit_price, precio_cobrado")
       .eq("order_id", order.id);
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
@@ -61,7 +61,8 @@ Deno.serve(async (req) => {
       items: (items || []).map((it: any) => ({
         title: it.product_name,
         quantity: Number(it.quantity),
-        unit_price: Number(it.unit_price),
+        // La orden contiene el snapshot de precio; el navegador nunca participa.
+        unit_price: Number(it.precio_cobrado ?? it.unit_price),
         currency_id: order.currency || "ARS",
       })),
       payer: { name: order.customer_name, email: order.customer_email || undefined },

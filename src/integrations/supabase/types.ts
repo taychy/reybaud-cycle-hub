@@ -10309,6 +10309,99 @@ export type Database = {
           },
         ]
       }
+      store_campaign_items: {
+        Row: {
+          activo: boolean
+          campaign_id: string
+          created_at: string
+          id: string
+          product_id: string
+          tipo: string
+          updated_at: string
+          valor: number
+          variant_keys: string[] | null
+        }
+        Insert: {
+          activo?: boolean
+          campaign_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          tipo: string
+          updated_at?: string
+          valor: number
+          variant_keys?: string[] | null
+        }
+        Update: {
+          activo?: boolean
+          campaign_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          tipo?: string
+          updated_at?: string
+          valor?: number
+          variant_keys?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_campaign_items_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "store_campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_campaign_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      store_campaigns: {
+        Row: {
+          activa: boolean
+          badge_texto: string | null
+          created_at: string
+          descripcion: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id: string
+          mostrar_urgencia: boolean
+          nombre: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          badge_texto?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fecha_fin: string
+          fecha_inicio: string
+          id?: string
+          mostrar_urgencia?: boolean
+          nombre: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          badge_texto?: string | null
+          created_at?: string
+          descripcion?: string | null
+          fecha_fin?: string
+          fecha_inicio?: string
+          id?: string
+          mostrar_urgencia?: boolean
+          nombre?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       store_categories: {
         Row: {
           active: boolean
@@ -10401,11 +10494,16 @@ export type Database = {
       }
       store_order_items: {
         Row: {
+          campaign_id: string | null
+          campaign_nombre: string | null
           combo_item_id: string | null
           created_at: string
+          discount_pct: number | null
           id: string
           internal_component_idx: number | null
           order_id: string
+          precio_cobrado: number | null
+          precio_lista: number | null
           product_id: string | null
           product_name: string
           quantity: number
@@ -10415,11 +10513,16 @@ export type Database = {
           variant_selection: Json
         }
         Insert: {
+          campaign_id?: string | null
+          campaign_nombre?: string | null
           combo_item_id?: string | null
           created_at?: string
+          discount_pct?: number | null
           id?: string
           internal_component_idx?: number | null
           order_id: string
+          precio_cobrado?: number | null
+          precio_lista?: number | null
           product_id?: string | null
           product_name: string
           quantity?: number
@@ -10429,11 +10532,16 @@ export type Database = {
           variant_selection?: Json
         }
         Update: {
+          campaign_id?: string | null
+          campaign_nombre?: string | null
           combo_item_id?: string | null
           created_at?: string
+          discount_pct?: number | null
           id?: string
           internal_component_idx?: number | null
           order_id?: string
+          precio_cobrado?: number | null
+          precio_lista?: number | null
           product_id?: string | null
           product_name?: string
           quantity?: number
@@ -10443,6 +10551,13 @@ export type Database = {
           variant_selection?: Json
         }
         Relationships: [
+          {
+            foreignKeyName: "store_order_items_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "store_campaigns"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "store_order_items_order_id_fkey"
             columns: ["order_id"]
@@ -13470,6 +13585,24 @@ export type Database = {
       count_new_turnera_reservations: { Args: never; Returns: number }
       count_new_waitlist_entries: { Args: never; Returns: number }
       count_pending_waitlist_requests: { Args: never; Returns: number }
+      crear_pedido_tienda_alumno: {
+        Args: {
+          p_alumno_id: string
+          p_cantidad: number
+          p_customer_email?: string
+          p_customer_name?: string
+          p_metodo?: string
+          p_product_id: string
+          p_variante?: Json
+        }
+        Returns: {
+          campaign_id: string
+          order_id: string
+          order_number: number
+          total: number
+          unit_price: number
+        }[]
+      }
       crear_prenda_prueba: {
         Args: {
           p_alumno_id?: string
@@ -14034,6 +14167,21 @@ export type Database = {
       get_promo_code: {
         Args: { _codigo: string; _evento_id: string }
         Returns: Json
+      }
+      get_promos_tienda_vigentes: {
+        Args: never
+        Returns: {
+          badge_texto: string
+          campaign_id: string
+          campaign_nombre: string
+          descuento_pct: number
+          fecha_fin: string
+          mostrar_urgencia: boolean
+          precio_efectivo: number
+          precio_lista: number
+          product_id: string
+          solo_variantes: boolean
+        }[]
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
       get_public_program: { Args: { _cohort_slug: string }; Returns: Json }
@@ -14734,6 +14882,21 @@ export type Database = {
       resolve_variant_key: {
         Args: { p_product_id: string; p_variante: string }
         Returns: string
+      }
+      resolver_precio_tienda: {
+        Args: { p_product_id: string; p_variante?: Json }
+        Returns: {
+          badge_texto: string
+          campaign_id: string
+          campaign_nombre: string
+          descuento_pct: number
+          fecha_fin: string
+          mostrar_urgencia: boolean
+          precio_efectivo: number
+          precio_lista: number
+          product_id: string
+          solo_variantes: boolean
+        }[]
       }
       resolver_solicitud_agenda: {
         Args: {

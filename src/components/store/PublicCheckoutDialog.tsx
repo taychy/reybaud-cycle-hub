@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { sortVariantSpecs } from "@/lib/variantSort";
 import { Loader2, CreditCard } from "lucide-react";
+import { urgencyText } from "@/lib/campaigns";
 
 interface Product {
   id: string;
@@ -22,10 +23,20 @@ interface Product {
   stock?: number | null;
 }
 
+interface EffectivePrice {
+  precio_lista: number;
+  precio_efectivo: number;
+  descuento_pct: number;
+  badge_texto: string | null;
+  mostrar_urgencia: boolean;
+  fecha_fin: string | null;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   product: Product | null;
+  initialVariant?: Record<string, string>;
 }
 
 const ENTREGAS = [
@@ -34,7 +45,7 @@ const ENTREGAS = [
   { value: "moto", label: "Envío en moto (costo extra a cotizar)" },
 ];
 
-const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
+const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {} }: Props) => {
   const { toast } = useToast();
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
@@ -44,8 +55,13 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
   const [obs, setObs] = useState("");
   const [optIn, setOptIn] = useState(true);
   const [cantidad, setCantidad] = useState(1);
-  const [variante, setVariante] = useState<Record<string, string>>({});
+  const [variante, setVariante] = useState<Record<string, string>>(initialVariant);
   const [loading, setLoading] = useState(false);
+  const [effectivePrice, setEffectivePrice] = useState<EffectivePrice | null>(null);
+
+  useEffect(() => {
+    if (open) setVariante(initialVariant);
+  }, [open, product?.id, JSON.stringify(initialVariant)]);
 
   const specs: { name: string; options: string[] }[] = useMemo(() => {
     if (!product?.variants || !Array.isArray(product.variants)) return [];
@@ -87,11 +103,21 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
     return map;
   }, [product, specs]);
 
+  useEffect(() => {
+    if (!product || !open) return;
+    let cancelled = false;
+    supabase.rpc("resolver_precio_tienda", { p_product_id: product.id, p_variante: variante }).then(({ data }) => {
+      if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
+    });
+    return () => { cancelled = true; };
+  }, [open, product?.id, JSON.stringify(variante)]);
 
   if (!product) return null;
 
   const moneda = product.currency || "ARS";
-  const total = Number(product.price) * cantidad;
+  const listPrice = Number(effectivePrice?.precio_lista ?? product.price);
+  const unitPrice = Number(effectivePrice?.precio_efectivo ?? product.price);
+  const total = unitPrice * cantidad;
 
   const submit = async () => {
     // Validación local para no depender del error genérico de la función
@@ -236,9 +262,14 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
             Quiero recibir novedades y ofertas de la tienda.
           </label>
 
-          <div className="rounded-lg border border-border bg-secondary/40 p-3 flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Total</span>
-            <span className="text-lg font-heading font-bold">{formatPrice(total, moneda)}</span>
+          <div className="rounded-lg border border-border bg-secondary/40 p-3 space-y-1">
+            {unitPrice < listPrice && <div className="flex items-center justify-between text-xs text-muted-foreground"><span>Precio de lista</span><span className="line-through">{formatPrice(listPrice, moneda)}</span></div>}
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Total{effectivePrice?.descuento_pct ? ` · -${effectivePrice.descuento_pct}%` : ""}</span>
+              <span className="text-lg font-heading font-bold text-primary">{formatPrice(total, moneda)}</span>
+            </div>
+            {effectivePrice?.badge_texto && <p className="text-[11px] text-primary">{effectivePrice.badge_texto}</p>}
+            {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-[11px] text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
           </div>
 
           {moneda !== "ARS" && (
