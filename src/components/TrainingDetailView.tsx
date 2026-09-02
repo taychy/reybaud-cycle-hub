@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { ChevronDown, ChevronUp, Eye, Flame, Zap, Activity, Moon, Dumbbell, Bike, Cog, Target, Gauge, RotateCw, Pause } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
+import { formatDuracion } from "@/lib/duration";
 
 type Entrenamiento = Tables<"entrenamientos">;
 
