@@ -351,7 +351,7 @@ const TiendaSection = () => {
           </div>
           <div className="grid grid-cols-2 gap-3">
             {featured.map((p) => (
-              <ProductCard key={p.id} product={p} onReserve={handleReserve} onBuy={handleBuy} />
+              <ProductCard key={p.id} product={p} promo={promos[p.id]} onReserve={handleReserve} onBuy={handleBuy} />
             ))}
           </div>
         </section>
@@ -368,7 +368,7 @@ const TiendaSection = () => {
         {filtered.length > 0 ? (
           <div className="grid grid-cols-2 gap-3">
             {filtered.map((p) => (
-              <ProductCard key={p.id} product={p} onReserve={handleReserve} onBuy={handleBuy} />
+              <ProductCard key={p.id} product={p} promo={promos[p.id]} onReserve={handleReserve} onBuy={handleBuy} />
             ))}
           </div>
         ) : (

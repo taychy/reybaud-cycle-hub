@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { sortVariantSpecs } from "@/lib/variantSort";
 import { Loader2, CreditCard } from "lucide-react";
+import { urgencyText } from "@/lib/campaigns";
 
 interface Product {
   id: string;
@@ -20,6 +21,15 @@ interface Product {
   variants?: any;
   variant_stock?: any;
   stock?: number | null;
+}
+
+interface EffectivePrice {
+  precio_lista: number;
+  precio_efectivo: number;
+  descuento_pct: number;
+  badge_texto: string | null;
+  mostrar_urgencia: boolean;
+  fecha_fin: string | null;
 }
 
 interface Props {
@@ -46,6 +56,7 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
   const [cantidad, setCantidad] = useState(1);
   const [variante, setVariante] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [effectivePrice, setEffectivePrice] = useState<EffectivePrice | null>(null);
 
   const specs: { name: string; options: string[] }[] = useMemo(() => {
     if (!product?.variants || !Array.isArray(product.variants)) return [];
@@ -91,7 +102,9 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product }: Props) => {
   if (!product) return null;
 
   const moneda = product.currency || "ARS";
-  const total = Number(product.price) * cantidad;
+  const listPrice = Number(effectivePrice?.precio_lista ?? product.price);
+  const unitPrice = Number(effectivePrice?.precio_efectivo ?? product.price);
+  const total = unitPrice * cantidad;
 
   const submit = async () => {
     // Validación local para no depender del error genérico de la función
