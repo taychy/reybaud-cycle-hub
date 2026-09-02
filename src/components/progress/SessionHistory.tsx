@@ -14,11 +14,24 @@ export interface SessionRecord {
 
 
 export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
+  // Sólo se suma la duración REAL de sesiones realizadas (no infla totales
+  // con sesiones no realizadas ni con duraciones planificadas).
+  const totalMin = sumarMinutos(
+    sessions.filter((s) => s.estado === "realizada").map((s) => s.duracionMin),
+  );
   return (
     <div className="rounded-xl border border-border bg-card/80 backdrop-blur-sm p-5 space-y-4 shadow-lg shadow-black/20">
-      <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
-        Historial de sesiones
-      </h2>
+      <div className="flex items-baseline justify-between gap-2">
+        <h2 className="text-sm font-heading font-semibold uppercase tracking-wider text-muted-foreground">
+          Historial de sesiones
+        </h2>
+        {totalMin > 0 && (
+          <span className="text-xs text-muted-foreground shrink-0">
+            {formatDuracion(totalMin)} registradas
+          </span>
+        )}
+      </div>
+
       {sessions.length === 0 ? (
         <p className="text-sm text-muted-foreground text-center py-4">Todavía no registraste sesiones</p>
       ) : (
