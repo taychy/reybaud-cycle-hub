@@ -57,6 +57,7 @@ const ProductCard = ({
   const isPreorder = product.is_preorder && product.preorder_status === "abierta";
   const isInApp = (product as any).checkout_mode === "in_app" && !isPreorder;
   const isInteractive = isPreorder || isInApp;
+  const hasPromo = !isPreorder && !!promo && promo.precio_efectivo < promo.precio_lista;
   const Wrapper: any = isInteractive ? "div" : "a";
   const wrapperProps = isInteractive
     ? { className: `group flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10` }
