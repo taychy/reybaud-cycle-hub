@@ -50,6 +50,8 @@ export function SessionHistory({ sessions }: { sessions: SessionRecord[] }) {
                   {new Date(s.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
                   {s.tipo ? ` · ${s.tipo}` : ""}
                   {s.source === "extra" ? " · Extra" : s.source === "asistencia" ? " · Presencial" : " · Plan"}
+                  {s.duracionMin ? ` · ${formatDuracion(s.duracionMin)}` : ""}
+
                 </p>
               </div>
               <span className={`text-xs font-medium ${s.source === "extra" ? "text-primary" : s.estado === "realizada" ? "text-emerald-500" : "text-destructive"}`}>
