@@ -683,7 +683,11 @@ const AdminDashboard = () => {
         </Link>
       </div>
 
+      {/* Resumen simple del mes (Entró / Falta cobrar / Salió / Falta pagar) */}
+      <ResumenFinancieroMes />
+
       {/* KPIs operativos */}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((k) => (
           <Link key={k.label} to={k.to} className="block">
