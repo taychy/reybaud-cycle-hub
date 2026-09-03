@@ -10151,7 +10151,9 @@ export type Database = {
           producto_id: string
           producto_reemplazo_id: string | null
           prueba_cierre_at: string | null
+          prueba_idempotency_key: string | null
           prueba_order_item_id: string | null
+          prueba_origen_id: string | null
           prueba_resultado: string | null
           prueba_salida_at: string | null
           recibido_en: string | null
@@ -10200,7 +10202,9 @@ export type Database = {
           producto_id: string
           producto_reemplazo_id?: string | null
           prueba_cierre_at?: string | null
+          prueba_idempotency_key?: string | null
           prueba_order_item_id?: string | null
+          prueba_origen_id?: string | null
           prueba_resultado?: string | null
           prueba_salida_at?: string | null
           recibido_en?: string | null
@@ -10249,7 +10253,9 @@ export type Database = {
           producto_id?: string
           producto_reemplazo_id?: string | null
           prueba_cierre_at?: string | null
+          prueba_idempotency_key?: string | null
           prueba_order_item_id?: string | null
+          prueba_origen_id?: string | null
           prueba_resultado?: string | null
           prueba_salida_at?: string | null
           recibido_en?: string | null
@@ -10305,6 +10311,13 @@ export type Database = {
             columns: ["producto_reemplazo_id"]
             isOneToOne: false
             referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_prueba_origen_fk"
+            columns: ["prueba_origen_id"]
+            isOneToOne: false
+            referencedRelation: "store_cambios"
             referencedColumns: ["id"]
           },
         ]
@@ -13607,6 +13620,7 @@ export type Database = {
         Args: {
           p_alumno_id?: string
           p_comentario?: string
+          p_idempotency_key?: string
           p_metodo?: Database["public"]["Enums"]["cambio_metodo"]
           p_order_id?: string
           p_producto_id: string
@@ -14595,8 +14609,8 @@ export type Database = {
         Returns: undefined
       }
       prueba_usar_como_cambio: {
-        Args: { p_cambio_id: string; p_nota?: string }
-        Returns: undefined
+        Args: { p_cambio_id: string; p_nota?: string; p_order_item_id: string }
+        Returns: string
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
       reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }
@@ -14959,6 +14973,15 @@ export type Database = {
         }[]
       }
       run_programa_bajas_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
+      run_store_pruebas_tests: {
         Args: never
         Returns: {
           detalle: string

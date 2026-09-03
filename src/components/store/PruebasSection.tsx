@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -12,6 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, Undo2, ShoppingCart, RefreshCw } from "lucide-react";
 import { formatVariante } from "@/lib/productQr";
 import { diasAfuera, alertaAntiguedad, esPruebaActiva, resultadoClass, resultadoLabel } from "@/lib/pruebas";
+import {
+  itemsElegiblesParaCambio, preseleccionItemCambio, labelItemCambio, type OrderItemLike,
+} from "@/lib/pruebasCambio";
 import AddPruebaDialog from "@/components/store/AddPruebaDialog";
 
 interface Props {
@@ -31,6 +35,9 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
   const [busy, setBusy] = useState<string | null>(null);
   const [ventaFor, setVentaFor] = useState<any | null>(null);
   const [precio, setPrecio] = useState("");
+  const [cambioFor, setCambioFor] = useState<any | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItemLike[]>([]);
+  const [itemOriginal, setItemOriginal] = useState("");
   const { toast } = useToast();
 
   const load = useCallback(async () => {
@@ -65,9 +72,36 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
     run(c.id, () => supabase.rpc("prueba_devolver" as any, { p_cambio_id: c.id, p_nota: null }),
       "Prueba devuelta · stock reingresado");
 
-  const usarComoCambio = (c: any) =>
-    run(c.id, () => supabase.rpc("prueba_usar_como_cambio" as any, { p_cambio_id: c.id, p_nota: null }),
-      "Convertida en cambio real");
+  /** Abre el diálogo y trae los ítems del pedido para elegir cuál prenda vuelve. */
+  const abrirCambio = async (c: any) => {
+    setCambioFor(c);
+    setItemOriginal("");
+    const { data } = await supabase
+      .from("store_order_items")
+      .select("id, product_id, product_name, variant_selection, quantity")
+      .eq("order_id", orderId);
+    const items = (data as any[]) || [];
+    setOrderItems(items);
+    setItemOriginal(preseleccionItemCambio(items, c.prueba_order_item_id));
+  };
+
+  const confirmarCambio = async () => {
+    if (!cambioFor) return;
+    if (!itemOriginal) {
+      toast({ title: "Elegí qué prenda devuelve el alumno", variant: "destructive" });
+      return;
+    }
+    const ok = await run(
+      cambioFor.id,
+      () => supabase.rpc("prueba_usar_como_cambio" as any, {
+        p_cambio_id: cambioFor.id,
+        p_order_item_id: itemOriginal,
+        p_nota: null,
+      }),
+      "Cambio real creado · falta recibir la prenda original",
+    );
+    if (ok) { setCambioFor(null); setItemOriginal(""); }
+  };
 
   const confirmarVenta = async () => {
     if (!ventaFor) return;
@@ -118,7 +152,7 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
             <Button size="sm" className="h-7 text-[11px]" disabled={busy === c.id} onClick={() => { setVentaFor(c); setPrecio(""); }}>
               <ShoppingCart className="w-3 h-3 mr-1" /> Se la quedó
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={busy === c.id} onClick={() => usarComoCambio(c)}>
+            <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={busy === c.id} onClick={() => abrirCambio(c)}>
               <RefreshCw className="w-3 h-3 mr-1" /> Usar como cambio
             </Button>
           </div>
@@ -194,7 +228,42 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!cambioFor} onOpenChange={(v) => { if (!v) { setCambioFor(null); setItemOriginal(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usar la prueba como cambio</AlertDialogTitle>
+            <AlertDialogDescription>
+              La prenda de prueba se queda con el alumno (no vuelve al stock) y a cambio devuelve una prenda que ya
+              había comprado. Elegí cuál: recién suma al stock cuando Depósito la recibe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <Label className="text-xs">Prenda que devuelve el alumno *</Label>
+            <Select value={itemOriginal} onValueChange={setItemOriginal}>
+              <SelectTrigger><SelectValue placeholder="Elegí la prenda del pedido" /></SelectTrigger>
+              <SelectContent>
+                {itemsElegiblesParaCambio(orderItems, cambioFor?.prueba_order_item_id).map((i) => (
+                  <SelectItem key={i.id} value={i.id}>{labelItemCambio(i)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {itemsElegiblesParaCambio(orderItems, cambioFor?.prueba_order_item_id).length === 0 && (
+              <p className="text-[11px] text-destructive">
+                Este pedido no tiene prendas con producto asociado para devolver.
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmarCambio(); }} disabled={!itemOriginal}>
+              Crear cambio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
+
   );
 };
 

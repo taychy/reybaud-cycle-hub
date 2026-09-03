@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.run_store_pruebas_tests() TO sandbox_exec, service_role;
