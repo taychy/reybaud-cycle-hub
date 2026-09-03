@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import {
-  distribucionPorGrupo,
   distribucionPorPlan,
   contarMultiPlan,
   contarSinPlanActivo,
@@ -11,17 +10,21 @@ import {
   type DistAlumno,
   type PlanEntry,
 } from "@/lib/studentDistribution";
+import { grupoOperativoFilterKey, type GrupoOpBucket } from "@/lib/grupoOperativo";
 
 interface Props {
   /** Alumnos que entran en el total "Activos" de la pantalla. */
   activos: (DistAlumno & { user_id: string | null })[];
   /** Una fila por (alumno activo, plan activo) según el mismo helper de la pantalla. */
   planEntries: PlanEntry[];
+  /** Buckets de grupo OPERATIVO derivado (suman el total de activos). */
+  gruposOperativos: GrupoOpBucket[];
   statusFilter: string;
   onSelectGrupo: (grupo: string) => void;
   onSelectPlan: (planId: string) => void;
   onSelectSinPlanActivo: () => void;
 }
+
 
 const chipBase =
   "rounded-full border px-3 py-1.5 text-xs transition-colors whitespace-nowrap";
@@ -29,6 +32,7 @@ const chipBase =
 export default function AlumnosDistribucion({
   activos,
   planEntries,
+  gruposOperativos,
   statusFilter,
   onSelectGrupo,
   onSelectPlan,
@@ -54,7 +58,7 @@ export default function AlumnosDistribucion({
     return () => { cancelled = true; };
   }, []);
 
-  const grupos = useMemo(() => distribucionPorGrupo(activos), [activos]);
+  const grupos = gruposOperativos;
   const planes = useMemo(() => distribucionPorPlan(planEntries), [planEntries]);
   const multiPlan = useMemo(() => contarMultiPlan(planEntries), [planEntries]);
   const sinPlanActivo = useMemo(() => contarSinPlanActivo(activos, planEntries), [activos, planEntries]);
@@ -77,15 +81,14 @@ export default function AlumnosDistribucion({
         </span>
       </div>
 
-      {/* Por grupo */}
+      {/* Por grupo operativo (derivado de relaciones actuales, no de alumnos.grupo) */}
       <div className="space-y-2">
         <p className="text-[11px] uppercase tracking-wider text-muted-foreground">
-          Por grupo · suma {total}
+          Por grupo operativo · suma {total}
         </p>
         <div className="flex flex-wrap gap-2">
           {grupos.map((g) => {
-            const key = g.grupo === "Sin grupo" ? "sin_grupo" : `grupo_${g.grupo}`;
-            const active = statusFilter === key;
+            const active = statusFilter === grupoOperativoFilterKey(g.grupo);
             return (
               <button
                 key={g.grupo}
@@ -97,6 +100,7 @@ export default function AlumnosDistribucion({
             );
           })}
         </div>
+
       </div>
 
       {/* Por plan activo */}

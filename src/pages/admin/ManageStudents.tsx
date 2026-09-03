@@ -22,6 +22,14 @@ import { Separator } from "@/components/ui/separator";
 import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
 import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
 import AlumnosDistribucion from "@/components/admin/AlumnosDistribucion";
+import {
+  clasificarGrupoOperativo,
+  distribucionGrupoOperativo,
+  grupoOperativoFilterKey,
+  type AlumnoClasificable,
+  type ReservaMin,
+} from "@/lib/grupoOperativo";
+
 
 import { MergeDuplicatesDialog } from "@/components/admin/MergeDuplicatesDialog";
 import type { Tables } from "@/integrations/supabase/types";
@@ -291,6 +299,28 @@ const ManageStudents = () => {
     });
   }, [alumnos]);
 
+  // Reservas de Turnera (para derivar grupo operativo: evaluatorias / personalizadas)
+  const [reservasTurnera, setReservasTurnera] = useState<
+    { alumno_id: string | null; email: string | null; fecha: string; estado: string | null; slug: string }[]
+  >([]);
+  useEffect(() => {
+    supabase
+      .from("reservas_turnera")
+      .select("alumno_id, email, fecha, estado_operativo, servicios_turnera(slug)")
+      .then(({ data }) => {
+        setReservasTurnera(
+          ((data as any[]) || []).map(r => ({
+            alumno_id: r.alumno_id ?? null,
+            email: r.email ?? null,
+            fecha: r.fecha,
+            estado: r.estado_operativo ?? null,
+            slug: r.servicios_turnera?.slug ?? "",
+          }))
+        );
+      });
+  }, []);
+
+
   const isSubEfectivamenteActiva = (s: SuscripcionConPlan) => {
     const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at, cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
     return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
@@ -425,6 +455,39 @@ const ManageStudents = () => {
       .map(s => ({ alumnoId: a.id, planId: s.plan_id, planNombre: (s.planes as any).nombre as string }))
   );
 
+  // --- Grupo operativo derivado (sólo lectura; no muta alumnos.grupo) ---
+  const hoyIso = new Date().toISOString().split("T")[0];
+  const reservasPorAlumno = (() => {
+    const byId = new Map<string, ReservaMin[]>();
+    const emailToId = new Map<string, string>();
+    alumnos.forEach(a => {
+      if (a.email) emailToId.set(a.email.toLowerCase().trim(), a.id);
+      ((a as any).emails_adicionales || []).forEach((e: string) => {
+        if (e) emailToId.set(e.toLowerCase().trim(), a.id);
+      });
+    });
+    reservasTurnera.forEach(r => {
+      const alumnoId = r.alumno_id || (r.email ? emailToId.get(r.email.toLowerCase().trim()) : undefined);
+      if (!alumnoId) return;
+      const list = byId.get(alumnoId) || [];
+      list.push({ slug: r.slug, estado: r.estado, fecha: r.fecha });
+      byId.set(alumnoId, list);
+    });
+    return byId;
+  })();
+  const clasificablesActivos: AlumnoClasificable[] = activosDist.map(a => ({
+    id: a.id,
+    grupo: a.grupo,
+    subsActivas: getActiveSubs(a.id).map(s => ({ categoria: ((s.planes as any)?.categoria ?? null) as string | null })),
+    reservas: reservasPorAlumno.get(a.id) || [],
+  }));
+  const gruposOperativos = distribucionGrupoOperativo(clasificablesActivos, hoyIso);
+  const grupoOperativoDe = (alumnoId: string): string | null => {
+    const c = clasificablesActivos.find(x => x.id === alumnoId);
+    return c ? clasificarGrupoOperativo(c, hoyIso) : null;
+  };
+
+
 
 
 
@@ -459,10 +522,16 @@ const ManageStudents = () => {
       case "sin_plan_activo": return a.estado === "activo" && !getActiveSub(a.id);
       case "nuevos": return !!a.created_at && a.created_at >= thirtyDaysAgoIso;
       default:
+        if (statusFilter.startsWith("grupo_op_")) {
+          // Grupo OPERATIVO derivado (bloque "Distribución de activos")
+          const grupo = statusFilter.replace("grupo_op_", "");
+          return a.estado === "activo" && grupoOperativoDe(a.id) === grupo;
+        }
         if (statusFilter.startsWith("grupo_")) {
           const grupo = statusFilter.replace("grupo_", "");
           return a.estado === "activo" && (a.grupo || "Sin grupo") === grupo;
         }
+
         if (statusFilter.startsWith("active_plan_")) {
           // Chips del bloque "Distribución de activos": sólo activos con suscripción efectivamente activa
           const planId = statusFilter.replace("active_plan_", "");
@@ -1153,11 +1222,13 @@ const ManageStudents = () => {
           <AlumnosDistribucion
             activos={activosDist}
             planEntries={planEntriesActivos}
+            gruposOperativos={gruposOperativos}
             statusFilter={statusFilter}
-            onSelectGrupo={(g) => setStatusFilter(g === "Sin grupo" ? "sin_grupo" : `grupo_${g}`)}
+            onSelectGrupo={(g) => setStatusFilter(grupoOperativoFilterKey(g as any))}
             onSelectPlan={(planId) => setStatusFilter(`active_plan_${planId}`)}
             onSelectSinPlanActivo={() => setStatusFilter("sin_plan_activo")}
           />
+
 
           {/* Filters */}
 
