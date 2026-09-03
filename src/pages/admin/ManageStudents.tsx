@@ -425,6 +425,39 @@ const ManageStudents = () => {
       .map(s => ({ alumnoId: a.id, planId: s.plan_id, planNombre: (s.planes as any).nombre as string }))
   );
 
+  // --- Grupo operativo derivado (sólo lectura; no muta alumnos.grupo) ---
+  const hoyIso = new Date().toISOString().split("T")[0];
+  const reservasPorAlumno = (() => {
+    const byId = new Map<string, ReservaMin[]>();
+    const emailToId = new Map<string, string>();
+    alumnos.forEach(a => {
+      if (a.email) emailToId.set(a.email.toLowerCase().trim(), a.id);
+      ((a as any).emails_adicionales || []).forEach((e: string) => {
+        if (e) emailToId.set(e.toLowerCase().trim(), a.id);
+      });
+    });
+    reservasTurnera.forEach(r => {
+      const alumnoId = r.alumno_id || (r.email ? emailToId.get(r.email.toLowerCase().trim()) : undefined);
+      if (!alumnoId) return;
+      const list = byId.get(alumnoId) || [];
+      list.push({ slug: r.slug, estado: r.estado, fecha: r.fecha });
+      byId.set(alumnoId, list);
+    });
+    return byId;
+  })();
+  const clasificablesActivos: AlumnoClasificable[] = activosDist.map(a => ({
+    id: a.id,
+    grupo: a.grupo,
+    subsActivas: getActiveSubs(a.id).map(s => ({ categoria: ((s.planes as any)?.categoria ?? null) as string | null })),
+    reservas: reservasPorAlumno.get(a.id) || [],
+  }));
+  const gruposOperativos = distribucionGrupoOperativo(clasificablesActivos, hoyIso);
+  const grupoOperativoDe = (alumnoId: string): string | null => {
+    const c = clasificablesActivos.find(x => x.id === alumnoId);
+    return c ? clasificarGrupoOperativo(c, hoyIso) : null;
+  };
+
+
 
 
 
