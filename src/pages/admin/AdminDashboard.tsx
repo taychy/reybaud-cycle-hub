@@ -24,6 +24,8 @@ import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
 import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
 import AdminOperationalCalendar from "@/components/admin/AdminOperationalCalendar";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
+import ResumenFinancieroMes from "@/components/admin/ResumenFinancieroMes";
+
 
 import {
   AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
