@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Card, CardContent } from "@/components/ui/card";
 import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2 } from "lucide-react";
 import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
+import { collectorIdDeMovimiento, matchCoachPorContraparte, type ContraparteCoach } from "@/lib/gastoReglas";
 
 type AiSugerencia = {
   movement_id: string;
@@ -99,6 +100,9 @@ export default function MpEgresosTab() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiSug, setAiSug] = useState<Record<string, AiSugerencia>>({});
   const [aiRenombres, setAiRenombres] = useState<AiRenombre[]>([]);
+  const [coaches, setCoaches] = useState<{ id: string; nombre: string }[]>([]);
+  const [contrapartes, setContrapartes] = useState<ContraparteCoach[]>([]);
+  const [coachId, setCoachId] = useState<string>("");
 
 
 
@@ -119,6 +123,14 @@ export default function MpEgresosTab() {
       .limit(300);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setItems((data as any) ?? []);
+
+    const [co, cp] = await Promise.all([
+      supabase.from("coaches").select("id, nombre").eq("estado", "activo").order("nombre"),
+      supabase.from("coach_mp_contrapartes" as any).select("coach_id, mp_collector_id, nombre_contraparte"),
+    ]);
+    setCoaches(((co.data as any[]) ?? []) as { id: string; nombre: string }[]);
+    setContrapartes(((cp.data as any[]) ?? []) as ContraparteCoach[]);
+
     setLoading(false);
   }
 
@@ -233,6 +245,8 @@ export default function MpEgresosTab() {
 
   function openDialog(m: MpEgreso) {
     const s = aiSug[m.id];
+    const cm = matchCoachPorContraparte(collectorIdDeMovimiento(m.raw), contrapartes);
+    setCoachId(cm.estado === "inequivoco" ? cm.coach_id : "");
     setDialog(m);
     setMode(s?.tipo === "agenda" && s.ejecucion_id ? "agenda" : "nuevo");
     setEjecId(s?.tipo === "agenda" ? (s.ejecucion_id ?? null) : null);
@@ -290,6 +304,23 @@ export default function MpEgresosTab() {
       toast({ title: "No se pudo categorizar", description: error.message, variant: "destructive" });
       return;
     }
+    if (coachId) {
+      const collector = collectorIdDeMovimiento(dialog.raw);
+      if (collector && !contrapartes.some((c) => c.mp_collector_id === collector)) {
+        await supabase.from("coach_mp_contrapartes" as any).insert({
+          coach_id: coachId,
+          mp_collector_id: collector,
+          nombre_contraparte: form.proveedor || null,
+        } as any);
+      }
+      const { error: linkErr } = await supabase.rpc("vincular_egreso_mp_coach" as any, {
+        _movement_id: dialog.id,
+        _coach_id: coachId,
+        _confirmar: true,
+      });
+      if (linkErr) toast({ title: "Gasto creado, pero no se pudo vincular el profesor", description: linkErr.message, variant: "destructive" });
+    }
+
     toast({ title: "Egreso categorizado", description: `Gasto creado: ${data}` });
     setDialog(null);
     load();
@@ -442,6 +473,10 @@ export default function MpEgresosTab() {
                     )}
                     {m.gasto_id && (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Gasto creado</Badge>
+                    )}
+                    {m.direccion === "egreso" &&
+                      matchCoachPorContraparte(collectorIdDeMovimiento(m.raw), contrapartes).estado !== "sin_match" && (
+                      <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">Posible pago a profesor</Badge>
                     )}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
@@ -630,6 +665,20 @@ export default function MpEgresosTab() {
                         <SelectContent>{UNIDADES.map(u => <SelectItem key={u.value} value={u.value}>{u.label}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
+                  </div>
+                  <div>
+                    <Label>Profesor (opcional)</Label>
+                    <Select value={coachId || "ninguno"} onValueChange={(v) => setCoachId(v === "ninguno" ? "" : v)}>
+                      <SelectTrigger><SelectValue placeholder="No es un pago a profesor" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="ninguno">No es un pago a profesor</SelectItem>
+                        {coaches.map(c => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Si lo marcás, el gasto queda como <b>Profesores / Liquidaciones</b> y la cuenta de Mercado Pago
+                      se recuerda para reconocer los próximos pagos a esa persona.
+                    </p>
                   </div>
                   <div>
                     <Label>Notas</Label>
