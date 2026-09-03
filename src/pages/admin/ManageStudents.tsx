@@ -463,11 +463,18 @@ const ManageStudents = () => {
           const grupo = statusFilter.replace("grupo_", "");
           return a.estado === "activo" && (a.grupo || "Sin grupo") === grupo;
         }
+        if (statusFilter.startsWith("active_plan_")) {
+          // Chips del bloque "Distribución de activos": sólo activos con suscripción efectivamente activa
+          const planId = statusFilter.replace("active_plan_", "");
+          if (a.estado !== "activo") return false;
+          return getActiveSubs(a.id).some(s => s.plan_id === planId);
+        }
         if (statusFilter.startsWith("plan_")) {
           const planId = statusFilter.replace("plan_", "");
           const sub = getActiveSub(a.id) || getAnySub(a.id);
           return sub?.plan_id === planId;
         }
+
         return true;
 
     }
