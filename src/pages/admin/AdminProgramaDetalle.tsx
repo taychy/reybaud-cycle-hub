@@ -20,6 +20,7 @@ import { startProcessInstance } from "@/hooks/useProcesses";
 import { getShareOrigin } from "@/lib/eventLinks";
 import EditProgramaDialog from "@/components/admin/EditProgramaDialog";
 import DarDeBajaProgramaDialog from "@/components/admin/DarDeBajaProgramaDialog";
+import ProgramaClasesBloque from "@/components/admin/ProgramaClasesBloque";
 import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
 
 
