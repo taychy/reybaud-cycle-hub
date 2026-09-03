@@ -522,10 +522,16 @@ const ManageStudents = () => {
       case "sin_plan_activo": return a.estado === "activo" && !getActiveSub(a.id);
       case "nuevos": return !!a.created_at && a.created_at >= thirtyDaysAgoIso;
       default:
+        if (statusFilter.startsWith("grupo_op_")) {
+          // Grupo OPERATIVO derivado (bloque "Distribución de activos")
+          const grupo = statusFilter.replace("grupo_op_", "");
+          return a.estado === "activo" && grupoOperativoDe(a.id) === grupo;
+        }
         if (statusFilter.startsWith("grupo_")) {
           const grupo = statusFilter.replace("grupo_", "");
           return a.estado === "activo" && (a.grupo || "Sin grupo") === grupo;
         }
+
         if (statusFilter.startsWith("active_plan_")) {
           // Chips del bloque "Distribución de activos": sólo activos con suscripción efectivamente activa
           const planId = statusFilter.replace("active_plan_", "");
