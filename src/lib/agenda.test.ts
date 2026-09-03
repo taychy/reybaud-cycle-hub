@@ -3,6 +3,9 @@ import {
   DIAS_SEMANA,
   ORDEN_SEMANA_LUNES,
   agruparDisponibilidad,
+  buildAgendaEventos,
+  rangoHorarioSemana,
+  toMinutes,
   dentroDeVigencia,
   esClasePuntual,
 
@@ -241,5 +244,87 @@ describe("clases puntuales y excepciones", () => {
     const siguiente = weekDays(new Date(2026, 9, 5));
     expect(ocurrenciasSerie(siguiente, jorge)).toEqual([]);
     expect(ocurrenciasSerie(siguiente, daniel)).toEqual(["2026-10-06"]);
+  });
+});
+
+describe("buildAgendaEventos (normalización compartida)", () => {
+  const dias = weekDays(new Date(2026, 2, 2)); // lun 2/3 → dom 8/3
+  const names = {
+    coachNombre: () => "Coach",
+    sedeNombre: () => "Sede",
+    servicioNombre: () => "Personalizada",
+  };
+
+  it("expande recurrentes y puntuales, y omite inactivas", () => {
+    const ev = buildAgendaEventos({
+      dias,
+      grupal: [
+        { id: "s1", dia_semana: 1, hora_inicio: "09:00:00", hora_fin: "10:00:00", grupo: "G1", coach_id: "c1" },
+        { id: "s2", tipo_clase: "puntual", fecha: "2026-03-04", dia_semana: 3, hora_inicio: "18:00", hora_fin: "19:00", coach_id: "c1" },
+        { id: "s3", activo: false, dia_semana: 2, hora_inicio: "09:00", hora_fin: "10:00", coach_id: "c1" },
+      ],
+      ...names,
+    });
+    expect(ev.map((e) => e.fecha)).toEqual(["2026-03-02", "2026-03-04"]);
+    expect(ev[0].tipo).toBe("grupal");
+  });
+
+  it("excluye reservas canceladas de turnera", () => {
+    const turnos = [
+      { id: "t1", fecha: "2026-03-03", hora_inicio: "10:00", hora_fin: "11:00", coach_id: "c1", estado_operativo: "confirmada" },
+      { id: "t2", fecha: "2026-03-03", hora_inicio: "12:00", hora_fin: "13:00", coach_id: "c1", estado_operativo: "cancelada_alumno" },
+    ];
+    const ev = buildAgendaEventos({ dias, turnos, ...names });
+    expect(ev).toHaveLength(1);
+    expect(ev[0].id).toBe("t-t1");
+  });
+
+  it("una ausencia de rango cubre todos sus días de la semana", () => {
+    const ev = buildAgendaEventos({
+      dias,
+      ausencias: [{ id: "a1", coach_id: "c1", fecha_inicio: "2026-03-03", fecha_fin: "2026-03-05", todo_el_dia: true }],
+      ...names,
+    });
+    expect(ev.map((e) => e.fecha)).toEqual(["2026-03-03", "2026-03-04", "2026-03-05"]);
+    expect(ev[0].hora_inicio).toBe("00:00");
+  });
+
+  it("marca conflicto cuando una clase cae dentro de una ausencia del mismo coach", () => {
+    const ev = buildAgendaEventos({
+      dias,
+      grupal: [{ id: "s1", dia_semana: 2, hora_inicio: "09:00", hora_fin: "10:00", coach_id: "c1" }],
+      ausencias: [{ id: "a1", coach_id: "c1", fecha_inicio: "2026-03-03", fecha_fin: "2026-03-03", todo_el_dia: true }],
+      ...names,
+    });
+    const c = detectarConflictos(ev);
+    expect(c.size).toBe(2);
+  });
+
+  it("no marca conflicto si la ausencia es de otro coach", () => {
+    const ev = buildAgendaEventos({
+      dias,
+      grupal: [{ id: "s1", dia_semana: 2, hora_inicio: "09:00", hora_fin: "10:00", coach_id: "c1" }],
+      ausencias: [{ id: "a1", coach_id: "c2", fecha_inicio: "2026-03-03", fecha_fin: "2026-03-03", todo_el_dia: true }],
+      ...names,
+    });
+    expect(detectarConflictos(ev).size).toBe(0);
+  });
+});
+
+describe("rangoHorarioSemana", () => {
+  const base = { tipo: "turno" as const, fecha: "2026-03-02", coach_id: "c1", coach_nombre: "C", sede_id: null, sede_nombre: null, titulo: "t" };
+  it("usa el rango por defecto sin eventos", () => {
+    expect(rangoHorarioSemana([])).toEqual([7, 22]);
+  });
+  it("se expande a eventos tempranos o tardíos", () => {
+    expect(
+      rangoHorarioSemana([
+        { ...base, id: "a", hora_inicio: "05:30", hora_fin: "06:30" },
+        { ...base, id: "b", hora_inicio: "22:00", hora_fin: "23:30" },
+      ]),
+    ).toEqual([5, 24]);
+  });
+  it("toMinutes convierte correctamente", () => {
+    expect(toMinutes("09:30")).toBe(570);
   });
 });
