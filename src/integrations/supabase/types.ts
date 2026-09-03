@@ -223,6 +223,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "agenda_grupal_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
             foreignKeyName: "agenda_grupal_honorario_id_fkey"
             columns: ["honorario_id"]
             isOneToOne: false
@@ -317,6 +324,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agenda_solicitudes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
         ]
       }
@@ -493,6 +507,13 @@ export type Database = {
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_coach_id_ultimo_fkey"
+            columns: ["coach_id_ultimo"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
         ]
       }
       alumno_evaluaciones_coach_notas: {
@@ -561,6 +582,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_evaluaciones_coach_notas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "alumno_evaluaciones_coach_notas_feedback_id_fkey"
@@ -1051,6 +1079,13 @@ export type Database = {
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "asesoria_asignaciones_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
         ]
       }
       asistencias: {
@@ -1202,6 +1237,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ausencias_coaches_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
         ]
       }
@@ -1792,6 +1834,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "clases_consumidas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
             foreignKeyName: "clases_consumidas_suscripcion_id_fkey"
             columns: ["suscripcion_id"]
             isOneToOne: false
@@ -1903,6 +1952,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "clases_dictadas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
             foreignKeyName: "clases_dictadas_honorario_id_fkey"
             columns: ["honorario_id"]
             isOneToOne: false
@@ -1955,6 +2011,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_sedes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "coach_sedes_sede_id_fkey"
@@ -3078,6 +3141,13 @@ export type Database = {
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "disponibilidad_ajustada_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
         ]
       }
       disponibilidad_coaches: {
@@ -3131,6 +3201,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "disponibilidad_coaches_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "disponibilidad_coaches_sede_id_fkey"
@@ -5916,6 +5993,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "feedback_coach_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
             foreignKeyName: "feedback_coach_coach_id_secundario_fkey"
             columns: ["coach_id_secundario"]
             isOneToOne: false
@@ -5928,6 +6012,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "feedback_coach_coach_id_secundario_fkey"
+            columns: ["coach_id_secundario"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "feedback_coach_entrenamiento_id_fkey"
@@ -6535,6 +6626,13 @@ export type Database = {
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "honorarios_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
         ]
       }
       importaciones_usuarios: {
@@ -6627,6 +6725,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidaciones_mensuales_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
         ]
       }
@@ -6917,6 +7022,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "movimientos_liquidacion_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "movimientos_liquidacion_entrenamiento_id_fkey"
@@ -7970,6 +8082,206 @@ export type Database = {
           },
         ]
       }
+      programa_clase_docentes: {
+        Row: {
+          clase_id: string
+          coach_id: string | null
+          confirmacion: string
+          confirmado_at: string | null
+          created_at: string
+          id: string
+          motivo: string | null
+          nombre_planificado: string
+          updated_at: string
+        }
+        Insert: {
+          clase_id: string
+          coach_id?: string | null
+          confirmacion?: string
+          confirmado_at?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nombre_planificado: string
+          updated_at?: string
+        }
+        Update: {
+          clase_id?: string
+          coach_id?: string | null
+          confirmacion?: string
+          confirmado_at?: string | null
+          created_at?: string
+          id?: string
+          motivo?: string | null
+          nombre_planificado?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programa_clase_docentes_clase_id_fkey"
+            columns: ["clase_id"]
+            isOneToOne: false
+            referencedRelation: "programa_clases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clase_docentes_clase_id_fkey"
+            columns: ["clase_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clase_docentes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clase_docentes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clase_docentes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+        ]
+      }
+      programa_clase_historial: {
+        Row: {
+          accion: string
+          actor_nombre: string | null
+          actor_user_id: string | null
+          clase_id: string
+          created_at: string
+          detalle: string | null
+          docente_id: string | null
+          id: string
+        }
+        Insert: {
+          accion: string
+          actor_nombre?: string | null
+          actor_user_id?: string | null
+          clase_id: string
+          created_at?: string
+          detalle?: string | null
+          docente_id?: string | null
+          id?: string
+        }
+        Update: {
+          accion?: string
+          actor_nombre?: string | null
+          actor_user_id?: string | null
+          clase_id?: string
+          created_at?: string
+          detalle?: string | null
+          docente_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programa_clase_historial_clase_id_fkey"
+            columns: ["clase_id"]
+            isOneToOne: false
+            referencedRelation: "programa_clases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clase_historial_clase_id_fkey"
+            columns: ["clase_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clase_historial_docente_id_fkey"
+            columns: ["docente_id"]
+            isOneToOne: false
+            referencedRelation: "programa_clase_docentes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programa_clases: {
+        Row: {
+          admin_actor: string | null
+          admin_at: string | null
+          admin_estado: string
+          admin_nota: string | null
+          agenda_fecha: string | null
+          agenda_grupal_id: string | null
+          created_at: string
+          duracion_min: number
+          excepcion_nota: string | null
+          id: string
+          orden: number
+          plan_id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          admin_actor?: string | null
+          admin_at?: string | null
+          admin_estado?: string
+          admin_nota?: string | null
+          agenda_fecha?: string | null
+          agenda_grupal_id?: string | null
+          created_at?: string
+          duracion_min?: number
+          excepcion_nota?: string | null
+          id?: string
+          orden: number
+          plan_id: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          admin_actor?: string | null
+          admin_at?: string | null
+          admin_estado?: string
+          admin_nota?: string | null
+          agenda_fecha?: string | null
+          agenda_grupal_id?: string | null
+          created_at?: string
+          duracion_min?: number
+          excepcion_nota?: string | null
+          id?: string
+          orden?: number
+          plan_id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "programa_clases_agenda_grupal_id_fkey"
+            columns: ["agenda_grupal_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_grupal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clases_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clases_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       qa_backfill_test_results: {
         Row: {
           detalle: string | null
@@ -8085,6 +8397,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "redes_sociales_tareas_clase_dictada_id_fkey"
+            columns: ["clase_dictada_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["clase_dictada_id"]
+          },
+          {
             foreignKeyName: "redes_sociales_tareas_coach_id_fkey"
             columns: ["coach_id"]
             isOneToOne: false
@@ -8097,6 +8416,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "redes_sociales_tareas_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "redes_sociales_tareas_sede_id_fkey"
@@ -8382,6 +8708,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "reservas_turnera_sede_id_fkey"
@@ -12961,6 +13294,64 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_programa_clases_estado: {
+        Row: {
+          admin_estado: string | null
+          admin_nota: string | null
+          agenda_activo: boolean | null
+          agenda_coach_id: string | null
+          agenda_coach_nombre: string | null
+          agenda_dia_semana: number | null
+          agenda_fecha: string | null
+          agenda_fecha_puntual: string | null
+          agenda_grupal_id: string | null
+          agenda_grupo: string | null
+          agenda_hora_fin: string | null
+          agenda_hora_inicio: string | null
+          agenda_sede: string | null
+          agenda_tipo_clase: string | null
+          clase_dictada_fecha: string | null
+          clase_dictada_id: string | null
+          duracion_min: number | null
+          excepcion_nota: string | null
+          id: string | null
+          liquidacion_estado: string | null
+          liquidacion_mensual_id: string | null
+          orden: number | null
+          plan_id: string | null
+          titulo: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "movimientos_liquidacion_liquidacion_mensual_id_fkey"
+            columns: ["liquidacion_mensual_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones_mensuales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clases_agenda_grupal_id_fkey"
+            columns: ["agenda_grupal_id"]
+            isOneToOne: false
+            referencedRelation: "agenda_grupal"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clases_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "programa_clases_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_programa_posibles_duplicados: {
         Row: {
           alumno_1_email: string | null
@@ -12982,13 +13373,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_1_id"]
-            isOneToOne: false
-            referencedRelation: "alumnos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
@@ -12998,8 +13382,8 @@ export type Database = {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
             isOneToOne: false
-            referencedRelation: "vw_backfill_identidad_sugerida"
-            referencedColumns: ["alumno_sugerido_id"]
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
@@ -13011,13 +13395,20 @@ export type Database = {
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_2_id"]
+            columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
@@ -13113,6 +13504,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "coaches_public"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservas_turnera_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
           },
           {
             foreignKeyName: "reservas_turnera_servicio_id_fkey"
@@ -14599,6 +14997,32 @@ export type Database = {
           p_nuevo_grupo: string
         }
         Returns: Json
+      }
+      programa_clase_confirmar_docente: {
+        Args: {
+          p_confirmacion: string
+          p_docente_id: string
+          p_motivo?: string
+        }
+        Returns: undefined
+      }
+      programa_clase_set_admin_estado: {
+        Args: {
+          p_clase_id: string
+          p_estado: string
+          p_excepcion_nota?: string
+          p_nota?: string
+        }
+        Returns: undefined
+      }
+      programa_clase_vincular_agenda: {
+        Args: {
+          p_agenda_id: string
+          p_clase_id: string
+          p_fecha?: string
+          p_nota?: string
+        }
+        Returns: undefined
       }
       prueba_convertir_en_venta: {
         Args: { p_cambio_id: string; p_nota?: string; p_precio: number }

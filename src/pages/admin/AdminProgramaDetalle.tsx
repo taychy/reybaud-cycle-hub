@@ -20,6 +20,7 @@ import { startProcessInstance } from "@/hooks/useProcesses";
 import { getShareOrigin } from "@/lib/eventLinks";
 import EditProgramaDialog from "@/components/admin/EditProgramaDialog";
 import DarDeBajaProgramaDialog from "@/components/admin/DarDeBajaProgramaDialog";
+import ProgramaClasesBloque from "@/components/admin/ProgramaClasesBloque";
 import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
 
 
@@ -614,7 +615,7 @@ const AdminProgramaDetalle = () => {
         </TabsContent>
 
 
-        <TabsContent value="playbook">
+        <TabsContent value="playbook" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
@@ -661,6 +662,8 @@ const AdminProgramaDetalle = () => {
               )}
             </CardContent>
           </Card>
+
+          {cohortId && <ProgramaClasesBloque planId={cohortId} />}
         </TabsContent>
 
 
