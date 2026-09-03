@@ -22,6 +22,7 @@ import { Separator } from "@/components/ui/separator";
 import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
 import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
 import AlumnosDistribucion from "@/components/admin/AlumnosDistribucion";
+import FilterMenu from "@/components/admin/AlumnosFilterMenu";
 import {
   clasificarGrupoOperativo,
   distribucionGrupoOperativo,
@@ -1107,31 +1108,52 @@ const ManageStudents = () => {
     }
   };
 
-  // --- Filter chips ---
-  const filters = [
+  // --- Filter chips (primarios) + menús agrupados ---
+  // Se reutilizan EXACTAMENTE las mismas keys de `statusFilter` que antes.
+  type FilterOpt = { key: string; label: string; count: number };
+
+  const primaryFilters: FilterOpt[] = [
     { key: "todos", label: "Todos", count: alumnos.length },
-    { key: "nuevos", label: "Nuevos (30d)", count: nuevosCount },
-    { key: "pendientes", label: "Pendientes", count: pendingCount },
     { key: "activos", label: "Activos", count: activeCount },
+    { key: "pendientes", label: "Pendientes", count: pendingCount },
+    { key: "vencidos", label: "Vencidos", count: vencidosCount },
+    { key: "nuevos", label: "Nuevos (30d)", count: nuevosCount },
+  ];
+
+  const estadoFilters: FilterOpt[] = [
     { key: "vacaciones", label: "Vacaciones", count: vacacionesCount },
     { key: "inactivos", label: "Inactivos", count: inactiveCount },
     { key: "bloqueados", label: "Bloqueados", count: blockedCount },
-    { key: "vencidos", label: "Vencidos", count: vencidosCount },
     ...(pagoPendienteCount > 0 ? [{ key: "pago_pendiente", label: "Pago pendiente", count: pagoPendienteCount }] : []),
     ...(accesoPausadoCount > 0 ? [{ key: "acceso_pausado", label: "Acceso pausado", count: accesoPausadoCount }] : []),
-    { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
-    ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
-    ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
-    ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
-    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Conflicto modalidad", count: multiSubsCount }] : []),
+  ];
+
+  const accesoFilters: FilterOpt[] = [
     { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
     { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
-    ...Object.entries(planCounts).map(([planId, { name, count }]) => ({
-      key: `plan_${planId}`, label: name, count,
-    })),
+  ];
+
+  const planesActivosIds = new Set(planes.map(p => p.id));
+  const planFiltersBase: FilterOpt[] = [
     { key: "sin_plan", label: "Sin plan", count: sinPlanCount },
     ...(sinPlanActivoCount > 0 ? [{ key: "sin_plan_activo", label: "Sin plan activo", count: sinPlanActivoCount }] : []),
   ];
+  const planFiltersVigentes: FilterOpt[] = Object.entries(planCounts)
+    .filter(([planId]) => planesActivosIds.has(planId))
+    .map(([planId, { name, count }]) => ({ key: `plan_${planId}`, label: name, count }));
+  const planFiltersHistoricos: FilterOpt[] = Object.entries(planCounts)
+    .filter(([planId]) => !planesActivosIds.has(planId))
+    .map(([planId, { name, count }]) => ({ key: `plan_${planId}`, label: name, count }));
+  const planFilters: FilterOpt[] = [...planFiltersBase, ...planFiltersVigentes, ...planFiltersHistoricos];
+
+  const calidadFilters: FilterOpt[] = [
+    ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
+    ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
+    ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "Inconsistentes", count: inconsistentCount }] : []),
+    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Conflicto modalidad", count: multiSubsCount }] : []),
+    { key: "sin_grupo", label: "Sin grupo (histórico)", count: sinGrupoCount },
+  ];
+
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
@@ -1230,10 +1252,10 @@ const ManageStudents = () => {
           />
 
 
-          {/* Filters */}
+          {/* Filters: chips primarios + menús agrupados (mismas keys de statusFilter) */}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            {filters.map((f) => (
+            {primaryFilters.map((f) => (
               <Button
                 key={f.key}
                 variant={statusFilter === f.key ? "default" : "outline"}
@@ -1244,7 +1266,38 @@ const ManageStudents = () => {
                 {f.label} ({f.count})
               </Button>
             ))}
+
+            <FilterMenu
+              title="Estado"
+              options={estadoFilters}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
+            <FilterMenu
+              title="Acceso"
+              options={accesoFilters}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
+            <FilterMenu
+              title="Plan"
+              options={planFilters}
+              groups={[
+                { label: null, options: planFiltersBase },
+                { label: "Planes activos", options: planFiltersVigentes },
+                { label: "Históricos", options: planFiltersHistoricos },
+              ]}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
+            <FilterMenu
+              title="Calidad de datos"
+              options={calidadFilters}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
           </div>
+
 
           {duplicadosCount > 0 && statusFilter === "duplicados" && (
             <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
