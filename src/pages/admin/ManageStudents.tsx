@@ -1107,31 +1107,52 @@ const ManageStudents = () => {
     }
   };
 
-  // --- Filter chips ---
-  const filters = [
+  // --- Filter chips (primarios) + menús agrupados ---
+  // Se reutilizan EXACTAMENTE las mismas keys de `statusFilter` que antes.
+  type FilterOpt = { key: string; label: string; count: number };
+
+  const primaryFilters: FilterOpt[] = [
     { key: "todos", label: "Todos", count: alumnos.length },
-    { key: "nuevos", label: "Nuevos (30d)", count: nuevosCount },
-    { key: "pendientes", label: "Pendientes", count: pendingCount },
     { key: "activos", label: "Activos", count: activeCount },
+    { key: "pendientes", label: "Pendientes", count: pendingCount },
+    { key: "vencidos", label: "Vencidos", count: vencidosCount },
+    { key: "nuevos", label: "Nuevos (30d)", count: nuevosCount },
+  ];
+
+  const estadoFilters: FilterOpt[] = [
     { key: "vacaciones", label: "Vacaciones", count: vacacionesCount },
     { key: "inactivos", label: "Inactivos", count: inactiveCount },
     { key: "bloqueados", label: "Bloqueados", count: blockedCount },
-    { key: "vencidos", label: "Vencidos", count: vencidosCount },
     ...(pagoPendienteCount > 0 ? [{ key: "pago_pendiente", label: "Pago pendiente", count: pagoPendienteCount }] : []),
     ...(accesoPausadoCount > 0 ? [{ key: "acceso_pausado", label: "Acceso pausado", count: accesoPausadoCount }] : []),
-    { key: "sin_grupo", label: "Sin grupo", count: sinGrupoCount },
-    ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "⚠ Incons.", count: inconsistentCount }] : []),
-    ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
-    ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
-    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Conflicto modalidad", count: multiSubsCount }] : []),
+  ];
+
+  const accesoFilters: FilterOpt[] = [
     { key: "con_acceso", label: "Con acceso", count: conAccesoCount },
     { key: "sin_acceso", label: "Sin acceso", count: sinAccesoCount },
-    ...Object.entries(planCounts).map(([planId, { name, count }]) => ({
-      key: `plan_${planId}`, label: name, count,
-    })),
+  ];
+
+  const planesActivosIds = new Set(planes.map(p => p.id));
+  const planFiltersBase: FilterOpt[] = [
     { key: "sin_plan", label: "Sin plan", count: sinPlanCount },
     ...(sinPlanActivoCount > 0 ? [{ key: "sin_plan_activo", label: "Sin plan activo", count: sinPlanActivoCount }] : []),
   ];
+  const planFiltersVigentes: FilterOpt[] = Object.entries(planCounts)
+    .filter(([planId]) => planesActivosIds.has(planId))
+    .map(([planId, { name, count }]) => ({ key: `plan_${planId}`, label: name, count }));
+  const planFiltersHistoricos: FilterOpt[] = Object.entries(planCounts)
+    .filter(([planId]) => !planesActivosIds.has(planId))
+    .map(([planId, { name, count }]) => ({ key: `plan_${planId}`, label: name, count }));
+  const planFilters: FilterOpt[] = [...planFiltersBase, ...planFiltersVigentes, ...planFiltersHistoricos];
+
+  const calidadFilters: FilterOpt[] = [
+    ...(incompletosCount > 0 ? [{ key: "incompletos", label: "Incompletos", count: incompletosCount }] : []),
+    ...(duplicadosCount > 0 ? [{ key: "duplicados", label: "Duplicados", count: duplicadosCount }] : []),
+    ...(inconsistentCount > 0 ? [{ key: "inconsistentes", label: "Inconsistentes", count: inconsistentCount }] : []),
+    ...(multiSubsCount > 0 ? [{ key: "multi_subs", label: "Conflicto modalidad", count: multiSubsCount }] : []),
+    { key: "sin_grupo", label: "Sin grupo (histórico)", count: sinGrupoCount },
+  ];
+
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" }) : "—";
 
