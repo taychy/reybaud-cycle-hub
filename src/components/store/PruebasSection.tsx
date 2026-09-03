@@ -35,6 +35,9 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
   const [busy, setBusy] = useState<string | null>(null);
   const [ventaFor, setVentaFor] = useState<any | null>(null);
   const [precio, setPrecio] = useState("");
+  const [cambioFor, setCambioFor] = useState<any | null>(null);
+  const [orderItems, setOrderItems] = useState<OrderItemLike[]>([]);
+  const [itemOriginal, setItemOriginal] = useState("");
   const { toast } = useToast();
 
   const load = useCallback(async () => {
