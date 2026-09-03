@@ -299,6 +299,28 @@ const ManageStudents = () => {
     });
   }, [alumnos]);
 
+  // Reservas de Turnera (para derivar grupo operativo: evaluatorias / personalizadas)
+  const [reservasTurnera, setReservasTurnera] = useState<
+    { alumno_id: string | null; email: string | null; fecha: string; estado: string | null; slug: string }[]
+  >([]);
+  useEffect(() => {
+    supabase
+      .from("reservas_turnera")
+      .select("alumno_id, email, fecha, estado_operativo, servicios_turnera(slug)")
+      .then(({ data }) => {
+        setReservasTurnera(
+          ((data as any[]) || []).map(r => ({
+            alumno_id: r.alumno_id ?? null,
+            email: r.email ?? null,
+            fecha: r.fecha,
+            estado: r.estado_operativo ?? null,
+            slug: r.servicios_turnera?.slug ?? "",
+          }))
+        );
+      });
+  }, []);
+
+
   const isSubEfectivamenteActiva = (s: SuscripcionConPlan) => {
     const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at, cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
     return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
