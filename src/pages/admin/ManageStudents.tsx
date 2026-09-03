@@ -419,11 +419,12 @@ const ManageStudents = () => {
   const activosDist = alumnos
     .filter(a => a.estado === "activo")
     .map(a => ({ id: a.id, grupo: (a as any).grupo ?? null, user_id: a.user_id ?? null }));
-  const planEntriesActivos = activosDist.flatMap(a => {
-    const sub = getActiveSub(a.id);
-    if (!sub || !sub.planes) return [];
-    return [{ alumnoId: a.id, planId: sub.plan_id, planNombre: (sub.planes as any).nombre as string }];
-  });
+  const planEntriesActivos = activosDist.flatMap(a =>
+    getActiveSubs(a.id)
+      .filter(s => !!s.planes)
+      .map(s => ({ alumnoId: a.id, planId: s.plan_id, planNombre: (s.planes as any).nombre as string }))
+  );
+
 
 
 
