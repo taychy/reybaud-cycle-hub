@@ -106,7 +106,7 @@ export default function AlumnosDistribucion({
         </p>
         <div className="flex flex-wrap gap-2">
           {planes.map((p) => {
-            const active = statusFilter === `plan_${p.planId}`;
+            const active = statusFilter === `active_plan_${p.planId}`;
             return (
               <button
                 key={p.planId}

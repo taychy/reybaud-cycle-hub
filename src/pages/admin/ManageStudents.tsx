@@ -1155,7 +1155,7 @@ const ManageStudents = () => {
             planEntries={planEntriesActivos}
             statusFilter={statusFilter}
             onSelectGrupo={(g) => setStatusFilter(g === "Sin grupo" ? "sin_grupo" : `grupo_${g}`)}
-            onSelectPlan={(planId) => setStatusFilter(`plan_${planId}`)}
+            onSelectPlan={(planId) => setStatusFilter(`active_plan_${planId}`)}
             onSelectSinPlanActivo={() => setStatusFilter("sin_plan_activo")}
           />
 
