@@ -291,13 +291,18 @@ const ManageStudents = () => {
     });
   }, [alumnos]);
 
-  const getActiveSub = (alumnoId: string) => {
-    return suscripciones.find(s => {
-      if (s.alumno_id !== alumnoId) return false;
-      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at , cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
-      return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
-    });
+  const isSubEfectivamenteActiva = (s: SuscripcionConPlan) => {
+    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at, cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
+    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
   };
+
+  const getActiveSub = (alumnoId: string) =>
+    suscripciones.find(s => s.alumno_id === alumnoId && isSubEfectivamenteActiva(s));
+
+  /** TODAS las suscripciones efectivamente activas de un alumno (para multi-plan). */
+  const getActiveSubs = (alumnoId: string) =>
+    suscripciones.filter(s => s.alumno_id === alumnoId && isSubEfectivamenteActiva(s));
+
 
   const getPayableSub = (alumnoId: string) =>
     suscripciones.find(s => s.alumno_id === alumnoId && isAdminPayableSubscription(s));
@@ -414,11 +419,12 @@ const ManageStudents = () => {
   const activosDist = alumnos
     .filter(a => a.estado === "activo")
     .map(a => ({ id: a.id, grupo: (a as any).grupo ?? null, user_id: a.user_id ?? null }));
-  const planEntriesActivos = activosDist.flatMap(a => {
-    const sub = getActiveSub(a.id);
-    if (!sub || !sub.planes) return [];
-    return [{ alumnoId: a.id, planId: sub.plan_id, planNombre: (sub.planes as any).nombre as string }];
-  });
+  const planEntriesActivos = activosDist.flatMap(a =>
+    getActiveSubs(a.id)
+      .filter(s => !!s.planes)
+      .map(s => ({ alumnoId: a.id, planId: s.plan_id, planNombre: (s.planes as any).nombre as string }))
+  );
+
 
 
 
@@ -457,11 +463,18 @@ const ManageStudents = () => {
           const grupo = statusFilter.replace("grupo_", "");
           return a.estado === "activo" && (a.grupo || "Sin grupo") === grupo;
         }
+        if (statusFilter.startsWith("active_plan_")) {
+          // Chips del bloque "Distribución de activos": sólo activos con suscripción efectivamente activa
+          const planId = statusFilter.replace("active_plan_", "");
+          if (a.estado !== "activo") return false;
+          return getActiveSubs(a.id).some(s => s.plan_id === planId);
+        }
         if (statusFilter.startsWith("plan_")) {
           const planId = statusFilter.replace("plan_", "");
           const sub = getActiveSub(a.id) || getAnySub(a.id);
           return sub?.plan_id === planId;
         }
+
         return true;
 
     }
@@ -1142,7 +1155,7 @@ const ManageStudents = () => {
             planEntries={planEntriesActivos}
             statusFilter={statusFilter}
             onSelectGrupo={(g) => setStatusFilter(g === "Sin grupo" ? "sin_grupo" : `grupo_${g}`)}
-            onSelectPlan={(planId) => setStatusFilter(`plan_${planId}`)}
+            onSelectPlan={(planId) => setStatusFilter(`active_plan_${planId}`)}
             onSelectSinPlanActivo={() => setStatusFilter("sin_plan_activo")}
           />
 
