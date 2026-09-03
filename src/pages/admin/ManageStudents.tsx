@@ -1251,10 +1251,10 @@ const ManageStudents = () => {
           />
 
 
-          {/* Filters */}
+          {/* Filters: chips primarios + menús agrupados (mismas keys de statusFilter) */}
 
           <div className="flex items-center gap-1.5 flex-wrap">
-            {filters.map((f) => (
+            {primaryFilters.map((f) => (
               <Button
                 key={f.key}
                 variant={statusFilter === f.key ? "default" : "outline"}
@@ -1265,7 +1265,38 @@ const ManageStudents = () => {
                 {f.label} ({f.count})
               </Button>
             ))}
+
+            <FilterMenu
+              title="Estado"
+              options={estadoFilters}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
+            <FilterMenu
+              title="Acceso"
+              options={accesoFilters}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
+            <FilterMenu
+              title="Plan"
+              options={planFilters}
+              groups={[
+                { label: null, options: planFiltersBase },
+                { label: "Planes activos", options: planFiltersVigentes },
+                { label: "Históricos", options: planFiltersHistoricos },
+              ]}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
+            <FilterMenu
+              title="Calidad de datos"
+              options={calidadFilters}
+              statusFilter={statusFilter}
+              onSelect={setStatusFilter}
+            />
           </div>
+
 
           {duplicadosCount > 0 && statusFilter === "duplicados" && (
             <div className="flex items-center justify-between gap-2 flex-wrap rounded-lg border border-amber-500/40 bg-amber-500/5 p-2.5">
