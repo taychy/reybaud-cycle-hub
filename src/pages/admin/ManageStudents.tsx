@@ -21,6 +21,8 @@ import { ArrowRightLeft } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
 import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
+import AlumnosDistribucion from "@/components/admin/AlumnosDistribucion";
+
 import { MergeDuplicatesDialog } from "@/components/admin/MergeDuplicatesDialog";
 import type { Tables } from "@/integrations/supabase/types";
 import { toast } from "sonner";
@@ -408,6 +410,18 @@ const ManageStudents = () => {
   // Alumnos activos sin suscripción activa vigente (= "sin plan activo")
   const sinPlanActivoCount = alumnos.filter(a => a.estado === "activo" && !getActiveSub(a.id)).length;
 
+  // --- Distribución de activos (mismo denominador que el chip "Activos") ---
+  const activosDist = alumnos
+    .filter(a => a.estado === "activo")
+    .map(a => ({ id: a.id, grupo: (a as any).grupo ?? null, user_id: a.user_id ?? null }));
+  const planEntriesActivos = activosDist.flatMap(a => {
+    const sub = getActiveSub(a.id);
+    if (!sub || !sub.planes) return [];
+    return [{ alumnoId: a.id, planId: sub.plan_id, planNombre: (sub.planes as any).nombre as string }];
+  });
+
+
+
   // --- Filters ---
   const filtered = alumnos.filter((a) => {
     const normalizedSearch = search.toLowerCase().trim();
@@ -439,12 +453,17 @@ const ManageStudents = () => {
       case "sin_plan_activo": return a.estado === "activo" && !getActiveSub(a.id);
       case "nuevos": return !!a.created_at && a.created_at >= thirtyDaysAgoIso;
       default:
+        if (statusFilter.startsWith("grupo_")) {
+          const grupo = statusFilter.replace("grupo_", "");
+          return a.estado === "activo" && (a.grupo || "Sin grupo") === grupo;
+        }
         if (statusFilter.startsWith("plan_")) {
           const planId = statusFilter.replace("plan_", "");
           const sub = getActiveSub(a.id) || getAnySub(a.id);
           return sub?.plan_id === planId;
         }
         return true;
+
     }
   });
 
@@ -1117,7 +1136,18 @@ const ManageStudents = () => {
             </Button>
           </div>
 
+          {/* Distribución de activos (resumen; no reemplaza los filtros) */}
+          <AlumnosDistribucion
+            activos={activosDist}
+            planEntries={planEntriesActivos}
+            statusFilter={statusFilter}
+            onSelectGrupo={(g) => setStatusFilter(g === "Sin grupo" ? "sin_grupo" : `grupo_${g}`)}
+            onSelectPlan={(planId) => setStatusFilter(`plan_${planId}`)}
+            onSelectSinPlanActivo={() => setStatusFilter("sin_plan_activo")}
+          />
+
           {/* Filters */}
+
           <div className="flex items-center gap-1.5 flex-wrap">
             {filters.map((f) => (
               <Button
