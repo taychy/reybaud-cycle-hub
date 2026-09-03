@@ -661,6 +661,8 @@ const AdminProgramaDetalle = () => {
               )}
             </CardContent>
           </Card>
+
+          {cohortId && <ProgramaClasesBloque planId={cohortId} />}
         </TabsContent>
 
 
