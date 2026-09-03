@@ -22,6 +22,7 @@ import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
 import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
+import AdminOperationalCalendar from "@/components/admin/AdminOperationalCalendar";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
 
 import {
