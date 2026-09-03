@@ -27,6 +27,7 @@ import {
   DIAS_SEMANA,
   addDays,
   agruparDisponibilidad,
+  buildAgendaEventos,
   detectarConflictos,
   diffServicios,
   hhmm,
