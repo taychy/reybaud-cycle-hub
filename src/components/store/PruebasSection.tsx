@@ -152,7 +152,7 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
             <Button size="sm" className="h-7 text-[11px]" disabled={busy === c.id} onClick={() => { setVentaFor(c); setPrecio(""); }}>
               <ShoppingCart className="w-3 h-3 mr-1" /> Se la quedó
             </Button>
-            <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={busy === c.id} onClick={() => usarComoCambio(c)}>
+            <Button size="sm" variant="ghost" className="h-7 text-[11px]" disabled={busy === c.id} onClick={() => abrirCambio(c)}>
               <RefreshCw className="w-3 h-3 mr-1" /> Usar como cambio
             </Button>
           </div>
