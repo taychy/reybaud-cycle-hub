@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -12,6 +13,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Plus, Loader2, Undo2, ShoppingCart, RefreshCw } from "lucide-react";
 import { formatVariante } from "@/lib/productQr";
 import { diasAfuera, alertaAntiguedad, esPruebaActiva, resultadoClass, resultadoLabel } from "@/lib/pruebas";
+import {
+  itemsElegiblesParaCambio, preseleccionItemCambio, labelItemCambio, type OrderItemLike,
+} from "@/lib/pruebasCambio";
 import AddPruebaDialog from "@/components/store/AddPruebaDialog";
 
 interface Props {
