@@ -127,7 +127,7 @@ export function diffServicios(actuales: string[], elegidos: string[]) {
 //  Eventos unificados de la semana
 // ------------------------------------------------------------------
 
-export type AgendaEventoTipo = "grupal" | "turno" | "disponibilidad";
+export type AgendaEventoTipo = "grupal" | "turno" | "disponibilidad" | "ausencia";
 
 export type AgendaEvento = {
   id: string;
