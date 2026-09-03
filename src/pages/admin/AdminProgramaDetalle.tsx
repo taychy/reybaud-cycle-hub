@@ -614,7 +614,7 @@ const AdminProgramaDetalle = () => {
         </TabsContent>
 
 
-        <TabsContent value="playbook">
+        <TabsContent value="playbook" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">

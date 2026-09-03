@@ -12,6 +12,7 @@ import MisClasesHoy from "@/components/coach/MisClasesHoy";
 import ProximaClaseCard from "@/components/coach/ProximaClaseCard";
 import ProximoTurnoCard from "@/components/coach/ProximoTurnoCard";
 import LiquidacionResumenCard from "@/components/coach/LiquidacionResumenCard";
+import ClasesProgramaCard from "@/components/coach/ClasesProgramaCard";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import AusenciasCoachManager from "@/components/AusenciasCoachManager";
 import SwitchPortalButton from "@/components/SwitchPortalButton";
@@ -109,6 +110,7 @@ const CoachDashboard = () => {
           <>
             <ProximaClaseCard clase={proximaClase} onChanged={reload} />
             <ProximoTurnoCard turno={proximoTurno} />
+            <ClasesProgramaCard coachId={coachId} />
             <LiquidacionResumenCard resumen={resumen} />
           </>
         )}
