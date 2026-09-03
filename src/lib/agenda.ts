@@ -377,3 +377,34 @@ export function labelFechaLarga(fechaIso: string, now: Date = new Date()): strin
     month: "long",
   });
 }
+
+// ------------------------------------------------------------------
+//  Grilla horaria (time-grid semanal)
+// ------------------------------------------------------------------
+
+/** "09:30" → 570 minutos. */
+export const toMinutes = (t: string): number => {
+  const [h, m] = hhmm(t).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+/**
+ * Rango horario (en horas enteras) que debe mostrar la grilla semanal,
+ * ajustado a los eventos reales y acotado al rango por defecto.
+ */
+export function rangoHorarioSemana(
+  eventos: AgendaEvento[],
+  fallback: [number, number] = [7, 22],
+): [number, number] {
+  const reales = eventos.filter((e) => e.tipo !== "ausencia");
+  if (reales.length === 0) return fallback;
+  let min = 24 * 60;
+  let max = 0;
+  for (const e of reales) {
+    min = Math.min(min, toMinutes(e.hora_inicio));
+    max = Math.max(max, toMinutes(e.hora_fin));
+  }
+  const desde = Math.min(fallback[0], Math.floor(min / 60));
+  const hasta = Math.max(fallback[1], Math.ceil(max / 60));
+  return [Math.max(0, desde), Math.min(24, hasta)];
+}
