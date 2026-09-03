@@ -3,7 +3,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Info } from "lucide-react";
 import {
-  distribucionPorGrupo,
   distribucionPorPlan,
   contarMultiPlan,
   contarSinPlanActivo,
@@ -11,17 +10,21 @@ import {
   type DistAlumno,
   type PlanEntry,
 } from "@/lib/studentDistribution";
+import { grupoOperativoFilterKey, type GrupoOpBucket } from "@/lib/grupoOperativo";
 
 interface Props {
   /** Alumnos que entran en el total "Activos" de la pantalla. */
   activos: (DistAlumno & { user_id: string | null })[];
   /** Una fila por (alumno activo, plan activo) según el mismo helper de la pantalla. */
   planEntries: PlanEntry[];
+  /** Buckets de grupo OPERATIVO derivado (suman el total de activos). */
+  gruposOperativos: GrupoOpBucket[];
   statusFilter: string;
   onSelectGrupo: (grupo: string) => void;
   onSelectPlan: (planId: string) => void;
   onSelectSinPlanActivo: () => void;
 }
+
 
 const chipBase =
   "rounded-full border px-3 py-1.5 text-xs transition-colors whitespace-nowrap";
