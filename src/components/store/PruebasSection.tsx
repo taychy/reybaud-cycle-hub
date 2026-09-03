@@ -228,7 +228,42 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!cambioFor} onOpenChange={(v) => { if (!v) { setCambioFor(null); setItemOriginal(""); } }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Usar la prueba como cambio</AlertDialogTitle>
+            <AlertDialogDescription>
+              La prenda de prueba se queda con el alumno (no vuelve al stock) y a cambio devuelve una prenda que ya
+              había comprado. Elegí cuál: recién suma al stock cuando Depósito la recibe.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="space-y-1">
+            <Label className="text-xs">Prenda que devuelve el alumno *</Label>
+            <Select value={itemOriginal} onValueChange={setItemOriginal}>
+              <SelectTrigger><SelectValue placeholder="Elegí la prenda del pedido" /></SelectTrigger>
+              <SelectContent>
+                {itemsElegiblesParaCambio(orderItems, cambioFor?.prueba_order_item_id).map((i) => (
+                  <SelectItem key={i.id} value={i.id}>{labelItemCambio(i)}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {itemsElegiblesParaCambio(orderItems, cambioFor?.prueba_order_item_id).length === 0 && (
+              <p className="text-[11px] text-destructive">
+                Este pedido no tiene prendas con producto asociado para devolver.
+              </p>
+            )}
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Volver</AlertDialogCancel>
+            <AlertDialogAction onClick={(e) => { e.preventDefault(); confirmarCambio(); }} disabled={!itemOriginal}>
+              Crear cambio
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </section>
+
   );
 };
 
