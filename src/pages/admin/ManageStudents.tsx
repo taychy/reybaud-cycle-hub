@@ -1222,11 +1222,13 @@ const ManageStudents = () => {
           <AlumnosDistribucion
             activos={activosDist}
             planEntries={planEntriesActivos}
+            gruposOperativos={gruposOperativos}
             statusFilter={statusFilter}
-            onSelectGrupo={(g) => setStatusFilter(g === "Sin grupo" ? "sin_grupo" : `grupo_${g}`)}
+            onSelectGrupo={(g) => setStatusFilter(grupoOperativoFilterKey(g as any))}
             onSelectPlan={(planId) => setStatusFilter(`active_plan_${planId}`)}
             onSelectSinPlanActivo={() => setStatusFilter("sin_plan_activo")}
           />
+
 
           {/* Filters */}
 
