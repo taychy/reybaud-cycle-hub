@@ -22,6 +22,14 @@ import { Separator } from "@/components/ui/separator";
 import { Search, Edit2, Check, X, CalendarCheck, Trash2, Plus, Eye, MailPlus, Upload, Users, CreditCard, AlertTriangle, FileText, MoreVertical, Palmtree, Ban, UserCheck, UserX, Pause, Play, RefreshCw, Copy, Smartphone, Pencil, ArrowUp, ArrowDown, ArrowUpDown, BellRing, DollarSign, Phone, MessageSquare, Mail, MapPin, Clock, HeartPulse, Maximize2, Minimize2, LogOut } from "lucide-react";
 import ConfirmBajaDialog from "@/components/admin/ConfirmBajaDialog";
 import AlumnosDistribucion from "@/components/admin/AlumnosDistribucion";
+import {
+  clasificarGrupoOperativo,
+  distribucionGrupoOperativo,
+  grupoOperativoFilterKey,
+  type AlumnoClasificable,
+  type ReservaMin,
+} from "@/lib/grupoOperativo";
+
 
 import { MergeDuplicatesDialog } from "@/components/admin/MergeDuplicatesDialog";
 import type { Tables } from "@/integrations/supabase/types";
