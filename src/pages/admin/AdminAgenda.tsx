@@ -26,13 +26,10 @@ import {
 import {
   DIAS_SEMANA,
   addDays,
-  agruparDisponibilidad,
   buildAgendaEventos,
   detectarConflictos,
   diffServicios,
   hhmm,
-  ocurrenciasEnSemana,
-  ocurrenciasSerie,
   parseIso,
   startOfWeek,
   toLocalIso,
