@@ -22,6 +22,7 @@ import BirthdayWidget from "@/components/admin/BirthdayWidget";
 import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
 import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
 import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
+import AdminOperationalCalendar from "@/components/admin/AdminOperationalCalendar";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
 
 import {
@@ -701,6 +702,9 @@ const AdminDashboard = () => {
         ))}
 
       </div>
+
+      {/* Calendario operativo semanal (mismas fuentes que /admin/agenda) */}
+      <AdminOperationalCalendar />
 
       {/* Tareas por día + Pendientes de la semana */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">

@@ -127,7 +127,7 @@ export function diffServicios(actuales: string[], elegidos: string[]) {
 //  Eventos unificados de la semana
 // ------------------------------------------------------------------
 
-export type AgendaEventoTipo = "grupal" | "turno" | "disponibilidad";
+export type AgendaEventoTipo = "grupal" | "turno" | "disponibilidad" | "ausencia";
 
 export type AgendaEvento = {
   id: string;
@@ -203,12 +203,152 @@ export function ocurrenciasSerie(dias: string[], serie: SerieGrupal): string[] {
   );
 }
 
+// ------------------------------------------------------------------
+//  Ausencias de coaches
+// ------------------------------------------------------------------
 
+export type AusenciaRow = {
+  id: string;
+  coach_id: string;
+  fecha_inicio: string;
+  fecha_fin?: string | null;
+  todo_el_dia?: boolean | null;
+  hora_inicio?: string | null;
+  hora_fin?: string | null;
+  motivo?: string | null;
+};
+
+/** Fechas de la semana cubiertas por una ausencia (rango inclusivo). */
+export function ocurrenciasAusencia(dias: string[], a: AusenciaRow): string[] {
+  const desde = String(a.fecha_inicio || "").slice(0, 10);
+  const hasta = String(a.fecha_fin || a.fecha_inicio || "").slice(0, 10);
+  if (!desde) return [];
+  return dias.filter((iso) => iso >= desde && iso <= hasta);
+}
+
+/** Reservas de turnera canceladas (en cualquiera de sus variantes). */
+export const esReservaCancelada = (estado?: string | null): boolean =>
+  String(estado || "").startsWith("cancelad");
+
+// ------------------------------------------------------------------
+//  Normalización única de eventos (Resumen Admin y /admin/agenda)
+// ------------------------------------------------------------------
+
+export type AgendaFuentes = {
+  dias: string[];
+  grupal?: any[];
+  turnos?: any[];
+  disponibilidad?: DisponibilidadRow[];
+  ausencias?: AusenciaRow[];
+  coachNombre: (id: string | null) => string;
+  sedeNombre: (id: string | null) => string | null;
+  servicioNombre: (id: string | null) => string;
+};
 
 /**
- * Detecta conflictos REALES (clase grupal vs turno, turno vs turno) del mismo coach:
- * solapamiento horario el mismo día, o dos sedes distintas en intervalos solapados.
- * La disponibilidad NO cuenta como conflicto.
+ * Convierte las fuentes existentes (clases grupales, turnos de turnera,
+ * disponibilidad y ausencias) en eventos unificados de la semana.
+ * NO hace fetch: recibe filas ya cargadas.
+ */
+export function buildAgendaEventos({
+  dias,
+  grupal = [],
+  turnos = [],
+  disponibilidad = [],
+  ausencias = [],
+  coachNombre,
+  sedeNombre,
+  servicioNombre,
+}: AgendaFuentes): AgendaEvento[] {
+  const out: AgendaEvento[] = [];
+
+  for (const g of grupal) {
+    if (g.activo === false) continue;
+    for (const fecha of ocurrenciasSerie(dias, g)) {
+      out.push({
+        id: `g-${g.id}-${fecha}`,
+        tipo: "grupal",
+        fecha,
+        hora_inicio: hhmm(g.hora_inicio),
+        hora_fin: hhmm(g.hora_fin),
+        coach_id: g.coach_id,
+        coach_nombre: coachNombre(g.coach_id),
+        sede_id: g.sede_id,
+        sede_nombre: sedeNombre(g.sede_id),
+        titulo: g.grupo || "Clase grupal",
+        detalle: g.notas,
+        raw: g,
+      });
+    }
+  }
+
+  for (const t of turnos) {
+    if (esReservaCancelada(t.estado_operativo)) continue;
+    out.push({
+      id: `t-${t.id}`,
+      tipo: "turno",
+      fecha: String(t.fecha).slice(0, 10),
+      hora_inicio: hhmm(t.hora_inicio),
+      hora_fin: hhmm(t.hora_fin),
+      coach_id: t.coach_id,
+      coach_nombre: coachNombre(t.coach_id),
+      sede_id: t.sede_id,
+      sede_nombre: sedeNombre(t.sede_id),
+      titulo: servicioNombre(t.servicio_id),
+      detalle: `${t.nombre || ""} ${t.apellido || ""}`.trim(),
+      estado: t.estado_operativo,
+      raw: t,
+    });
+  }
+
+  for (const b of agruparDisponibilidad(disponibilidad.filter((d) => d.activo !== false))) {
+    for (const fecha of ocurrenciasEnSemana(dias, b.dia_semana)) {
+      out.push({
+        id: `d-${b.key}-${fecha}`,
+        tipo: "disponibilidad",
+        fecha,
+        hora_inicio: b.hora_inicio,
+        hora_fin: b.hora_fin,
+        coach_id: b.coach_id,
+        coach_nombre: coachNombre(b.coach_id),
+        sede_id: b.sede_id,
+        sede_nombre: sedeNombre(b.sede_id),
+        titulo: "Disponible para turnera",
+        chips: b.servicio_ids.map((s) => servicioNombre(s)),
+        raw: b,
+      });
+    }
+  }
+
+  for (const a of ausencias) {
+    for (const fecha of ocurrenciasAusencia(dias, a)) {
+      const todoElDia = a.todo_el_dia !== false || !a.hora_inicio;
+      out.push({
+        id: `a-${a.id}-${fecha}`,
+        tipo: "ausencia",
+        fecha,
+        hora_inicio: todoElDia ? "00:00" : hhmm(a.hora_inicio),
+        hora_fin: todoElDia ? "23:59" : hhmm(a.hora_fin),
+        coach_id: a.coach_id,
+        coach_nombre: coachNombre(a.coach_id),
+        sede_id: null,
+        sede_nombre: null,
+        titulo: "Ausencia",
+        detalle: a.motivo || (todoElDia ? "Día completo" : null),
+        raw: a,
+      });
+    }
+  }
+
+  return out.sort(
+    (a, b) => a.fecha.localeCompare(b.fecha) || a.hora_inicio.localeCompare(b.hora_inicio),
+  );
+}
+
+/**
+ * Detecta conflictos REALES del mismo coach: clase grupal vs turno, turno vs turno,
+ * o actividad dentro de una ausencia. La disponibilidad NO cuenta como conflicto,
+ * y dos ausencias entre sí tampoco.
  */
 export function detectarConflictos(eventos: AgendaEvento[]): Set<string> {
   const reales = eventos.filter((e) => e.tipo !== "disponibilidad" && e.coach_id);
@@ -218,6 +358,7 @@ export function detectarConflictos(eventos: AgendaEvento[]): Set<string> {
       const a = reales[i];
       const b = reales[j];
       if (a.coach_id !== b.coach_id || a.fecha !== b.fecha) continue;
+      if (a.tipo === "ausencia" && b.tipo === "ausencia") continue;
       if (!overlaps(a.hora_inicio, a.hora_fin, b.hora_inicio, b.hora_fin)) continue;
       conflictivos.add(a.id);
       conflictivos.add(b.id);
@@ -235,4 +376,35 @@ export function labelFechaLarga(fechaIso: string, now: Date = new Date()): strin
     day: "numeric",
     month: "long",
   });
+}
+
+// ------------------------------------------------------------------
+//  Grilla horaria (time-grid semanal)
+// ------------------------------------------------------------------
+
+/** "09:30" → 570 minutos. */
+export const toMinutes = (t: string): number => {
+  const [h, m] = hhmm(t).split(":").map(Number);
+  return (h || 0) * 60 + (m || 0);
+};
+
+/**
+ * Rango horario (en horas enteras) que debe mostrar la grilla semanal,
+ * ajustado a los eventos reales y acotado al rango por defecto.
+ */
+export function rangoHorarioSemana(
+  eventos: AgendaEvento[],
+  fallback: [number, number] = [7, 22],
+): [number, number] {
+  const reales = eventos.filter((e) => e.tipo !== "ausencia");
+  if (reales.length === 0) return fallback;
+  let min = 24 * 60;
+  let max = 0;
+  for (const e of reales) {
+    min = Math.min(min, toMinutes(e.hora_inicio));
+    max = Math.max(max, toMinutes(e.hora_fin));
+  }
+  const desde = Math.min(fallback[0], Math.floor(min / 60));
+  const hasta = Math.max(fallback[1], Math.ceil(max / 60));
+  return [Math.max(0, desde), Math.min(24, hasta)];
 }

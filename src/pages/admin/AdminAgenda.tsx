@@ -26,12 +26,10 @@ import {
 import {
   DIAS_SEMANA,
   addDays,
-  agruparDisponibilidad,
+  buildAgendaEventos,
   detectarConflictos,
   diffServicios,
   hhmm,
-  ocurrenciasEnSemana,
-  ocurrenciasSerie,
   parseIso,
   startOfWeek,
   toLocalIso,
@@ -109,73 +107,20 @@ const AdminAgenda = () => {
   const sedeNombre = (id: string | null) => (id ? sedes.find((s) => s.id === id)?.nombre || null : null);
   const servicioNombre = (id: string | null) => servicios.find((s) => s.id === id)?.nombre || "Turno";
 
-  // ---------------- Eventos unificados ----------------
-  const eventos: AgendaEvento[] = useMemo(() => {
-    const out: AgendaEvento[] = [];
-
-    for (const g of grupal) {
-      if (g.activo === false) continue;
-      for (const fecha of ocurrenciasSerie(dias, g)) {
-        out.push({
-          id: `g-${g.id}-${fecha}`,
-          tipo: "grupal",
-          fecha,
-          hora_inicio: hhmm(g.hora_inicio),
-          hora_fin: hhmm(g.hora_fin),
-          coach_id: g.coach_id,
-          coach_nombre: coachNombre(g.coach_id),
-          sede_id: g.sede_id,
-          sede_nombre: sedeNombre(g.sede_id),
-          titulo: g.grupo || "Clase grupal",
-          detalle: g.notas,
-          raw: g,
-        });
-      }
-    }
-
-
-    for (const t of turnos) {
-      if ((t.estado_operativo || "").startsWith("cancelada")) continue;
-      out.push({
-        id: `t-${t.id}`,
-        tipo: "turno",
-        fecha: t.fecha,
-        hora_inicio: hhmm(t.hora_inicio),
-        hora_fin: hhmm(t.hora_fin),
-        coach_id: t.coach_id,
-        coach_nombre: coachNombre(t.coach_id),
-        sede_id: t.sede_id,
-        sede_nombre: sedeNombre(t.sede_id),
-        titulo: servicioNombre(t.servicio_id),
-        detalle: `${t.nombre || ""} ${t.apellido || ""}`.trim(),
-        estado: t.estado_operativo,
-        raw: t,
-      });
-    }
-
-    for (const b of agruparDisponibilidad(disp.filter((d) => d.activo !== false))) {
-      for (const fecha of ocurrenciasEnSemana(dias, b.dia_semana)) {
-        out.push({
-          id: `d-${b.key}-${fecha}`,
-          tipo: "disponibilidad",
-          fecha,
-          hora_inicio: b.hora_inicio,
-          hora_fin: b.hora_fin,
-          coach_id: b.coach_id,
-          coach_nombre: coachNombre(b.coach_id),
-          sede_id: b.sede_id,
-          sede_nombre: sedeNombre(b.sede_id),
-          titulo: "Disponible para turnera",
-          chips: b.servicio_ids.map((s) => servicioNombre(s)),
-          raw: b,
-        });
-      }
-    }
-
-    return out.sort(
-      (a, b) => a.fecha.localeCompare(b.fecha) || a.hora_inicio.localeCompare(b.hora_inicio),
-    );
-  }, [grupal, turnos, disp, dias, coaches, sedes, servicios]);
+  // ---------------- Eventos unificados (misma normalización que el Resumen) ----------------
+  const eventos: AgendaEvento[] = useMemo(
+    () =>
+      buildAgendaEventos({
+        dias,
+        grupal,
+        turnos,
+        disponibilidad: disp,
+        coachNombre,
+        sedeNombre,
+        servicioNombre,
+      }),
+    [grupal, turnos, disp, dias, coaches, sedes, servicios],
+  );
 
   const filtrados = useMemo(
     () =>
