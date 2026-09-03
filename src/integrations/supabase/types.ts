@@ -1981,6 +1981,61 @@ export type Database = {
           },
         ]
       }
+      coach_mp_contrapartes: {
+        Row: {
+          alias: string | null
+          coach_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          mp_collector_id: string | null
+          nombre_contraparte: string | null
+          updated_at: string
+        }
+        Insert: {
+          alias?: string | null
+          coach_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mp_collector_id?: string | null
+          nombre_contraparte?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alias?: string | null
+          coach_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          mp_collector_id?: string | null
+          nombre_contraparte?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_mp_contrapartes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_mp_contrapartes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_mp_contrapartes_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+        ]
+      }
       coach_sedes: {
         Row: {
           coach_id: string
@@ -6036,9 +6091,91 @@ export type Database = {
           },
         ]
       }
+      gasto_categorias: {
+        Row: {
+          activa: boolean
+          archivada_at: string | null
+          created_at: string
+          id: string
+          nombre: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          archivada_at?: string | null
+          created_at?: string
+          id?: string
+          nombre: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          archivada_at?: string | null
+          created_at?: string
+          id?: string
+          nombre?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      gasto_reglas_categoria: {
+        Row: {
+          activa: boolean
+          campo: string
+          categoria_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          nombre: string | null
+          patron: string
+          prioridad: number
+          updated_at: string
+        }
+        Insert: {
+          activa?: boolean
+          campo?: string
+          categoria_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre?: string | null
+          patron: string
+          prioridad?: number
+          updated_at?: string
+        }
+        Update: {
+          activa?: boolean
+          campo?: string
+          categoria_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          nombre?: string | null
+          patron?: string
+          prioridad?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gasto_reglas_categoria_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "gasto_categorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gastos: {
         Row: {
           categoria: string
+          categoria_asignada_at: string | null
+          categoria_asignada_por: string | null
+          categoria_id: string | null
+          categoria_origen: string
+          categoria_regla_id: string | null
           created_at: string
           descripcion: string
           estado_conciliacion: string
@@ -6064,6 +6201,11 @@ export type Database = {
         }
         Insert: {
           categoria?: string
+          categoria_asignada_at?: string | null
+          categoria_asignada_por?: string | null
+          categoria_id?: string | null
+          categoria_origen?: string
+          categoria_regla_id?: string | null
           created_at?: string
           descripcion: string
           estado_conciliacion?: string
@@ -6089,6 +6231,11 @@ export type Database = {
         }
         Update: {
           categoria?: string
+          categoria_asignada_at?: string | null
+          categoria_asignada_por?: string | null
+          categoria_id?: string | null
+          categoria_origen?: string
+          categoria_regla_id?: string | null
           created_at?: string
           descripcion?: string
           estado_conciliacion?: string
@@ -6113,6 +6260,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gastos_categoria_id_fkey"
+            columns: ["categoria_id"]
+            isOneToOne: false
+            referencedRelation: "gasto_categorias"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_categoria_regla_fk"
+            columns: ["categoria_regla_id"]
+            isOneToOne: false
+            referencedRelation: "gasto_reglas_categoria"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "gastos_event_id_fkey"
             columns: ["event_id"]
@@ -7077,6 +7238,10 @@ export type Database = {
           assigned_manually: boolean
           categorizado_at: string | null
           categorizado_por: string | null
+          coach_id: string | null
+          coach_match_confirmado_at: string | null
+          coach_match_confirmado_por: string | null
+          coach_match_estado: string | null
           created_at: string
           cuenta_mp_id: string
           currency: string
@@ -7087,6 +7252,7 @@ export type Database = {
           fee_amount: number | null
           gasto_id: string | null
           id: string
+          liquidacion_id: string | null
           mp_payment_id: string
           net_received: number | null
           payer_document: string | null
@@ -7111,6 +7277,10 @@ export type Database = {
           assigned_manually?: boolean
           categorizado_at?: string | null
           categorizado_por?: string | null
+          coach_id?: string | null
+          coach_match_confirmado_at?: string | null
+          coach_match_confirmado_por?: string | null
+          coach_match_estado?: string | null
           created_at?: string
           cuenta_mp_id: string
           currency?: string
@@ -7121,6 +7291,7 @@ export type Database = {
           fee_amount?: number | null
           gasto_id?: string | null
           id?: string
+          liquidacion_id?: string | null
           mp_payment_id: string
           net_received?: number | null
           payer_document?: string | null
@@ -7145,6 +7316,10 @@ export type Database = {
           assigned_manually?: boolean
           categorizado_at?: string | null
           categorizado_por?: string | null
+          coach_id?: string | null
+          coach_match_confirmado_at?: string | null
+          coach_match_confirmado_por?: string | null
+          coach_match_estado?: string | null
           created_at?: string
           cuenta_mp_id?: string
           currency?: string
@@ -7155,6 +7330,7 @@ export type Database = {
           fee_amount?: number | null
           gasto_id?: string | null
           id?: string
+          liquidacion_id?: string | null
           mp_payment_id?: string
           net_received?: number | null
           payer_document?: string | null
@@ -7193,6 +7369,27 @@ export type Database = {
             referencedColumns: ["alumno_id"]
           },
           {
+            foreignKeyName: "mp_account_movements_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
             foreignKeyName: "mp_account_movements_cuenta_mp_id_fkey"
             columns: ["cuenta_mp_id"]
             isOneToOne: false
@@ -7204,6 +7401,13 @@ export type Database = {
             columns: ["gasto_id"]
             isOneToOne: false
             referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_liquidacion_id_fkey"
+            columns: ["liquidacion_id"]
+            isOneToOne: false
+            referencedRelation: "liquidaciones_mensuales"
             referencedColumns: ["id"]
           },
           {
@@ -13294,6 +13498,72 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_posibles_pagos_profesor: {
+        Row: {
+          amount: number | null
+          coach_match_estado: string | null
+          coach_sugerido: string | null
+          coach_sugerido_nombre: string | null
+          coach_vinculado: string | null
+          currency: string | null
+          description: string | null
+          fecha_movimiento: string | null
+          gasto_id: string | null
+          movement_id: string | null
+          mp_payment_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coach_mp_contrapartes_coach_id_fkey"
+            columns: ["coach_sugerido"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_mp_contrapartes_coach_id_fkey"
+            columns: ["coach_sugerido"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "coach_mp_contrapartes_coach_id_fkey"
+            columns: ["coach_sugerido"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_coach_id_fkey"
+            columns: ["coach_vinculado"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_coach_id_fkey"
+            columns: ["coach_vinculado"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_coach_id_fkey"
+            columns: ["coach_vinculado"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_programa_clases_estado: {
         Row: {
           admin_estado: string | null
@@ -14204,6 +14474,10 @@ export type Database = {
         }
         Returns: string
       }
+      eliminar_gasto_categoria: {
+        Args: { _categoria_id: string }
+        Returns: string
+      }
       email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
@@ -14638,6 +14912,10 @@ export type Database = {
           nombre: string
         }[]
       }
+      get_resumen_financiero_mes: {
+        Args: { _mes: string; _moneda?: string }
+        Returns: Json
+      }
       get_saldo_alumno: {
         Args: { p_alumno_id: string }
         Returns: {
@@ -14845,6 +15123,13 @@ export type Database = {
       mark_waitlist_entries_seen_for_template: {
         Args: { p_template_id: string }
         Returns: number
+      }
+      match_gasto_categoria: {
+        Args: { _descripcion: string; _proveedor?: string }
+        Returns: {
+          categoria_id: string
+          regla_id: string
+        }[]
       }
       materialize_reservation_installments: {
         Args: { p_reservation_id: string }
@@ -15423,6 +15708,15 @@ export type Database = {
           test: number
         }[]
       }
+      set_gasto_categoria: {
+        Args: {
+          _categoria_id: string
+          _crear_regla?: boolean
+          _gasto_id: string
+          _patron?: string
+        }
+        Returns: string
+      }
       solicitar_cambio_agenda: {
         Args: {
           p_alcance: string
@@ -15550,6 +15844,10 @@ export type Database = {
           survey_id: string
           used_at: string
         }[]
+      }
+      vincular_egreso_mp_coach: {
+        Args: { _coach_id: string; _confirmar?: boolean; _movement_id: string }
+        Returns: undefined
       }
     }
     Enums: {

@@ -18,6 +18,7 @@ import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
   CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown, Link2,
   ChevronDown, ChevronUp, Archive, ArchiveRestore, History, Eye, EyeOff,
+  Tags,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import AgendaMes from "@/components/admin/gastos/AgendaMes";
@@ -145,7 +146,10 @@ const estadoBadge = (e: EstadoEjec, dias: number | null) => {
   return <Badge variant="outline" className="gap-1"><Clock className="w-3 h-3" />Pendiente</Badge>;
 };
 
+import GastoCategoriasDialog from "@/components/admin/GastoCategoriasDialog";
+
 const SuperAdminGastos = () => {
+  const [categoriasOpen, setCategoriasOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mes, setMes] = useState(nowMonth());
   const [activeTab, setActiveTab] = useState<string>("mp");
@@ -852,6 +856,7 @@ const SuperAdminGastos = () => {
 
   return (
     <div className="space-y-6">
+      <GastoCategoriasDialog open={categoriasOpen} onOpenChange={setCategoriasOpen} />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gastos</h1>
@@ -869,9 +874,13 @@ const SuperAdminGastos = () => {
           <Button variant="outline" size="sm" onClick={exportGastosCSV} className="gap-1">
             <Receipt className="w-4 h-4" /> Exportar gastos
           </Button>
+          <Button variant="outline" size="sm" onClick={() => setCategoriasOpen(true)} className="gap-1">
+            <Tags className="w-4 h-4" /> Categorías
+          </Button>
           <Button variant="outline" size="sm" onClick={() => setActiveTab("catalogo")} className="gap-1">
             <Wallet className="w-4 h-4" /> Catálogo
           </Button>
+
           <Button
             variant="outline"
             size="sm"

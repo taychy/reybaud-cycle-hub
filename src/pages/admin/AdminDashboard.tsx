@@ -24,6 +24,8 @@ import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
 import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
 import AdminOperationalCalendar from "@/components/admin/AdminOperationalCalendar";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
+import ResumenFinancieroMes from "@/components/admin/ResumenFinancieroMes";
+
 
 import {
   AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
@@ -683,7 +685,11 @@ const AdminDashboard = () => {
         </Link>
       </div>
 
+      {/* Resumen simple del mes (Entró / Falta cobrar / Salió / Falta pagar) */}
+      <ResumenFinancieroMes />
+
       {/* KPIs operativos */}
+
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         {kpis.map((k) => (
           <Link key={k.label} to={k.to} className="block">
