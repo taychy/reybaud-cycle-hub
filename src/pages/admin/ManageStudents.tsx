@@ -291,13 +291,18 @@ const ManageStudents = () => {
     });
   }, [alumnos]);
 
-  const getActiveSub = (alumnoId: string) => {
-    return suscripciones.find(s => {
-      if (s.alumno_id !== alumnoId) return false;
-      const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at , cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
-      return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
-    });
+  const isSubEfectivamenteActiva = (s: SuscripcionConPlan) => {
+    const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: s.cancelada_at, cancelada_motivo: ((s as any).cancelada_motivo), mp_status: ((s as any).mp_status), origen_registro: ((s as any).origen_registro) });
+    return eff === "activa" || eff === "pendiente_verificacion" || eff === "pausa" || eff === "pago_pendiente";
   };
+
+  const getActiveSub = (alumnoId: string) =>
+    suscripciones.find(s => s.alumno_id === alumnoId && isSubEfectivamenteActiva(s));
+
+  /** TODAS las suscripciones efectivamente activas de un alumno (para multi-plan). */
+  const getActiveSubs = (alumnoId: string) =>
+    suscripciones.filter(s => s.alumno_id === alumnoId && isSubEfectivamenteActiva(s));
+
 
   const getPayableSub = (alumnoId: string) =>
     suscripciones.find(s => s.alumno_id === alumnoId && isAdminPayableSubscription(s));
