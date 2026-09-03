@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -33,10 +33,13 @@ const AddPruebaDialog = ({ open, onOpenChange, orderId, alumnoId, onCreated }: P
   const [comentario, setComentario] = useState("");
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  /** Clave estable por intento: si el request se reintenta, el backend no descuenta stock dos veces. */
+  const idemKey = useRef<string>("");
 
   useEffect(() => {
     if (!open) return;
     setQuery(""); setProductoId(""); setVariante({}); setComentario("");
+    idemKey.current = crypto.randomUUID();
     supabase
       .from("store_products")
       .select("id, name, variants, variant_stock, stock")
@@ -80,6 +83,7 @@ const AddPruebaDialog = ({ open, onOpenChange, orderId, alumnoId, onCreated }: P
       p_alumno_id: alumnoId || null,
       p_comentario: comentario || null,
       p_metodo: "manual",
+      p_idempotency_key: idemKey.current,
     });
     setSaving(false);
     if (error) {
