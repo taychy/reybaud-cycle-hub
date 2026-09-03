@@ -72,9 +72,36 @@ const PruebasSection = ({ orderId, alumnoId, currency = "ARS", readOnly = false,
     run(c.id, () => supabase.rpc("prueba_devolver" as any, { p_cambio_id: c.id, p_nota: null }),
       "Prueba devuelta · stock reingresado");
 
-  const usarComoCambio = (c: any) =>
-    run(c.id, () => supabase.rpc("prueba_usar_como_cambio" as any, { p_cambio_id: c.id, p_nota: null }),
-      "Convertida en cambio real");
+  /** Abre el diálogo y trae los ítems del pedido para elegir cuál prenda vuelve. */
+  const abrirCambio = async (c: any) => {
+    setCambioFor(c);
+    setItemOriginal("");
+    const { data } = await supabase
+      .from("store_order_items")
+      .select("id, product_id, product_name, variant_selection, quantity")
+      .eq("order_id", orderId);
+    const items = (data as any[]) || [];
+    setOrderItems(items);
+    setItemOriginal(preseleccionItemCambio(items, c.prueba_order_item_id));
+  };
+
+  const confirmarCambio = async () => {
+    if (!cambioFor) return;
+    if (!itemOriginal) {
+      toast({ title: "Elegí qué prenda devuelve el alumno", variant: "destructive" });
+      return;
+    }
+    const ok = await run(
+      cambioFor.id,
+      () => supabase.rpc("prueba_usar_como_cambio" as any, {
+        p_cambio_id: cambioFor.id,
+        p_order_item_id: itemOriginal,
+        p_nota: null,
+      }),
+      "Cambio real creado · falta recibir la prenda original",
+    );
+    if (ok) { setCambioFor(null); setItemOriginal(""); }
+  };
 
   const confirmarVenta = async () => {
     if (!ventaFor) return;
