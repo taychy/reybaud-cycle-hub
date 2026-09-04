@@ -30,11 +30,14 @@ const statusColor = (s: string) => {
     case "enviado": return "bg-primary/20 text-primary";
     case "entregado": return "bg-green-500/20 text-green-400";
     case "cancelado": return "bg-destructive/20 text-destructive";
+    case CASH_PENDING_STATUS: return "bg-amber-500/20 text-amber-400";
     default: return "bg-muted text-muted-foreground";
   }
 };
 
-const labelStatus = (s: string) => (s || "").replace(/_/g, " ");
+const labelStatus = (s: string) =>
+  s === CASH_PENDING_STATUS ? "Efectivo pendiente" : (s || "").replace(/_/g, " ");
+
 
 const CLOSED_STATUSES = ["entregado", "cancelado"];
 
