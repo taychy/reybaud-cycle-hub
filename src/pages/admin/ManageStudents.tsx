@@ -593,6 +593,8 @@ const ManageStudents = () => {
     }
   };
 
+  const [sendTrainingAlumno, setSendTrainingAlumno] = useState<Alumno | null>(null);
+
   // --- Context-sensitive actions for dropdown ---
   const getContextActions = (alumno: Alumno) => {
     const actions: { label: string; icon: any; action: () => void; destructive?: boolean; separator?: boolean; groupLabel?: string }[] = [];
@@ -622,6 +624,7 @@ const ManageStudents = () => {
     if (subEstadoForNotif === "pago_pendiente" || subEstadoForNotif === "acceso_pausado" || subEstadoForNotif === "vencida") {
       actions.push({ label: "Vista previa y enviar", icon: BellRing, action: () => openOverduePreview(alumno) });
     }
+    actions.push({ label: "Enviar entrenamientos", icon: Mail, action: () => setSendTrainingAlumno(alumno) });
 
     // --- Acceso ---
     actions.push({ label: "", icon: null, action: () => {}, separator: true });
