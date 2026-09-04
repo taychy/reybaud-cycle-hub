@@ -16,21 +16,13 @@ export function isPersonalScope(grupo: string | null | undefined): boolean {
   return !!grupo && (PERSONAL_SCOPE_GRUPOS as readonly string[]).includes(grupo);
 }
 
-type ScopableQuery = {
-  eq: (col: string, val: unknown) => ScopableQuery;
-  is: (col: string, val: unknown) => ScopableQuery;
-};
-
 /** Aplica el filtro de asignación (individual vs grupo) a una query de `entrenamientos`. */
-export function applyTrainingScope<T extends ScopableQuery>(
-  query: T,
-  grupo: string | null | undefined,
-  alumnoId: string
-): T {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function applyTrainingScope(query: any, grupo: string | null | undefined, alumnoId: string): any {
   if (isPersonalScope(grupo)) {
-    return query.eq("alumno_id", alumnoId) as T;
+    return query.eq("alumno_id", alumnoId);
   }
-  return query.eq("grupo", grupo as never).is("alumno_id", null) as T;
+  return query.eq("grupo", grupo).is("alumno_id", null);
 }
 
 /* ------------------------- Semanas (America/Argentina/Buenos_Aires) ------------------------- */
