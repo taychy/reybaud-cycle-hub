@@ -8,6 +8,30 @@
 
 export type CampaignDiscountType = "porcentaje" | "precio_fijo";
 
+/** Medios de pago en los que puede aplicar una campaña. */
+export type CampaignPaymentMethod = "mp" | "efectivo";
+
+export const CAMPAIGN_PAYMENT_METHODS: CampaignPaymentMethod[] = ["mp", "efectivo"];
+
+export const CAMPAIGN_PAYMENT_LABEL: Record<CampaignPaymentMethod, string> = {
+  mp: "Mercado Pago",
+  efectivo: "Efectivo",
+};
+
+/** Campañas viejas (sin el campo) aplican a ambos medios: default seguro. */
+export const normalizeMediosPago = (medios: string[] | null | undefined): CampaignPaymentMethod[] => {
+  const list = (medios || []).filter((m): m is CampaignPaymentMethod => m === "mp" || m === "efectivo");
+  return list.length ? list : [...CAMPAIGN_PAYMENT_METHODS];
+};
+
+/** Texto corto para explicar la condición de pago de una promo. */
+export const mediosPagoLabel = (medios: string[] | null | undefined): string =>
+  normalizeMediosPago(medios).map((m) => CAMPAIGN_PAYMENT_LABEL[m]).join(" y ");
+
+/** true si la promo aplica a todos los medios (no es condicionada). */
+export const aplicaATodosLosMedios = (medios: string[] | null | undefined): boolean =>
+  normalizeMediosPago(medios).length === CAMPAIGN_PAYMENT_METHODS.length;
+
 export interface StoreCampaign {
   id: string;
   nombre: string;
@@ -18,7 +42,10 @@ export interface StoreCampaign {
   activa: boolean;
   badge_texto: string | null;
   mostrar_urgencia: boolean;
+  /** Medios de pago en los que aplica. Ausente/vacío = ambos (compatibilidad). */
+  medios_pago?: string[] | null;
 }
+
 
 export interface StoreCampaignItem {
   id?: string;
