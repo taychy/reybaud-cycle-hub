@@ -363,10 +363,31 @@ const StoreCampaigns = () => {
                 <Input type="datetime-local" value={form.fecha_fin ? toLocalInput(form.fecha_fin) : ""} onChange={(e) => setForm((f) => ({ ...f, fecha_fin: new Date(e.target.value).toISOString() }))} />
               </div>
             </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-sm font-medium">¿En qué formas de pago aplica el descuento?</p>
+              <p className="text-xs text-muted-foreground mb-2">Con la otra forma de pago el producto se vende igual, al precio normal.</p>
+              <div className="flex gap-2">
+                {(["mp", "efectivo"] as CampaignPaymentMethod[]).map((m) => (
+                  <Button
+                    key={m}
+                    type="button"
+                    size="sm"
+                    variant={formMedios.includes(m) ? "default" : "outline"}
+                    onClick={() => toggleMedio(m)}
+                  >
+                    {CAMPAIGN_PAYMENT_LABEL[m]}
+                  </Button>
+                ))}
+              </div>
+              {formMedios.length === 0 && (
+                <p className="text-xs text-destructive mt-2">Elegí al menos una forma de pago.</p>
+              )}
+            </div>
             <div>
               <label className="text-xs font-heading uppercase text-muted-foreground">Badge</label>
               <Input value={form.badge_texto || ""} onChange={(e) => setForm((f) => ({ ...f, badge_texto: e.target.value }))} placeholder="FIN DE INVIERNO" />
             </div>
+
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
                 <p className="text-sm font-medium">Mostrar urgencia</p>
