@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { promoMap, type PromoRow } from "@/lib/campaigns";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -94,15 +95,21 @@ const StoreProducts = () => {
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [comboDraft, setComboDraft] = useState<ComboItem[]>([]);
+  const [promosMp, setPromosMp] = useState<Record<string, PromoRow>>({});
+  const [promosEfectivo, setPromosEfectivo] = useState<Record<string, PromoRow>>({});
   const { toast } = useToast();
 
   const load = async () => {
-    const [pRes, cRes, sRes, supRes] = await Promise.all([
+    const [pRes, cRes, sRes, supRes, promoMpRes, promoEfRes] = await Promise.all([
       supabase.from("store_products").select("*").order("created_at", { ascending: false }),
       supabase.from("store_categories").select("id, name").order("sort_order"),
       supabase.from("sedes").select("id, nombre").eq("activa", true).order("nombre"),
       supabase.from("store_suppliers" as any).select("id, nombre").eq("activo", true).order("nombre"),
+      (supabase.rpc as any)("get_promos_tienda_vigentes_por_pago", { p_metodo_pago: "mp" }),
+      (supabase.rpc as any)("get_promos_tienda_vigentes_por_pago", { p_metodo_pago: "efectivo" }),
     ]);
+    setPromosMp(promoMap((promoMpRes as any)?.data));
+    setPromosEfectivo(promoMap((promoEfRes as any)?.data));
     setProducts((pRes.data as any[]) || []);
     setCategories((cRes.data as any[]) || []);
     setSedes((sRes.data as any[]) || []);
@@ -410,6 +417,25 @@ const StoreProducts = () => {
                 <td className="px-4 py-2 text-right">
                   <span className="font-heading font-bold">${p.price.toLocaleString("es-AR")}</span>
                   {p.old_price && <span className="text-xs text-muted-foreground line-through ml-1">${p.old_price.toLocaleString("es-AR")}</span>}
+                  {(() => {
+                    const mp = promosMp[p.id];
+                    const ef = promosEfectivo[p.id];
+                    if (!mp && !ef) return null;
+                    const mismo = mp && ef && Number(mp.precio_efectivo) === Number(ef.precio_efectivo) && mp.campaign_id === ef.campaign_id;
+                    const linea = (row: PromoRow, medio: string) => (
+                      <p key={medio} className="text-[11px] text-primary">
+                        {medio}: ${Number(row.precio_efectivo).toLocaleString("es-AR")} (-{row.descuento_pct}%) · {row.campaign_nombre}
+                        {row.solo_variantes ? " · Promo en variantes seleccionadas" : ""}
+                      </p>
+                    );
+                    return (
+                      <div className="mt-0.5 text-right">
+                        {mismo && mp
+                          ? linea(mp, "Mercado Pago y Efectivo")
+                          : [mp ? linea(mp, "Mercado Pago") : null, ef ? linea(ef, "Efectivo") : null]}
+                      </div>
+                    );
+                  })()}
                 </td>
                 <td className="px-4 py-2 text-center hidden md:table-cell">
                   <Tooltip>
