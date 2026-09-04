@@ -204,11 +204,6 @@ const StoreCampaigns = () => {
   };
 
 
-  const toggleActiva = async (c: CampaignRow) => {
-    const { error } = await supabase.from("store_campaigns").update({ activa: !c.activa }).eq("id", c.id);
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    load();
-  };
 
   const openProducts = async (c: CampaignRow) => {
     setCurrent(c);
