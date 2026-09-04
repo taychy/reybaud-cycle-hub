@@ -17,6 +17,10 @@ interface Props {
   alumno: { id: string; nombre: string | null; email: string | null; recibe_entrenamientos_email?: boolean | null };
   canEdit: boolean;
   onAlumnoUpdate?: (patch: { recibe_entrenamientos_email: boolean }) => void;
+  /** Cuando es true sólo se muestra el modal de envío (para el menú de acciones). */
+  dialogOnly?: boolean;
+  open?: boolean;
+  onOpenChange?: (v: boolean) => void;
 }
 
 type WeekChoice = "esta" | "proxima" | "elegir";
@@ -29,10 +33,12 @@ interface PreviewData {
   previo: { created_at: string; modo: string; status: string } | null;
 }
 
-export function StudentWeeklyEmailSection({ alumno, canEdit, onAlumnoUpdate }: Props) {
+export function StudentWeeklyEmailSection({ alumno, canEdit, onAlumnoUpdate, dialogOnly, open: openProp, onOpenChange }: Props) {
   const [enabled, setEnabled] = useState(!!alumno.recibe_entrenamientos_email);
   const [saving, setSaving] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [openInner, setOpenInner] = useState(false);
+  const open = openProp ?? openInner;
+  const setOpen = (v: boolean) => { onOpenChange ? onOpenChange(v) : setOpenInner(v); };
   const [choice, setChoice] = useState<WeekChoice>("esta");
   const [customDate, setCustomDate] = useState(arTodayISO());
   const [preview, setPreview] = useState<PreviewData | null>(null);
@@ -102,9 +108,7 @@ export function StudentWeeklyEmailSection({ alumno, canEdit, onAlumnoUpdate }: P
 
   const hasTrainings = (preview?.entrenamientos?.length ?? 0) > 0;
 
-  return (
-    <div className="space-y-3">
-      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+  const dialog = ( className="text-sm font-semibold text-foreground flex items-center gap-2">
         <Mail className="h-4 w-4" /> Entrenamientos por email
       </h3>
 
