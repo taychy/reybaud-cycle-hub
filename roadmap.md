@@ -16,3 +16,8 @@
 
 ## Tienda · Campañas condicionadas por forma de pago (preview)
 - [x] Campo `medios_pago` en campañas (default ambos), UI Admin, resolver backend por medio y checkout público/producto coherentes
+
+## Rendimiento · Reducción de carga del Resumen Admin (emergencia)
+- [x] Resumen liviano: 4 contadores `head:true` + accesos rápidos; sin `rebuild_facturacion_cola()` al abrir
+- [x] Se dejan de montar en el Resumen: ResumenFinancieroMes, AdminOperationalCalendar, BirthdayWidget, DeliveryCashWidget (archivos intactos)
+- [ ] Pendiente aparte: polling de badges en AdminLayout, purga de historial de tareas automáticas y de respuestas HTTP
