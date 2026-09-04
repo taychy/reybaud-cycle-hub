@@ -24,6 +24,7 @@ import { ConfirmFullPaymentDialog } from "@/components/store/ConfirmFullPaymentD
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
+import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
 
 
 interface OrderItem {
@@ -388,6 +389,14 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     o: Order,
     value: { metodo_pago: string; referencia?: string | null; monto: number; partial: boolean },
   ) => {
+    if (isOrderPaid(o as any)) {
+      toast({ title: "No se puede cobrar", description: CASH_BLOCK_MESSAGE.ya_pagado, variant: "destructive" });
+      return;
+    }
+    if (o.status === "cancelado") {
+      toast({ title: "No se puede cobrar", description: CASH_BLOCK_MESSAGE.cancelado, variant: "destructive" });
+      return;
+    }
     const nowIso = new Date().toISOString();
     const traza = `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(value.monto, o.currency)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`;
     const patch: any = {
@@ -396,15 +405,28 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       metodo_pago: value.metodo_pago,
       notes: [o.notes, traza].filter(Boolean).join("\n"),
     };
-    const { error } = await supabase.from("store_orders").update(patch).eq("id", o.id);
+    // Sólo cobra si el pedido sigue sin pago registrado (evita duplicar el ingreso).
+    const { data, error } = await supabase
+      .from("store_orders")
+      .update(patch)
+      .eq("id", o.id)
+      .is("pagado_at", null)
+      .neq("status", "cancelado")
+      .select("id");
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Sin cambios", description: "El cobro ya estaba registrado.", variant: "destructive" });
+      load();
       return;
     }
     toast({ title: "✓ Pago registrado", description: getPaymentMethodLabel(value.metodo_pago) });
     if (detail?.id === o.id) setDetail({ ...detail, ...patch });
     load();
   };
+
 
   const imprimirEtiqueta = async (o: Order) => {
     const al = o.alumno_id ? alumnosMap[o.alumno_id] : null;

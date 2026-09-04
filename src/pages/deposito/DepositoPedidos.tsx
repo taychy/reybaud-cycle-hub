@@ -4,12 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Truck, QrCode, Printer } from "lucide-react";
+import { Search, Eye, Truck, QrCode, Printer, Banknote } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { type PreorderLabelData } from "@/lib/preorderLabels";
 import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
 import PruebasSection from "@/components/store/PruebasSection";
+import {
+  CASH_PENDING_STATUS,
+  CASH_BLOCK_MESSAGE,
+  buildCashPaymentPatch,
+  canConfirmCashPayment,
+  cashConfirmBlockReason,
+} from "@/lib/storeCashPayment";
+
 
 const STATUSES = [
   "pendiente_pago",
@@ -30,11 +38,14 @@ const statusColor = (s: string) => {
     case "enviado": return "bg-primary/20 text-primary";
     case "entregado": return "bg-green-500/20 text-green-400";
     case "cancelado": return "bg-destructive/20 text-destructive";
+    case CASH_PENDING_STATUS: return "bg-amber-500/20 text-amber-400";
     default: return "bg-muted text-muted-foreground";
   }
 };
 
-const labelStatus = (s: string) => (s || "").replace(/_/g, " ");
+const labelStatus = (s: string) =>
+  s === CASH_PENDING_STATUS ? "Efectivo pendiente" : (s || "").replace(/_/g, " ");
+
 
 const CLOSED_STATUSES = ["entregado", "cancelado"];
 
@@ -70,6 +81,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [trackingInput, setTrackingInput] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
+  const [cobrando, setCobrando] = useState<string | null>(null);
   const [labelTargets, setLabelTargets] = useState<PreorderLabelData[]>([]);
   const { toast } = useToast();
 
@@ -138,6 +150,40 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
     if (selected?.id === id) setSelected((s: any) => ({ ...s, status }));
   };
+
+  const confirmarEfectivo = async (order: any) => {
+    const motivo = cashConfirmBlockReason(order);
+    if (motivo) {
+      toast({ title: "No se puede cobrar", description: CASH_BLOCK_MESSAGE[motivo], variant: "destructive" });
+      return;
+    }
+    const patch = buildCashPaymentPatch(order, { actor: "Depósito" });
+    if (!patch) return;
+    setCobrando(order.id);
+    // Condición de carrera: sólo actualiza si sigue pendiente y sin cobro previo.
+    const { data, error } = await supabase
+      .from("store_orders")
+      .update(patch as any)
+      .eq("id", order.id)
+      .eq("status", CASH_PENDING_STATUS)
+      .is("pagado_at", null)
+      .select("id");
+    setCobrando(null);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Sin cambios", description: "El cobro ya había sido registrado.", variant: "destructive" });
+      await load();
+      return;
+    }
+    toast({ title: "Pago en efectivo registrado" });
+    setRows((prev) => prev.map((r) => (r.id === order.id ? { ...r, ...patch } : r)));
+    if (selected?.id === order.id) setSelected((s: any) => ({ ...s, ...patch }));
+  };
+
+
 
   const saveTracking = async () => {
     if (!selected) return;
@@ -314,7 +360,13 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   </span>
                 </div>
               </div>
+              {canConfirmCashPayment(r) && (
+                <Button size="sm" className="w-full h-9" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
+                  <Banknote className="w-4 h-4 mr-1" /> Cobré el efectivo
+                </Button>
+              )}
               <div className="flex items-center gap-2">
+
                 <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
                   <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
@@ -376,6 +428,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openOrder(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
+                      {canConfirmCashPayment(r) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)} title="Cobré el efectivo"><Banknote className="w-4 h-4" /></Button>
+                      )}
+
                       <Button variant="ghost" size="icon" className="h-8 w-8 bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => printOne(r)} disabled={printing} title="Etiqueta con QR"><QrCode className="w-4 h-4" /></Button>
                       <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
                         <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
@@ -403,6 +459,15 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
               <Button onClick={() => printOne(selected)} disabled={printing} className="w-full gap-2">
                 <QrCode className="w-4 h-4" /> Imprimir etiqueta
               </Button>
+              {canConfirmCashPayment(selected) && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                  <p className="text-xs text-amber-200">Este pedido se paga en efectivo y todavía no está cobrado.</p>
+                  <Button className="w-full gap-2" disabled={cobrando === selected.id} onClick={() => confirmarEfectivo(selected)}>
+                    <Banknote className="w-4 h-4" /> Cobré el efectivo
+                  </Button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{nombreCliente(selected)}</div></div>
                 <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{selected.customer_email || "—"}</div></div>

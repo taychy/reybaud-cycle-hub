@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
     const observaciones = String(body?.observaciones || "").trim().slice(0, 500);
     const variante = (body?.variante && typeof body.variante === "object") ? body.variante : {};
     const optIn = body?.opt_in_marketing !== false;
+    const metodoPago = String(body?.metodo_pago || "mp") === "efectivo" ? "efectivo" : "mp";
+
 
     if (!UUID_RE.test(productId)) return json({ error: "Producto inválido" }, 400);
     if (nombre.length < 3) return json({ error: "Ingresá tu nombre y apellido" }, 400);
@@ -142,8 +144,9 @@ Deno.serve(async (req) => {
         customer_phone: telefono,
         total: totalArs,
         currency: "ARS",
-        status: "pendiente_pago",
-        metodo_pago: "mp",
+        status: metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago",
+        metodo_pago: metodoPago === "efectivo" ? "efectivo" : "mp",
+
         origen_registro: "tienda_publica",
         es_externo: !!product.es_externo,
         entrega_metodo: entrega,
@@ -209,9 +212,23 @@ Deno.serve(async (req) => {
       console.error("[create-public-store-order] marketing_contacts", e);
     }
 
+    // Efectivo: el pedido queda reservado y pendiente de cobro. No se crea
+    // ninguna preferencia ni movimiento de Mercado Pago.
+    if (metodoPago === "efectivo") {
+      return json({
+        order_id: order.id,
+        order_number: order.order_number,
+        total_ars: totalArs,
+        fx_rate: fxRate,
+        metodo_pago: "efectivo",
+        cash_pending: true,
+      });
+    }
+
     // Preferencia MP
     const cuenta = await resolveCuentaMP(supabase, { unidad_negocio: "tienda" });
     if (!cuenta.access_token) return json({ error: "Pagos no disponibles por el momento" }, 500);
+
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const prefRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
