@@ -1,69 +1,50 @@
-# Caso Agustina Leguizamon — auditoría (solo lectura)
+# Por qué la cuota de septiembre de Agustina figura en $0 — auditoría (solo lectura)
 
-No se modificó nada: ni datos, ni código, ni configuración.
+No se cambió nada: ni datos, ni código, ni configuración.
 
-## Quién es
+## El recorrido real del caso
 
-- Agustina Leguizamon, `b775372a-b4b5-4a92-90b5-bcc60ece0f39`, mail `agusleguizamon1@gmail.com`, usuario vinculado correcto, estado activo, grupo G2.
-- No hay ficha duplicada. Las otras "Agustina/Agostina" del sistema son personas distintas (Mastronardi, Fanelli Evans).
+1. **01/09 19:32** se crea la cuota de septiembre de Agustina (Pase Libre, 01/09–30/09, $83.500), como intento de pago por Mercado Pago: queda en estado "pendiente", sin número de operación y con código de error 400 en el intento (`suscripciones.5567e46d-…`).
+2. **03/09 21:36** entra a la cuenta de Mercado Pago una **transferencia por CVU de $83.500** (operación 176157800685). En el registro figura: sin referencia externa, sin nombre de quien paga, mail genérico `cobrosreybaud@gmail.com`, descripción "Bank Transfer". **No hay ningún dato que la conecte con Agustina ni con su cuota.**
+3. **04/09 06:00** el proceso automático `cleanup-pending-subscriptions` anula la cuota: busca cuotas "pendiente" + método mercadopago + sin número de operación + creadas hace más de 48 h, y las cancela con el motivo "Pago no confirmado por Mercado Pago (timeout 48h)". La cuota de agosto ya había caído igual el 03/09.
+4. Como la cuenta corriente (`vw_cuenta_corriente_movimientos`) **excluye toda cuota anulada**, desaparecieron a la vez el cargo y cualquier rastro del pago. Por eso se ve Cargos $0 y sólo quedan el crédito de $7.208 (13/07) y una reserva de evento sin importe.
 
-## Lo más importante
+## Causa raíz
 
-**Hoy Agustina NO tiene ninguna cuota vigente y septiembre NO está pagado.** Las cinco cuotas que existen en su historial están todas anuladas:
+Es una **combinación de desacople y automatización destructiva**, no un filtro de UI caprichoso ni un error de cálculo:
 
-| Período | Plan | Precio | Estado |
-|---|---|---|---|
-| 09/06–30/06 | Pista | 87.238 | anulada 01/09 "error en la carga" (sí tenía pago MP aprobado) |
-| 01/07–31/07 | Grupal 1x semana | 58.400 | anulada 04/08, baja de agosto |
-| 01/08–31/08 | Pase Libre | 83.500 | anulada 03/09 automáticamente: "Pago no confirmado por Mercado Pago (timeout 48h)" |
-| 01/09–30/09 | Pase Libre | 83.500 | anulada hoy 04/09 a las 06:00, mismo motivo automático |
-| 01/09–30/09 | Pase Libre (carga manual) | sin precio | anulada 01/09 "Plan removido por admin" |
+- **Desacople suscripción ↔ cuenta corriente.** No existe una tabla de cargos propia: el cargo mensual *es* la fila de la suscripción, derivada en vivo por la vista. Si la suscripción se anula, el cargo desaparece retroactivamente. No hay asiento que sobreviva.
+- **El automatismo de limpieza borra deuda legítima.** `cleanup-pending-subscriptions` fue pensado para eliminar intentos de pago abandonados, pero no distingue "intento zombi" de "cuota real impaga". A las 48 h elimina el cargo del mes en vez de dejarlo como deuda.
+- **El pago no se pudo conciliar solo** porque las transferencias por CVU llegan sin referencia ni identidad del pagador; el webhook sólo vincula automáticamente cuando hay `external_reference` o número de operación en la suscripción.
 
-La pantalla que vio el usuario (activa, Mercado Pago, 83.500) es de **antes de las 06:00 de hoy**: la cuota estaba creada como intento de pago, nunca se confirmó, y el proceso automático la anuló esta madrugada.
+Resultado: período creado, pago realmente recibido en la cuenta, y ni cargo ni pago reflejados. **Confianza: alta** para los puntos 1–4 y para el mecanismo de anulación; **media** para afirmar que esa transferencia del 03/09 es de Agustina (coincide monto y fecha, pero no hay dato identificatorio).
 
-## ¿Hay un pago real de 83.500 de ella?
+## Piezas concretas del flujo
 
-No. Revisado todo Mercado Pago:
-- Ningún movimiento tiene su nombre, su mail ni referencia a "Leguizamon".
-- Su cuota de septiembre nunca tuvo identificador de pago; quedó con código de error 400 (pago rechazado/no completado).
-- Sí hay una transferencia de 83.500 del 03/09 sin dueño asignado (mail genérico de cobros), pero **no hay evidencia de que sea de ella**; no se puede afirmar sin comprobante.
+| Pieza | Dónde | Qué hace |
+|---|---|---|
+| Anulación automática 48 h | `supabase/functions/cleanup-pending-subscriptions/index.ts` | cancela pendientes de Mercado Pago sin operación |
+| Cuenta corriente | vista `vw_cuenta_corriente_movimientos` + `get_saldo_alumno` | ignora cuotas anuladas (cargo y pago) |
+| Ingesta/conciliación MP | `mp_account_movements`, pantalla Admin > Mercado Pago (`MpMovementsTab.tsx`) | lista movimientos y permite asignarlos a mano |
+| "Generar mensualidad y aplicar" | `assign_mp_movement_to_new_suscripcion` | crea la cuota del mes ya pagada con ese movimiento |
+| Reparto entre alumnos | `crear_suscripcion_para_imputar` + `split_mp_movement_among_alumnos` | genera cuotas y divide un pago |
+| Saldo a favor | `cuenta_ajustes` (crédito $7.208, nunca aplicado) y `cuenta_publica_consume_credit` | el crédito sólo se descuenta cuando alguien paga con el link público |
 
-Aclaración: sí pagó realmente en junio (87.238, pago Mercado Pago aprobado) — esa cuota fue anulada a mano el 01/09 como "error en la carga", y por eso desapareció de la cuenta corriente aunque el dinero entró. Esa cuota además figura como "cobrada sin factura emitida" en la vista de inconsistencias.
+## Duplicados: el riesgo está contenido
 
-## Por qué la cuenta corriente sólo muestra 2 movimientos
+- Índice único `uniq_sub_activa_alumno_plan_periodo` y validación previa en la función de "generar mensualidad" (`subscription_already_exists_for_period`) impiden dos cuotas vivas del mismo plan y mes.
+- La función también rechaza reutilizar un movimiento ya vinculado a otra cuota u otro alumno.
+- **Pero**: como las anuladas no cuentan para el índice, generar la mensualidad ahora crearía una cuota nueva de septiembre y quedaría la vieja anulada al lado, con el mismo importe. No es un cobro doble, sí es ruido histórico.
+- El saldo a favor de $7.208 no se aplica solo: si se genera la cuota y se le imputa el pago completo, el crédito sigue intacto y podría contarse de nuevo más adelante.
 
-La cuenta corriente se arma con `vw_cuenta_corriente_movimientos`, que **excluye por completo toda cuota anulada** (cargo y pago). Como las cinco cuotas de Agustina están anuladas, no queda ni un cargo ni un pago de escuela. Sobreviven solamente:
-1. el ajuste de crédito de 7.208 del 13/07 ("saldo a cuenta error del pago del plan de junio"), y
-2. la reserva del evento Record de la Hora del 10/05, sin importe cargado (`amount_total` vacío), por eso aparece en $0.
+## Rutas que permiten "período activo sin cargo"
 
-O sea: la cuenta corriente no está "omitiendo suscripciones activas" por un filtro raro. Está reflejando fielmente que hoy no hay ninguna cuota vigente. El agujero real es de datos, no de la vista.
+1. Cuota pendiente por Mercado Pago que supera 48 h → anulada, cargo evaporado (el caso).
+2. Anulación manual de una cuota que sí tuvo pago (le pasó en junio: pago aprobado de $87.238, cuota anulada el 01/09 como "error en la carga"; hoy figura como cobrada sin factura).
+3. Transferencias/CVU sin referencia que quedan sin dueño (hay varias sin asignar en la cuenta).
 
-## El saldo a favor de 7.208
+## Situación de fondo
 
-- Ajuste `1a89bdfa-…`, crédito de 7.208 ARS, cargado el 13/07 por un admin.
-- Nunca fue aplicado a ninguna deuda (`aplicado_a_fuente_tabla` vacío) y no hay imputaciones registradas para ella.
-- No aparece en `vw_pagos_disponibles`, así que no hay riesgo de doble saldo por ahí; el crédito sólo vive en el ajuste.
-- Sigue disponible: el saldo real a favor hoy es **7.208 ARS**, y no hay deuda registrada en contra porque el cargo de septiembre se anuló junto con la cuota.
+Hoy Agustina tiene cero cuotas vivas, saldo real **$7.208 a favor** y ninguna deuda registrada, pese a que septiembre está sin cobrar formalmente. Hay 38 alumnos activos sin ninguna cuota vigente, que conviene revisar con la misma lupa.
 
-## Alcance: ¿pasa en más casos?
-
-- La anulación automática por "timeout 48h" afectó sólo 3 cuotas en total: 2 de Agustina y 1 antigua de una cuenta de prueba. No es masivo hoy, pero el mecanismo puede borrar del historial financiero cualquier cuota que un alumno intente pagar y no complete.
-- Hay **38 alumnos activos sin ninguna cuota vigente** — mismo síntoma potencial (ficha activa, cuenta corriente vacía). Vale revisarlos en conjunto.
-- Riesgo sistémico de fondo: al anular una cuota se borra también su rastro contable, incluso cuando hubo plata cobrada (caso junio de Agustina). El dinero cobrado queda sin cargo ni pago asociados.
-
-## Comparación con alumnos normales
-
-Los alumnos con Pase Libre de septiembre bien reflejados (por ejemplo Teresa Cancinos, Aldo Chaves, Laura Palermo) tienen todos un movimiento de Mercado Pago aprobado por 83.500 vinculado a su cuota, con descripción "Plan Pase Libre Mensual". Agustina no tiene ninguno: esa es la única diferencia de datos.
-
-## Conclusión
-
-- Septiembre: **no pagado**, y actualmente sin cuota vigente.
-- Saldo real: **7.208 ARS a favor**, sin deuda registrada (pero con la cuota de septiembre pendiente de generarse si va a seguir).
-- Causa raíz: intentó pagar por Mercado Pago, el pago nunca se acreditó, y el proceso automático anuló la cuota; como la cuenta corriente ignora cuotas anuladas, no queda rastro de cargo ni de pago.
-- Causa secundaria: la cuota de junio, que sí se cobró, fue anulada a mano y con ello se perdió su registro contable.
-
-## Corrección mínima sugerida (no ejecutada)
-
-1. Confirmar con ella si pagó septiembre; si aparece el comprobante, identificar la transferencia de 83.500 del 03/09 y vincularla a una cuota de septiembre nueva.
-2. Si no pagó: volver a generar la cuota de septiembre para que quede el cargo, y aplicar los 7.208 a favor.
-3. Aparte, revisar los 38 alumnos activos sin cuota vigente y decidir si conviene que la cuenta corriente muestre las cuotas anuladas que tuvieron plata cobrada, en vez de ocultarlas.
+No propongo cambios en esta pasada, según lo pedido.
