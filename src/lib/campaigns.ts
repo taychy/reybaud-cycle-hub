@@ -1,7 +1,8 @@
 /**
  * Campañas comerciales de Tienda.
  *
- * La fuente de verdad del precio efectivo es la función SQL `resolver_precio_tienda`.
+ * La fuente de verdad del precio efectivo es SQL: `resolver_precio_tienda` para display
+ * genérico y `resolver_precio_tienda_por_pago` para el cobro condicionado por forma de pago.
  * Estas utilidades replican exactamente esa lógica para poder mostrar precios en la UI
  * (y testearla), pero el cobro SIEMPRE se resuelve/valida en el backend.
  */
