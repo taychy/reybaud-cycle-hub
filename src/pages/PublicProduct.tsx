@@ -65,7 +65,7 @@ const PublicProduct = () => {
       p_variante: selectedVariant,
       p_metodo_pago: null,
     }).then(({ data }: any) => {
-      if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
+      if (!cancelled) setEffectivePrice((data?.[0] as any as EffectivePrice) || null);
     });
     return () => { cancelled = true; };
   }, [p?.id, JSON.stringify(selectedVariant)]);
