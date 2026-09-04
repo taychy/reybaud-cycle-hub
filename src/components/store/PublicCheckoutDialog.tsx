@@ -109,11 +109,16 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
   useEffect(() => {
     if (!product || !open) return;
     let cancelled = false;
-    supabase.rpc("resolver_precio_tienda", { p_product_id: product.id, p_variante: variante }).then(({ data }) => {
+    // El precio depende de la forma de pago: se recalcula con el mismo criterio que usa el backend.
+    (supabase.rpc as any)("resolver_precio_tienda_por_pago", {
+      p_product_id: product.id,
+      p_variante: variante,
+      p_metodo_pago: metodoPago,
+    }).then(({ data }: any) => {
       if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
     });
     return () => { cancelled = true; };
-  }, [open, product?.id, JSON.stringify(variante)]);
+  }, [open, product?.id, JSON.stringify(variante), metodoPago]);
 
   if (!product) return null;
 
@@ -305,6 +310,11 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
               <span className="text-sm text-muted-foreground">Total{effectivePrice?.descuento_pct ? ` · -${effectivePrice.descuento_pct}%` : ""}</span>
               <span className="text-lg font-heading font-bold text-primary">{formatPrice(total, moneda)}</span>
             </div>
+            {unitPrice < listPrice && (
+              <p className="text-[11px] text-muted-foreground">
+                Precio con {metodoPago === "efectivo" ? "pago en efectivo" : "Mercado Pago"}.
+              </p>
+            )}
             {effectivePrice?.badge_texto && <p className="text-[11px] text-primary">{effectivePrice.badge_texto}</p>}
             {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-[11px] text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
           </div>
