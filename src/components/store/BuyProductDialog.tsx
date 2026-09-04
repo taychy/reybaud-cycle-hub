@@ -77,16 +77,17 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     let cancelled = false;
     setPriceLoading(true);
     setEffectivePrice(null);
-    void supabase.rpc("resolver_precio_tienda", {
+    void (supabase.rpc as any)("resolver_precio_tienda_por_pago", {
       p_product_id: product.id,
       p_variante: variante,
-    }).then(({ data }) => {
+      p_metodo_pago: metodoPago,
+    }).then(({ data }: any) => {
       if (!cancelled) setEffectivePrice(data?.[0] || null);
     }).then(() => {
       if (!cancelled) setPriceLoading(false);
     });
     return () => { cancelled = true; };
-  }, [open, product?.id, JSON.stringify(variante)]);
+  }, [open, product?.id, JSON.stringify(variante), metodoPago]);
 
   if (!product) return null;
 
