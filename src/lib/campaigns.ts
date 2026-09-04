@@ -160,6 +160,8 @@ export const resolveEffectivePrice = (
     mostrar_urgencia: win.it.campaign.mostrar_urgencia,
     fecha_fin: win.it.campaign.fecha_fin,
     solo_variantes: win.it.variant_keys !== null,
+    medios_pago: normalizeMediosPago(win.it.campaign.medios_pago),
+
   };
 };
 
