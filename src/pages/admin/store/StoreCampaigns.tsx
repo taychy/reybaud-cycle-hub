@@ -134,8 +134,19 @@ const StoreCampaigns = () => {
       activa: false,
       badge_texto: "",
       mostrar_urgencia: true,
+      medios_pago: ["mp", "efectivo"],
     });
     setFormOpen(true);
+  };
+
+  const formMedios = normalizeMediosPago(form.medios_pago);
+
+  const toggleMedio = (m: CampaignPaymentMethod) => {
+    setForm((f) => {
+      const actuales = normalizeMediosPago(f.medios_pago);
+      const next = actuales.includes(m) ? actuales.filter((x) => x !== m) : [...actuales, m];
+      return { ...f, medios_pago: next };
+    });
   };
 
   const saveCampaign = async () => {
@@ -147,6 +158,11 @@ const StoreCampaigns = () => {
       toast({ title: "Fechas inválidas", description: "La fecha de fin debe ser posterior al inicio.", variant: "destructive" });
       return;
     }
+    const medios = (form.medios_pago || []).filter((m) => m === "mp" || m === "efectivo");
+    if (!medios.length) {
+      toast({ title: "Elegí una forma de pago", description: "La campaña tiene que aplicar al menos a Mercado Pago o a Efectivo.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const payload: any = {
       nombre: form.nombre,
@@ -156,6 +172,7 @@ const StoreCampaigns = () => {
       activa: form.activa ?? false,
       badge_texto: form.badge_texto || null,
       mostrar_urgencia: form.mostrar_urgencia ?? false,
+      medios_pago: medios,
     };
     let error;
     if (form.id) {
@@ -173,6 +190,13 @@ const StoreCampaigns = () => {
     toast({ title: "Campaña guardada" });
     load();
   };
+
+  const toggleActiva = async (c: CampaignRow) => {
+    const { error } = await supabase.from("store_campaigns").update({ activa: !c.activa }).eq("id", c.id);
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    load();
+  };
+
 
   const toggleActiva = async (c: CampaignRow) => {
     const { error } = await supabase.from("store_campaigns").update({ activa: !c.activa }).eq("id", c.id);
