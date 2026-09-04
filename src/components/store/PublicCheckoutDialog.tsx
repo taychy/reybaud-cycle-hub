@@ -282,16 +282,44 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
             {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-[11px] text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
           </div>
 
-          {moneda !== "ARS" && (
+          {moneda !== "ARS" && metodoPago === "mp" && (
             <p className="text-[11px] text-muted-foreground -mt-1">
               El pago se cobra en pesos argentinos, convertido al tipo de cambio vigente de la tienda.
             </p>
           )}
 
+          <div className="space-y-1">
+            <Label className="text-xs">Forma de pago</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setMetodoPago("mp")}
+                className={`flex items-center gap-2 rounded-lg border p-2 text-xs ${metodoPago === "mp" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+              >
+                <CreditCard className="w-3.5 h-3.5" /> Mercado Pago
+              </button>
+              <button
+                type="button"
+                onClick={() => setMetodoPago("efectivo")}
+                className={`flex items-center gap-2 rounded-lg border p-2 text-xs ${metodoPago === "efectivo" ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}
+              >
+                <Banknote className="w-3.5 h-3.5" /> Efectivo
+              </button>
+            </div>
+            {metodoPago === "efectivo" && (
+              <p className="text-[11px] text-muted-foreground">
+                {entrega === "moto"
+                  ? "Tu pedido queda reservado y lo pagás en efectivo al recibirlo. La compra se confirma cuando registramos el pago."
+                  : "Tu pedido queda reservado y lo pagás en efectivo al retirarlo. La compra se confirma cuando registramos el pago."}
+              </p>
+            )}
+          </div>
+
           <Button className="w-full" disabled={loading || (stockDisp != null && stockDisp <= 0)} onClick={submit}>
-            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CreditCard className="w-4 h-4 mr-2" />}
-            Pagar con Mercado Pago
+            {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : metodoPago === "efectivo" ? <Banknote className="w-4 h-4 mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
+            {metodoPago === "efectivo" ? "Reservar y pagar en efectivo" : "Pagar con Mercado Pago"}
           </Button>
+
         </div>
       </DialogContent>
     </Dialog>
