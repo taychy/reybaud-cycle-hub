@@ -11,6 +11,18 @@ import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpError
 
 const PRODUCTION_ORIGIN = "https://reybaud-app.com";
 const ROLE_CHECK_TIMEOUT_MS = 7000;
+const SEND_OTP_TIMEOUT_MS = 10000;
+const CONNECTION_ERROR_MESSAGE =
+  "No pudimos conectarnos para enviar el código. Probá de nuevo en un minuto.";
+
+/** Evita que una petición colgada deje el botón en "Enviando..." para siempre. */
+const withTimeout = <T, F>(promise: PromiseLike<T>, fallback: F): Promise<T | F> =>
+  Promise.race([
+    Promise.resolve(promise),
+    new Promise<F>((resolve) => {
+      window.setTimeout(() => resolve(fallback), SEND_OTP_TIMEOUT_MS);
+    }),
+  ]);
 
 const checkAppRole = async (userId: string, role: "admin" | "coach" | "deposito") => {
   try {
@@ -168,53 +180,73 @@ const AdminLogin = () => {
       const trimmedEmail = email.toLowerCase().trim();
       if (!trimmedEmail) {
         setError("Ingresá tu email.");
-        setLoading(false);
         return;
       }
 
       if (!canRequestOtpAgain("staff", trimmedEmail)) {
-        setLoading(false);
+        setError("Ya pedimos un código hace unos segundos. Esperá un momento y volvé a intentar.");
         return;
       }
 
-    const { data: isValidEmail } = await supabase.rpc("check_admin_or_coach_email" as any, {
-      _email: trimmedEmail,
-    });
+      const { data: isValidEmail } = await withTimeout(
+        supabase.rpc("check_admin_or_coach_email" as any, { _email: trimmedEmail }),
+        { data: null as any },
+      );
 
-    if (!isValidEmail) {
-      setError("No se encontró una cuenta de staff con ese email. Si sos alumno, ingresá desde el login principal.");
-      setLoading(false);
-      return;
-    }
+      if (isValidEmail === null) {
+        setError(CONNECTION_ERROR_MESSAGE);
+        return;
+      }
 
-    const { error: otpError } = await supabase.auth.signInWithOtp({
-      email: trimmedEmail,
-      options: {
-        emailRedirectTo: `${PRODUCTION_ORIGIN}/auth/callback`,
-      },
-    });
+      if (!isValidEmail) {
+        setError("No se encontró una cuenta de staff con ese email. Si sos alumno, ingresá desde el login principal.");
+        return;
+      }
 
-    if (otpError) {
-      console.warn("OTP request failed", {
-        code: otpError.code,
-        status: otpError.status,
-        message: otpError.message,
+      const otpResult = await withTimeout(
+        supabase.auth.signInWithOtp({
+          email: trimmedEmail,
+          options: {
+            emailRedirectTo: `${PRODUCTION_ORIGIN}/auth/callback`,
+          },
+        }),
+        { timedOut: true } as const,
+      );
+
+      if ("timedOut" in otpResult) {
+        setError(CONNECTION_ERROR_MESSAGE);
+        return;
+      }
+
+      const { error: otpError } = otpResult;
+
+      if (otpError) {
+        console.warn("OTP request failed", {
+          code: otpError.code,
+          status: otpError.status,
+          message: otpError.message,
+          at: new Date().toISOString(),
+        });
+        setError(otpError.message || "Error al enviar el código.");
+        return;
+      }
+
+      savePendingOtpState({ email: trimmedEmail, returnTo, context: "staff" });
+      setOtpReturnTo(returnTo);
+      setLinkSent(true);
+      toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
+    } catch (err) {
+      console.warn("OTP request threw", {
+        message: (err as { message?: string } | null)?.message,
         at: new Date().toISOString(),
       });
-      setError(otpError.message || "Error al enviar el código.");
-      setLoading(false);
-      return;
-    }
-
-    savePendingOtpState({ email: trimmedEmail, returnTo, context: "staff" });
-    setOtpReturnTo(returnTo);
-    setLinkSent(true);
-    setLoading(false);
-    toast.success("Código de acceso enviado. Revisá tu bandeja de entrada.");
+      setError(CONNECTION_ERROR_MESSAGE);
     } finally {
+      setLoading(false);
       finishOtpRequest();
     }
   };
+
 
   if (checkingSession) {
     return (
