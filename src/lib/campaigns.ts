@@ -200,7 +200,7 @@ export const urgencyText = (fechaFin: string | null, now: Date = new Date()): st
   return `Hasta ${dd}/${mm}`;
 };
 
-/** Fila devuelta por el RPC `get_promos_tienda_vigentes`. */
+/** Fila devuelta por los RPC `get_promos_tienda_vigentes[_por_pago]`. */
 export interface PromoRow {
   product_id: string;
   precio_lista: number;
@@ -212,7 +212,21 @@ export interface PromoRow {
   mostrar_urgencia: boolean;
   fecha_fin: string | null;
   solo_variantes: boolean;
+  /** Sólo lo devuelve el RPC por pago. Ausente = ambos medios. */
+  medios_pago?: string[] | null;
 }
+
+/**
+ * Resumen honesto para vitrina cuando todavía no se eligió forma de pago.
+ * Devuelve el texto de condición cuando la promo aplica a un solo medio.
+ */
+export const promoPaymentNote = (row: Pick<PromoRow, "medios_pago"> | null | undefined): string | null => {
+  if (!row) return null;
+  const medios = normalizeMediosPago(row.medios_pago);
+  if (medios.length === CAMPAIGN_PAYMENT_METHODS.length) return null;
+  return `pagando con ${CAMPAIGN_PAYMENT_LABEL[medios[0]]}`;
+};
+
 
 export const promoMap = (rows: PromoRow[] | null | undefined): Record<string, PromoRow> => {
   const map: Record<string, PromoRow> = {};
