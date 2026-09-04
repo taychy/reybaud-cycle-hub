@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
     const observaciones = String(body?.observaciones || "").trim().slice(0, 500);
     const variante = (body?.variante && typeof body.variante === "object") ? body.variante : {};
     const optIn = body?.opt_in_marketing !== false;
+    const metodoPago = String(body?.metodo_pago || "mp") === "efectivo" ? "efectivo" : "mp";
+
 
     if (!UUID_RE.test(productId)) return json({ error: "Producto inválido" }, 400);
     if (nombre.length < 3) return json({ error: "Ingresá tu nombre y apellido" }, 400);
