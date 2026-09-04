@@ -790,6 +790,7 @@ export type Database = {
           provincia: string | null
           reactivada_at: string | null
           reactivada_por_user_id: string | null
+          recibe_entrenamientos_email: boolean
           registration_status: string
           saldo_a_favor: number
           sede_id: string | null
@@ -861,6 +862,7 @@ export type Database = {
           provincia?: string | null
           reactivada_at?: string | null
           reactivada_por_user_id?: string | null
+          recibe_entrenamientos_email?: boolean
           registration_status?: string
           saldo_a_favor?: number
           sede_id?: string | null
@@ -932,6 +934,7 @@ export type Database = {
           provincia?: string | null
           reactivada_at?: string | null
           reactivada_por_user_id?: string | null
+          recibe_entrenamientos_email?: boolean
           registration_status?: string
           saldo_a_favor?: number
           sede_id?: string | null
@@ -12624,6 +12627,79 @@ export type Database = {
         }
         Relationships: []
       }
+      weekly_training_email_sends: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          entrenamientos_count: number
+          enviado_por: string | null
+          error_message: string | null
+          grupo: string | null
+          id: string
+          message_id: string | null
+          modo: string
+          recipient_email: string | null
+          semana_fin: string
+          semana_inicio: string
+          status: string
+          subject: string | null
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          entrenamientos_count?: number
+          enviado_por?: string | null
+          error_message?: string | null
+          grupo?: string | null
+          id?: string
+          message_id?: string | null
+          modo: string
+          recipient_email?: string | null
+          semana_fin: string
+          semana_inicio: string
+          status?: string
+          subject?: string | null
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          entrenamientos_count?: number
+          enviado_por?: string | null
+          error_message?: string | null
+          grupo?: string | null
+          id?: string
+          message_id?: string | null
+          modo?: string
+          recipient_email?: string | null
+          semana_fin?: string
+          semana_inicio?: string
+          status?: string
+          subject?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_training_email_sends_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_training_email_sends_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "weekly_training_email_sends_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
+      }
       whatsapp_check_extras: {
         Row: {
           alumno_id: string | null
@@ -14701,6 +14777,21 @@ export type Database = {
           moneda: string
           monto: number
           ref_id: string
+        }[]
+      }
+      get_entrenamientos_semana_alumno: {
+        Args: { _alumno_id: string; _desde: string; _hasta: string }
+        Returns: {
+          descripcion: string
+          fecha: string
+          grupo: Database["public"]["Enums"]["grupo_ciclismo"]
+          id: string
+          intensidad: string
+          link_archivo: string
+          resistencia: string
+          tecnica: string
+          tipo: Database["public"]["Enums"]["tipo_entrenamiento"]
+          titulo: string
         }[]
       }
       get_event_pnl: {
