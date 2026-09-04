@@ -7,3 +7,5 @@
 
 ## Admin > Alumnos · Filtros agrupados (UI)
 - [x] Chips primarios (Todos/Activos/Pendientes/Vencidos/Nuevos) + menús Estado/Acceso/Plan/Calidad de datos
+
+- [x] Entrenamientos semanales por email: preferencia por alumno (OFF por defecto), envío manual con vista previa y cron dominical 18:00 AR (21:00 UTC). Fuente única: RPC get_entrenamientos_semana_alumno + helper src/lib/weeklyTraining.ts.

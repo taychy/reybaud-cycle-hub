@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { applyTrainingScope } from "@/lib/weeklyTraining";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -39,11 +40,8 @@ export const StudentProgressContent = () => {
       .lte("fecha", toDate)
       .order("fecha", { ascending: false });
 
-    if (grp === "Personalizado" || grp === "Aspirantes") {
-      trainingsQuery = trainingsQuery.eq("alumno_id", aId);
-    } else {
-      trainingsQuery = trainingsQuery.eq("grupo", grp as any).is("alumno_id", null);
-    }
+    trainingsQuery = applyTrainingScope(trainingsQuery, grp, aId);
+
 
 
     const { data: entrenamientos } = await trainingsQuery;

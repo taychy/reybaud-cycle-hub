@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
+import { applyTrainingScope } from "@/lib/weeklyTraining";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal, AlertTriangle, Lock } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
@@ -189,11 +190,8 @@ const StudentDashboard = () => {
         .eq("visible", true)
         .order("fecha", { ascending: true });
 
-      if (alumnoData.grupo === "Personalizado" || alumnoData.grupo === "Aspirantes") {
-        trainingsQuery = trainingsQuery.eq("alumno_id", alumnoData.id);
-      } else {
-        trainingsQuery = trainingsQuery.eq("grupo", alumnoData.grupo).is("alumno_id", null);
-      }
+      trainingsQuery = applyTrainingScope(trainingsQuery, alumnoData.grupo, alumnoData.id);
+
 
       const { data: trainings, error } = await trainingsQuery;
 

@@ -47,6 +47,8 @@ import { MedicalCertificateSection } from "@/components/admin/MedicalCertificate
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
 import { StudentNotesSection } from "@/components/admin/StudentNotesSection";
+import { StudentWeeklyEmailSection } from "@/components/admin/StudentWeeklyEmailSection";
+
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
@@ -1876,6 +1878,18 @@ const ManageStudents = () => {
                     <Separator />
                     <StudentNotesSection alumnoId={drawerAlumno.id} />
                     <Separator />
+
+                    {/* Entrenamientos por email */}
+                    <StudentWeeklyEmailSection
+                      alumno={drawerAlumno as any}
+                      canEdit={true}
+                      onAlumnoUpdate={(patch) => {
+                        setDrawerAlumno({ ...drawerAlumno, ...patch } as any);
+                        setAlumnos(prev => prev.map(al => al.id === drawerAlumno.id ? ({ ...al, ...patch } as any) : al));
+                      }}
+                    />
+                    <Separator />
+
 
                     {/* Activity Log */}
                     <StudentActivityLog alumnoId={drawerAlumno.id} />
