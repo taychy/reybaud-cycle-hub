@@ -424,8 +424,9 @@ const StoreProducts = () => {
                     const mismo = mp && ef && Number(mp.precio_efectivo) === Number(ef.precio_efectivo) && mp.campaign_id === ef.campaign_id;
                     const linea = (row: PromoRow, medio: string) => (
                       <p key={medio} className="text-[11px] text-primary">
-                        {medio}: ${Number(row.precio_efectivo).toLocaleString("es-AR")} (-{row.descuento_pct}%) · {row.campaign_nombre}
-                        {row.solo_variantes ? " · Promo en variantes seleccionadas" : ""}
+                        {row.solo_variantes
+                          ? `${medio}: promo en variantes seleccionadas (-${row.descuento_pct}%) · ${row.campaign_nombre}`
+                          : `${medio}: $${Number(row.precio_efectivo).toLocaleString("es-AR")} (-${row.descuento_pct}%) · ${row.campaign_nombre}`}
                       </p>
                     );
                     return (
