@@ -39,11 +39,8 @@ export const StudentProgressContent = () => {
       .lte("fecha", toDate)
       .order("fecha", { ascending: false });
 
-    if (grp === "Personalizado" || grp === "Aspirantes") {
-      trainingsQuery = trainingsQuery.eq("alumno_id", aId);
-    } else {
-      trainingsQuery = trainingsQuery.eq("grupo", grp as any).is("alumno_id", null);
-    }
+    trainingsQuery = applyTrainingScope(trainingsQuery, grp, aId);
+
 
 
     const { data: entrenamientos } = await trainingsQuery;
