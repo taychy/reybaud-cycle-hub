@@ -1,45 +1,69 @@
-# Auditoría: Alejandro Najmanovich "pagué y no puedo entrar"
+# Caso Agustina Leguizamon — auditoría (solo lectura)
 
-Solo lectura. No se modificó código, base de datos ni configuración.
+No se modificó nada: ni datos, ni código, ni configuración.
 
-## Diagnóstico en una línea
+## Quién es
 
-Alejandro **sí pagó** (hoy, 4/9, $83.500 aprobado), pero ese pago entró por la cuenta de Mercado Pago externa (la de Claudio) y **quedó sin vincular a su cuota de septiembre**. Su cuota sigue marcada como "pendiente", y la app le muestra la pantalla de acceso limitado. **No es un problema de contraseña ni de login.**
+- Agustina Leguizamon, `b775372a-b4b5-4a92-90b5-bcc60ece0f39`, mail `agusleguizamon1@gmail.com`, usuario vinculado correcto, estado activo, grupo G2.
+- No hay ficha duplicada. Las otras "Agustina/Agostina" del sistema son personas distintas (Mastronardi, Fanelli Evans).
 
-## Qué encontré
+## Lo más importante
 
-**Su ficha (todo correcto)**
-- Alejandro Najmanovich, email `anajmanovich58@gmail.com`, estado **activo**, grupo **G2**.
-- Su usuario de acceso existe, con el **mismo email** que la ficha, correo confirmado, sin bloqueos y correctamente vinculado. Sin duplicados.
-- Último ingreso registrado: 30/7. No hay señales de problema de contraseña ni de alta incompleta.
+**Hoy Agustina NO tiene ninguna cuota vigente y septiembre NO está pagado.** Las cinco cuotas que existen en su historial están todas anuladas:
 
-**El pago**
-- 4/9/2026 12:08 — **$83.500 ARS, aprobado**, concepto "REYBAUD CLAUDIO GUSTAVO".
-- El importe coincide exacto con el precio de su plan de septiembre.
-- El pago quedó **asociado a Alejandro pero no a la cuota**: figura sin suscripción vinculada.
-- Mismo patrón en meses anteriores (julio y agosto), donde la cuota se resolvió a mano.
+| Período | Plan | Precio | Estado |
+|---|---|---|---|
+| 09/06–30/06 | Pista | 87.238 | anulada 01/09 "error en la carga" (sí tenía pago MP aprobado) |
+| 01/07–31/07 | Grupal 1x semana | 58.400 | anulada 04/08, baja de agosto |
+| 01/08–31/08 | Pase Libre | 83.500 | anulada 03/09 automáticamente: "Pago no confirmado por Mercado Pago (timeout 48h)" |
+| 01/09–30/09 | Pase Libre | 83.500 | anulada hoy 04/09 a las 06:00, mismo motivo automático |
+| 01/09–30/09 | Pase Libre (carga manual) | sin precio | anulada 01/09 "Plan removido por admin" |
 
-**Su cuota**
-- Septiembre (1 al 30), plan "Pase Libre Mensual", $83.500 → estado **pendiente** (además con una marca de error "400" del intento de pago por la app).
-- Agosto y julio: vencidas (fueron cobradas por fuera).
+La pantalla que vio el usuario (activa, Mercado Pago, 83.500) es de **antes de las 06:00 de hoy**: la cuota estaba creada como intento de pago, nunca se confirmó, y el proceso automático la anuló esta madrugada.
 
-**Por qué la app lo limita**
-La app decide el acceso mirando el estado de la cuota. Como la de septiembre está en "pendiente", cae en la regla de "mensualidad pendiente": puede entrar al inicio, pero **sin eventos, sin tienda, sin progreso y sin marcar entrenamientos**, con el cartel de pago pendiente. Para él eso se siente como "no puedo entrar".
+## ¿Hay un pago real de 83.500 de ella?
 
-**Clasificación:** caso **B** — inicia sesión, pero la app le restringe el acceso por estado de cuota. No es A (credenciales) ni C.
+No. Revisado todo Mercado Pago:
+- Ningún movimiento tiene su nombre, su mail ni referencia a "Leguizamon".
+- Su cuota de septiembre nunca tuvo identificador de pago; quedó con código de error 400 (pago rechazado/no completado).
+- Sí hay una transferencia de 83.500 del 03/09 sin dueño asignado (mail genérico de cobros), pero **no hay evidencia de que sea de ella**; no se puede afirmar sin comprobante.
 
-## No es un caso aislado
+Aclaración: sí pagó realmente en junio (87.238, pago Mercado Pago aprobado) — esa cuota fue anulada a mano el 01/09 como "error en la carga", y por eso desapareció de la cuenta corriente aunque el dinero entró. Esa cuota además figura como "cobrada sin factura emitida" en la vista de inconsistencias.
 
-Con el mismo patrón hoy hay **14 alumnos activos**: pago aprobado de septiembre por la cuenta externa, cuota de septiembre todavía en "pendiente". Entre ellos: Celuch, Lobbosco, Carlés, Ramirez, Fraser, Tapia, Blasco, Tempone, Graziuso, Pan, Iannicelli, Leis, Banchi. Todos están viendo la app limitada aunque pagaron.
+## Por qué la cuenta corriente sólo muestra 2 movimientos
 
-## Corrección mínima y segura (a confirmar antes de ejecutar)
+La cuenta corriente se arma con `vw_cuenta_corriente_movimientos`, que **excluye por completo toda cuota anulada** (cargo y pago). Como las cinco cuotas de Agustina están anuladas, no queda ni un cargo ni un pago de escuela. Sobreviven solamente:
+1. el ajuste de crédito de 7.208 del 13/07 ("saldo a cuenta error del pago del plan de junio"), y
+2. la reserva del evento Record de la Hora del 10/05, sin importe cargado (`amount_total` vacío), por eso aparece en $0.
 
-1. **Caso urgente:** vincular el pago del 4/9 a la cuota de septiembre de Alejandro y dejarla como paga. Acceso restablecido al instante, sin tocar su usuario ni su historial.
-2. **Los otros 13:** revisar uno por uno que importe y fecha coincidan con la cuota del mes, y aplicar el mismo vínculo. Solo donde la coincidencia sea exacta; el resto queda para revisión manual.
-3. **Causa de fondo (etapa siguiente, opcional):** los pagos cobrados por la cuenta externa no se imputan solos a la cuota. Conviene una pantalla de "pagos por imputar" con sugerencia automática por alumno + importe + mes, para que esto no se repita cada inicio de mes.
+O sea: la cuenta corriente no está "omitiendo suscripciones activas" por un filtro raro. Está reflejando fielmente que hoy no hay ninguna cuota vigente. El agujero real es de datos, no de la vista.
 
-Nada de esto borra ni altera pagos ni cuotas históricas: solo agrega el vínculo faltante.
+## El saldo a favor de 7.208
 
-## Lo que no puedo afirmar
+- Ajuste `1a89bdfa-…`, crédito de 7.208 ARS, cargado el 13/07 por un admin.
+- Nunca fue aplicado a ninguna deuda (`aplicado_a_fuente_tabla` vacío) y no hay imputaciones registradas para ella.
+- No aparece en `vw_pagos_disponibles`, así que no hay riesgo de doble saldo por ahí; el crédito sólo vive en el ajuste.
+- Sigue disponible: el saldo real a favor hoy es **7.208 ARS**, y no hay deuda registrada en contra porque el cargo de septiembre se anuló junto con la cuota.
 
-No tengo evidencia de que Alejandro haya intentado iniciar sesión hoy. Si además dice que "no le acepta el correo", habría que confirmarlo con captura del error; con los datos actuales, su cuenta está sana y lo único que falla es la cuota sin vincular.
+## Alcance: ¿pasa en más casos?
+
+- La anulación automática por "timeout 48h" afectó sólo 3 cuotas en total: 2 de Agustina y 1 antigua de una cuenta de prueba. No es masivo hoy, pero el mecanismo puede borrar del historial financiero cualquier cuota que un alumno intente pagar y no complete.
+- Hay **38 alumnos activos sin ninguna cuota vigente** — mismo síntoma potencial (ficha activa, cuenta corriente vacía). Vale revisarlos en conjunto.
+- Riesgo sistémico de fondo: al anular una cuota se borra también su rastro contable, incluso cuando hubo plata cobrada (caso junio de Agustina). El dinero cobrado queda sin cargo ni pago asociados.
+
+## Comparación con alumnos normales
+
+Los alumnos con Pase Libre de septiembre bien reflejados (por ejemplo Teresa Cancinos, Aldo Chaves, Laura Palermo) tienen todos un movimiento de Mercado Pago aprobado por 83.500 vinculado a su cuota, con descripción "Plan Pase Libre Mensual". Agustina no tiene ninguno: esa es la única diferencia de datos.
+
+## Conclusión
+
+- Septiembre: **no pagado**, y actualmente sin cuota vigente.
+- Saldo real: **7.208 ARS a favor**, sin deuda registrada (pero con la cuota de septiembre pendiente de generarse si va a seguir).
+- Causa raíz: intentó pagar por Mercado Pago, el pago nunca se acreditó, y el proceso automático anuló la cuota; como la cuenta corriente ignora cuotas anuladas, no queda rastro de cargo ni de pago.
+- Causa secundaria: la cuota de junio, que sí se cobró, fue anulada a mano y con ello se perdió su registro contable.
+
+## Corrección mínima sugerida (no ejecutada)
+
+1. Confirmar con ella si pagó septiembre; si aparece el comprobante, identificar la transferencia de 83.500 del 03/09 y vincularla a una cuota de septiembre nueva.
+2. Si no pagó: volver a generar la cuota de septiembre para que quede el cargo, y aplicar los 7.208 a favor.
+3. Aparte, revisar los 38 alumnos activos sin cuota vigente y decidir si conviene que la cuenta corriente muestre las cuotas anuladas que tuvieron plata cobrada, en vez de ocultarlas.
