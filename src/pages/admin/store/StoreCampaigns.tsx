@@ -15,11 +15,16 @@ import {
   applyCampaignItem,
   campaignStatus,
   CAMPAIGN_STATUS_LABEL,
+  CAMPAIGN_PAYMENT_LABEL,
+  mediosPagoLabel,
+  normalizeMediosPago,
   urgencyText,
   type CampaignDiscountType,
+  type CampaignPaymentMethod,
   type CampaignStatus,
   type StoreCampaign,
 } from "@/lib/campaigns";
+
 
 interface CampaignRow extends StoreCampaign {
   items_count?: number;
