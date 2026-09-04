@@ -212,9 +212,23 @@ Deno.serve(async (req) => {
       console.error("[create-public-store-order] marketing_contacts", e);
     }
 
+    // Efectivo: el pedido queda reservado y pendiente de cobro. No se crea
+    // ninguna preferencia ni movimiento de Mercado Pago.
+    if (metodoPago === "efectivo") {
+      return json({
+        order_id: order.id,
+        order_number: order.order_number,
+        total_ars: totalArs,
+        fx_rate: fxRate,
+        metodo_pago: "efectivo",
+        cash_pending: true,
+      });
+    }
+
     // Preferencia MP
     const cuenta = await resolveCuentaMP(supabase, { unidad_negocio: "tienda" });
     if (!cuenta.access_token) return json({ error: "Pagos no disponibles por el momento" }, 500);
+
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const prefRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
