@@ -428,6 +428,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   <td className="px-4 py-2">
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openOrder(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
+                      {canConfirmCashPayment(r) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)} title="Cobré el efectivo"><Banknote className="w-4 h-4" /></Button>
+                      )}
+
                       <Button variant="ghost" size="icon" className="h-8 w-8 bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => printOne(r)} disabled={printing} title="Etiqueta con QR"><QrCode className="w-4 h-4" /></Button>
                       <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
                         <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
