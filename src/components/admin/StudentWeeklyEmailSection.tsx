@@ -108,39 +108,7 @@ export function StudentWeeklyEmailSection({ alumno, canEdit, onAlumnoUpdate, dia
 
   const hasTrainings = (preview?.entrenamientos?.length ?? 0) > 0;
 
-  const dialog = ( className="text-sm font-semibold text-foreground flex items-center gap-2">
-        <Mail className="h-4 w-4" /> Entrenamientos por email
-      </h3>
-
-      {!emailOk && (
-        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
-          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
-          <span>Este alumno no tiene un email válido cargado. Agregá un email para poder enviarle los entrenamientos.</span>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
-        <div className="space-y-1">
-          <Label className="text-sm">Envío semanal automático</Label>
-          <p className="text-xs text-muted-foreground">
-            Los domingos a las 18:00 le enviamos por email los entrenamientos de la semana siguiente.
-          </p>
-          {enabled && <p className="text-xs text-primary">Próximo envío: domingo 18:00</p>}
-        </div>
-        <Switch checked={enabled} disabled={!canEdit || !emailOk || saving} onCheckedChange={toggle} />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <Button size="sm" variant="outline" disabled={!canEdit || !emailOk} onClick={() => setOpen(true)}>
-          <Send className="h-3.5 w-3.5 mr-1.5" /> Enviar entrenamientos ahora
-        </Button>
-        {ultimo && (
-          <Badge variant="secondary" className="text-[11px]">
-            Último envío: {new Date(ultimo.created_at).toLocaleDateString("es-AR")} ({ultimo.modo === "manual" ? "manual" : "automático"})
-          </Badge>
-        )}
-      </div>
-
+  const dialog = (
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
           <DialogHeader>
@@ -205,6 +173,47 @@ export function StudentWeeklyEmailSection({ alumno, canEdit, onAlumnoUpdate, dia
           </DialogFooter>
         </DialogContent>
       </Dialog>
+  );
+
+  if (dialogOnly) return dialog;
+
+  return (
+    <div className="space-y-3">
+
+      <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
+        <Mail className="h-4 w-4" /> Entrenamientos por email
+      </h3>
+
+      {!emailOk && (
+        <div className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
+          <AlertTriangle className="h-4 w-4 mt-0.5 shrink-0" />
+          <span>Este alumno no tiene un email válido cargado. Agregá un email para poder enviarle los entrenamientos.</span>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between gap-3 rounded-md border border-border p-3">
+        <div className="space-y-1">
+          <Label className="text-sm">Envío semanal automático</Label>
+          <p className="text-xs text-muted-foreground">
+            Los domingos a las 18:00 le enviamos por email los entrenamientos de la semana siguiente.
+          </p>
+          {enabled && <p className="text-xs text-primary">Próximo envío: domingo 18:00</p>}
+        </div>
+        <Switch checked={enabled} disabled={!canEdit || !emailOk || saving} onCheckedChange={toggle} />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button size="sm" variant="outline" disabled={!canEdit || !emailOk} onClick={() => setOpen(true)}>
+          <Send className="h-3.5 w-3.5 mr-1.5" /> Enviar entrenamientos ahora
+        </Button>
+        {ultimo && (
+          <Badge variant="secondary" className="text-[11px]">
+            Último envío: {new Date(ultimo.created_at).toLocaleDateString("es-AR")} ({ultimo.modo === "manual" ? "manual" : "automático"})
+          </Badge>
+        )}
+      </div>
+
+      {dialog}
     </div>
   );
 }
