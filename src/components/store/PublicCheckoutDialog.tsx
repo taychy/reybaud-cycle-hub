@@ -57,6 +57,9 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
   const [cantidad, setCantidad] = useState(1);
   const [variante, setVariante] = useState<Record<string, string>>(initialVariant);
   const [loading, setLoading] = useState(false);
+  const [metodoPago, setMetodoPago] = useState<"mp" | "efectivo">("mp");
+  const [cashOrder, setCashOrder] = useState<{ number: number | null } | null>(null);
+
   const [effectivePrice, setEffectivePrice] = useState<EffectivePrice | null>(null);
 
   useEffect(() => {
