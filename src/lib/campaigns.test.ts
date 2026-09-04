@@ -6,6 +6,10 @@ import {
   resolveEffectivePrice,
   urgencyText,
   promoMap,
+  normalizeMediosPago,
+  mediosPagoLabel,
+  aplicaATodosLosMedios,
+  promoPaymentNote,
   type StoreCampaign,
   type StoreCampaignItem,
 } from "./campaigns";
@@ -138,5 +142,71 @@ describe("promoMap", () => {
     const rows: any[] = [{ product_id: "p1", precio_efectivo: 100 }];
     expect(promoMap(rows).p1.precio_efectivo).toBe(100);
     expect(promoMap(null)).toEqual({});
+  });
+});
+
+describe("medios de pago", () => {
+  const campPago = (medios: string[] | null | undefined, over: Partial<StoreCampaign> = {}) =>
+    camp({ ...over, medios_pago: medios } as Partial<StoreCampaign>);
+
+  it("campaña sin campo (histórica) aplica a ambos medios", () => {
+    const it = { ...item(), campaign: camp() };
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "mp").precio_efectivo).toBe(8000);
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "efectivo").precio_efectivo).toBe(8000);
+    expect(normalizeMediosPago(undefined)).toEqual(["mp", "efectivo"]);
+    expect(normalizeMediosPago([])).toEqual(["mp", "efectivo"]);
+  });
+
+  it("campaña con ambos medios aplica siempre", () => {
+    const it = { ...item(), campaign: campPago(["mp", "efectivo"]) };
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "mp").precio_efectivo).toBe(8000);
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "efectivo").precio_efectivo).toBe(8000);
+  });
+
+  it("campaña sólo efectivo consultada con MP => precio de lista", () => {
+    const it = { ...item(), campaign: campPago(["efectivo"]) };
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "mp").precio_efectivo).toBe(10000);
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "mp").campaign_id).toBeNull();
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "efectivo").precio_efectivo).toBe(8000);
+  });
+
+  it("campaña sólo MP consultada con efectivo => precio de lista", () => {
+    const it = { ...item(), campaign: campPago(["mp"]) };
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "efectivo").precio_efectivo).toBe(10000);
+    expect(resolveEffectivePrice(10000, null, [it], NOW, "mp").precio_efectivo).toBe(8000);
+  });
+
+  it("sin método (vitrina) no filtra e informa los medios de la ganadora", () => {
+    const it = { ...item(), campaign: campPago(["efectivo"]) };
+    const r = resolveEffectivePrice(10000, null, [it], NOW);
+    expect(r.precio_efectivo).toBe(8000);
+    expect(r.medios_pago).toEqual(["efectivo"]);
+  });
+
+  it("respeta variantes junto con el medio de pago", () => {
+    const it = { ...item({ variant_keys: ["Talle:M"] }), campaign: campPago(["efectivo"]) };
+    expect(resolveEffectivePrice(10000, "Talle:M", [it], NOW, "efectivo").precio_efectivo).toBe(8000);
+    expect(resolveEffectivePrice(10000, "Talle:M", [it], NOW, "mp").precio_efectivo).toBe(10000);
+    expect(resolveEffectivePrice(10000, "Talle:L", [it], NOW, "efectivo").precio_efectivo).toBe(10000);
+  });
+
+  it("no apila: con el medio filtrado gana la más barata de las elegibles", () => {
+    const soloMp = { ...item({ tipo: "precio_fijo", valor: 6000 }), campaign: campPago(["mp"], { id: "aaaa", slug: "a" }) };
+    const ambas = { ...item({ tipo: "porcentaje", valor: 20 }), campaign: campPago(["mp", "efectivo"], { id: "bbbb", slug: "b" }) };
+    const mp = resolveEffectivePrice(10000, null, [soloMp, ambas], NOW, "mp");
+    expect(mp.precio_efectivo).toBe(6000);
+    expect(mp.campaign_id).toBe("aaaa");
+    const ef = resolveEffectivePrice(10000, null, [soloMp, ambas], NOW, "efectivo");
+    expect(ef.precio_efectivo).toBe(8000);
+    expect(ef.campaign_id).toBe("bbbb");
+  });
+
+  it("etiquetas y nota de vitrina", () => {
+    expect(mediosPagoLabel(["efectivo"])).toBe("Efectivo");
+    expect(mediosPagoLabel(null)).toBe("Mercado Pago y Efectivo");
+    expect(aplicaATodosLosMedios(["mp"])).toBe(false);
+    expect(promoPaymentNote({ medios_pago: ["mp"] })).toBe("pagando con Mercado Pago");
+    expect(promoPaymentNote({ medios_pago: ["mp", "efectivo"] })).toBeNull();
+    expect(promoPaymentNote(null)).toBeNull();
   });
 });
