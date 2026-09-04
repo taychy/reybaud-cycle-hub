@@ -2284,7 +2284,17 @@ const ManageStudents = () => {
         }))}
         onMerged={() => { setShowMergeDialog(false); fetchAlumnos(); }}
       />
+      {sendTrainingAlumno && (
+        <StudentWeeklyEmailSection
+          alumno={sendTrainingAlumno as any}
+          canEdit={true}
+          dialogOnly
+          open={!!sendTrainingAlumno}
+          onOpenChange={(v) => { if (!v) setSendTrainingAlumno(null); }}
+        />
+      )}
     </div>
+
   );
 };
 
