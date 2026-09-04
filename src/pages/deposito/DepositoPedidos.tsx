@@ -459,6 +459,15 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
               <Button onClick={() => printOne(selected)} disabled={printing} className="w-full gap-2">
                 <QrCode className="w-4 h-4" /> Imprimir etiqueta
               </Button>
+              {canConfirmCashPayment(selected) && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
+                  <p className="text-xs text-amber-200">Este pedido se paga en efectivo y todavía no está cobrado.</p>
+                  <Button className="w-full gap-2" disabled={cobrando === selected.id} onClick={() => confirmarEfectivo(selected)}>
+                    <Banknote className="w-4 h-4" /> Cobré el efectivo
+                  </Button>
+                </div>
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{nombreCliente(selected)}</div></div>
                 <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{selected.customer_email || "—"}</div></div>
