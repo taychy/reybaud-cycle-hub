@@ -81,6 +81,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [trackingInput, setTrackingInput] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [printing, setPrinting] = useState(false);
+  const [cobrando, setCobrando] = useState<string | null>(null);
   const [labelTargets, setLabelTargets] = useState<PreorderLabelData[]>([]);
   const { toast } = useToast();
 
