@@ -175,9 +175,36 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
     window.location.href = (data as any).init_point;
   };
 
+  if (cashOrder) {
+    return (
+      <Dialog open={open} onOpenChange={(v) => { if (!v) { setCashOrder(null); onOpenChange(false); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">¡Pedido reservado!</DialogTitle>
+            <DialogDescription>Lo pagás en efectivo, no hace falta pagar ahora.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            {cashOrder.number != null && (
+              <div className="rounded-lg border border-primary/30 bg-primary/10 p-4 text-center">
+                <p className="text-xs uppercase tracking-wider text-muted-foreground">N° de pedido</p>
+                <p className="text-3xl font-heading font-bold text-primary">#{cashOrder.number}</p>
+              </div>
+            )}
+            <p className="text-sm text-muted-foreground">
+              {entrega === "moto"
+                ? "Te contactamos por WhatsApp para coordinar la entrega. Pagás en efectivo al recibirlo y ahí queda confirmada la compra."
+                : "Mostrá este número al retirar tu pedido. Pagás en efectivo en ese momento y ahí queda confirmada la compra."}
+            </p>
+            <Button className="w-full" onClick={() => { setCashOrder(null); onOpenChange(false); }}>Listo</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
+
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">Comprar {product.name}</DialogTitle>
