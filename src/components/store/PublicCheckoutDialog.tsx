@@ -61,6 +61,8 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
   const [cashOrder, setCashOrder] = useState<{ number: number | null } | null>(null);
 
   const [effectivePrice, setEffectivePrice] = useState<EffectivePrice | null>(null);
+  const [priceLoading, setPriceLoading] = useState(false);
+  const [priceError, setPriceError] = useState(false);
 
   useEffect(() => {
     if (open) setVariante(initialVariant);
@@ -109,13 +111,24 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
   useEffect(() => {
     if (!product || !open) return;
     let cancelled = false;
+    setPriceLoading(true);
+    setPriceError(false);
+    setEffectivePrice(null);
     // El precio depende de la forma de pago: se recalcula con el mismo criterio que usa el backend.
     (supabase.rpc as any)("resolver_precio_tienda_por_pago", {
       p_product_id: product.id,
       p_variante: variante,
       p_metodo_pago: metodoPago,
-    }).then(({ data }: any) => {
-      if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
+    }).then(({ data, error }: any) => {
+      if (cancelled) return;
+      if (error) { setPriceError(true); setEffectivePrice(null); }
+      else setEffectivePrice((data?.[0] as EffectivePrice) || null);
+      setPriceLoading(false);
+    }).catch(() => {
+      if (cancelled) return;
+      setPriceError(true);
+      setEffectivePrice(null);
+      setPriceLoading(false);
     });
     return () => { cancelled = true; };
   }, [open, product?.id, JSON.stringify(variante), metodoPago]);
@@ -315,6 +328,8 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
                 Precio con {metodoPago === "efectivo" ? "pago en efectivo" : "Mercado Pago"}.
               </p>
             )}
+            {priceLoading && <p className="text-[11px] text-muted-foreground">Actualizando precio...</p>}
+            {!priceLoading && priceError && <p className="text-[11px] text-destructive">No pudimos calcular el precio. Probá de nuevo.</p>}
             {effectivePrice?.badge_texto && <p className="text-[11px] text-primary">{effectivePrice.badge_texto}</p>}
             {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-[11px] text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
           </div>
@@ -352,7 +367,7 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
             )}
           </div>
 
-          <Button className="w-full" disabled={loading || (stockDisp != null && stockDisp <= 0)} onClick={submit}>
+          <Button className="w-full" disabled={loading || priceLoading || priceError || (stockDisp != null && stockDisp <= 0)} onClick={submit}>
             {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : metodoPago === "efectivo" ? <Banknote className="w-4 h-4 mr-2" /> : <CreditCard className="w-4 h-4 mr-2" />}
             {metodoPago === "efectivo" ? "Reservar y pagar en efectivo" : "Pagar con Mercado Pago"}
           </Button>

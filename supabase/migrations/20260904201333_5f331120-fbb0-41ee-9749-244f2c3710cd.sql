@@ -1,0 +1,2 @@
+ALTER TABLE public.store_campaigns DROP CONSTRAINT IF EXISTS store_campaigns_medios_pago_check;
+ALTER TABLE public.store_campaigns ADD CONSTRAINT store_campaigns_medios_pago_check CHECK (cardinality(medios_pago) >= 1 AND medios_pago <@ ARRAY['mp','efectivo']::text[]);

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { promoMap, type PromoRow } from "@/lib/campaigns";
+import { formatPrice } from "@/lib/currency";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -426,7 +427,7 @@ const StoreProducts = () => {
                       <p key={medio} className="text-[11px] text-primary">
                         {row.solo_variantes
                           ? `${medio}: promo en variantes seleccionadas (-${row.descuento_pct}%) · ${row.campaign_nombre}`
-                          : `${medio}: $${Number(row.precio_efectivo).toLocaleString("es-AR")} (-${row.descuento_pct}%) · ${row.campaign_nombre}`}
+                          : `${medio}: ${formatPrice(Number(row.precio_efectivo), p.currency || "ARS")} (-${row.descuento_pct}%) · ${row.campaign_nombre}`}
                       </p>
                     );
                     return (
