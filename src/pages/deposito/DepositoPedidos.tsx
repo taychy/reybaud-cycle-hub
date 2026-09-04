@@ -360,7 +360,13 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   </span>
                 </div>
               </div>
+              {canConfirmCashPayment(r) && (
+                <Button size="sm" className="w-full h-9" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
+                  <Banknote className="w-4 h-4 mr-1" /> Cobré el efectivo
+                </Button>
+              )}
               <div className="flex items-center gap-2">
+
                 <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
                   <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
