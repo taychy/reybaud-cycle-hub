@@ -100,18 +100,23 @@ export interface EffectivePrice {
   mostrar_urgencia: boolean;
   fecha_fin: string | null;
   solo_variantes: boolean;
+  medios_pago: CampaignPaymentMethod[] | null;
 }
 
 /**
  * Regla de prioridad (idéntica al SQL): entre todas las campañas vigentes y activas que
  * incluyen el producto/variante gana la de MENOR precio resultante; a igual precio, la de
  * `fecha_inicio` más reciente; a igual fecha, el menor `campaign_id`. Nunca se apilan descuentos.
+ *
+ * `metodoPago` (opcional): si se indica `mp` o `efectivo`, sólo se consideran campañas que
+ * incluyan ese medio. Sin método (vitrina genérica) no se filtra.
  */
 export const resolveEffectivePrice = (
   precioLista: number,
   variantKey: string | null,
   items: (StoreCampaignItem & { campaign: StoreCampaign })[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  metodoPago: CampaignPaymentMethod | null = null
 ): EffectivePrice => {
   const base: EffectivePrice = {
     precio_lista: precioLista,
@@ -123,15 +128,18 @@ export const resolveEffectivePrice = (
     mostrar_urgencia: false,
     fecha_fin: null,
     solo_variantes: false,
+    medios_pago: null,
   };
 
   const candidates = items
     .filter((it) => it.activo && campaignStatus(it.campaign, now) === "activa")
+    .filter((it) => !metodoPago || normalizeMediosPago(it.campaign.medios_pago).includes(metodoPago))
     .filter((it) => it.variant_keys === null || (!!variantKey && it.variant_keys.includes(variantKey)))
     .map((it) => ({ it, precio: applyCampaignItem(precioLista, it) }))
     .filter((c) => c.precio < precioLista);
 
   if (!candidates.length) return base;
+
 
   candidates.sort((a, b) => {
     if (a.precio !== b.precio) return a.precio - b.precio;
