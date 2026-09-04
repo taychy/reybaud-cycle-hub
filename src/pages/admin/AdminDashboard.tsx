@@ -1,672 +1,106 @@
 import { useEffect, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
-  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
-  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import {
-  Users, CreditCard, AlertTriangle, Clock, DollarSign, TrendingUp,
-  Eye, Send, CalendarClock, CheckCircle, FileText, MessageCircle,
-  Banknote, CreditCard as CardIcon, HelpCircle, Ban, Palmtree, Pause, UserPlus, ArrowRightLeft,
+  Users, TrendingUp, FileText, ArrowRightLeft, CalendarClock,
+  CreditCard, Store, Wallet, ArrowRight,
 } from "lucide-react";
-import { useIsMobile } from "@/hooks/use-mobile";
-import { toast } from "@/hooks/use-toast";
-import { getEffectiveSubStatus, isAdminPayableSubscription } from "@/lib/subscriptionStatus";
-import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
-import BirthdayWidget from "@/components/admin/BirthdayWidget";
-import DeliveryCashWidget from "@/components/admin/DeliveryCashWidget";
-import WeeklyPendingsPanel from "@/components/admin/WeeklyPendingsPanel";
-import DashboardTasksByDay from "@/components/admin/DashboardTasksByDay";
-import AdminOperationalCalendar from "@/components/admin/AdminOperationalCalendar";
-import { PeriodBadge } from "@/components/admin/PeriodBadge";
-import ResumenFinancieroMes from "@/components/admin/ResumenFinancieroMes";
 
+/**
+ * Resumen operativo — versión liviana (reducción de carga de base).
+ *
+ * Sólo consulta contadores (`count: "exact", head: true`) y no descarga
+ * colecciones completas ni ejecuta mantenimiento al abrir la pantalla.
+ * Los paneles pesados (resumen financiero del mes, calendario operativo,
+ * cumpleaños, caja de entregas) siguen existiendo en sus módulos originales
+ * y se acceden desde los accesos rápidos de abajo.
+ */
 
-import {
-  AlertBucket, BUCKET_LABEL, BUCKET_ORDER, DatedAlertItem, DayTask, bucketForDate, toISODate, weekDays,
-  tasksFromDatedItems,
-} from "@/lib/adminAlerts";
-
-
-interface MetricCard {
+interface Counter {
   label: string;
-  value: number | string;
+  value: number | null;
+  hint: string;
   icon: React.ElementType;
   color: string;
-  to?: string;
-  hint?: string;
+  to: string;
 }
-
-
-interface UpcomingExpiration {
-  alumno_id: string;
-  alumno_nombre: string;
-  alumno_telefono: string | null;
-  plan_nombre: string;
-  fecha_fin: string;
-  monto: number;
-  estado: string;
-  suscripcion_id: string;
-}
-
-interface PendingPayment {
-  alumno_id: string;
-  alumno_nombre: string;
-  alumno_telefono: string | null;
-  plan_nombre: string;
-  monto: number;
-  fecha_inicio: string;
-  estado: string;
-  estado_detalle: string;
-  mp_status: string | null;
-  suscripcion_id: string;
-}
-
-interface Alert {
-  type: "danger" | "warning" | "info";
-  icon: React.ElementType;
-  message: string;
-  count: number;
-  link: string;
-  bucket: AlertBucket;
-}
-
-
-// Payment status helpers
-const getPaymentBadge = (estado: string, mpStatus: string | null) => {
-  if (mpStatus === "informado") {
-    return { label: "Informado", variant: "outline" as const, icon: FileText, className: "border-blue-500 text-blue-500" };
-  }
-  if (mpStatus === "efectivo_informado") {
-    return { label: "Efectivo", variant: "outline" as const, icon: Banknote, className: "border-green-500 text-green-500" };
-  }
-  if (mpStatus === "externo_informado") {
-    return { label: "Pago externo", variant: "outline" as const, icon: CardIcon, className: "border-purple-500 text-purple-500" };
-  }
-  return { label: "Pendiente", variant: "secondary" as const, icon: HelpCircle, className: "" };
-};
-
-const formatWhatsAppUrl = (telefono: string | null, nombre?: string) => {
-  if (!telefono) return null;
-  let clean = telefono.replace(/\D/g, "");
-  // Asegurar formato internacional para Argentina
-  if (clean.startsWith("15")) clean = "549" + clean.slice(2);
-  else if (clean.startsWith("11") || clean.startsWith("0")) {
-    if (clean.startsWith("0")) clean = clean.slice(1);
-    clean = "549" + clean;
-  } else if (!clean.startsWith("54")) {
-    clean = "549" + clean;
-  }
-  const msg = nombre
-    ? encodeURIComponent(`Hola ${nombre}, te contactamos desde Reybaud Ciclismo.`)
-    : encodeURIComponent("Hola");
-  return `https://wa.me/${clean}?text=${msg}`;
-};
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
-  const isMobile = useIsMobile();
   const [loading, setLoading] = useState(true);
-  const [metrics, setMetrics] = useState<MetricCard[]>([]);
-  const [expirations, setExpirations] = useState<UpcomingExpiration[]>([]);
-  const [pendingPayments, setPendingPayments] = useState<PendingPayment[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [datedItems, setDatedItems] = useState<DatedAlertItem[]>([]);
-
-  const [chequeoAlerts, setChequeoAlerts] = useState({ facturas: 0, pagos: 0, bajas: 0, nuevos: 0 });
-  const [duplicadosCount, setDuplicadosCount] = useState(0);
-  const [solicitudesCambioCount, setSolicitudesCambioCount] = useState(0);
-  const [cuotasEventos, setCuotasEventos] = useState({ count: 0, vencidas: 0, monto: 0 });
-  // Tareas de gastos: sección exclusiva de super admin
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [gastoTasks, setGastoTasks] = useState<DayTask[]>([]);
-
-
-
-  // Confirmation dialog state
-  const [confirmAction, setConfirmAction] = useState<{
-    title: string;
-    description: string;
-    onConfirm: () => Promise<void>;
-  } | null>(null);
+  const [alumnosActivos, setAlumnosActivos] = useState<number | null>(null);
+  const [subsActivas, setSubsActivas] = useState<number | null>(null);
+  const [facturasHoy, setFacturasHoy] = useState<number | null>(null);
+  const [solicitudesCambio, setSolicitudesCambio] = useState<number | null>(null);
 
   useEffect(() => {
-    loadDashboard();
-    loadGastosTasks();
+    let alive = true;
+    (async () => {
+      setLoading(true);
+      const today = new Date().toISOString().split("T")[0];
+      try {
+        const [alumnosRes, subsRes, facturasRes, solicitudesRes] = await Promise.all([
+          supabase.from("alumnos").select("id", { count: "exact", head: true }).eq("estado", "activo"),
+          // Mismo criterio conservador que se venía usando: estados vigentes,
+          // no cancelada y período no cerrado.
+          supabase
+            .from("suscripciones")
+            .select("id", { count: "exact", head: true })
+            .in("estado", ["activa", "conciliado"])
+            .is("cancelada_at", null)
+            .or(`fecha_fin.is.null,fecha_fin.gte.${today}`),
+          supabase
+            .from("facturacion_cola" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("estado", "pendiente")
+            .gte("pagado_at", `${today}T00:00:00`)
+            .lte("pagado_at", `${today}T23:59:59.999`),
+          supabase
+            .from("solicitudes_cambio_plan" as any)
+            .select("id", { count: "exact", head: true })
+            .eq("estado", "pendiente"),
+        ]);
+        if (!alive) return;
+        setAlumnosActivos(alumnosRes.count ?? null);
+        setSubsActivas(subsRes.count ?? null);
+        setFacturasHoy(facturasRes.count ?? null);
+        setSolicitudesCambio(solicitudesRes.count ?? null);
+      } catch (err) {
+        console.error("Error loading dashboard counters:", err);
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => { alive = false; };
   }, []);
 
-  /**
-   * Tareas de gastos (pagos previstos por día).
-   * Sólo se cargan y muestran si el usuario es super_admin: Gastos es una
-   * sección exclusiva de super admin, así que un admin común ni siquiera
-   * dispara las queries.
-   */
-  const loadGastosTasks = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const { data: profile } = await supabase
-        .from("admin_profiles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .maybeSingle();
-      if ((profile as any)?.role !== "super_admin") return;
-      setIsSuperAdmin(true);
-
-      const today = toISODate(new Date());
-      const weekEnd = weekDays()[6];
-      const { data } = await supabase
-        .from("gastos_ejecuciones")
-        .select("id, estado, fecha_vencimiento, monto_previsto, moneda")
-        .in("estado", ["pendiente", "vencido"] as any)
-        .not("fecha_vencimiento", "is", null)
-        .lte("fecha_vencimiento", weekEnd);
-
-      const rows = (data as any[]) || [];
-      const map = new Map<string, { count: number; monto: number }>();
-      rows.forEach((r) => {
-        const iso = String(r.fecha_vencimiento).substring(0, 10);
-        const prev = map.get(iso) || { count: 0, monto: 0 };
-        map.set(iso, { count: prev.count + 1, monto: prev.monto + Number(r.monto_previsto || 0) });
-      });
-
-      const tasks: DayTask[] = Array.from(map.entries()).map(([iso, v]) => ({
-        date: iso,
-        label: iso < today ? "Gastos vencidos" : "Gastos a pagar",
-        hint: `$${Math.round(v.monto).toLocaleString("es-AR")} previstos`,
-        count: v.count,
-        link: "/admin/gastos",
-        cta: "Pagar",
-        tone: iso < today ? ("danger" as const) : iso === today ? ("warning" as const) : ("info" as const),
-      }));
-      setGastoTasks(tasks);
-    } catch (err) {
-      console.error("Error loading gastos tasks:", err);
-    }
-  };
-
-  const loadDashboard = async () => {
-
-    setLoading(true);
-    try {
-      const now = new Date();
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-      const today = now.toISOString().split("T")[0];
-      const in7Days = new Date(now.getTime() + 7 * 86400000).toISOString().split("T")[0];
-
-      // Mantiene la cola de facturación al día antes de contar "hoy" (evita mostrar
-      // datos desactualizados si nadie abrió la página de Facturación recientemente).
-      try {
-        await supabase.rpc("rebuild_facturacion_cola" as any, {});
-      } catch {
-        // Si falla (p.ej. permisos), seguimos con lo que ya haya en la tabla.
-      }
-
-      const [alumnosRes, subsActivasRes, allSubsRes, allAlumnosRes, facturasPendientesRes, cuotasRes] = await Promise.all([
-        supabase.from("alumnos").select("id, estado, telefono, grupo").eq("estado", "activo"),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)").in("estado", ["activa", "conciliado"]),
-        supabase.from("suscripciones").select("*, alumnos(id, nombre, telefono), planes(nombre, precio, categoria)"),
-        supabase.from("alumnos").select("id, estado, grupo, created_at"),
-        // Fuente única de verdad: misma tabla que usa la página real de Facturación (evita
-        // el desfasaje que había contando directamente sobre `suscripciones`).
-        // Acotado a HOY: la tarjeta muestra la tarea del día, no el backlog acumulado.
-        supabase.from("facturacion_cola" as any).select("id", { count: "exact", head: true })
-          .eq("estado", "pendiente")
-          .gte("pagado_at", `${today}T00:00:00`)
-          .lte("pagado_at", `${today}T23:59:59.999`),
-        // Paso B: cuotas de eventos por cobrar (saldo > 0)
-        supabase.from("vw_pagos_por_cobrar" as any).select("source, amount, effective_status, due_date, alumno_nombre, concepto").eq("source", "cuota_evento"),
-      ]);
-
-      const alumnos = alumnosRes.data || [];
-      const subsActivasRaw = subsActivasRes.data || [];
-      // Sólo subs realmente vigentes: estado activa/conciliado + fecha_fin >= hoy + no canceladas.
-      // Las que tienen fecha_fin < hoy son períodos cerrados (mes anterior ya consumido) — no
-      // deben contar como "activas" ni inflar el contador de duplicados.
-      const subsActivas = subsActivasRaw.filter((s: any) =>
-        !s.cancelada_at && (!s.fecha_fin || s.fecha_fin >= today)
-      );
-      const allSubs = allSubsRes.data || [];
-      const allAlumnos = allAlumnosRes.data || [];
-      const cuotas = (cuotasRes.data as any[]) || [];
-
-      const alumnosActivos = alumnos.length;
-      const alumnosBloqueados = allAlumnos.filter(a => a.estado === "bloqueado").length;
-      const alumnosVacaciones = allAlumnos.filter(a => a.estado === "vacaciones").length;
-      const alumnosInactivos = allAlumnos.filter(a => a.estado === "inactivo").length;
-      const suscripcionesActivas = subsActivas.length;
-      const subsPausa = allSubs.filter(s => s.estado === "pausa").length;
-
-      // Helper: precio efectivo (respeta descuentos y overrides)
-      const precioDe = (s: any) => Number(s.precio_final ?? (s.planes as any)?.precio ?? 0);
-
-      // A1 + A3: clasificamos por estado EFECTIVO (mismo motor que ve el alumno)
-      // — "Por cobrar"  = pendiente + pago_pendiente (gracia día 1-5)
-      // — "Vencidos"    = vencida + acceso_pausado (post día 5, sin pago)
-      const subsConEffect = allSubs
-        .filter(s => !(s as any).cancelada_at && s.estado !== "cancelada")
-        .map(s => ({
-          s,
-          eff: getEffectiveSubStatus({
-            estado: s.estado,
-            fecha_fin: s.fecha_fin,
-            cancelada_at: (s as any).cancelada_at,
-            mp_status: (s as any).mp_status,
-            origen_registro: (s as any).origen_registro,
-          }),
-        }));
-
-      const porCobrar = subsConEffect.filter(x => x.eff === "pendiente" || x.eff === "pago_pendiente");
-      const vencidas  = subsConEffect.filter(x => x.eff === "vencida"   || x.eff === "acceso_pausado");
-      const pagosPendientes = porCobrar.length;
-      const pagosVencidos   = vencidas.length;
-
-      // A2 + A5: usar precio_final y considerar 'conciliado' como cobrado
-      const cobradoEsteMes = allSubs
-        .filter(s => (s.estado === "activa" || s.estado === "conciliado") && s.fecha_inicio && s.fecha_inicio >= startOfMonth)
-        .reduce((sum, s) => sum + precioDe(s), 0);
-
-      const montoPendienteSubs = porCobrar.reduce((sum, x) => sum + precioDe(x.s), 0);
-      const montoVencidoSubs   = vencidas.reduce((sum, x) => sum + precioDe(x.s), 0);
-
-      // Paso B: cuotas de eventos
-      const cuotasCount = cuotas.length;
-      const cuotasVencidas = cuotas.filter(c => c.effective_status === "vencida").length;
-      const cuotasMonto = cuotas.reduce((sum, c) => sum + Number(c.amount || 0), 0);
-      setCuotasEventos({ count: cuotasCount, vencidas: cuotasVencidas, monto: cuotasMonto });
-
-      // Duplicados reales: alumnos cuyas suscripciones vigentes violan las reglas de modalidad
-      // (2+ grupales, 2+ pista, una "pausa" + cualquier otra, o "otro" duplicado exacto).
-      // Renovaciones legítimas (mes anterior cerrado + mes actual) NO cuentan.
-      const subsPorAlumnoArr: Record<string, any[]> = {};
-      subsActivas.forEach((s: any) => {
-        (subsPorAlumnoArr[s.alumno_id] ||= []).push(s);
-      });
-      const conMultiples = Object.values(subsPorAlumnoArr).filter(arr => hasSubscriptionConflict(arr as any)).length;
-      setDuplicadosCount(conMultiples);
-
-
-      setMetrics([
-        { label: "Alumnos activos", value: alumnosActivos, icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos", hint: "Ver lista de alumnos activos" },
-        { label: "Suscripciones activas", value: suscripcionesActivas, icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado", hint: conMultiples > 0 ? `${conMultiples} alumno(s) con conflicto de modalidad` : "Ver pagos activos" },
-        { label: "Pagos pendientes", value: pagosPendientes, icon: Clock, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: "Pendientes + gracia día 1-5" },
-        { label: "Monto pendiente", value: `$${montoPendienteSubs.toLocaleString("es-AR")}`, icon: CreditCard, color: "text-yellow-500", to: "/admin/pagos?estado=por_cobrar", hint: `Subs por cobrar · vencidas: $${montoVencidoSubs.toLocaleString("es-AR")}` },
-        { label: "Vacaciones", value: alumnosVacaciones, icon: Palmtree, color: "text-blue-500", to: "/admin/alumnos?filter=vacaciones", hint: "Alumnos en vacaciones" },
-      ]);
-
-
-      // Upcoming expirations
-      const in30Days = new Date(now.getTime() + 30 * 86400000).toISOString().split("T")[0];
-      const upcoming = subsActivas
-        .filter(s => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= in30Days)
-        .sort((a, b) => (a.fecha_fin! > b.fecha_fin! ? 1 : -1))
-        .slice(0, 10)
-        .map(s => {
-          const alumno = s.alumnos as any;
-          const plan = s.planes as any;
-          const daysLeft = Math.ceil((new Date(s.fecha_fin!).getTime() - now.getTime()) / 86400000);
-          return {
-            alumno_id: s.alumno_id,
-            alumno_nombre: alumno?.nombre || "—",
-            alumno_telefono: alumno?.telefono || null,
-            plan_nombre: plan?.nombre || "—",
-            fecha_fin: s.fecha_fin!,
-            monto: plan?.precio || 0,
-            estado: daysLeft <= 7 ? "Por vencer" : "Activa",
-            suscripcion_id: s.id,
-          };
-        });
-      setExpirations(upcoming);
-
-      // Pending payments with detailed status (mismo criterio que el KPI: pendiente + pago_pendiente)
-      const recentPending = porCobrar
-        .map(x => x.s)
-        .sort((a, b) => (a.created_at > b.created_at ? -1 : 1))
-        .slice(0, 10)
-        .map(s => {
-          const alumno = s.alumnos as any;
-          const plan = s.planes as any;
-          const badge = getPaymentBadge(s.estado, s.metodo_pago);
-          return {
-            alumno_id: s.alumno_id,
-            alumno_nombre: alumno?.nombre || "—",
-            alumno_telefono: alumno?.telefono || null,
-            plan_nombre: plan?.nombre || "—",
-            monto: Number((s as any).precio_final ?? plan?.precio ?? 0),
-            fecha_inicio: s.created_at,
-            estado: badge.label,
-            estado_detalle: s.metodo_pago || "sin_pago",
-            mp_status: s.mp_status,
-            suscripcion_id: s.id,
-          };
-        });
-      setPendingPayments(recentPending);
-
-      // ================= ALERTAS ORGANIZADAS POR DÍA =================
-      // Cada alerta se ancla a una fecha operativa y cae en un balde:
-      // vencido (fecha < hoy) · hoy · semana (lun-dom en curso) · sin_fecha.
-      const week = weekDays();
-      const weekEnd = week[6];
-      const dated: DatedAlertItem[] = [];
-      const alertsList: Alert[] = [];
-
-      // — Vencimientos de suscripciones (fecha operativa = fecha_fin)
-      subsActivas
-        .filter((s: any) => s.fecha_fin && s.fecha_fin >= today && s.fecha_fin <= weekEnd)
-        .forEach((s: any) => {
-          dated.push({
-            date: s.fecha_fin.substring(0, 10),
-            kind: "Vence suscripción",
-            label: (s.alumnos as any)?.nombre || "Alumno",
-            link: "/admin/pagos?estado=por_cobrar",
-            tone: "warning",
-          });
-        });
-
-      // — Subs vencidas / acceso pausado (backlog)
-      vencidas.forEach((x) => {
-        const s: any = x.s;
-        dated.push({
-          date: (s.fecha_fin || today).substring(0, 10),
-          kind: "Pago vencido sin cobrar",
-          label: (s.alumnos as any)?.nombre || "Alumno",
-          link: "/admin/pagos?estado=vencido",
-          tone: "danger",
-        });
-      });
-
-      // — Cuotas de eventos (fecha operativa = due_date)
-      cuotas
-        .filter((c: any) => c.due_date && c.due_date <= weekEnd)
-        .forEach((c: any) => {
-          dated.push({
-            date: c.due_date.substring(0, 10),
-            kind: "Cuota de evento",
-            label: c.alumno_nombre || c.concepto || "Cuota",
-            link: "/admin/eventos",
-            tone: c.due_date < today ? "danger" : "warning",
-          });
-        });
-
-      if (pagosVencidos > 0) {
-        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${pagosVencidos} pago(s) vencido(s) sin cobrar`, count: pagosVencidos, link: "/admin/pagos?estado=vencido", bucket: "vencido" });
-      }
-      if (cuotasVencidas > 0) {
-        alertsList.push({ type: "danger", icon: CalendarClock, message: `${cuotasVencidas} cuota(s) de evento vencida(s) sin cobrar`, count: cuotasVencidas, link: "/admin/eventos", bucket: "vencido" });
-      }
-
-      // Vencimientos de plan separados por día: hoy vs resto de la semana
-      const venceHoy = subsActivas.filter((s: any) => s.fecha_fin && s.fecha_fin.substring(0, 10) === today).length;
-      const venceSemana = subsActivas.filter(
-        (s: any) => s.fecha_fin && s.fecha_fin > today && s.fecha_fin <= weekEnd
-      ).length;
-      const vencePronto = subsActivas.filter(
-        (s: any) => s.fecha_fin && s.fecha_fin > weekEnd && s.fecha_fin <= in7Days
-      ).length;
-      if (venceHoy > 0) {
-        alertsList.push({ type: "warning", icon: Clock, message: `${venceHoy} suscripción(es) vence(n) HOY`, count: venceHoy, link: "/admin/pagos?estado=por_cobrar", bucket: "hoy" });
-      }
-      if (venceSemana > 0) {
-        alertsList.push({ type: "warning", icon: Clock, message: `${venceSemana} suscripción(es) vence(n) esta semana`, count: venceSemana, link: "/admin/pagos?estado=por_cobrar", bucket: "semana" });
-      }
-      if (vencePronto > 0) {
-        alertsList.push({ type: "info", icon: Clock, message: `${vencePronto} suscripción(es) vence(n) en los próximos días`, count: vencePronto, link: "/admin/pagos?estado=por_cobrar", bucket: "sin_fecha" });
-      }
-
-      const informados = allSubs.filter(s => s.origen_registro === "informado_alumno" && s.estado === "pendiente").length;
-      if (informados > 0) {
-        alertsList.push({ type: "warning", icon: FileText, message: `${informados} pago(s) informado(s) sin conciliar`, count: informados, link: "/admin/pagos?estado=informado", bucket: "hoy" });
-      }
-
-      const alumnoIdsConSub = new Set(subsActivas.map(s => s.alumno_id));
-      const sinPlan = alumnos.filter(a => !alumnoIdsConSub.has(a.id)).length;
-      if (sinPlan > 0) {
-        alertsList.push({ type: "info", icon: Users, message: `${sinPlan} alumno(s) activo(s) sin plan activo`, count: sinPlan, link: "/admin/alumnos?filter=sin_plan_activo", bucket: "sin_fecha" });
-      }
-      if (alumnosBloqueados > 0) {
-        alertsList.push({ type: "danger", icon: Ban, message: `${alumnosBloqueados} alumno(s) bloqueado(s)`, count: alumnosBloqueados, link: "/admin/alumnos?filter=bloqueados", bucket: "vencido" });
-      }
-      if (alumnosVacaciones > 0) {
-        alertsList.push({ type: "info", icon: Palmtree, message: `${alumnosVacaciones} alumno(s) en vacaciones`, count: alumnosVacaciones, link: "/admin/alumnos?filter=vacaciones", bucket: "sin_fecha" });
-      }
-      const sinGrupo = allAlumnos.filter(a => a.grupo === "Sin grupo" && a.estado === "activo").length;
-      if (sinGrupo > 0) {
-        alertsList.push({ type: "warning", icon: Users, message: `${sinGrupo} alumno(s) activo(s) sin grupo asignado`, count: sinGrupo, link: "/admin/alumnos?filter=sin_grupo", bucket: "sin_fecha" });
-      }
-      // Inconsistency detection
-      const INVALID_COMBOS: [string, string][] = [["vacaciones", "activa"], ["inactivo", "activa"], ["bloqueado", "activa"]];
-      const inconsistentCount = allAlumnos.filter(a => {
-        const sub = allSubs.find(s => {
-          if (s.alumno_id !== a.id) return false;
-          const eff = getEffectiveSubStatus({ estado: s.estado, fecha_fin: s.fecha_fin, cancelada_at: (s as any).cancelada_at });
-          return eff === "activa" || eff === "pausa";
-        });
-        if (!sub) return false;
-        const effSub = getEffectiveSubStatus({ estado: sub.estado, fecha_fin: sub.fecha_fin, cancelada_at: (sub as any).cancelada_at });
-        return INVALID_COMBOS.some(([u, s]) => u === a.estado && s === effSub);
-      }).length;
-      if (inconsistentCount > 0) {
-        alertsList.push({ type: "danger", icon: AlertTriangle, message: `${inconsistentCount} alumno(s) con combinación de estados inconsistente`, count: inconsistentCount, link: "/admin/alumnos?filter=inconsistentes", bucket: "vencido" });
-      }
-
-      // Solicitudes de cambio de plan pendientes — SLA de 2 días desde la solicitud
-      const { data: solicitudesData } = await supabase
-        .from("solicitudes_cambio_plan" as any)
-        .select("id, created_at, estado")
-        .eq("estado", "pendiente");
-      const solicitudes = (solicitudesData as any[]) || [];
-      setSolicitudesCambioCount(solicitudes.length);
-      solicitudes.forEach((sol: any) => {
-        const base = new Date(sol.created_at);
-        base.setDate(base.getDate() + 2);
-        const iso = toISODate(base);
-        if (iso <= weekEnd) {
-          dated.push({
-            date: iso,
-            kind: "Solicitud de cambio de plan",
-            label: "Responder al alumno",
-            link: "/admin/alumnos?tab=cambios-plan",
-            tone: iso < today ? "danger" : "warning",
-          });
-        }
-      });
-      if (solicitudes.length > 0) {
-        const masUrgente = solicitudes
-          .map((s: any) => {
-            const d = new Date(s.created_at);
-            d.setDate(d.getDate() + 2);
-            return toISODate(d);
-          })
-          .sort()[0];
-        alertsList.push({
-          type: "warning",
-          icon: ArrowRightLeft,
-          message: `${solicitudes.length} solicitud(es) de cambio de plan pendiente(s) de revisión`,
-          count: solicitudes.length,
-          link: "/admin/alumnos?tab=cambios-plan",
-          bucket: bucketForDate(masUrgente),
-        });
-      }
-
-      // Liquidaciones que necesitan revisión del admin
-      try {
-        const { data: liqAlertas } = await supabase.rpc("get_liquidaciones_alertas" as any);
-        const la: any = Array.isArray(liqAlertas) ? liqAlertas[0] : liqAlertas;
-        const pendientes = Number(la?.pendientes_count || 0);
-        const turneraSinMov = Number(la?.turnera_sin_movimiento || 0);
-        if (pendientes > 0) {
-          alertsList.push({
-            type: "warning",
-            icon: FileText,
-            message: `${pendientes} movimiento(s) de liquidación pendiente(s) de revisión`,
-            count: pendientes,
-            link: "/admin/liquidaciones?tab=revisar",
-            bucket: "hoy",
-          });
-        }
-        if (turneraSinMov > 0) {
-          alertsList.push({
-            type: "info",
-            icon: CalendarClock,
-            message: `${turneraSinMov} turno(s) realizado(s) sin honorario liquidado`,
-            count: turneraSinMov,
-            link: "/admin/liquidaciones?tab=revisar",
-            bucket: "sin_fecha",
-          });
-        }
-      } catch { /* alerta opcional */ }
-
-      setAlerts(alertsList);
-
-      setDatedItems(dated.sort((a, b) => (a.date < b.date ? -1 : 1)));
-
-
-      // Chequeo alerts (Facturas / Pagos / Bajas / Nuevos) — todas cuentan lo del DÍA DE HOY,
-      // no el backlog acumulado. El backlog completo se sigue pudiendo navegar día por día
-      // en cada vista ("Ver →"), yendo hacia atrás.
-      const pagosACheckar = allSubs.filter((s: any) =>
-        (s.estado === "activa" || s.estado === "conciliado") && !s.chequeado_admin &&
-        s.created_at && s.created_at >= `${today}T00:00:00` && s.created_at <= `${today}T23:59:59.999`
-      ).length;
-      const facturasPendientes = facturasPendientesRes.count || 0;
-      const d = new Date();
-      const periodo = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const [y, m] = periodo.split("-").map(Number);
-      const monthStart = `${periodo}-01`;
-      const monthEnd = new Date(y, m, 0).toISOString().split("T")[0];
-      const bajasDelMes = allSubs.filter((s: any) => {
-        if (!s.fecha_fin || s.fecha_fin < monthStart || s.fecha_fin > monthEnd) return false;
-        if (!["vencida", "cancelada"].includes(s.estado)) return false;
-        const renewed = allSubs.some((o: any) => o.alumno_id === s.alumno_id && o.fecha_inicio && o.fecha_inicio > monthEnd);
-        return !renewed;
-      });
-      const bajasPendientes = bajasDelMes.filter((s: any) => !s.baja_chequeada && s.fecha_fin === today).length;
-      const nuevosHoy = allAlumnos.filter((a: any) =>
-        a.created_at && a.created_at >= `${today}T00:00:00` && a.created_at <= `${today}T23:59:59.999`
-      ).length;
-      setChequeoAlerts({ facturas: facturasPendientes, pagos: pagosACheckar, bajas: bajasPendientes, nuevos: nuevosHoy });
-    } catch (err) {
-      console.error("Error loading dashboard:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const requestMarkPaid = (suscripcionId: string, alumnoNombre: string) => {
-    setConfirmAction({
-      title: "Confirmar cobro",
-      description: `¿Estás seguro de marcar como cobrado el pago de ${alumnoNombre}? Esta acción activará su suscripción.`,
-      onConfirm: async () => {
-        const { error } = await supabase
-          .from("suscripciones")
-          .update({ estado: "activa", mp_status: "conciliado", origen_registro: "cargado_admin" } as any)
-          .eq("id", suscripcionId);
-        if (error) {
-          toast({ title: "Error", description: error.message, variant: "destructive" });
-        } else {
-          // Log action
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session) {
-            await supabase.from("audit_log").insert({
-              user_id: session.user.id,
-              user_email: session.user.email,
-              user_role: "admin",
-              action: "marcar_pagado",
-              entity_type: "suscripcion",
-              entity_id: suscripcionId,
-              details: { alumno: alumnoNombre },
-            } as any);
-          }
-          toast({ title: "Pago marcado como cobrado" });
-          loadDashboard();
-        }
-        setConfirmAction(null);
-      },
-    });
-  };
-
-  const openWhatsApp = (telefono: string | null, nombre: string) => {
-    const url = formatWhatsAppUrl(telefono, nombre);
-    if (!url) {
-      toast({ title: "Sin teléfono", description: `${nombre} no tiene número de teléfono registrado.`, variant: "destructive" });
-      return;
-    }
-    window.open(url, "_blank");
-  };
-
-  const alertColorMap: Record<string, string> = {
-    danger: "border-destructive/50 bg-destructive/10",
-    warning: "border-yellow-500/50 bg-yellow-500/10",
-    info: "border-accent/50 bg-accent/10",
-  };
-  const alertIconColorMap: Record<string, string> = {
-    danger: "text-destructive",
-    warning: "text-yellow-500",
-    info: "text-accent",
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="animate-pulse text-muted-foreground">Cargando dashboard...</div>
-      </div>
-    );
-  }
-
-  const PaymentBadgeComponent = ({ mpStatus }: { mpStatus: string | null }) => {
-    const badge = getPaymentBadge("pendiente", mpStatus);
-    const Icon = badge.icon;
-    return (
-      <Badge variant={badge.variant} className={`text-xs gap-1 ${badge.className}`}>
-        <Icon className="w-3 h-3" />
-        {badge.label}
-      </Badge>
-    );
-  };
-
-  // ===== Tareas por día (derivadas de los datos ya cargados, sin queries nuevas) =====
-  const ctaFor = (kind: string) => {
-    if (kind.startsWith("Cuota")) return "Cobrar";
-    if (kind.startsWith("Pago vencido")) return "Cobrar";
-    if (kind.startsWith("Solicitud")) return "Revisar";
-    return "Revisar";
-  };
-  const todayIso = toISODate(new Date());
-  const dayTasks: DayTask[] = [
-    ...(chequeoAlerts.facturas > 0
-      ? [{ date: todayIso, label: "Facturas por emitir", hint: "Pagos cobrados hoy sin factura", count: chequeoAlerts.facturas, link: "/admin/facturacion/por-dia", cta: "Facturar", tone: "warning" as const }]
-      : []),
-    ...(chequeoAlerts.pagos > 0
-      ? [{ date: todayIso, label: "Pagos por conciliar", hint: "Pagos registrados hoy", count: chequeoAlerts.pagos, link: "/admin/pagos/por-dia", cta: "Conciliar", tone: "warning" as const }]
-      : []),
-    ...(chequeoAlerts.bajas > 0
-      ? [{ date: todayIso, label: "Bajas a chequear", hint: "Vencen hoy sin renovar", count: chequeoAlerts.bajas, link: "/admin/bajas/por-dia", cta: "Revisar", tone: "danger" as const }]
-      : []),
-    ...(chequeoAlerts.nuevos > 0
-      ? [{ date: todayIso, label: "Nuevos usuarios", hint: "Registrados hoy", count: chequeoAlerts.nuevos, link: "/admin/alumnos/nuevos-por-dia", cta: "Ver", tone: "info" as const }]
-      : []),
-    ...tasksFromDatedItems(datedItems, ctaFor),
-    // Sólo super admin ve las tareas de gastos
-    ...(isSuperAdmin ? gastoTasks : []),
-
-    ...alerts
-      .filter((a) => a.bucket === "sin_fecha")
-      .map((a) => ({ date: null, label: a.message, count: a.count, link: a.link, cta: "Ver", tone: a.type })),
+  const counters: Counter[] = [
+    {
+      label: "Alumnos activos", value: alumnosActivos, hint: "Ver lista de alumnos activos",
+      icon: Users, color: "text-primary", to: "/admin/alumnos?filter=activos",
+    },
+    {
+      label: "Suscripciones activas", value: subsActivas, hint: "Vigentes hoy",
+      icon: TrendingUp, color: "text-accent", to: "/admin/pagos?estado=pagado",
+    },
+    {
+      label: "Facturas por emitir", value: facturasHoy, hint: "Pagos cobrados hoy",
+      icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia",
+    },
+    {
+      label: "Cambios de plan", value: solicitudesCambio, hint: "Solicitudes pendientes",
+      icon: ArrowRightLeft, color: "text-yellow-500", to: "/admin/alumnos?tab=cambios-plan",
+    },
   ];
 
-  const criticas = alerts.filter((a) => a.type === "danger").reduce((s, a) => s + a.count, 0);
-  const kpis = [
-    { label: "Críticas", value: criticas, hint: "Requieren atención", icon: AlertTriangle, color: "text-destructive", to: "/admin/pagos?estado=vencido", scope: "acumulado" as const },
-    { label: "Cobros pendientes", value: `$${Math.round(cuotasEventos.monto).toLocaleString("es-AR")}`, hint: `${cuotasEventos.count} cuotas de eventos`, icon: DollarSign, color: "text-yellow-500", to: "/admin/eventos", scope: "acumulado" as const },
-    { label: "Facturas por emitir", value: chequeoAlerts.facturas, hint: "Pagos cobrados hoy", icon: FileText, color: "text-blue-500", to: "/admin/facturacion/por-dia", scope: "hoy" as const },
-    { label: "Pagos por conciliar", value: chequeoAlerts.pagos, hint: "Registrados hoy", icon: CreditCard, color: "text-emerald-500", to: "/admin/pagos/por-dia", scope: "hoy" as const },
+  const accesos = [
+    { label: "Pagos y cobranzas", desc: "Por cobrar, vencidos y conciliación", icon: CreditCard, to: "/admin/pagos" },
+    { label: "Agenda", desc: "Clases, turnos y disponibilidad", icon: CalendarClock, to: "/admin/agenda" },
+    { label: "Facturación", desc: "Cola del día y facturas emitidas", icon: FileText, to: "/admin/facturacion" },
+    { label: "Tienda y entregas", desc: "Pedidos, caja y listas de entrega", icon: Store, to: "/admin/entregas" },
+    { label: "Gastos y finanzas", desc: "Cómo viene el mes y pagos previstos", icon: Wallet, to: "/admin/gastos" },
   ];
-
 
   return (
     <div className="space-y-6">
@@ -685,105 +119,51 @@ const AdminDashboard = () => {
         </Link>
       </div>
 
-      {/* Resumen simple del mes (Entró / Falta cobrar / Salió / Falta pagar) */}
-      <ResumenFinancieroMes />
-
-      {/* KPIs operativos */}
-
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        {kpis.map((k) => (
-          <Link key={k.label} to={k.to} className="block">
+        {counters.map((c) => (
+          <Link key={c.label} to={c.to} className="block">
             <Card className="border-border hover:border-primary/50 transition-colors h-full">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <k.icon className={`w-4 h-4 ${k.color}`} />
-                  <span className="text-xs text-muted-foreground truncate">{k.label}</span>
-                  <PeriodBadge scope={k.scope} className="ml-auto" />
+                  <c.icon className={`w-4 h-4 ${c.color}`} />
+                  <span className="text-xs text-muted-foreground truncate">{c.label}</span>
                 </div>
-                <p className="text-2xl font-heading font-bold tabular-nums">{k.value}</p>
-                <p className="text-[10px] text-muted-foreground mt-1 truncate">{k.hint}</p>
+                <p className="text-2xl font-heading font-bold tabular-nums">
+                  {loading ? "…" : (c.value ?? "—")}
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-1 truncate">{c.hint}</p>
               </CardContent>
             </Card>
           </Link>
         ))}
-
       </div>
 
-      {/* Calendario operativo semanal (mismas fuentes que /admin/agenda) */}
-      <AdminOperationalCalendar />
-
-      {/* Tareas por día + Pendientes de la semana */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
-        <div className="lg:col-span-2 space-y-4">
-          <DashboardTasksByDay tasks={dayTasks} loading={loading} />
-
-          {duplicadosCount > 0 && (
+      <Card className="border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-heading uppercase tracking-wider">Accesos rápidos</CardTitle>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+          {accesos.map((a) => (
             <Link
-              to="/admin/alumnos?filter=multi_subs"
-              className="flex items-center gap-3 rounded-md border border-blue-500/40 bg-blue-500/5 hover:bg-blue-500/10 p-3 transition-colors"
+              key={a.to}
+              to={a.to}
+              className="flex items-center gap-3 rounded-md border border-border/60 hover:border-primary/50 hover:bg-muted/30 transition-colors px-3 py-2.5"
             >
-              <AlertTriangle className="w-5 h-5 shrink-0 text-blue-500" />
-              <div className="flex-1 text-sm">
-                <span className="font-medium">{duplicadosCount} alumno(s) con más de una suscripción activa</span>
-                <p className="text-xs text-muted-foreground">Ver detalle →</p>
+              <a.icon className="w-4 h-4 text-primary shrink-0" />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium truncate">{a.label}</p>
+                <p className="text-[11px] text-muted-foreground truncate">{a.desc}</p>
               </div>
+              <ArrowRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
             </Link>
-          )}
-        </div>
+          ))}
+        </CardContent>
+      </Card>
 
-        <WeeklyPendingsPanel items={datedItems} loading={loading} />
-      </div>
-
-      {/* Métricas generales */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {metrics.map((m) => {
-          const inner = (
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <m.icon className={`w-4 h-4 ${m.color}`} />
-                <span className="text-xs text-muted-foreground truncate">{m.label}</span>
-              </div>
-              <p className="text-xl font-bold font-heading">{m.value}</p>
-              {m.hint && <p className="text-[10px] text-muted-foreground mt-1 truncate">{m.hint}</p>}
-            </CardContent>
-          );
-          return m.to ? (
-            <Link key={m.label} to={m.to} className="block">
-              <Card className="border-border hover:border-primary/50 hover:bg-muted/30 transition-colors cursor-pointer h-full">
-                {inner}
-              </Card>
-            </Link>
-          ) : (
-            <Card key={m.label} className="border-border">{inner}</Card>
-          );
-        })}
-      </div>
-
-      {/* Cumpleaños + Tienda / Entregas */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        <BirthdayWidget />
-        <DeliveryCashWidget />
-      </div>
-
-
-
-
-
-
-
-      {/* Confirmation Dialog */}
-      <AlertDialog open={!!confirmAction} onOpenChange={(open) => { if (!open) setConfirmAction(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{confirmAction?.title}</AlertDialogTitle>
-            <AlertDialogDescription>{confirmAction?.description}</AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={() => confirmAction?.onConfirm()}>Confirmar</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <p className="text-[11px] text-muted-foreground">
+        Panel simplificado temporalmente para reducir la carga del sistema. El detalle completo sigue
+        disponible en cada sección.
+      </p>
     </div>
   );
 };
