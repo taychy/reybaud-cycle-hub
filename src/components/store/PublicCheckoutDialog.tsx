@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { sortVariantSpecs } from "@/lib/variantSort";
-import { Loader2, CreditCard } from "lucide-react";
+import { Loader2, CreditCard, Banknote } from "lucide-react";
 import { urgencyText } from "@/lib/campaigns";
 
 interface Product {
@@ -208,7 +208,7 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">Comprar {product.name}</DialogTitle>
-          <DialogDescription>Completá tus datos y pagá con Mercado Pago.</DialogDescription>
+          <DialogDescription>Completá tus datos y elegí cómo pagar.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-3 py-1">
