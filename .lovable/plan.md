@@ -1,50 +1,58 @@
-# Por qué la cuota de septiembre de Agustina figura en $0 — auditoría (solo lectura)
+# Descuentos de campaña según forma de pago (Tienda)
 
-No se cambió nada: ni datos, ni código, ni configuración.
+Auditoría hecha sobre el estado actual. No se modificó nada.
 
-## El recorrido real del caso
+## a) Hallazgos y riesgos
 
-1. **01/09 19:32** se crea la cuota de septiembre de Agustina (Pase Libre, 01/09–30/09, $83.500), como intento de pago por Mercado Pago: queda en estado "pendiente", sin número de operación y con código de error 400 en el intento (`suscripciones.5567e46d-…`).
-2. **03/09 21:36** entra a la cuenta de Mercado Pago una **transferencia por CVU de $83.500** (operación 176157800685). En el registro figura: sin referencia externa, sin nombre de quien paga, mail genérico `cobrosreybaud@gmail.com`, descripción "Bank Transfer". **No hay ningún dato que la conecte con Agustina ni con su cuota.**
-3. **04/09 06:00** el proceso automático `cleanup-pending-subscriptions` anula la cuota: busca cuotas "pendiente" + método mercadopago + sin número de operación + creadas hace más de 48 h, y las cancela con el motivo "Pago no confirmado por Mercado Pago (timeout 48h)". La cuota de agosto ya había caído igual el 03/09.
-4. Como la cuenta corriente (`vw_cuenta_corriente_movimientos`) **excluye toda cuota anulada**, desaparecieron a la vez el cargo y cualquier rastro del pago. Por eso se ve Cargos $0 y sólo quedan el crédito de $7.208 (13/07) y una reserva de evento sin importe.
+**Cómo funciona hoy**
+- Tablas: `store_campaigns` (nombre, slug, fechas, activa, badge, urgencia) y `store_campaign_items` (producto, `variant_keys` opcional, tipo `porcentaje|precio_fijo`, valor, activo). El alcance ya es explícito por producto/variante: no hay alcance global.
+- Fuente de verdad de precio: función SQL `resolver_precio_tienda(product_id, variante)` (SECURITY DEFINER) y el listado `get_promos_tienda_vigentes()` para grillas. Ambas eligen una sola campaña ganadora: menor precio resultante, desempate por `fecha_inicio` más reciente y luego menor `id`. No apilan.
+- El espejo en cliente es `src/lib/campaigns.ts` (solo para mostrar) con tests en `src/lib/campaigns.test.ts`.
+- Creación de pedidos: `crear_pedido_tienda_alumno` (interno/alumno) y la función de servidor `create-public-store-order` (link público) llaman al resolver y guardan snapshot en `store_order_items` (`precio_lista`, `precio_cobrado`, `campaign_id`, `campaign_nombre`, `discount_pct`). Nunca se toca `store_products.price`.
+- Forma de pago: hoy ya existe Mercado Pago y Efectivo tanto en el checkout público como en el interno, pero la forma de pago **no** influye en el precio.
+- Datos actuales: 1 campaña activa ("ÚLTIMO STOCK SANTINI - INVIERNO OFF") con 2 productos.
 
-## Causa raíz
+**Riesgos detectados**
+1. El resolver se llama hoy sin conocer la forma de pago; si se agrega el filtro sin valor por defecto seguro, la campaña activa dejaría de aplicar. Debe defaultear a "ambas".
+2. El checkout público elige la forma de pago al final: si el precio no se recalcula al cambiarla, lo mostrado no coincide con lo cobrado. Hay que recalcular en el mismo evento del cambio.
+3. Monedas: los productos pueden estar en USD/EUR y hoy Mercado Pago convierte a ARS con un tipo de cambio de configuración, mientras el pedido en efectivo se guarda igual convertido a ARS. Es una inconsistencia previa, ajena a este pedido; recomendación mínima: no tocarla ahora y solo aplicar el descuento sobre el precio de lista en la moneda del producto, antes de la conversión (que es como ya funciona).
+4. Riesgo de doble verdad: `src/lib/campaigns.ts` replica la lógica SQL. Si se agrega la condición de forma de pago hay que hacerlo en ambos lados, con tests que lo cubran.
+5. Combos y precio por variante ya tienen comportamiento definido; no se toca.
 
-Es una **combinación de desacople y automatización destructiva**, no un filtro de UI caprichoso ni un error de cálculo:
+## b) Diseño mínimo recomendado
 
-- **Desacople suscripción ↔ cuenta corriente.** No existe una tabla de cargos propia: el cargo mensual *es* la fila de la suscripción, derivada en vivo por la vista. Si la suscripción se anula, el cargo desaparece retroactivamente. No hay asiento que sobreviva.
-- **El automatismo de limpieza borra deuda legítima.** `cleanup-pending-subscriptions` fue pensado para eliminar intentos de pago abandonados, pero no distingue "intento zombi" de "cuota real impaga". A las 48 h elimina el cargo del mes en vez de dejarlo como deuda.
-- **El pago no se pudo conciliar solo** porque las transferencias por CVU llegan sin referencia ni identidad del pagador; el webhook sólo vincula automáticamente cuando hay `external_reference` o número de operación en la suscripción.
+Un solo campo nuevo en la campaña:
 
-Resultado: período creado, pago realmente recibido en la cuenta, y ni cargo ni pago reflejados. **Confianza: alta** para los puntos 1–4 y para el mecanismo de anulación; **media** para afirmar que esa transferencia del 03/09 es de Agustina (coincide monto y fecha, pero no hay dato identificatorio).
+`store_campaigns.medios_pago text[] NOT NULL DEFAULT '{mp,efectivo}'` con validación de valores permitidos.
 
-## Piezas concretas del flujo
+- Default seguro: toda campaña existente y nueva aplica a ambos medios (compatibilidad total).
+- El resolver recibe un parámetro opcional nuevo `p_metodo text DEFAULT NULL`. Si viene `NULL`, se comporta exactamente como hoy (no filtra) y sirve para las vistrinas donde todavía no se eligió medio de pago; en ese caso se informa además a qué medios aplica la promo para poder aclararlo en pantalla.
+- El precio que se cobra se resuelve siempre en el backend pasando el medio de pago real del pedido.
+- Si una campaña no aplica al medio elegido, el producto se sigue vendiendo con ese medio, a precio de lista.
 
-| Pieza | Dónde | Qué hace |
-|---|---|---|
-| Anulación automática 48 h | `supabase/functions/cleanup-pending-subscriptions/index.ts` | cancela pendientes de Mercado Pago sin operación |
-| Cuenta corriente | vista `vw_cuenta_corriente_movimientos` + `get_saldo_alumno` | ignora cuotas anuladas (cargo y pago) |
-| Ingesta/conciliación MP | `mp_account_movements`, pantalla Admin > Mercado Pago (`MpMovementsTab.tsx`) | lista movimientos y permite asignarlos a mano |
-| "Generar mensualidad y aplicar" | `assign_mp_movement_to_new_suscripcion` | crea la cuota del mes ya pagada con ese movimiento |
-| Reparto entre alumnos | `crear_suscripcion_para_imputar` + `split_mp_movement_among_alumnos` | genera cuotas y divide un pago |
-| Saldo a favor | `cuenta_ajustes` (crédito $7.208, nunca aplicado) y `cuenta_publica_consume_credit` | el crédito sólo se descuenta cuando alguien paga con el link público |
+## c) Archivos y migraciones a tocar
 
-## Duplicados: el riesgo está contenido
+**Migración nueva (aditiva)**
+- `ALTER TABLE store_campaigns ADD COLUMN medios_pago ...` con default y check.
+- `CREATE OR REPLACE FUNCTION resolver_precio_tienda(uuid, jsonb, text DEFAULT NULL)` con el filtro por medio y dos columnas de salida nuevas (`aplica_mp`, `aplica_efectivo`). Se conserva la firma anterior creando la nueva con parámetro por defecto para no romper llamadas existentes.
+- `CREATE OR REPLACE FUNCTION get_promos_tienda_vigentes()` agregando las mismas dos columnas informativas.
+- `crear_pedido_tienda_alumno`: pasar `p_metodo` al resolver.
+- No se tocan migraciones previas ni datos históricos.
 
-- Índice único `uniq_sub_activa_alumno_plan_periodo` y validación previa en la función de "generar mensualidad" (`subscription_already_exists_for_period`) impiden dos cuotas vivas del mismo plan y mes.
-- La función también rechaza reutilizar un movimiento ya vinculado a otra cuota u otro alumno.
-- **Pero**: como las anuladas no cuentan para el índice, generar la mensualidad ahora crearía una cuota nueva de septiembre y quedaría la vieja anulada al lado, con el mismo importe. No es un cobro doble, sí es ruido histórico.
-- El saldo a favor de $7.208 no se aplica solo: si se genera la cuota y se le imputa el pago completo, el crédito sigue intacto y podría contarse de nuevo más adelante.
+**Código**
+- `src/lib/campaigns.ts` y su test: campo `medios_pago`, filtro por medio en `resolveEffectivePrice`.
+- `src/pages/admin/store/StoreCampaigns.tsx`: selector "¿En qué formas de pago aplica?" (Mercado Pago / Efectivo / ambas) en el formulario de campaña, y muestra en el listado.
+- `src/pages/admin/store/StoreProducts.tsx`: por producto, mostrar precio de lista, precio con campaña, % y nombre de campaña, y los medios en que aplica; si es solo en algunas variantes, se indica "Promo en talles seleccionados" sin mostrar un precio global falso.
+- `src/components/store/PublicCheckoutDialog.tsx` y `src/pages/PublicProduct.tsx`: recálculo del precio al cambiar la forma de pago y aviso "este descuento aplica pagando con X".
+- `supabase/functions/create-public-store-order/index.ts`: pasar el medio de pago al resolver antes de crear el pedido y el snapshot.
+- `src/components/store/BuyProductDialog.tsx` (compra interna del alumno): mismo recálculo.
+- No se toca `PublicStore.tsx`/`TiendaSection.tsx` salvo un texto aclaratorio si la promo es exclusiva de un medio.
 
-## Rutas que permiten "período activo sin cargo"
+## d) Compatibilidad y pruebas
 
-1. Cuota pendiente por Mercado Pago que supera 48 h → anulada, cargo evaporado (el caso).
-2. Anulación manual de una cuota que sí tuvo pago (le pasó en junio: pago aprobado de $87.238, cuota anulada el 01/09 como "error en la carga"; hoy figura como cobrada sin factura).
-3. Transferencias/CVU sin referencia que quedan sin dueño (hay varias sin asignar en la cuenta).
-
-## Situación de fondo
-
-Hoy Agustina tiene cero cuotas vivas, saldo real **$7.208 a favor** y ninguna deuda registrada, pese a que septiembre está sin cobrar formalmente. Hay 38 alumnos activos sin ninguna cuota vigente, que conviene revisar con la misma lupa.
-
-No propongo cambios en esta pasada, según lo pedido.
+- Default `{mp,efectivo}`: la campaña activa hoy sigue comportándose igual.
+- Llamadas actuales al resolver sin el parámetro nuevo siguen funcionando (parámetro con default).
+- Pedidos existentes no se tocan: los snapshots ya guardados quedan intactos.
+- Efectivo sigue habilitado para todos los productos activos; Mercado Pago no se modifica.
+- Tests a agregar en `src/lib/campaigns.test.ts`: campaña solo efectivo consultada como MP devuelve precio de lista; campaña solo MP con efectivo devuelve precio de lista; campaña sin campo (default ambos) mantiene el comportamiento actual; sin medio indicado no filtra; no apila descuentos y conserva la prioridad de menor precio.
+- Verificación adicional: prueba en navegador del checkout público alternando forma de pago y comparación del total mostrado contra el pedido creado, más typecheck, suite completa y build. Sin publicar.
