@@ -147,6 +147,7 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
         envio_direccion: direccion,
         observaciones: obs,
         opt_in_marketing: optIn,
+        metodo_pago: metodoPago,
       },
     });
     let err = (data as any)?.error as string | undefined;
@@ -158,13 +159,19 @@ const PublicCheckoutDialog = ({ open, onOpenChange, product, initialVariant = {}
       } catch { /* sin body legible */ }
       err = err || error.message;
     }
-    if (err || !(data as any)?.init_point) {
+    if (err || (metodoPago === "mp" && !(data as any)?.init_point) || (metodoPago === "efectivo" && !(data as any)?.order_id)) {
       setLoading(false);
       toast({ title: "No pudimos completar la compra", description: err || "Intentá de nuevo.", variant: "destructive" });
       return;
     }
+    if (metodoPago === "efectivo") {
+      setLoading(false);
+      setCashOrder({ number: (data as any).order_number ?? null });
+      return;
+    }
     window.location.href = (data as any).init_point;
   };
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
