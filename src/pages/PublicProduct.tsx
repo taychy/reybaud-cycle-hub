@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle, ShoppingBag } from "lucide-react";
 import PublicCheckoutDialog from "@/components/store/PublicCheckoutDialog";
 import { formatPrice } from "@/lib/currency";
-import { urgencyText, type EffectivePrice } from "@/lib/campaigns";
+import { urgencyText, promoPaymentNote, type EffectivePrice } from "@/lib/campaigns";
 import { effectiveStock, variantStockSum } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { compareVariantsBySize } from "@/lib/variantSort";
@@ -59,8 +59,13 @@ const PublicProduct = () => {
   useEffect(() => {
     if (!p) return;
     let cancelled = false;
-    void supabase.rpc("resolver_precio_tienda", { p_product_id: p.id, p_variante: selectedVariant }).then(({ data }) => {
-      if (!cancelled) setEffectivePrice((data?.[0] as EffectivePrice) || null);
+    // Vitrina: todavía no se eligió forma de pago, así que no se filtra pero sí se informa la condición.
+    void (supabase.rpc as any)("resolver_precio_tienda_por_pago", {
+      p_product_id: p.id,
+      p_variante: selectedVariant,
+      p_metodo_pago: null,
+    }).then(({ data }: any) => {
+      if (!cancelled) setEffectivePrice((data?.[0] as any as EffectivePrice) || null);
     });
     return () => { cancelled = true; };
   }, [p?.id, JSON.stringify(selectedVariant)]);
@@ -113,6 +118,9 @@ const PublicProduct = () => {
                 {p.old_price ? <span className="text-sm text-muted-foreground line-through">{formatPrice(p.old_price, p.currency || "ARS")}</span> : null}
               </>}
             </div>
+            {effectivePrice && effectivePrice.precio_efectivo < effectivePrice.precio_lista && promoPaymentNote(effectivePrice) && (
+              <p className="text-xs text-muted-foreground">Precio promocional {promoPaymentNote(effectivePrice)}. Con la otra forma de pago vale {formatPrice(effectivePrice.precio_lista, p.currency || "ARS")}.</p>
+            )}
             {effectivePrice?.solo_variantes && effectivePrice.precio_efectivo === effectivePrice.precio_lista && <p className="text-xs text-muted-foreground">Promo en talles seleccionados</p>}
             {effectivePrice?.mostrar_urgencia && urgencyText(effectivePrice.fecha_fin) && <p className="text-xs text-primary">{urgencyText(effectivePrice.fecha_fin)}</p>}
             {p.description && <p className="text-sm text-muted-foreground whitespace-pre-line">{p.description}</p>}

@@ -15,11 +15,15 @@ import {
   applyCampaignItem,
   campaignStatus,
   CAMPAIGN_STATUS_LABEL,
+  CAMPAIGN_PAYMENT_LABEL,
+  mediosPagoLabel,
   urgencyText,
   type CampaignDiscountType,
+  type CampaignPaymentMethod,
   type CampaignStatus,
   type StoreCampaign,
 } from "@/lib/campaigns";
+
 
 interface CampaignRow extends StoreCampaign {
   items_count?: number;
@@ -129,8 +133,26 @@ const StoreCampaigns = () => {
       activa: false,
       badge_texto: "",
       mostrar_urgencia: true,
+      medios_pago: ["mp", "efectivo"],
     });
     setFormOpen(true);
+  };
+
+  // En el formulario respetamos la selección tal cual (puede quedar vacía y bloquear el guardado).
+  const formMedios: CampaignPaymentMethod[] = (form.medios_pago === undefined
+    ? ["mp", "efectivo"]
+    : (form.medios_pago || [])
+  ).filter((m): m is CampaignPaymentMethod => m === "mp" || m === "efectivo");
+
+  const toggleMedio = (m: CampaignPaymentMethod) => {
+    setForm((f) => {
+      const actuales = (f.medios_pago === undefined
+        ? ["mp", "efectivo"]
+        : (f.medios_pago || [])
+      ).filter((x): x is CampaignPaymentMethod => x === "mp" || x === "efectivo");
+      const next = actuales.includes(m) ? actuales.filter((x) => x !== m) : [...actuales, m];
+      return { ...f, medios_pago: next };
+    });
   };
 
   const saveCampaign = async () => {
@@ -142,6 +164,11 @@ const StoreCampaigns = () => {
       toast({ title: "Fechas inválidas", description: "La fecha de fin debe ser posterior al inicio.", variant: "destructive" });
       return;
     }
+    const medios = formMedios;
+    if (!medios.length) {
+      toast({ title: "Elegí una forma de pago", description: "La campaña tiene que aplicar al menos a Mercado Pago o a Efectivo.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
     const payload: any = {
       nombre: form.nombre,
@@ -151,6 +178,7 @@ const StoreCampaigns = () => {
       activa: form.activa ?? false,
       badge_texto: form.badge_texto || null,
       mostrar_urgencia: form.mostrar_urgencia ?? false,
+      medios_pago: medios,
     };
     let error;
     if (form.id) {
@@ -174,6 +202,8 @@ const StoreCampaigns = () => {
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     load();
   };
+
+
 
   const openProducts = async (c: CampaignRow) => {
     setCurrent(c);
@@ -285,6 +315,7 @@ const StoreCampaigns = () => {
                   <p className="text-xs text-muted-foreground">
                     {new Date(c.fecha_inicio).toLocaleDateString("es-AR")} → {new Date(c.fecha_fin).toLocaleDateString("es-AR")}
                     {" · "}{c.items_count ?? 0} producto(s)
+                    {` · Pago: ${mediosPagoLabel(c.medios_pago)}`}
                     {c.badge_texto ? ` · Badge: ${c.badge_texto}` : ""}
                   </p>
                 </div>
@@ -334,10 +365,31 @@ const StoreCampaigns = () => {
                 <Input type="datetime-local" value={form.fecha_fin ? toLocalInput(form.fecha_fin) : ""} onChange={(e) => setForm((f) => ({ ...f, fecha_fin: new Date(e.target.value).toISOString() }))} />
               </div>
             </div>
+            <div className="rounded-lg border border-border p-3">
+              <p className="text-sm font-medium">¿En qué formas de pago aplica el descuento?</p>
+              <p className="text-xs text-muted-foreground mb-2">Con la otra forma de pago el producto se vende igual, al precio normal.</p>
+              <div className="flex gap-2">
+                {(["mp", "efectivo"] as CampaignPaymentMethod[]).map((m) => (
+                  <Button
+                    key={m}
+                    type="button"
+                    size="sm"
+                    variant={formMedios.includes(m) ? "default" : "outline"}
+                    onClick={() => toggleMedio(m)}
+                  >
+                    {CAMPAIGN_PAYMENT_LABEL[m]}
+                  </Button>
+                ))}
+              </div>
+              {formMedios.length === 0 && (
+                <p className="text-xs text-destructive mt-2">Elegí al menos una forma de pago.</p>
+              )}
+            </div>
             <div>
               <label className="text-xs font-heading uppercase text-muted-foreground">Badge</label>
               <Input value={form.badge_texto || ""} onChange={(e) => setForm((f) => ({ ...f, badge_texto: e.target.value }))} placeholder="FIN DE INVIERNO" />
             </div>
+
             <div className="flex items-center justify-between rounded-lg border border-border p-3">
               <div>
                 <p className="text-sm font-medium">Mostrar urgencia</p>

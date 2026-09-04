@@ -8,6 +8,30 @@
 
 export type CampaignDiscountType = "porcentaje" | "precio_fijo";
 
+/** Medios de pago en los que puede aplicar una campaña. */
+export type CampaignPaymentMethod = "mp" | "efectivo";
+
+export const CAMPAIGN_PAYMENT_METHODS: CampaignPaymentMethod[] = ["mp", "efectivo"];
+
+export const CAMPAIGN_PAYMENT_LABEL: Record<CampaignPaymentMethod, string> = {
+  mp: "Mercado Pago",
+  efectivo: "Efectivo",
+};
+
+/** Campañas viejas (sin el campo) aplican a ambos medios: default seguro. */
+export const normalizeMediosPago = (medios: string[] | null | undefined): CampaignPaymentMethod[] => {
+  const list = (medios || []).filter((m): m is CampaignPaymentMethod => m === "mp" || m === "efectivo");
+  return list.length ? list : [...CAMPAIGN_PAYMENT_METHODS];
+};
+
+/** Texto corto para explicar la condición de pago de una promo. */
+export const mediosPagoLabel = (medios: string[] | null | undefined): string =>
+  normalizeMediosPago(medios).map((m) => CAMPAIGN_PAYMENT_LABEL[m]).join(" y ");
+
+/** true si la promo aplica a todos los medios (no es condicionada). */
+export const aplicaATodosLosMedios = (medios: string[] | null | undefined): boolean =>
+  normalizeMediosPago(medios).length === CAMPAIGN_PAYMENT_METHODS.length;
+
 export interface StoreCampaign {
   id: string;
   nombre: string;
@@ -18,7 +42,10 @@ export interface StoreCampaign {
   activa: boolean;
   badge_texto: string | null;
   mostrar_urgencia: boolean;
+  /** Medios de pago en los que aplica. Ausente/vacío = ambos (compatibilidad). */
+  medios_pago?: string[] | null;
 }
+
 
 export interface StoreCampaignItem {
   id?: string;
@@ -73,18 +100,23 @@ export interface EffectivePrice {
   mostrar_urgencia: boolean;
   fecha_fin: string | null;
   solo_variantes: boolean;
+  medios_pago: CampaignPaymentMethod[] | null;
 }
 
 /**
  * Regla de prioridad (idéntica al SQL): entre todas las campañas vigentes y activas que
  * incluyen el producto/variante gana la de MENOR precio resultante; a igual precio, la de
  * `fecha_inicio` más reciente; a igual fecha, el menor `campaign_id`. Nunca se apilan descuentos.
+ *
+ * `metodoPago` (opcional): si se indica `mp` o `efectivo`, sólo se consideran campañas que
+ * incluyan ese medio. Sin método (vitrina genérica) no se filtra.
  */
 export const resolveEffectivePrice = (
   precioLista: number,
   variantKey: string | null,
   items: (StoreCampaignItem & { campaign: StoreCampaign })[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  metodoPago: CampaignPaymentMethod | null = null
 ): EffectivePrice => {
   const base: EffectivePrice = {
     precio_lista: precioLista,
@@ -96,15 +128,18 @@ export const resolveEffectivePrice = (
     mostrar_urgencia: false,
     fecha_fin: null,
     solo_variantes: false,
+    medios_pago: null,
   };
 
   const candidates = items
     .filter((it) => it.activo && campaignStatus(it.campaign, now) === "activa")
+    .filter((it) => !metodoPago || normalizeMediosPago(it.campaign.medios_pago).includes(metodoPago))
     .filter((it) => it.variant_keys === null || (!!variantKey && it.variant_keys.includes(variantKey)))
     .map((it) => ({ it, precio: applyCampaignItem(precioLista, it) }))
     .filter((c) => c.precio < precioLista);
 
   if (!candidates.length) return base;
+
 
   candidates.sort((a, b) => {
     if (a.precio !== b.precio) return a.precio - b.precio;
@@ -125,6 +160,8 @@ export const resolveEffectivePrice = (
     mostrar_urgencia: win.it.campaign.mostrar_urgencia,
     fecha_fin: win.it.campaign.fecha_fin,
     solo_variantes: win.it.variant_keys !== null,
+    medios_pago: normalizeMediosPago(win.it.campaign.medios_pago),
+
   };
 };
 
@@ -163,7 +200,7 @@ export const urgencyText = (fechaFin: string | null, now: Date = new Date()): st
   return `Hasta ${dd}/${mm}`;
 };
 
-/** Fila devuelta por el RPC `get_promos_tienda_vigentes`. */
+/** Fila devuelta por los RPC `get_promos_tienda_vigentes[_por_pago]`. */
 export interface PromoRow {
   product_id: string;
   precio_lista: number;
@@ -175,7 +212,21 @@ export interface PromoRow {
   mostrar_urgencia: boolean;
   fecha_fin: string | null;
   solo_variantes: boolean;
+  /** Sólo lo devuelve el RPC por pago. Ausente = ambos medios. */
+  medios_pago?: string[] | null;
 }
+
+/**
+ * Resumen honesto para vitrina cuando todavía no se eligió forma de pago.
+ * Devuelve el texto de condición cuando la promo aplica a un solo medio.
+ */
+export const promoPaymentNote = (row: Pick<PromoRow, "medios_pago"> | null | undefined): string | null => {
+  if (!row) return null;
+  const medios = normalizeMediosPago(row.medios_pago);
+  if (medios.length === CAMPAIGN_PAYMENT_METHODS.length) return null;
+  return `pagando con ${CAMPAIGN_PAYMENT_LABEL[medios[0]]}`;
+};
+
 
 export const promoMap = (rows: PromoRow[] | null | undefined): Record<string, PromoRow> => {
   const map: Record<string, PromoRow> = {};

@@ -73,9 +73,12 @@ Deno.serve(async (req) => {
       return json({ error: `Solo quedan ${disponible} unidades` }, 400);
     }
 
-    const { data: priceRows, error: priceErr } = await supabase.rpc("resolver_precio_tienda", {
+    // El descuento de campaña depende de la forma de pago real del pedido.
+    // Se resuelve SIEMPRE en el servidor y antes de cualquier conversión de moneda.
+    const { data: priceRows, error: priceErr } = await supabase.rpc("resolver_precio_tienda_por_pago", {
       p_product_id: product.id,
       p_variante: variante,
+      p_metodo_pago: metodoPago,
     });
     if (priceErr || !priceRows?.[0]) {
       console.error("[create-public-store-order] price resolver", priceErr);

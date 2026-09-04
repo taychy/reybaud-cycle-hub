@@ -13,3 +13,6 @@
 ## Tienda · Pago en efectivo (preview)
 - [x] Checkout público con opción "Efectivo al retirar" (sin Mercado Pago, pedido pendiente de cobro)
 - [x] Confirmar pago en efectivo desde Depósito y Admin, con reglas únicas en `src/lib/storeCashPayment.ts` (idempotente, bloquea pedidos ya pagados o anulados)
+
+## Tienda · Campañas condicionadas por forma de pago (preview)
+- [x] Campo `medios_pago` en campañas (default ambos), UI Admin, resolver backend por medio y checkout público/producto coherentes
