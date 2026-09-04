@@ -139,11 +139,18 @@ const StoreCampaigns = () => {
     setFormOpen(true);
   };
 
-  const formMedios = normalizeMediosPago(form.medios_pago);
+  // En el formulario respetamos la selección tal cual (puede quedar vacía y bloquear el guardado).
+  const formMedios: CampaignPaymentMethod[] = (form.medios_pago === undefined
+    ? ["mp", "efectivo"]
+    : (form.medios_pago || [])
+  ).filter((m): m is CampaignPaymentMethod => m === "mp" || m === "efectivo");
 
   const toggleMedio = (m: CampaignPaymentMethod) => {
     setForm((f) => {
-      const actuales = normalizeMediosPago(f.medios_pago);
+      const actuales = (f.medios_pago === undefined
+        ? ["mp", "efectivo"]
+        : (f.medios_pago || [])
+      ).filter((x): x is CampaignPaymentMethod => x === "mp" || x === "efectivo");
       const next = actuales.includes(m) ? actuales.filter((x) => x !== m) : [...actuales, m];
       return { ...f, medios_pago: next };
     });
@@ -158,7 +165,7 @@ const StoreCampaigns = () => {
       toast({ title: "Fechas inválidas", description: "La fecha de fin debe ser posterior al inicio.", variant: "destructive" });
       return;
     }
-    const medios = (form.medios_pago || []).filter((m) => m === "mp" || m === "efectivo");
+    const medios = formMedios;
     if (!medios.length) {
       toast({ title: "Elegí una forma de pago", description: "La campaña tiene que aplicar al menos a Mercado Pago o a Efectivo.", variant: "destructive" });
       return;
@@ -314,6 +321,7 @@ const StoreCampaigns = () => {
                   <p className="text-xs text-muted-foreground">
                     {new Date(c.fecha_inicio).toLocaleDateString("es-AR")} → {new Date(c.fecha_fin).toLocaleDateString("es-AR")}
                     {" · "}{c.items_count ?? 0} producto(s)
+                    {` · Pago: ${mediosPagoLabel(c.medios_pago)}`}
                     {c.badge_texto ? ` · Badge: ${c.badge_texto}` : ""}
                   </p>
                 </div>
