@@ -144,8 +144,9 @@ Deno.serve(async (req) => {
         customer_phone: telefono,
         total: totalArs,
         currency: "ARS",
-        status: "pendiente_pago",
-        metodo_pago: "mp",
+        status: metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago",
+        metodo_pago: metodoPago === "efectivo" ? "efectivo" : "mp",
+
         origen_registro: "tienda_publica",
         es_externo: !!product.es_externo,
         entrega_metodo: entrega,
