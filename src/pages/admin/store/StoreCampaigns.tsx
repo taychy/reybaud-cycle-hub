@@ -17,7 +17,6 @@ import {
   CAMPAIGN_STATUS_LABEL,
   CAMPAIGN_PAYMENT_LABEL,
   mediosPagoLabel,
-  normalizeMediosPago,
   urgencyText,
   type CampaignDiscountType,
   type CampaignPaymentMethod,
