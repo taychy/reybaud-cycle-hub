@@ -10,6 +10,14 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { type PreorderLabelData } from "@/lib/preorderLabels";
 import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
 import PruebasSection from "@/components/store/PruebasSection";
+import {
+  CASH_PENDING_STATUS,
+  CASH_BLOCK_MESSAGE,
+  buildCashPaymentPatch,
+  canConfirmCashPayment,
+  cashConfirmBlockReason,
+} from "@/lib/storeCashPayment";
+
 
 const STATUSES = [
   "pendiente_pago",
