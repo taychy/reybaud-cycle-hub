@@ -150,6 +150,40 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (selected?.id === id) setSelected((s: any) => ({ ...s, status }));
   };
 
+  const confirmarEfectivo = async (order: any) => {
+    const motivo = cashConfirmBlockReason(order);
+    if (motivo) {
+      toast({ title: "No se puede cobrar", description: CASH_BLOCK_MESSAGE[motivo], variant: "destructive" });
+      return;
+    }
+    const patch = buildCashPaymentPatch(order, { actor: "Depósito" });
+    if (!patch) return;
+    setCobrando(order.id);
+    // Condición de carrera: sólo actualiza si sigue pendiente y sin cobro previo.
+    const { data, error } = await supabase
+      .from("store_orders")
+      .update(patch as any)
+      .eq("id", order.id)
+      .eq("status", CASH_PENDING_STATUS)
+      .is("pagado_at", null)
+      .select("id");
+    setCobrando(null);
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+      return;
+    }
+    if (!data || data.length === 0) {
+      toast({ title: "Sin cambios", description: "El cobro ya había sido registrado.", variant: "destructive" });
+      await load();
+      return;
+    }
+    toast({ title: "Pago en efectivo registrado" });
+    setRows((prev) => prev.map((r) => (r.id === order.id ? { ...r, ...patch } : r)));
+    if (selected?.id === order.id) setSelected((s: any) => ({ ...s, ...patch }));
+  };
+
+
+
   const saveTracking = async () => {
     if (!selected) return;
     const { error } = await supabase
