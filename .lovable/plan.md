@@ -1,72 +1,119 @@
-# Auditoría de carga y disco (solo lectura)
+# Auditoría: conciliación de cobros recurrentes de Mercado Pago
 
-No se modificó nada: ni código, ni base, ni configuración. Todo lo que sigue es diagnóstico con evidencia.
+Solo lectura. No se modificó código, datos ni base. Todo lo afirmado abajo fue verificado en el código actual o con consultas SELECT a la base de producción.
 
-## Resumen en una línea
+## 1. Hallazgo principal (causa raíz confirmada)
 
-El disco no se está llenando por los datos del negocio: casi todo lo ocupa el **historial de las tareas automáticas** (5,4 GB) y el **registro de llamadas salientes** (203 MB), que nadie borra nunca. Los datos reales de alumnos, pagos y entrenamientos ocupan pocos megabytes.
+**Ninguna suscripción del sistema tiene guardado el identificador de suscripción recurrente de Mercado Pago.**
 
-## Evidencia confirmada
+Verificado: `select count(*) , count(mp_preapproval_id) from suscripciones` → **992 filas, 0 con `mp_preapproval_id`**.
 
-| Objeto | Tamaño / actividad | Qué es |
+Consecuencia directa: el webhook que procesa los cobros automáticos (`supabase/functions/mp-webhook/index.ts`, bloque "AUTHORIZED PAYMENT FLOW", líneas 113-200) busca la suscripción "madre" con `.eq("mp_preapproval_id", preapprovalId)` y, al no encontrarla, registra `No parent subscription for preapproval` y responde `{ ok: true, no_parent: true }`. **Sale sin imputar nada y sin dejar alerta.** Los cobros recurrentes en curso fueron creados fuera de la app (panel de Mercado Pago), por lo que nunca existió ese vínculo.
+
+El único lugar que escribe `mp_preapproval_id` al crear es `create-mp-preapproval/index.ts` (línea 170), es decir, sólo suscripciones nacidas dentro de la app — que hoy son cero.
+
+## 2. Flujo actual de un cobro recurrente (trazado)
+
+```text
+MP cobra (día 1)
+  ├─ webhook authorized_payment → mp-webhook → busca suscripciones.mp_preapproval_id
+  │                                            → 0 coincidencias → SALE SIN HACER NADA
+  └─ cron sync-mp-account-movements (cada 15 min, ventana últimos N días)
+        → inserta fila en mp_account_movements con raw completo del pago
+        → auto-link: 1) reservation_payments por mp_payment_id
+                     2) suscripciones por mp_payment_id
+                     3) alumnos por payer.email (ilike, exacto)
+        → NO mira metadata.preapproval_id, ni point_of_interaction.transaction_data.subscription_id,
+          ni plan_id, ni description
+        → queda alumno_id seteado pero suscripcion_id NULL
+En paralelo:
+  renew-monthly-subscriptions (cron diario 00:05 ART) crea la renovación del mes
+  en estado 'pendiente' → el alumno figura impago aunque MP ya cobró.
+```
+
+Archivos/objetos que intervienen: `mp-webhook`, `sync-mp-account-movements`, `sync-mp-preapproval`, `create-mp-preapproval`, `process-auto-renewals`, `renew-monthly-subscriptions`, `cleanup-pending-subscriptions`; tablas `mp_account_movements`, `suscripciones`, `alumnos`, `cuentas_mp`; RPCs `assign_mp_movement_to_target`, `assign_mp_movement_to_alumno`, `assign_mp_movement_to_new_suscripcion`.
+
+**Dónde exactamente se pierde el dato:** el `raw` sí guarda todo (verificado), pero ni el sync ni ningún proceso posterior lee `preapproval_id` / `subscription_id` / `plan_id` / `description`. La imputación queda 100% manual desde el conciliador.
+
+## 3. Condición de carrera / diseño
+
+`renew-monthly-subscriptions` decide sólo mirando `suscripciones` (fecha_fin vencida + pagada). No consulta cobros de MP ya acreditados. Por eso convive una renovación `pendiente` con un cobro aprobado del mismo período. Además `cleanup-pending-subscriptions` cancela pendientes de MP sin pago pasadas 48 h, lo que puede borrar la obligación antes de que se concilie.
+
+## 4. Datos reales verificados
+
+Cobros recurrentes aprobados, ingreso, **sin imputar**, desde 2026-07-01, con descripción `PL `, `Ruta x 2` o `Pase Libre`:
+
+- **31 pagos** en total; **22 con alumno identificado** (los que reportaste) y **9 sin alumno**.
+- 13 emails distintos, **13 preapproval/subscription ids distintos**, y **los 31 traen `plan_id` de MP en el raw**.
+- Los 6 emails sin alumno (`carlos@sonicotrip.com`, `fshelby427@gmail.com`, `hb@personalbrokers.com.ar`, `kevin.snypher@gmail.com`, `liftek@hotmail.com`, `silvinaambrosini@hotmail.com`) **no existen como `alumnos.email`** — 0 coincidencias. Algunos sí quedaron vinculados en meses posteriores, lo que indica alta secundaria o email adicional; el sync sólo mira `alumnos.email`, no `emails_adicionales`.
+- `mp_preapproval_id` en suscripciones: **0 de 992**.
+- Los importes coinciden exactamente con `precio_final` de las suscripciones del período (68.476 / 71.240 / 80.030 / 83.500).
+- Caso Tamara Mazur: preapproval `f23846c8…`, plan MP `3a4f61d7…`, pagos 1/7 (68.476), 1/8 (71.240). Sus suscripciones "Grupal 2x por semana" de julio (`8d43b18d…`, vencida) y agosto (`8be18161…`, vencida) tienen el mismo importe y ningún `mp_payment_id`. Julio además tiene **dos** suscripciones (Grupal 2x y Pase Libre `500ae895…`, pendiente, 75.500) → hay ambigüedad de plan en ese mes, resuelta por importe.
+
+### Clasificación de confianza propuesta
+
+| Nivel | Criterio | Volumen estimado |
 |---|---|---|
-| `cron.job_run_details` | **5.447 MB** | Historial de cada ejecución de tarea automática. Nunca se purga. |
-| `net._http_response` | **203 MB**, 241.967 lecturas | Respuestas guardadas de cada llamada saliente (emails, funciones). |
-| Resto de tablas del negocio | 4 MB o menos cada una | `mp_account_movements` 4 MB, `entrenamientos` 840 kB, `suscripciones` 520 kB |
-| Tareas automáticas activas | 19 | 1 cada minuto, 2 cada 5 min, 3 cada 15 min, 1 por hora, resto diarias |
-| Consulta más costosa | 88.367 llamadas, 34,8 ms media, **51 min acumulados** | Búsqueda de factura por `referencia_tipo`+`referencia_id` |
-| Segunda | 111.150 UPDATE sobre `mp_account_movements` | Reescritura completa de cada movimiento en cada sincronización |
-| `mp_account_movements` | **892.867 recorridos completos** sobre 803 filas | Falta índice o consulta sin filtro indexado |
-| `suscripciones` | 222.391 recorridos completos | Idem, tabla chica pero muy consultada |
-| Estado del servicio | Consultas de auditoría cancelaron por timeout dos veces | La base está saturada ahora mismo |
+| Alta | preapproval conocido + alumno único + una sola suscripción del período + importe exacto | mayoría de los 22 (uno por alumno/mes) |
+| Media | alumno resuelto pero el período tiene más de una suscripción candidata (ej. Tamara julio) o el importe difiere del precio de lista | pocos casos |
+| Baja | los 9 sin alumno (email no existe en fichas), y cualquier alumno con ficha duplicada | 9 |
 
-## Ranking de fuentes de carga
+La tabla completa fila por fila (mp_payment_id, fecha, alumno, payer_email, descripción, importe, preapproval, plan MP, suscripción candidata, plan, estado, acción sugerida) se genera con la consulta de la sección técnica; no se incluye acá para no volcar datos personales innecesarios.
 
-1. **Historial de tareas automáticas sin purgar** — `cron.job_run_details`, 5,4 GB. Severidad **crítica** para disco e I/O: el mantenimiento automático de Postgres tiene que recorrer esa tabla enorme constantemente. Crece con cada minuto (tarea `process-admin-notifications` corre `* * * * *`).
-2. **Registro de llamadas salientes sin purgar** — `net._http_response`, 203 MB y 242 mil lecturas. Severidad **alta**.
-3. **Tarea `process-admin-notifications` cada minuto** — 193.117 consultas a `admin_notification_events`. Genera escritura de historial + llamada HTTP cada 60 s. Severidad **alta** (es la que alimenta los dos puntos anteriores).
-4. **Sincronización de Mercado Pago cada 15 min** (`supabase/functions/sync-mp-account-movements/index.ts`, líneas 193-214 y 254-274) — recorre hasta 2.000 movimientos y hace UPDATE completo (incluyendo el campo `raw`, que es pesado) aunque no haya cambiado nada: 111.150 escrituras. Cada UPDATE reescribe la fila y genera registro de transacción en disco. Severidad **alta** en escritura.
-5. **Búsqueda de factura por fila en listados** — `src/components/admin/BillingInvoiceLauncher.tsx` (líneas 63-84). Cuando el listado no pasa `existingFactura`, cada fila dispara su propia consulta al montar. 88.367 llamadas, la consulta más cara del sistema. Usos sin dato precargado: `src/pages/admin/AdminPayments.tsx:1080`, `src/pages/admin/dia/FacturasPorDiaPage.tsx:103`, `src/pages/admin/billing/TrayPendientes.tsx:343`, `src/pages/admin/billing/PendingPaymentsList.tsx:461`. Severidad **alta** (patrón N+1 clásico).
-6. **Badges del panel admin cada 60 s** — `src/pages/admin/AdminLayout.tsx:190-215`: 5 consultas en paralelo por ciclo, y el efecto depende de `location.pathname`, así que se reinicia en cada navegación. Con varias pestañas abiertas se multiplica. Severidad **media**.
-7. **Recorridos completos de `mp_account_movements` y `suscripciones`** (892 mil y 222 mil). Tablas chicas, así que pesa más en procesador que en disco, pero suma latencia en horas pico. Severidad **media**.
-8. **Reintentos y realtime del frontend** — `src/hooks/useTareas.tsx` (recarga completa ante cualquier cambio en la tabla más un RPC de auto-resolución al montar), `src/hooks/useProcesses.tsx`, `src/pages/admin/AdminProcesos.tsx`. Severidad **media** si hay varios admins conectados.
-9. **Otros temporizadores del front** — `src/pages/PublicDeliveryList.tsx:67` (consulta cada 15 s mientras la página esté abierta), `src/components/UpdatePrompt.tsx:51,174`. Severidad **baja-media**.
-10. **Consultas con `select('*')` en pantallas grandes** — `src/components/reservation/ReservationDrawer.tsx` (9), `src/pages/admin/SuperAdminGastos.tsx` (7), `src/components/admin/AdminEventReservations.tsx` (7). Severidad **baja** hoy por volumen chico.
+## 5. ¿Existe mapping persistente MP ↔ alumno ↔ plan?
 
-## Sospechas (no confirmadas)
+**No.** No hay tabla de preapprovals, ni columna de plan de MP en `planes`, ni catálogo de descripciones. `suscripciones.mp_preapproval_id` existe pero está vacío.
 
-- Aparece una consulta con **1.341.930 llamadas** que revisa la cola de emails y dispara un envío HTTP. No corresponde a ninguna de las 19 tareas activas hoy; puede ser una tarea de alta frecuencia ya eliminada, o un disparador interno. Hay que confirmarlo antes de tocarlo.
-- No se pudo leer el panel de salud de la base (tiempo de espera agotado), así que la lectura de "100% de disco I/O" viene del indicador del producto, no de una medición propia.
-- `pg_stat_statements` es acumulativo desde el último reinicio: los totales son históricos, no tasa por hora.
+### Modelo mínimo propuesto (no implementado)
 
-## Acciones propuestas, de menor a mayor riesgo
+```text
+mp_preapprovals
+  preapproval_id (PK, texto)       -- id de la suscripción en MP
+  mp_plan_id (texto, nullable)     -- plan_id de MP
+  cuenta_mp_id
+  alumno_id (nullable)             -- confirmado por admin
+  plan_id (nullable)               -- plan Reybaud
+  descripcion_mp, importe_referencia, moneda
+  estado: detectado | confirmado | ignorado
+  confirmado_por, confirmado_at, notas
+```
 
-### Sin cambio de funcionalidad (recomendadas primero)
+Se alimenta automáticamente desde el `raw` de cada cobro (fila nueva en estado `detectado`) y un admin confirma alumno+plan una sola vez. A partir de ahí todos los cobros futuros de ese preapproval se imputan solos. Opcional: `planes.mp_plan_id` para mapear plan MP → plan Reybaud.
 
-| # | Acción | Impacto | Riesgo |
-|---|---|---|---|
-| A1 | Purgar `cron.job_run_details` dejando los últimos 7 días y programar limpieza diaria | **Alto** (libera ~5,4 GB y baja mantenimiento automático) | Bajo — sólo se pierde historial de ejecuciones viejo |
-| A2 | Purgar `net._http_response` dejando 48 h y limpieza diaria | Alto | Bajo |
-| A3 | En la sincronización de Mercado Pago, actualizar sólo cuando algo cambió realmente (comparar antes de escribir) | Alto en escritura de disco | Bajo |
-| A4 | Índice sobre `facturas(referencia_tipo, referencia_id)` y revisar índices de `mp_account_movements(cuenta_mp_id, mp_payment_id)` y `suscripciones(mp_payment_id)` | Medio-alto en latencia | Bajo |
-| A5 | Precargar el estado de facturas en los 4 listados y pasarlo por `existingFactura` (el componente ya lo soporta) | Alto (elimina el N+1) | Bajo |
+## 6. Motor de conciliación objetivo (diseño)
 
-### Con cambio de comportamiento (requieren tu decisión)
+Función `conciliar_cobro_recurrente(movimiento)` con cascada estricta, de mayor a menor evidencia:
 
-| # | Acción | Impacto | Riesgo |
-|---|---|---|---|
-| B1 | Bajar `process-admin-notifications` de cada minuto a cada 5 minutos | Alto sobre el crecimiento del historial | Avisos administrativos con hasta 5 min de demora |
-| B2 | Subir el refresco de badges del panel de 60 s a 3-5 min y no reiniciarlo en cada navegación | Medio | Contadores algo menos "al instante" |
-| B3 | Pausar el refresco automático cuando la pestaña no está visible (badges, lista pública de entregas) | Medio | Ninguno perceptible |
-| B4 | Revisar si `sync-mp-movements` cada 15 min puede pasar a cada 30 min | Medio | Movimientos visibles con más demora |
+1. `mp_payment_id` ya imputado → no hacer nada (idempotencia).
+2. preapproval confirmado en `mp_preapprovals` → alumno + plan conocidos → buscar suscripción del período (mes de `fecha_movimiento` en ART) con ese plan → imputar. Si no existe, crear la mensualidad del período con el importe cobrado, marcada como generada por conciliación.
+3. Preapproval no confirmado pero email resuelve a un único alumno con una única suscripción del período e importe exacto → **propuesta**, no imputación automática.
+4. Cualquier ambigüedad (varios alumnos, varias suscripciones, importe distinto) → cola de revisión manual.
 
-## Orden de implementación sugerido
+Reglas invariantes: nunca imputar el mismo `mp_payment_id` a dos obligaciones (ya lo garantizan las guardas de `assign_mp_movement_to_target`), toda acción con registro en `audit_log`, y todo automatismo debe poder revertirse dejando rastro. `renew-monthly-subscriptions` debería consultar el mapping antes de crear una renovación pendiente para un preapproval activo, y `cleanup-pending-subscriptions` no debería cancelar períodos con cobro MP aprobado sin imputar.
 
-1. A1 y A2 (purga + limpieza programada) — es donde está el disco.
-2. A3 y A5 — eliminan la mayor parte de la escritura y de la consulta más cara.
-3. A4 — índices puntuales.
-4. B1 y B2/B3 — sólo si después de lo anterior sigue apretado.
+## 7. Backfill de los casos históricos (diseño, sin ejecutar)
 
-## ¿Subir la instancia o optimizar primero?
+- Paso 1: RPC `preview_conciliacion_recurrente()` → devuelve las 31 filas con nivel de confianza y acción sugerida. Solo lectura.
+- Paso 2: `aplicar_conciliacion_recurrente(ids[], modo)` sólo sobre los ids que el admin seleccione, y sólo nivel alto en la primera tanda.
+- Paso 3: cada imputación guarda `assign_notes` con origen `backfill_recurrente_<fecha>` para permitir reversión selectiva.
+- Reversión: RPC que desvincula `suscripcion_id`/`mp_payment_id` y restituye el estado previo del período, registrando en `audit_log`. No se borran filas.
+- Los 9 sin alumno quedan fuera del backfill hasta resolver identidad (posible fusión de fichas o email adicional).
 
-**Subí la instancia ya, hoy, y optimizá después.** Con 5,4 GB de historial basura en una instancia Tiny y el login ya fallando, cualquier optimización tarda horas en aplicarse y validarse, mientras que los usuarios están sufriendo caídas ahora. Además, la purga del punto A1 sobre una tabla de 5,4 GB es en sí misma una operación pesada: conviene hacerla con más margen de recursos. Una vez estabilizado, aplicá A1-A5 y recién ahí evaluá si podés volver a un tamaño menor.
+## 8. Plan vigente vs deuda histórica
+
+Hoy un mes viejo impago deja al alumno como deudor en el panel operativo. Propuesta conceptual: el estado operativo se calcula únicamente sobre el período corriente, y los períodos cerrados impagos se agrupan aparte como "deuda histórica", con su propio indicador. No requiere cambiar estados existentes, sólo separar la lectura.
+
+## 9. Fases
+
+- **P0 — parar la hemorragia (bajo riesgo):** crear `mp_preapprovals`, poblarla en modo lectura desde los `raw` existentes, y hacer que `sync-mp-account-movements` persista preapproval/subscription/plan de MP en columnas dedicadas. Ninguna imputación automática todavía. Criterio de aceptación: los 31 casos aparecen con su preapproval identificado y el sistema no cambia ningún estado.
+- **P1 — conciliación asistida:** pantalla de confirmación de preapprovals + preview de backfill + aplicación explícita de los casos de alta confianza. Criterio: los 22 casos con alumno quedan imputados o explícitamente descartados, sin duplicados.
+- **P2 — automatización:** el webhook y el sync imputan solos los preapprovals confirmados; `renew-monthly-subscriptions` deja de generar pendientes para suscripciones con cobro recurrente activo. Criterio: un mes completo sin cobros recurrentes sin imputar.
+
+Riesgos principales: doble imputación (mitigado por guardas ya existentes), atribución equivocada por email compartido o ficha duplicada (mitigado exigiendo confirmación humana del preapproval una vez), y cancelación de períodos por el limpiador antes de conciliar (mitigado en P0 con una exclusión).
+
+## 10. Supuestos y límites
+
+- Asumo que los cobros recurrentes fueron creados desde el panel de Mercado Pago y no desde la app; es la explicación consistente con 0 de 992 suscripciones con preapproval. No lo pude verificar contra la API de MP en modo lectura.
+- El mapeo plan MP → plan Reybaud lo infiero por descripción e importe; no existe hoy ningún vínculo declarado.
+- El conteo de "22" corresponde a los cobros con alumno ya identificado; el universo real de cobros recurrentes sin imputar desde julio es de 31.
+- No verifiqué el contenido de `emails_adicionales` para los 6 emails huérfanos.
