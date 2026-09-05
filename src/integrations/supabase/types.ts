@@ -10922,7 +10922,6 @@ export type Database = {
           fecha_fin: string
           fecha_inicio: string
           id: string
-          medios_pago: string[]
           mostrar_urgencia: boolean
           nombre: string
           slug: string
@@ -10936,7 +10935,6 @@ export type Database = {
           fecha_fin: string
           fecha_inicio: string
           id?: string
-          medios_pago?: string[]
           mostrar_urgencia?: boolean
           nombre: string
           slug: string
@@ -10950,7 +10948,6 @@ export type Database = {
           fecha_fin?: string
           fecha_inicio?: string
           id?: string
-          medios_pago?: string[]
           mostrar_urgencia?: boolean
           nombre?: string
           slug?: string
@@ -14963,22 +14960,6 @@ export type Database = {
           solo_variantes: boolean
         }[]
       }
-      get_promos_tienda_vigentes_por_pago: {
-        Args: { p_metodo_pago?: string }
-        Returns: {
-          badge_texto: string
-          campaign_id: string
-          campaign_nombre: string
-          descuento_pct: number
-          fecha_fin: string
-          medios_pago: string[]
-          mostrar_urgencia: boolean
-          precio_efectivo: number
-          precio_lista: number
-          product_id: string
-          solo_variantes: boolean
-        }[]
-      }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
       get_public_program: { Args: { _cohort_slug: string }; Returns: Json }
       get_reingreso_status: { Args: { p_alumno_id: string }; Returns: Json }
@@ -15724,26 +15705,6 @@ export type Database = {
           campaign_nombre: string
           descuento_pct: number
           fecha_fin: string
-          mostrar_urgencia: boolean
-          precio_efectivo: number
-          precio_lista: number
-          product_id: string
-          solo_variantes: boolean
-        }[]
-      }
-      resolver_precio_tienda_por_pago: {
-        Args: {
-          p_metodo_pago?: string
-          p_product_id: string
-          p_variante?: Json
-        }
-        Returns: {
-          badge_texto: string
-          campaign_id: string
-          campaign_nombre: string
-          descuento_pct: number
-          fecha_fin: string
-          medios_pago: string[]
           mostrar_urgencia: boolean
           precio_efectivo: number
           precio_lista: number
