@@ -213,8 +213,31 @@ Deno.serve(async (req) => {
         } else {
           const { error } = await supabase.from("mp_account_movements").insert(row);
           if (error) results.errors.push({ cuenta: c.slug, mp: mpId, error: error.message });
-          else inserted++;
         }
+
+        // ── Identidad recurrente (P0): registrar el preapproval/subscription de MP.
+        // Solo guarda el mapeo preapproval → alumno sugerido. NO imputa nada.
+        const preapprovalId =
+          p?.metadata?.preapproval_id ??
+          p?.point_of_interaction?.transaction_data?.subscription_id ??
+          null;
+        if (preapprovalId) {
+          const { error: paErr } = await supabase.rpc("register_mp_preapproval_identity", {
+            _preapproval_id: String(preapprovalId),
+            _mp_plan_id: p?.point_of_interaction?.transaction_data?.plan_id
+              ? String(p.point_of_interaction.transaction_data.plan_id)
+              : null,
+            _cuenta_mp_id: c.id,
+            _payer_email: p?.payer?.email ?? null,
+            _descripcion: p?.description ?? null,
+            _importe: Number(p?.transaction_amount ?? 0) || null,
+            _moneda: p?.currency_id ?? "ARS",
+            _alumno_id: alumnoId,
+            _seen_at: p?.date_created ?? new Date().toISOString(),
+          });
+          if (paErr) results.errors.push({ cuenta: c.slug, mp: mpId, error: `preapproval: ${paErr.message}` });
+        }
+
 
         // Procesar refunds asociados a este pago (si existen)
         const refunds = Array.isArray(p?.refunds) ? p.refunds : [];
