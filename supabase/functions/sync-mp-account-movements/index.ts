@@ -213,6 +213,7 @@ Deno.serve(async (req) => {
         } else {
           const { error } = await supabase.from("mp_account_movements").insert(row);
           if (error) results.errors.push({ cuenta: c.slug, mp: mpId, error: error.message });
+          else inserted++;
         }
 
         // ── Identidad recurrente (P0): registrar el preapproval/subscription de MP.
