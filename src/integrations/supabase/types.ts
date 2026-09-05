@@ -7457,6 +7457,112 @@ export type Database = {
           },
         ]
       }
+      mp_preapprovals: {
+        Row: {
+          alumno_id: string | null
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string
+          cuenta_mp_id: string | null
+          descripcion_mp: string | null
+          estado: string
+          first_seen_at: string
+          importe_referencia: number | null
+          last_seen_at: string
+          moneda: string | null
+          mp_plan_id: string | null
+          notas: string | null
+          origen_alumno: string | null
+          payer_email: string | null
+          plan_id: string | null
+          preapproval_id: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          cuenta_mp_id?: string | null
+          descripcion_mp?: string | null
+          estado?: string
+          first_seen_at?: string
+          importe_referencia?: number | null
+          last_seen_at?: string
+          moneda?: string | null
+          mp_plan_id?: string | null
+          notas?: string | null
+          origen_alumno?: string | null
+          payer_email?: string | null
+          plan_id?: string | null
+          preapproval_id: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          confirmado_at?: string | null
+          confirmado_por?: string | null
+          created_at?: string
+          cuenta_mp_id?: string | null
+          descripcion_mp?: string | null
+          estado?: string
+          first_seen_at?: string
+          importe_referencia?: number | null
+          last_seen_at?: string
+          moneda?: string | null
+          mp_plan_id?: string | null
+          notas?: string | null
+          origen_alumno?: string | null
+          payer_email?: string | null
+          plan_id?: string | null
+          preapproval_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_preapprovals_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       objetivos_alumno: {
         Row: {
           activo: boolean
@@ -13433,6 +13539,76 @@ export type Database = {
           },
         ]
       }
+      vw_mp_preapprovals_admin: {
+        Row: {
+          alumno_id: string | null
+          alumno_nombre: string | null
+          confirmado_at: string | null
+          confirmado_por: string | null
+          created_at: string | null
+          cuenta_mp_id: string | null
+          descripcion_mp: string | null
+          estado: string | null
+          importe_referencia: number | null
+          moneda: string | null
+          movimientos_sin_imputar: number | null
+          movimientos_vistos: number | null
+          mp_plan_id: string | null
+          notas: string | null
+          origen_alumno: string | null
+          payer_email: string | null
+          plan_id: string | null
+          plan_nombre: string | null
+          preapproval_id: string | null
+          primera_fecha: string | null
+          ultima_fecha: string | null
+          updated_at: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_preapprovals_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_preapprovals_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vw_obligaciones_modelo_nuevo: {
         Row: {
           alumno_id: string | null
@@ -13722,13 +13898,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_2_id"]
-            isOneToOne: false
-            referencedRelation: "alumnos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
@@ -13738,8 +13907,8 @@ export type Database = {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
             isOneToOne: false
-            referencedRelation: "vw_backfill_identidad_sugerida"
-            referencedColumns: ["alumno_sugerido_id"]
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
@@ -13751,13 +13920,20 @@ export type Database = {
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_1_id"]
+            columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
@@ -14308,6 +14484,16 @@ export type Database = {
           alumno_id: string
           mp_preapproval_ids: string[]
         }[]
+      }
+      confirm_mp_preapproval_mapping: {
+        Args: {
+          _alumno_id?: string
+          _estado?: string
+          _notas?: string
+          _plan_id?: string
+          _preapproval_id: string
+        }
+        Returns: Json
       }
       confirm_reservation: { Args: { _reservation_id: string }; Returns: Json }
       confirm_waitlist_request: {
@@ -15552,6 +15738,20 @@ export type Database = {
             }
             Returns: string
           }
+      register_mp_preapproval_identity: {
+        Args: {
+          _alumno_id?: string
+          _cuenta_mp_id?: string
+          _descripcion?: string
+          _importe?: number
+          _moneda?: string
+          _mp_plan_id?: string
+          _payer_email?: string
+          _preapproval_id: string
+          _seen_at?: string
+        }
+        Returns: string
+      }
       registrar_cambio_grupo_alumno: {
         Args: {
           p_alumno_id: string

@@ -21,3 +21,10 @@
 - [x] Resumen liviano: 4 contadores `head:true` + accesos rápidos; sin `rebuild_facturacion_cola()` al abrir
 - [x] Se dejan de montar en el Resumen: ResumenFinancieroMes, AdminOperationalCalendar, BirthdayWidget, DeliveryCashWidget (archivos intactos)
 - [ ] Pendiente aparte: polling de badges en AdminLayout, purga de historial de tareas automáticas y de respuestas HTTP
+
+## Cobros recurrentes MP · P0 identidad (preview)
+- [x] Tabla `mp_preapprovals` (preapproval → alumno → plan) con RLS admin, auditoría y estados detectado/confirmado/ignorado
+- [x] `sync-mp-account-movements` registra la identidad recurrente (metadata.preapproval_id / transaction_data.subscription_id, plan_id, email, importe) sin imputar nada
+- [x] Bootstrap de identidad desde `mp_account_movements.raw`: 13 preapprovals, 12 con alumno sugerido (sin tocar pagos ni suscripciones)
+- [x] Pestaña "Recurrentes MP" en /admin/pagos para vincular alumno + plan y confirmar (no imputa)
+- [ ] P1/P2: motor de imputación y backfill financiero (no incluidos)

@@ -27,6 +27,7 @@ import { endOfCalendarMonth, startOfCalendarMonth } from "@/lib/subscriptionPeri
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import EventPaymentsTab from "@/components/admin/EventPaymentsTab";
 import MpMovementsTab from "@/components/admin/MpMovementsTab";
+import MpPreapprovalsTab from "@/components/admin/MpPreapprovalsTab";
 import DeudoresTab from "@/components/admin/DeudoresTab";
 import StorePaymentsTab from "@/components/admin/StorePaymentsTab";
 import TurneraPaymentsTab from "@/components/admin/TurneraPaymentsTab";
@@ -738,6 +739,7 @@ const AdminPayments = () => {
           <TabsTrigger value="deudores">Deudores</TabsTrigger>
           <TabsTrigger value="inconsistencias">Inconsistencias</TabsTrigger>
           <TabsTrigger value="mp">Cuentas MP sin vincular</TabsTrigger>
+          <TabsTrigger value="recurrentes">Recurrentes MP</TabsTrigger>
           <TabsTrigger value="suscripciones">Suscripciones</TabsTrigger>
           <TabsTrigger value="eventos">Pagos de eventos</TabsTrigger>
           <TabsTrigger value="tienda">Tienda</TabsTrigger>
@@ -769,6 +771,11 @@ const AdminPayments = () => {
         <TabsContent value="mp" className="space-y-6">
           <MpMovementsTab periodo={filterPeriodo} />
         </TabsContent>
+
+        <TabsContent value="recurrentes" className="space-y-6">
+          <MpPreapprovalsTab />
+        </TabsContent>
+
 
 
         <TabsContent value="suscripciones" className="space-y-6">
