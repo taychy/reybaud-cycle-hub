@@ -50,15 +50,50 @@ Cobros recurrentes aprobados, ingreso, **sin imputar**, desde 2026-07-01, con de
 - Los importes coinciden exactamente con `precio_final` de las suscripciones del período (68.476 / 71.240 / 80.030 / 83.500).
 - Caso Tamara Mazur: preapproval `f23846c8…`, plan MP `3a4f61d7…`, pagos 1/7 (68.476), 1/8 (71.240). Sus suscripciones "Grupal 2x por semana" de julio (`8d43b18d…`, vencida) y agosto (`8be18161…`, vencida) tienen el mismo importe y ningún `mp_payment_id`. Julio además tiene **dos** suscripciones (Grupal 2x y Pase Libre `500ae895…`, pendiente, 75.500) → hay ambigüedad de plan en ese mes, resuelta por importe.
 
-### Clasificación de confianza propuesta
+### 4.a Los 9 cobros sin alumno (verificado uno por uno)
 
-| Nivel | Criterio | Volumen estimado |
-|---|---|---|
-| Alta | preapproval conocido + alumno único + una sola suscripción del período + importe exacto | mayoría de los 22 (uno por alumno/mes) |
-| Media | alumno resuelto pero el período tiene más de una suscripción candidata (ej. Tamara julio) o el importe difiere del precio de lista | pocos casos |
-| Baja | los 9 sin alumno (email no existe en fichas), y cualquier alumno con ficha duplicada | 9 |
+Ninguno de los 9 emails coincide con `alumnos.email`. Sólo uno coincide con un email adicional (`liftek@…` → Pedro Ferroni). Los demás se resuelven porque **el mismo preapproval aparece en otro mes ya vinculado a un alumno único**:
 
-La tabla completa fila por fila (mp_payment_id, fecha, alumno, payer_email, descripción, importe, preapproval, plan MP, suscripción candidata, plan, estado, acción sugerida) se genera con la consulta de la sección técnica; no se incluye acá para no volcar datos personales innecesarios.
+| Fecha | Descripción | Importe | Resolución |
+|---|---|---|---|
+| 01/07 | PL | 80.030 | Kevin Zambrano (mismo preapproval en agosto/septiembre) — resoluble |
+| 01/07 | Ruta x 2 | 68.476 | Silvina Ambrosini (mismo preapproval) — resoluble |
+| 01/07 | PL | 80.030 | Pedro Ferroni (email adicional en su ficha) — resoluble |
+| 31/08 | Ruta x 2 | 71.240 | **Sin resolución**: preapproval `043d5837…` no aparece con alumno en ningún mes y el email no existe en fichas — revisión manual |
+| 01/09 | Pase Libre | 83.500 | Hugo Bronstein (mismo preapproval) — resoluble |
+| 01/09 | Ruta x 2 | 71.240 | alumno único por preapproval (`6baf4c41…`) — resoluble |
+| 01/09 | Ruta x 2 | 71.240 | Silvina Ambrosini — resoluble |
+| 01/09 | PL | 83.500 | Kevin Zambrano — resoluble |
+| 01/09 | PL | 83.500 | Pedro Ferroni — resoluble |
+
+**8 de 9 resolubles por identidad existente, 1 requiere revisión manual.** Esto confirma que el preapproval, no el email, es la clave correcta de identidad.
+
+### 4.b Clasificación exacta de los 22 cobros con alumno
+
+Reglas aplicadas: alta = preapproval con un único alumno, sin ficha duplicada ni fusionada, exactamente una suscripción no cancelada del mismo mes y con importe coincidente; media = alumno consistente pero hace falta importe/descripción para elegir entre varias candidatas, o el importe no coincide con la única candidata; baja = ninguna suscripción razonable del período o conflicto de identidad.
+
+**Alta 19 · Media 2 · Baja 1** (ningún caso de ficha duplicada o preapproval compartido entre alumnos).
+
+Resumen por alumno:
+
+| Alumno | Cobros | Fechas / importe | Nivel | Acción sugerida |
+|---|---|---|---|---|
+| María Lorena Tempone | 3 | 01/07 80.030 · 01/08 83.500 · 01/09 83.500 (Pase Libre) | Alta ×3 | Imputar a la mensualidad del mes |
+| Miguel Fraser | 3 | 01/07 80.030 · 01/08 83.500 · 01/09 83.500 (PL) | Alta ×3 | Imputar |
+| Pablo Braier | 3 | 02/07 80.030 · 02/08 83.500 · 02/09 83.500 (PL) | Alta ×3 | Imputar |
+| Maria Belen Tapia | 3 | 01/07 68.476 · 01/08 71.240 · 01/09 71.240 (Ruta x 2) | Alta ×3 | Imputar |
+| Andrés Gamberg | 3 | 01/07 80.030 · 01/08 83.500 (Alta) · 01/09 83.500 | Alta ×2, Baja ×1 | Septiembre no tiene ninguna mensualidad creada: revisar antes de imputar |
+| Tamara Mazur | 2 | 01/07 68.476 (Media) · 01/08 71.240 (Alta) | Alta ×1, Media ×1 | Julio tiene dos mensualidades del mismo mes; elegir "Grupal 2x" por importe exacto |
+| Silvina Ambrosini | 1 | 01/08 71.240 (Ruta x 2) | Media | La única mensualidad de agosto no coincide en importe: verificar precio antes de imputar |
+| Kevin Zambrano | 1 | 01/08 83.500 (PL) | Alta | Imputar |
+| Pedro Ferroni | 1 | 01/08 83.500 (PL) | Alta | Imputar |
+| Hugo Bronstein | 1 | 06/08 83.500 (Pase Libre) | Alta | Imputar |
+| Marcelo Varela | 1 | 01/08 71.240 (Ruta x 2) | Alta | Imputar |
+
+Si además se resuelven los 8 casos sin alumno por preapproval, el universo pasa a 30 cobros conciliables y 1 solo caso realmente dudoso.
+
+La tabla completa fila por fila (con mp_payment_id y preapproval) se puede generar con la misma consulta; no se vuelca acá para no exponer datos personales innecesarios.
+
 
 ## 5. ¿Existe mapping persistente MP ↔ alumno ↔ plan?
 
