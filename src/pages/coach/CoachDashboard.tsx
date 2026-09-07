@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  LogOut, Users, ClipboardList, CheckSquare, MessageSquare, ListTodo,
+  LogOut, Users, ClipboardList, CheckSquare, MessageSquare,
   Banknote, Plane, ClipboardCheck, Trophy, CalendarClock, ChevronRight,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -24,7 +24,7 @@ const CoachDashboard = () => {
   const [grupos, setGrupos] = useState<string[]>([]);
   const [showAusencias, setShowAusencias] = useState(false);
 
-  const { loading, coachId, proximaClase, proximoTurno, resumen, tareasPendientes, reload } = useCoachHome();
+  const { loading, coachId, proximaClase, proximoTurno, resumen, reload } = useCoachHome();
 
   useEffect(() => {
     const init = async () => {
@@ -114,19 +114,6 @@ const CoachDashboard = () => {
             <LiquidacionResumenCard resumen={resumen} />
           </>
         )}
-
-        {/* Tareas */}
-        <button
-          onClick={() => navigate("/coach/tareas")}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-secondary/60 transition text-left"
-        >
-          <ListTodo className="w-4 h-4 text-primary" />
-          <span className="text-sm text-foreground flex-1">Mis tareas</span>
-          {tareasPendientes > 0 && (
-            <Badge className="bg-primary/20 text-primary border-primary/40 hover:bg-primary/30">{tareasPendientes}</Badge>
-          )}
-          <ChevronRight className="w-4 h-4 text-muted-foreground" />
-        </button>
 
         {/* Accesos — una sola columna */}
         <div>

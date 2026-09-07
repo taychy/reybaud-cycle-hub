@@ -48,7 +48,6 @@ export function useCoachHome() {
   const [proximaClase, setProximaClase] = useState<ProximaClase | null>(null);
   const [proximoTurno, setProximoTurno] = useState<ProximoTurno | null>(null);
   const [resumen, setResumen] = useState<ResumenLiquidacion | null>(null);
-  const [tareasPendientes, setTareasPendientes] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -67,7 +66,7 @@ export function useCoachHome() {
     const desde = `${mes}-01`;
     const hasta = toLocalIso(new Date(y, m, 0));
 
-    const [agendaRes, turnoRes, movsRes, tareasRes] = await Promise.all([
+    const [agendaRes, turnoRes, movsRes] = await Promise.all([
       supabase
         .from("agenda_grupal")
         .select("id, dia_semana, hora_inicio, hora_fin, grupo, sede_id, honorario_id, sedes:sede_id(nombre)")
@@ -83,11 +82,6 @@ export function useCoachHome() {
         .from("movimientos_liquidacion")
         .select("total, estado_economico")
         .eq("coach_id", cid).gte("fecha", desde).lte("fecha", hasta),
-      supabase
-        .from("tareas" as any)
-        .select("id", { count: "exact", head: true })
-        .eq("rol_destino", "coach")
-        .in("estado", ["pendiente", "en_curso"]),
     ]);
 
     // Próxima clase grupal
@@ -150,5 +144,5 @@ export function useCoachHome() {
 
   useEffect(() => { load(); }, [load]);
 
-  return { loading, coachId, proximaClase, proximoTurno, resumen, tareasPendientes, reload: load };
+  return { loading, coachId, proximaClase, proximoTurno, resumen, reload: load };
 }
