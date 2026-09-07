@@ -10,8 +10,6 @@ import {
   ShieldAlert, Eye, TrendingDown, Users, ChevronDown,
 } from "lucide-react";
 import { WhatsAppCheckAlert } from "@/components/admin/WhatsAppCheckAlert";
-import { TareasInbox } from "@/components/admin/TareasInbox";
-import type { TareaRol } from "@/hooks/useTareas";
 
 interface AlumnoAlert {
   id: string;
@@ -200,14 +198,11 @@ const SuperAdminControl = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Centro de Control</h1>
-        <p className="text-sm text-muted-foreground">Tareas operativas pendientes para tu rol</p>
+        <p className="text-sm text-muted-foreground">Alertas y contexto operativo</p>
       </div>
 
       {/* Alarma chequeo de WhatsApp (días 5-7 y 15-17) */}
       <WhatsAppCheckAlert />
-
-      {/* Inbox de tareas — protagonista */}
-      <TareasInbox userId={userId} isSuperAdmin={isSuperAdmin} myRoles={myRoles} />
 
       {/* Contexto operativo (datos crudos) */}
       <Collapsible open={showContexto} onOpenChange={setShowContexto}>
