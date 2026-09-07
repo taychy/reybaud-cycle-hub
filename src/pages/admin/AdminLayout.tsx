@@ -10,7 +10,7 @@ import { setPrevSeen } from "@/lib/adminNovelty";
 
 
 /* ─── Nav structure ─── */
-type BadgeKey = "waitlist" | "waitlist_entries" | "turnera" | "agenda_solicitudes";
+type BadgeKey = "turnera" | "agenda_solicitudes";
 /** Secciones con "pelotita" de novedad (contenido nuevo desde la última visita) */
 type NoveltyKey = "alumnos" | "eventos" | "tienda_ventas" | "pedidos_proveedor" | "cobros_entrega" | "cambios_plan";
 type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; noveltyKey?: NoveltyKey; superAdmin?: boolean };
@@ -172,8 +172,6 @@ const AdminLayout = () => {
   const [openModule, setOpenModule] = useState<string>(() => {
     return localStorage.getItem("admin_sidebar_open_module") || findModuleKeyForPath(location.pathname);
   });
-  const [waitlistPending, setWaitlistPending] = useState(0);
-  const [waitlistEntriesPending, setWaitlistEntriesPending] = useState(0);
   const [turneraPending, setTurneraPending] = useState(0);
   const [agendaSolicitudesPending, setAgendaSolicitudesPending] = useState(0);
   const [novedades, setNovedades] = useState<Record<string, number>>({});
@@ -186,32 +184,40 @@ const AdminLayout = () => {
 
   useEffect(() => {
     let alive = true;
+    let inFlight = false;
     const load = async () => {
-      const [{ data: pending }, { data: newEntries }, { data: newTurnera }, { data: nov }, { count: agendaPending }] = await Promise.all([
-        supabase.rpc("count_pending_waitlist_requests" as any),
-        supabase.rpc("count_new_waitlist_entries" as any),
-        supabase.rpc("count_new_turnera_reservations" as any),
-        supabase.rpc("count_admin_novedades" as any),
-        supabase.from("agenda_solicitudes" as any).select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
-      ]);
-      if (alive) {
-        setWaitlistPending(Number(pending ?? 0));
-        setWaitlistEntriesPending(Number(newEntries ?? 0));
-        setTurneraPending(Number(newTurnera ?? 0));
-        setAgendaSolicitudesPending(Number(agendaPending ?? 0));
-        setNovedades((nov as any) || {});
+      if (inFlight || document.hidden) return;
+      inFlight = true;
+      try {
+        const [{ data: newTurnera }, { data: nov }, { count: agendaPending }] = await Promise.all([
+          supabase.rpc("count_new_turnera_reservations" as any),
+          supabase.rpc("count_admin_novedades" as any),
+          supabase.from("agenda_solicitudes" as any).select("id", { count: "exact", head: true }).eq("estado", "pendiente"),
+        ]);
+        if (alive) {
+          setTurneraPending(Number(newTurnera ?? 0));
+          setAgendaSolicitudesPending(Number(agendaPending ?? 0));
+          setNovedades((nov as any) || {});
+        }
+      } finally {
+        inFlight = false;
       }
     };
     load();
-    const iv = setInterval(load, 60000);
+    const iv = setInterval(load, 300000);
     const onRefresh = () => { if (alive) load(); };
+    const onVisible = () => { if (!document.hidden) load(); };
     window.addEventListener("reybaud:refresh-admin-badges", onRefresh);
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", onVisible);
     return () => {
       alive = false;
       clearInterval(iv);
       window.removeEventListener("reybaud:refresh-admin-badges", onRefresh);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", onVisible);
     };
-  }, [location.pathname]);
+  }, []);
 
   // Al entrar a una sección con novedades, la marcamos como vista
   useEffect(() => {
@@ -335,9 +341,8 @@ const AdminLayout = () => {
 
 
   const badgeCountFor = (key?: BadgeKey) =>
-    key === "waitlist" ? waitlistPending :
-    key === "waitlist_entries" ? waitlistEntriesPending :
-    key === "turnera" ? turneraPending : 0;
+    key === "turnera" ? turneraPending :
+    key === "agenda_solicitudes" ? agendaSolicitudesPending : 0;
 
   const noveltyCountFor = (key?: NoveltyKey) => (key ? Number(novedades[key] ?? 0) : 0);
 
