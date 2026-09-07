@@ -20,7 +20,8 @@
 ## Rendimiento · Reducción de carga del Resumen Admin (emergencia)
 - [x] Resumen liviano: 4 contadores `head:true` + accesos rápidos; sin `rebuild_facturacion_cola()` al abrir
 - [x] Se dejan de montar en el Resumen: ResumenFinancieroMes, AdminOperationalCalendar, BirthdayWidget, DeliveryCashWidget (archivos intactos)
-- [ ] Pendiente aparte: polling de badges en AdminLayout, purga de historial de tareas automáticas y de respuestas HTTP
+- [x] Polling de badges en AdminLayout resuelto
+- [ ] Pendiente aparte: purga de historial de tareas automáticas y de respuestas HTTP
 
 ## Cobros recurrentes MP · P0 identidad (preview)
 - [x] Tabla `mp_preapprovals` (preapproval → alumno → plan) con RLS admin, auditoría y estados detectado/confirmado/ignorado
