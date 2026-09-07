@@ -138,7 +138,6 @@ export function useCoachHome() {
       cantidad: movs.length,
     });
 
-    setTareasPendientes(tareasRes.count || 0);
     setLoading(false);
   }, []);
 
