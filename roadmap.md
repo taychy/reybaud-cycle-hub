@@ -35,3 +35,6 @@
 - [x] Archivos eliminados: `src/pages/coach/CoachTareas.tsx`, `src/components/admin/TareasInbox.tsx`, `src/hooks/useTareas.tsx`, `src/components/coach/GraduacionTareaCard.tsx`
 - [x] Sin ejecución automática desde frontend: ya no se llaman `generate_tareas_automaticas` ni `auto_resolve_tareas_automaticas`, ni se consulta el contador de tareas en `useCoachHome`
 - [ ] Tablas `tareas` y `tareas_historial` intactas (datos históricos conservados) para una eventual purga posterior; funciones/RPC SQL sin cambios
+
+## Mantenimiento técnico · Log de respuestas HTTP (pg_net)
+- [ ] Purga autorizada de `net._http_response` (conservar 3 días, lotes de 500 por ctid, sin VACUUM FULL): intento del 07/09 no pudo ejecutarse porque la base no respondía (pooler caído). Reintentar cuando vuelva.
