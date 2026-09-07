@@ -148,12 +148,25 @@ const BookingFlow = () => {
       const { data: disps } = await supabase
         .from("disponibilidad_coaches").select("*")
         .eq("servicio_id", serv.id).eq("activo", true);
-      const list = (disps as any[]) || [];
-      setDisponibilidades(list);
+      let list = (disps as any[]) || [];
 
-      const coachIds = Array.from(new Set(list.map(d => d.coach_id)));
+      // 1) Sedes: sólo las realmente referenciadas por la disponibilidad y activas.
+      //    Si un bloque apunta a una sede inexistente/inactiva, el bloque no es
+      //    válido y se descarta (no se "rescata" con la sede del perfil del coach).
       const sedeIds = Array.from(new Set(list.map(d => d.sede_id).filter(Boolean)));
+      let sedesActivas: any[] = [];
+      if (sedeIds.length) {
+        const { data: ss } = await supabase
+          .from("sedes").select("id, nombre, ciudad")
+          .in("id", sedeIds as string[]).eq("activa", true);
+        sedesActivas = (ss as any[]) || [];
+      }
+      setSedes(sedesActivas);
+      const sedesOk = new Set(sedesActivas.map(s => s.id));
+      list = list.filter(d => !d.sede_id || sedesOk.has(d.sede_id));
 
+      // 2) Coaches: sólo los que quedan con al menos un bloque válido de este servicio.
+      const coachIds = Array.from(new Set(list.map(d => d.coach_id)));
       if (coachIds.length) {
         const { data: cs } = await supabase.rpc("get_coaches_public" as any);
         const activos = ((cs as any[]) || []).filter(
@@ -162,14 +175,12 @@ const BookingFlow = () => {
         setCoaches(activos);
         // Re-filtramos disponibilidades para excluir coaches inactivos
         const activosIds = new Set(activos.map(c => c.id));
-        setDisponibilidades(list.filter(d => activosIds.has(d.coach_id)));
+        list = list.filter(d => activosIds.has(d.coach_id));
+      } else {
+        setCoaches([]);
       }
-      if (sedeIds.length) {
-        const { data: ss } = await supabase
-          .from("sedes").select("id, nombre, ciudad")
-          .in("id", sedeIds as string[]).eq("activa", true);
-        setSedes((ss as any[]) || []);
-      }
+      setDisponibilidades(list);
+
 
       const today = new Date().toISOString().split("T")[0];
       const future = new Date(); future.setDate(future.getDate() + 60);
@@ -692,7 +703,34 @@ const BookingFlow = () => {
 
   // Helpers for sub-step rendering
   const sedesDisponibles = sedes.filter(s => disponibilidades.some(d => d.sede_id === s.id));
-  const coachesDisponibles = coaches.filter(c => disponibilidades.some(d => d.coach_id === c.id));
+
+  // Un coach se ofrece sólo si tiene al menos un bloque válido para el servicio
+  // (y la sede elegida, si ya se eligió una) Y además al menos un turno real
+  // reservable en los próximos 60 días.
+  const coachTieneTurnos = (coachId: string) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    for (let i = 0; i < 60; i++) {
+      const d = new Date(today);
+      d.setDate(d.getDate() + i);
+      if (getAvailableSlots(d).some(s => s.coach_id === coachId)) return true;
+    }
+    return false;
+  };
+
+  const coachesDisponibles = useMemo(
+    () => coaches.filter(c => filteredDisps.some(d => d.coach_id === c.id) && coachTieneTurnos(c.id)),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [coaches, filteredDisps, reservasExistentes, ausencias, ajustes, servicio, selectedCoach],
+  );
+
+  // Sedes reales del coach según su disponibilidad vigente (nunca coach.sede_id)
+  const sedesDeCoach = (coachId: string) =>
+    Array.from(new Set(
+      filteredDisps.filter(d => d.coach_id === coachId).map(d => d.sede_id).filter(Boolean) as string[],
+    ))
+      .map(id => sedeById.get(id)?.nombre)
+      .filter(Boolean) as string[];
 
   // For modo=coach: only days that selected coach works
   const coachWorkDays = (coachId: string) =>
@@ -775,11 +813,19 @@ const BookingFlow = () => {
     if (modo === "coach" && !selectedCoach) {
       return (
         <SectionPick title="Elegí el coach">
-          {coachesDisponibles.map(c => (
-            <PickCard key={c.id} label={c.nombre}
-              sub={c.sede_id ? sedeById.get(c.sede_id)?.nombre : undefined}
-              onClick={() => setSelectedCoach(c.id)} />
-          ))}
+          {coachesDisponibles.length === 0 && (
+            <p className="text-sm text-muted-foreground italic">
+              No hay coaches con turnos disponibles para este servicio en los próximos 60 días.
+            </p>
+          )}
+          {coachesDisponibles.map(c => {
+            const sedesCoach = sedesDeCoach(c.id);
+            return (
+              <PickCard key={c.id} label={c.nombre}
+                sub={sedesCoach.length ? sedesCoach.join(" · ") : undefined}
+                onClick={() => setSelectedCoach(c.id)} />
+            );
+          })}
         </SectionPick>
       );
     }
