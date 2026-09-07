@@ -1,46 +1,42 @@
-# QA solo lectura — P0 Cobros recurrentes MP (caso Tamara Mazur)
+# Auditoría de tablas técnicas (solo lectura)
 
-Sin cambios de código, datos ni configuración. Todo verificado con consultas de lectura.
+Relevamiento hecho sobre `src/`, `supabase/functions/` y `supabase/migrations/`. No se ejecutó ninguna consulta pesada ni se modificó nada. Se excluyeron datos de negocio y las tablas que pediste dejar afuera (audit_log, tareas, tareas_historial, pagos, suscripciones, facturación, reservas, alumnos, cuenta corriente, movimientos MP, stock, pedidos, eventos).
 
-## Resultado por punto
+## Candidatas de alta prioridad (log puro, crecen solas)
 
-1. **Una sola ficha recurrente agrupando los 3 cobros — PASS**
-   Hay exactamente 1 fila para `f23846c8…`. Agrupa 3 cobros aprobados: 01/07 ARS 68.476, 01/08 ARS 71.240 y 01/09 ARS 71.240. Muestra "3 cobro(s) · 2 sin imputar" (el de septiembre ya quedó vinculado a una mensualidad).
+| Tabla | Quién escribe | Qué guarda | Prescindible | Retención sugerida |
+|---|---|---|---|---|
+| `net._http_response` (extensión pg_net, esquema `net`) | La base al hacer `net.http_post` desde 6 migraciones/funciones y desde los cron | Respuesta HTTP completa de cada llamada disparada por la base. Con un cron cada minuto son ~43.000 filas/mes | Sí, total | 3 días (o vaciado periódico) |
+| `email_send_log` | `supabase/functions/process-email-queue`, `handle-email-suppression`, `src/lib/emailLog.ts` | Un renglón por email: plantilla, destinatario, estado, error, metadata | Sí, salvo el historial que muestra Comunicaciones | 90 días |
+| `gastos_mp_webhook_log` | `supabase/functions/mp-gastos-webhook` | Webhook crudo de Mercado Pago: headers, body, pago completo, status HTTP, decisión | Sí, es diagnóstico | 60 días |
+| `admin_notification_events` | `create-guest-reservation`, `enroll-programa`, `expire-programa-cuota2`, consumida por `process-admin-notifications` (cron cada 1 minuto) | Cola de avisos internos ya procesados | Sí, una vez procesados | 30 días para las procesadas |
+| `broadcast_recipients` | `send-broadcast`, `send-price-increase-alert` | Un renglón por destinatario de cada envío masivo | Parcial: alimenta el detalle de envíos | 180 días |
+| `turnera_notificaciones` | `_shared/turneraNotifLog.ts`, `process-turnera-reminders`, `send-turnera-email` | Bitácora de avisos de turnos (enviado / en cola / error) | Parcial: se ve en la celda de Comunicaciones de la turnera | 180 días |
+| `weekly_training_email_sends` | `send-weekly-training-digest` | Marca de qué alumno recibió el resumen semanal | Sí, pasado el control de duplicados | 90 días |
 
-2. **Datos visibles — PASS**
-   Descripción "Ruta x 2", email `tammazur@gmail.com`, alumno sugerido "Tamara Raquel Mazur", identificador de plan de MP `3a4f61d7…`, 3 movimientos, 01/07 → 01/09, importe ARS 71.240, estado "Detectado".
+## Candidatas secundarias
 
-3. **Alumno sugerido correcto — PASS**
-   Apunta a la ficha activa `Tamara Raquel Mazur` (`tammazur@gmail.com`), que es la que concentra los 5 movimientos de MP. La otra ficha (`tamarar.mazur@gmail.com`, inactiva) no tiene movimientos y ya figura como email adicional de la activa.
+| Tabla | Quién escribe | Qué guarda | Retención sugerida |
+|---|---|---|---|
+| `delivery_item_check_log` | `src/pages/deposito/DepositoEntregaDetail.tsx` | Cada tilde/destilde de ítems en una entrega | 180 días |
+| `vehiculo_chequeo_scans` | `src/pages/deposito/DepositoCamioneta.tsx` | Cada escaneo de código en el chequeo de la camioneta | 180 días |
+| `scan_incidents` | `SupplierOrderCheckStage.tsx`, visible en `/admin/scan-incidents` | Escaneos con error o inesperados | 180 días |
+| `importaciones_usuarios` | `src/pages/admin/ImportStudents.tsx` | Resultado de cada importación masiva | 1 año |
+| `email_dlq_decisions` | Sin escritor en el código actual (sólo aparece en los tipos generados) | Decisiones sobre emails fallidos | Revisar: posible tabla muerta |
+| `qa_backfill_test_results`, `qa_stock_test_results` | Sin escritor en el código actual | Resultados de pruebas de QA | Candidatas a vaciado total |
+| `_audit_suscripciones_20260624`, `_tmp_repair_check` | Sólo creadas por migraciones puntuales, sin uso en el código | Copias temporales de arreglos ya hechos | Candidatas a eliminación futura |
 
-4. **Plan sin asignar hasta confirmación — PASS**
-   `plan_id` está vacío; la pantalla muestra "sin plan asignado".
+## No tocar
 
-5. **Confirmar no toca dinero — PASS**
-   La función sólo actualiza la tabla de identidades recurrentes y deja el registro en la bitácora de auditoría. No escribe en mensualidades ni en movimientos de MP. Exige rol admin y exige alumno + plan para confirmar.
+- `email_send_state`: es una única fila de configuración del envío de emails, no crece.
+- `suppressed_emails`, `email_unsubscribe_tokens`: reglas vigentes de bajas y desuscripción, borrarlas volvería a enviar correo a quien pidió no recibirlo.
+- `registro_sesiones`: es dato de negocio (sesiones de entrenamiento de los alumnos), no un log técnico.
+- `whatsapp_check_runs/items/extras`, `student_activity_log`, `process_instances`: operativas y visibles en pantalla.
 
-6. **La UI permite elegir y corregir — PASS**
-   Botón "Vincular" abre una ventana con selector de alumno y de plan, precargados con lo sugerido, y botones "Confirmar vínculo" / "Ignorar".
+## Qué falta confirmar cuando la base responda
 
-7. **UX a mejorar antes de P1 — FAIL parcial (nada bloqueante)**
-   Detalles observados en la pantalla.
+La base no está respondiendo ahora, así que el tamaño real y la cantidad de filas de cada tabla no pudieron medirse. Cuando vuelva, conviene medir peso y filas de las siete tablas de alta prioridad antes de decidir el orden de limpieza; lo más probable es que `net._http_response` sea la más grande por lejos, empujada por el proceso que corre cada minuto.
 
-## Problemas de UX detectados (no corregidos)
+## Recomendación
 
-- **No se puede "desvincular"**: si se guardó un alumno o plan equivocado, se puede reemplazar por otro, pero no dejarlo vacío otra vez.
-- **"Ignorar" también guarda** el alumno/plan que quedaron elegidos en pantalla, sin avisarlo.
-- **No hay forma de volver a "Detectado"** desde la pantalla una vez confirmado o ignorado.
-- **No se ven los cobros**: se muestra el conteo, pero no la lista de los 3 pagos con fecha e importe, que es justo lo que hace falta para decidir.
-- **La lista de alumnos se carga completa** en el selector, sin buscador interno; con cientos de fichas es incómodo.
-- **El buscador de arriba no encuentra por email adicional** (ej. `tamarar.mazur@gmail.com` no trae esta fila).
-- **Sin filtro por estado** (Detectado / Confirmado / Ignorado) ni indicador de "ya confirmado" destacado.
-
-## Riesgos
-
-- El cobro de septiembre ya está vinculado a una mensualidad y los de julio/agosto no: al llegar P1, el motor debe respetar lo ya imputado y no duplicar.
-- El importe de julio (68.476) difiere de los otros dos: cualquier conciliación automática debe tolerar variación de precio.
-- La ficha inactiva duplicada de Tamara sigue existiendo; conviene confirmar que no vuelva a recibir cobros.
-
-## Siguiente paso propuesto (requiere aprobación)
-
-Ajustes de UX solamente, sin tocar reglas ni datos: mostrar el detalle de cobros dentro de la fila, filtro por estado, buscador dentro del selector de alumno, búsqueda por email adicional, y aclarar el comportamiento de "Ignorar" con opción de volver a "Detectado".
+Primero revisar la frecuencia del proceso de avisos internos (hoy cada minuto) y programar una limpieza de respuestas HTTP; eso baja peso y trabajo de la base al mismo tiempo. Después aplicar retención a los registros de email y al log de webhooks de gastos. Todo esto sería un paso posterior: en esta etapa no se borró ni se cambió nada.
