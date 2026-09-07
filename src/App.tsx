@@ -32,7 +32,6 @@ import CoachEntrenamientos from "./pages/coach/CoachEntrenamientos";
 import CoachAsesoria from "./pages/coach/CoachAsesoria";
 import CoachChequeoAlumnos from "./pages/coach/CoachChequeoAlumnos";
 import CoachAgenda from "./pages/coach/CoachAgenda";
-import CoachTareas from "./pages/coach/CoachTareas";
 import StudentProgress from "./pages/StudentProgress";
 import ManageCoaches from "./pages/admin/ManageCoaches";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -182,7 +181,6 @@ const App = () => (
           <Route path="/coach/feedback" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachFeedback /></ProtectedRoute>} />
           <Route path="/coach/liquidaciones" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachLiquidaciones /></ProtectedRoute>} />
           <Route path="/coach/asesoria" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAsesoria /></ProtectedRoute>} />
-          <Route path="/coach/tareas" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachTareas /></ProtectedRoute>} />
           <Route path="/coach/agenda" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAgenda /></ProtectedRoute>} />
           <Route path="/coach/chequeo-alumnos" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachChequeoAlumnos /></ProtectedRoute>} />
           <Route path="/admin/chequeo-alumnos" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><CoachChequeoAlumnos adminMode /></ProtectedRoute>} />

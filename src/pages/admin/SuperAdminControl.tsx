@@ -10,8 +10,6 @@ import {
   ShieldAlert, Eye, TrendingDown, Users, ChevronDown,
 } from "lucide-react";
 import { WhatsAppCheckAlert } from "@/components/admin/WhatsAppCheckAlert";
-import { TareasInbox } from "@/components/admin/TareasInbox";
-import type { TareaRol } from "@/hooks/useTareas";
 
 interface AlumnoAlert {
   id: string;
@@ -49,9 +47,6 @@ const SuperAdminControl = () => {
   const [alumnoAlerts, setAlumnoAlerts] = useState<AlumnoAlert[]>([]);
   const [recentFeedback, setRecentFeedback] = useState<CoachFeedbackRow[]>([]);
   const [coachActivity, setCoachActivity] = useState<CoachActivity[]>([]);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [myRoles, setMyRoles] = useState<TareaRol[]>([]);
-  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [showContexto, setShowContexto] = useState(false);
   const [stats, setStats] = useState({
     totalAlertas: 0,
@@ -61,27 +56,6 @@ const SuperAdminControl = () => {
     alumnosSinPlan: 0,
   });
 
-  useEffect(() => {
-    (async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-      setUserId(user.id);
-      const roles: TareaRol[] = [];
-      const [adminRes, coachRes, depoRes, superRes] = await Promise.all([
-        supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }),
-        supabase.rpc("has_role", { _user_id: user.id, _role: "coach" }),
-        supabase.from("deposito_profiles").select("id").eq("user_id", user.id).eq("estado", "activo").maybeSingle(),
-        supabase.from("admin_profiles").select("role").eq("user_id", user.id).eq("status", "active").maybeSingle(),
-      ]);
-      if (adminRes.data) roles.push("admin");
-      if (coachRes.data) roles.push("coach");
-      if (depoRes.data) roles.push("deposito");
-      const isSuper = (superRes.data as any)?.role === "super_admin";
-      if (isSuper) roles.push("super_admin");
-      setIsSuperAdmin(isSuper);
-      setMyRoles(roles);
-    })();
-  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -224,14 +198,11 @@ const SuperAdminControl = () => {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Centro de Control</h1>
-        <p className="text-sm text-muted-foreground">Tareas operativas pendientes para tu rol</p>
+        <p className="text-sm text-muted-foreground">Alertas y contexto operativo</p>
       </div>
 
       {/* Alarma chequeo de WhatsApp (días 5-7 y 15-17) */}
       <WhatsAppCheckAlert />
-
-      {/* Inbox de tareas — protagonista */}
-      <TareasInbox userId={userId} isSuperAdmin={isSuperAdmin} myRoles={myRoles} />
 
       {/* Contexto operativo (datos crudos) */}
       <Collapsible open={showContexto} onOpenChange={setShowContexto}>

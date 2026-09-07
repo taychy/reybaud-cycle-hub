@@ -29,3 +29,9 @@
 - [x] Bootstrap de identidad desde `mp_account_movements.raw`: 13 preapprovals, 12 con alumno sugerido (sin tocar pagos ni suscripciones)
 - [x] Pestaña "Recurrentes MP" en /admin/pagos para vincular alumno + plan y confirmar (no imputa)
 - [ ] P1/P2: motor de imputación y backfill financiero (no incluidos)
+
+## Tareas · Retiro de la funcionalidad (preview)
+- [x] Rutas y accesos de UI eliminados: `/coach/tareas` (App.tsx), botón "Mis tareas" en el panel del coach, inbox de tareas en Centro de Control
+- [x] Archivos eliminados: `src/pages/coach/CoachTareas.tsx`, `src/components/admin/TareasInbox.tsx`, `src/hooks/useTareas.tsx`, `src/components/coach/GraduacionTareaCard.tsx`
+- [x] Sin ejecución automática desde frontend: ya no se llaman `generate_tareas_automaticas` ni `auto_resolve_tareas_automaticas`, ni se consulta el contador de tareas en `useCoachHome`
+- [ ] Tablas `tareas` y `tareas_historial` intactas (datos históricos conservados) para una eventual purga posterior; funciones/RPC SQL sin cambios
