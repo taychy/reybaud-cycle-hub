@@ -23,8 +23,16 @@ type Row = {
   motivo: string;
   notas: string | null;
   created_at: string;
+  mp_movement_id: string | null;
+  cuenta_mp_id: string | null;
+  reservation_id: string | null;
+  reservation_payment_id: string | null;
   alumnos: { id: string; nombre: string; apellido: string | null; email: string } | null;
+  cuentas_mp: { nombre: string } | null;
+  mp_account_movements: { mp_payment_id: string } | null;
+  event_reservations: { id: string; estado: string | null; events: { title: string } | null } | null;
 };
+
 
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
