@@ -53,8 +53,19 @@ type MpEgreso = {
   fecha_movimiento: string;
   direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
+  cuenta_mp_id: string | null;
   cuentas_mp?: { nombre: string; slug: string };
 };
+
+type DevolucionMov = {
+  id: string;
+  mp_movement_id: string;
+  monto: number;
+  moneda: string;
+  motivo: string;
+  alumnos: { nombre: string; apellido: string | null } | null;
+};
+
 
 const CATEGORIAS = [
   "MP - Egresos",
