@@ -573,6 +573,25 @@ const AdminAgenda = () => {
         </div>
       )}
 
+      {dispOcultas.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2">
+          <AlertTriangle className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-xs text-primary">
+            Hay {dispOcultas.length} bloque(s) de disponibilidad esta semana que no se muestran con este filtro.
+            Estos bloques sí habilitan turnos en la reserva pública.{" "}
+            <button
+              type="button"
+              className="underline font-medium"
+              onClick={() => setTipoFiltro("disponibilidad")}
+            >
+              Ver disponibilidad
+            </button>
+          </p>
+        </div>
+      )}
+
+
+
       {loading ? (
         <p className="text-sm text-muted-foreground text-center py-10 animate-pulse">Cargando agenda…</p>
       ) : (
