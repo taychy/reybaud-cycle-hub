@@ -402,7 +402,7 @@ export default function MpEgresosTab() {
               <CheckCircle2 className="w-4 h-4" /> Ya categorizados
             </div>
             <div className="text-2xl font-bold mt-1">{categorizados.length}</div>
-            <div className="text-xs text-muted-foreground">egresos MP convertidos en gastos</div>
+            <div className="text-xs text-muted-foreground">egresos MP resueltos como gasto o devolución</div>
           </CardContent>
         </Card>
       </div>
@@ -753,6 +753,15 @@ export default function MpEgresosTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RegistrarDevolucionDialog
+        open={!!devolucionMov}
+        onOpenChange={(o) => { if (!o) setDevolucionMov(null); }}
+        mpMovement={devolucionMov}
+        onDone={() => { setDevolucionMov(null); load(); }}
+      />
+
+
 
     </div>
   );
