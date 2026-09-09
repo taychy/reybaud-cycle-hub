@@ -38,3 +38,10 @@
 
 ## Mantenimiento técnico · Log de respuestas HTTP (pg_net)
 - [ ] Purga autorizada de `net._http_response` (conservar 3 días, lotes de 500 por ctid, sin VACUUM FULL): intento del 07/09 no pudo ejecutarse porque la base no respondía (pooler caído). Reintentar cuando vuelva.
+
+## Entregas ↔ Cuenta Corriente (P1, preview)
+- [x] Reasignar comprador por ítem con auditoría (`reasignar_comprador_entrega`) y diálogo en el detalle de la lista
+- [x] `delivery_list_payments.alumno_id` + índice, vinculación automática sin ambigüedad y corrección manual
+- [x] Vista de cuenta corriente con `cargo_entrega` y `pago_entrega` (sin duplicar pedidos/preventas ni cobros no validados)
+- [x] Detalle inspeccionable en todos los movimientos de la cuenta corriente
+- [ ] No se ejecutó ninguna reasignación histórica por SQL (Ale Goro → Gastón se hace desde la pantalla)
