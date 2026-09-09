@@ -134,8 +134,25 @@ const AdminAgenda = () => {
     [eventos, tipoFiltro, sedeFiltro, coachFiltro],
   );
 
+  // Bloques de disponibilidad que "Todos" deja fuera de la vista.
+  // Se informan explícitamente para que nunca queden ocultos en silencio
+  // (la turnera pública sí los usa para ofrecer coaches).
+  const dispOcultas = useMemo(
+    () =>
+      tipoFiltro === "todos"
+        ? eventos.filter((e) => {
+            if (e.tipo !== "disponibilidad") return false;
+            if (sedeFiltro !== "all" && (e.sede_id || "none") !== sedeFiltro) return false;
+            if (coachFiltro !== "all" && e.coach_id !== coachFiltro) return false;
+            return true;
+          })
+        : [],
+    [eventos, tipoFiltro, sedeFiltro, coachFiltro],
+  );
+
   const conflictos = useMemo(() => detectarConflictos(eventos), [eventos]);
   const conflictosVisibles = filtrados.filter((e) => conflictos.has(e.id));
+
 
   // ---------------- Diálogo "Agregar bloque" ----------------
   const [openForm, setOpenForm] = useState(false);
