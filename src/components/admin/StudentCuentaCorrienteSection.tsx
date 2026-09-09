@@ -786,6 +786,40 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                       <TableRow key={`${rowKey}-detalle`} className="bg-secondary/30 hover:bg-secondary/30">
                         <TableCell colSpan={8} className="py-3">
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                            <div className="flex items-start gap-2 col-span-2">
+                              <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                              <div className="min-w-0">
+                                <div className="text-muted-foreground text-[10px] uppercase">Concepto</div>
+                                <div className="text-foreground font-medium break-words">{m.concepto}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Banknote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                              <div>
+                                <div className="text-muted-foreground text-[10px] uppercase">Importe</div>
+                                <div className="text-foreground font-medium">
+                                  {m.debe > 0
+                                    ? `Debe ${formatPrice(Number(m.debe), m.moneda)}`
+                                    : `Haber ${formatPrice(Number(m.haber), m.moneda)}`}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                              <div>
+                                <div className="text-muted-foreground text-[10px] uppercase">Fecha</div>
+                                <div className="text-foreground">{formatDate(m.fecha)}</div>
+                              </div>
+                            </div>
+                            {m.estado && (
+                              <div className="flex items-start gap-2">
+                                <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Estado</div>
+                                  <div className="text-foreground capitalize">{m.estado}</div>
+                                </div>
+                              </div>
+                            )}
                             {medioRaw && (
                               <div className="flex items-start gap-2">
                                 <Banknote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
