@@ -2623,6 +2623,7 @@ export type Database = {
       }
       delivery_list_payments: {
         Row: {
+          alumno_id: string | null
           cargado_por_email: string | null
           cargado_por_nombre: string | null
           cargado_por_user_id: string | null
@@ -2650,6 +2651,7 @@ export type Database = {
           validado_por: string | null
         }
         Insert: {
+          alumno_id?: string | null
           cargado_por_email?: string | null
           cargado_por_nombre?: string | null
           cargado_por_user_id?: string | null
@@ -2677,6 +2679,7 @@ export type Database = {
           validado_por?: string | null
         }
         Update: {
+          alumno_id?: string | null
           cargado_por_email?: string | null
           cargado_por_nombre?: string | null
           cargado_por_user_id?: string | null
@@ -2704,6 +2707,27 @@ export type Database = {
           validado_por?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "delivery_list_payments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "delivery_list_payments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "delivery_list_payments_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
           {
             foreignKeyName: "delivery_list_payments_list_id_fkey"
             columns: ["list_id"]
@@ -15626,6 +15650,14 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      reasignar_comprador_entrega: {
+        Args: {
+          _alumno_id?: string
+          _cliente_nombre?: string
+          _item_id: string
+        }
+        Returns: Json
       }
       reasignar_imputacion: {
         Args: {

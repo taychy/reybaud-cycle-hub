@@ -46,6 +46,8 @@ import { formatPrice } from "@/lib/currency";
 import { compareVariantValues } from "@/lib/variantSort";
 import { computeDeliveryBalances } from "@/lib/deliveryBalances";
 import DeliveryClientNotify from "@/components/deposito/DeliveryClientNotify";
+import ReassignBuyerDialog, { ReassignItem } from "@/components/deposito/ReassignBuyerDialog";
+import AlumnoPicker, { AlumnoLite } from "@/components/admin/AlumnoPicker";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -133,6 +135,7 @@ interface Payment {
   comprobante_path?: string | null;
   rechazado?: boolean | null;
   rechazado_motivo?: string | null;
+  alumno_id?: string | null;
 }
 
 
@@ -206,6 +209,8 @@ const AdminEntregaDetail = () => {
   const [detailPayment, setDetailPayment] = useState<Payment | null>(null);
   const [detailUrl, setDetailUrl] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [reassignItem, setReassignItem] = useState<ReassignItem | null>(null);
+  const [payAlumno, setPayAlumno] = useState<AlumnoLite | null>(null);
 
   const openPaymentDetail = async (p: Payment) => {
     setDetailPayment(p);
@@ -237,9 +242,22 @@ const AdminEntregaDetail = () => {
     return `[${conceptoLabel(concepto)}]${clean ? " " + clean : ""}`;
   };
 
+  /** Devuelve el alumno del cliente sólo si todos sus ítems resuelven al mismo. */
+  const resolveAlumnoForCliente = (cliente: string): string | null => {
+    const its = items.filter((i) => (i.cliente_nombre || "") === cliente);
+    if (its.length === 0) return null;
+    const ids = Array.from(new Set(its.map((i) => i.alumno_id)));
+    return ids.length === 1 && ids[0] ? ids[0] : null;
+  };
+
   const openEditPayment = (p: Payment) => {
     setCreatingPayment(false);
+    setPayAlumno(null);
     setEditingPayment(p);
+    if (p.alumno_id) {
+      supabase.from("alumnos").select("id, nombre, apellido, email").eq("id", p.alumno_id).maybeSingle()
+        .then(({ data }) => setPayAlumno((data as any) || null));
+    }
     const { concepto, rest } = parseConceptoFromNotas(p.notas);
     setPayEdit({
       monto: String(p.monto ?? ""),
@@ -253,6 +271,7 @@ const AdminEntregaDetail = () => {
   };
 
   const openNewPayment = () => {
+    setPayAlumno(null);
     setEditingPayment(null);
     setCreatingPayment(true);
     setPayEdit({ monto: "", moneda: "USD", forma_pago: "transferencia", validado: true, notas: "", cliente_nombre: "", concepto: "sena" });
@@ -270,6 +289,7 @@ const AdminEntregaDetail = () => {
       validado: payEdit.validado,
       notas: serializeNotas(payEdit.concepto, payEdit.notas),
       cliente_nombre: payEdit.cliente_nombre,
+      alumno_id: payAlumno?.id ?? resolveAlumnoForCliente(payEdit.cliente_nombre),
     };
     let error;
     if (creatingPayment) {
@@ -315,7 +335,7 @@ const AdminEntregaDetail = () => {
       supabase.from("delivery_supplier_payments").select("*").eq("delivery_list_id", listId).order("fecha", { ascending: false }),
       supabase
         .from("delivery_list_payments")
-        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre, notas, comprobante_path, rechazado, rechazado_motivo")
+        .select("id, cliente_nombre, monto, moneda, forma_pago, validado, created_at, cargado_por_nombre, notas, comprobante_path, rechazado, rechazado_motivo, alumno_id")
         .eq("list_id", listId)
         .order("created_at", { ascending: false }),
       supabase
@@ -1116,6 +1136,24 @@ const AdminEntregaDetail = () => {
                           {it.costo_unitario != null && (
                             <div>costo {formatPrice(Number(it.costo_unitario), it.moneda || "ARS")}</div>
                           )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-6 px-2 mt-1 text-[10px]"
+                            onClick={() => setReassignItem({
+                              id: it.id,
+                              list_id: list!.id,
+                              cliente_nombre: it.cliente_nombre,
+                              alumno_id: it.alumno_id,
+                              producto: it.producto,
+                              variante: it.variante,
+                              cantidad: Number(it.cantidad || 1),
+                              precio_venta: it.precio_venta,
+                              moneda: it.moneda,
+                            })}
+                          >
+                            Reasignar comprador
+                          </Button>
                         </div>
                       </div>
                     ))}
@@ -1804,6 +1842,13 @@ const AdminEntregaDetail = () => {
                 {grouped.map(([name]) => <option key={name} value={name} />)}
               </datalist>
             </div>
+            <div className="space-y-1.5">
+              <Label>Alumno vinculado (opcional)</Label>
+              <AlumnoPicker value={payAlumno} onChange={setPayAlumno} />
+              <p className="text-[11px] text-muted-foreground">
+                Si queda vacío se intenta vincular automáticamente cuando el cliente resuelve a un único alumno.
+              </p>
+            </div>
             <div>
               <Label>Concepto</Label>
               <Select value={payEdit.concepto} onValueChange={(v) => setPayEdit({ ...payEdit, concepto: v })}>
@@ -1867,6 +1912,13 @@ const AdminEntregaDetail = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ReassignBuyerDialog
+        item={reassignItem}
+        cobrosPrevios={reassignItem ? (paymentsByClient[reassignItem.cliente_nombre] || []).length : 0}
+        onOpenChange={(o) => { if (!o) setReassignItem(null); }}
+        onDone={load}
+      />
 
       {/* DELETE PAYMENT CONFIRM */}
       <AlertDialog open={!!deletingPaymentId} onOpenChange={(o) => !o && setDeletingPaymentId(null)}>
