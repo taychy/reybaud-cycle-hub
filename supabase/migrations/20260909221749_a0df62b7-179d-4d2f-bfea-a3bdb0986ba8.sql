@@ -1,0 +1,2 @@
+REVOKE EXECUTE ON FUNCTION public.guard_mp_movement_gasto_vs_devolucion() FROM PUBLIC, anon, authenticated;
+REVOKE EXECUTE ON FUNCTION public.guard_devolucion_mp_movement() FROM PUBLIC, anon, authenticated;
