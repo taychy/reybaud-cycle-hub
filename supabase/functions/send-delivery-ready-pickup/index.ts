@@ -9,6 +9,7 @@
 // - Soporta `test_email` para reenviar la misma pieza a otra dirección sin marcar el ítem.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const SENDER_DOMAIN = "notify.reybaud-app.com";
 const FROM_NAME = "Ciclismo Reybaud";
@@ -182,9 +183,7 @@ Deno.serve(async (req) => {
     const idempotencyKey = `delivery-ready-${list_id}-${alumno_id}-${channel}-${test_email ? "test-" : ""}${Date.now()}`;
 
     if (channel === "email") {
-      const { error: qErr } = await supabase.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
+      const { error: qErr } = await sendLegacyEmailPayload({
           message_id: messageId,
           to: recipientEmail,
           from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -196,8 +195,7 @@ Deno.serve(async (req) => {
           label: "delivery-ready-pickup",
           idempotency_key: idempotencyKey,
           queued_at: new Date().toISOString(),
-        },
-      });
+        }, supabase);
       if (qErr) throw new Error(`queue_failed: ${qErr.message}`);
     }
 

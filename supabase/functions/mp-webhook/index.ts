@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -248,9 +249,7 @@ Deno.serve(async (req) => {
             const APP_URL = "https://reybaud-app.com";
 
             if (alumno?.email) {
-              await supabaseAdmin.rpc("enqueue_email", {
-                queue_name: "transactional_emails",
-                payload: {
+              await sendLegacyEmailPayload({
                   message_id: crypto.randomUUID(),
                   to: alumno.email,
                   from: FROM,
@@ -262,13 +261,10 @@ Deno.serve(async (req) => {
                   label: "auto_charge_failed_student",
                   idempotency_key: `auto-fail-student-${parentSub.id}-${newFails}`,
                   queued_at: nowIso,
-                },
-              });
+                }, supabaseAdmin);
             }
 
-            await supabaseAdmin.rpc("enqueue_email", {
-              queue_name: "transactional_emails",
-              payload: {
+            await sendLegacyEmailPayload({
                 message_id: crypto.randomUUID(),
                 to: "scarlettbonatto@gmail.com",
                 from: FROM,
@@ -280,8 +276,7 @@ Deno.serve(async (req) => {
                 label: "auto_charge_failed_admin",
                 idempotency_key: `auto-fail-admin-${parentSub.id}-${newFails}`,
                 queued_at: nowIso,
-              },
-            });
+              }, supabaseAdmin);
           } catch (mailErr) {
             console.error("Email enqueue failed:", mailErr);
           }

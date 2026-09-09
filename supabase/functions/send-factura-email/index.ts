@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -90,9 +91,7 @@ Deno.serve(async (req) => {
 
     const unsubToken = await getOrCreateUnsubscribeToken(supabase, alumno.email);
 
-    const { error: enqueueErr } = await supabase.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    const { error: enqueueErr } = await sendLegacyEmailPayload({
         message_id: messageId,
         to: alumno.email,
         from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
@@ -105,8 +104,7 @@ Deno.serve(async (req) => {
         idempotency_key: `factura-${factura_id}`,
         queued_at: new Date().toISOString(),
         unsubscribe_token: unsubToken,
-      },
-    });
+      }, supabase);
     if (enqueueErr) {
       console.error("enqueue error", enqueueErr);
       return json({ error: enqueueErr.message }, 500);

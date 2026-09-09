@@ -271,7 +271,7 @@ const StorePorPedir = () => {
       const created = Array.isArray(data) ? data[0] : data;
 
       if (enviarEmail && email) {
-        const { error: mailErr } = await sb.functions.invoke("send-transactional-email", {
+        const { error: mailErr } = await sb.functions.invoke("send-supplier-order-email", {
           body: {
             templateName: "supplier-order-created",
             recipientEmail: email,

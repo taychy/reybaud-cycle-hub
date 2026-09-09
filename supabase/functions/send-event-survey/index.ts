@@ -3,6 +3,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
@@ -372,9 +373,7 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
       );
       const text = `Hola ${r.name}, ${survey.descripcion || "Nos gustaría conocer tu experiencia."} Responder: ${link}`;
 
-      const { error: enqErr } = await supabase.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
+      const { error: enqErr } = await sendLegacyEmailPayload({
           message_id: messageId,
           to: r.email,
           from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -387,8 +386,7 @@ async function processSurvey(supabase: any, surveyId: string, force: boolean) {
           idempotency_key: idemKey,
           unsubscribe_token: unsubToken,
           queued_at: new Date().toISOString(),
-        },
-      });
+        }, supabase);
       if (enqErr) {
         failed++;
         continue;
@@ -495,9 +493,7 @@ async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string
   );
   const text = `[PRUEBA] Hola ${displayName}, ${survey.descripcion || ""} Responder: ${link}`;
 
-  const { error: enqErr } = await supabase.rpc("enqueue_email", {
-    queue_name: "transactional_emails",
-    payload: {
+  const { error: enqErr } = await sendLegacyEmailPayload({
       message_id: messageId,
       to: testEmail,
       from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -510,8 +506,7 @@ async function sendTestSurvey(supabase: any, surveyId: string, testEmail: string
       idempotency_key: `event-survey-test-${surveyId}-${email}-${Date.now()}`,
       unsubscribe_token: unsubToken,
       queued_at: new Date().toISOString(),
-    },
-  });
+    }, supabase);
   if (enqErr) return { error: "Enqueue failed", details: enqErr.message };
   return { test: true, sent: 1, to: testEmail };
 }

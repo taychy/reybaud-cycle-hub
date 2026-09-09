@@ -9,7 +9,6 @@ import {
   Head,
   Heading,
   Html,
-  Img,
   Link,
   Preview,
   Text,
@@ -28,23 +27,33 @@ export const SignupEmail = ({
   recipient,
   confirmationUrl,
 }: SignupEmailProps) => (
-  <Html lang="es" dir="ltr">
-    <Head />
-    <Preview>Confirmá tu email en Ciclismo Reybaud</Preview>
+  <Html lang="en" dir="ltr">
+    <Head>
+      <style>{darkModeCss}</style>
+    </Head>
+    <Preview>Confirm your email for {siteName}</Preview>
     <Body style={main}>
       <Container style={container}>
-        <Img src={LOGO_URL} alt="Ciclismo Reybaud" width="60" height="60" style={logo} />
-        <Heading style={h1}>¡Bienvenido a Ciclismo Reybaud!</Heading>
+        <Heading style={h1}>Confirm your email</Heading>
         <Text style={text}>
-          Gracias por registrarte. Confirmá tu email (
-          <Link href={`mailto:${recipient}`} style={link}>{recipient}</Link>
-          ) haciendo clic en el botón:
+          Thanks for signing up for{' '}
+          <Link href={siteUrl} style={link}>
+            <strong>{siteName}</strong>
+          </Link>
+          !
         </Text>
-        <Button style={button} href={confirmationUrl}>
-          Confirmar email
+        <Text style={text}>
+          Please confirm your email address (
+          <Link href={`mailto:${recipient}`} style={link}>
+            {recipient}
+          </Link>
+          ) by clicking the button below:
+        </Text>
+        <Button className="dm-btn" style={button} href={confirmationUrl}>
+          Verify Email
         </Button>
         <Text style={footer}>
-          Si no creaste una cuenta, podés ignorar este email.
+          If you didn't create an account, you can safely ignore this email.
         </Text>
       </Container>
     </Body>
@@ -53,36 +62,36 @@ export const SignupEmail = ({
 
 export default SignupEmail
 
-const LOGO_URL = 'https://tgqfakfloonbunwkdoug.supabase.co/storage/v1/object/public/email-assets/logo.png'
-const main = { backgroundColor: '#ffffff', fontFamily: "'Inter', Arial, sans-serif" }
-const container = { padding: '30px 25px', maxWidth: '480px', margin: '0 auto' }
-const logo = { margin: '0 auto 20px', display: 'block' as const }
+const main = { backgroundColor: '#ffffff', fontFamily: 'Arial, sans-serif' }
+const container = { padding: '20px 25px' }
 const h1 = {
   fontSize: '22px',
   fontWeight: 'bold' as const,
-  fontFamily: "'Oswald', Arial, sans-serif",
-  color: '#1A1A1A',
+  color: '#000000',
   margin: '0 0 20px',
-  textAlign: 'center' as const,
-  textTransform: 'uppercase' as const,
-  letterSpacing: '1px',
 }
 const text = {
   fontSize: '14px',
-  color: '#555555',
-  lineHeight: '1.6',
+  color: '#55575d',
+  lineHeight: '1.5',
   margin: '0 0 25px',
 }
-const link = { color: '#E8832A', textDecoration: 'underline' }
+const link = { color: 'inherit', textDecoration: 'underline' }
 const button = {
-  backgroundColor: '#E8832A',
+  backgroundColor: '#000000',
   color: '#ffffff',
   fontSize: '14px',
-  fontWeight: 'bold' as const,
+  border: '1px solid #000000',
   borderRadius: '8px',
-  padding: '12px 24px',
+  padding: '12px 20px',
   textDecoration: 'none',
-  display: 'block' as const,
-  textAlign: 'center' as const,
 }
-const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0', textAlign: 'center' as const }
+const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+// Rendered as a text child, which React may HTML-escape: keep this CSS free of >, &, and quotes.
+const darkModeCss = `
+  @media (prefers-color-scheme: dark) {
+    .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  }
+  [data-ogsc] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+  [data-ogsb] .dm-btn { background-color: #ffffff !important; color: #000000 !important; }
+`

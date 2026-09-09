@@ -3,6 +3,7 @@
 // Photos are referenced as signed URLs (process-photos bucket is private).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -170,9 +171,7 @@ Deno.serve(async (req) => {
     const unsubscribeToken = await getOrCreateUnsubscribeToken(sb, to);
 
     // Encolar en la cola transactional_emails (cron process-email-queue se ocupa del envío real)
-    const { error: qErr } = await sb.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    const { error: qErr } = await sendLegacyEmailPayload({
         message_id: messageId,
         to,
         from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -185,8 +184,7 @@ Deno.serve(async (req) => {
         idempotency_key: `process-report-${instance_id}`,
         unsubscribe_token: unsubscribeToken,
         queued_at: new Date().toISOString(),
-      },
-    });
+      }, sb);
 
     if (qErr) {
       await sb.from("audit_log").insert({

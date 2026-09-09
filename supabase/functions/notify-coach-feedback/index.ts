@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendRegisteredTemplate } from "../_shared/send-managed-email.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -67,34 +68,27 @@ Deno.serve(async (req) => {
       .map((l) => l.trim())
       .filter((l) => l.startsWith("•")).length;
 
-    // Invoke shared Lovable transactional email pipeline
-    const { data: sendData, error: sendError } = await supabase.functions.invoke(
-      "send-transactional-email",
-      {
-        body: {
-          templateName: "coach-feedback",
-          recipientEmail: alumno.email,
-          idempotencyKey: `coach-feedback-${fb.id}`,
-          templateData: {
-            firstName,
-            coachName,
-            tipoLabel: tipoTxt,
-            generalNote: generalRaw.trim(),
-            detailCount,
-            appUrl: "https://reybaud-app.com/",
-          },
-        },
-      }
-    );
+    const sendResult = await sendRegisteredTemplate("coach-feedback", alumno.email, {
+      templateData: {
+        firstName,
+        coachName,
+        tipoLabel: tipoTxt,
+        generalNote: generalRaw.trim(),
+        detailCount,
+        appUrl: "https://reybaud-app.com/",
+      },
+      idempotencyKey: `coach-feedback-${fb.id}`,
+      supabase,
+    });
 
-    if (sendError) {
-      console.error("send-transactional-email error", sendError);
-      return new Response(JSON.stringify({ error: "send_failed", detail: sendError.message }), {
+    if (!sendResult.sent && sendResult.reason === "failed") {
+      console.error("coach-feedback send error", sendResult.error);
+      return new Response(JSON.stringify({ error: "send_failed", detail: sendResult.error }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    return new Response(JSON.stringify({ ok: true, result: sendData }), {
+    return new Response(JSON.stringify({ ok: true, sent: sendResult.sent }), {
       status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (e: any) {

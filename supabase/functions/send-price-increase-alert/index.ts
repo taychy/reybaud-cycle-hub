@@ -15,6 +15,7 @@
  *   }
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -79,7 +80,7 @@ async function enqueue(supabase: any, to: string, subject: string, html: string,
     queued_at: new Date().toISOString(),
     unsubscribe_token: unsub,
   };
-  const { error } = await supabase.rpc('enqueue_email', { queue_name: 'transactional_emails', payload });
+  const { error } = await sendLegacyEmailPayload(payload, supabase);
   if (error) throw error;
 }
 

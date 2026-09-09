@@ -54,3 +54,12 @@
 - [x] Novedad admin `preinscripciones` en `count_admin_novedades` + acceso "Preinscripciones" en el menú
 - [x] Lista creada y publicada: "Programa de Iniciación · Octubre 2026" (`programa-iniciacion-octubre-2026`, 15 cupos)
 - [ ] Sin publicar a producción (pendiente confirmación)
+
+## Actualización del sistema de emails (envío administrado)
+- [x] Emails de acceso (registro, código, recuperación, invitación, cambio de email) migrados al envío administrado, con asuntos en español y remitente "Ciclismo Reybaud"
+- [x] ~30 funciones de aviso convertidas al envío directo administrado, conservando `email_send_log` (`sent` con snapshot, `suppressed`, `failed`)
+- [x] Feedback de coach y pedidos a proveedor: nueva función `send-supplier-order-email`; el navegador ya no invoca envíos genéricos
+- [x] Receptor de eventos `handle-email-events` (rebote/queja/baja) con escritura en `suppressed_emails`, `email_send_log` y opt-out de `marketing_contacts`
+- [x] Retirados del repo: cola/despachador, suppression, unsubscribe, envío transaccional legacy, página `/unsubscribe` y la migración de infraestructura de email
+- [x] Tablas de datos (`email_send_log`, `suppressed_emails`, `email_unsubscribe_tokens`, `email_send_state`) conservadas
+- [ ] Sin publicar: el cambio se completa al publicar y no puede deshacerse

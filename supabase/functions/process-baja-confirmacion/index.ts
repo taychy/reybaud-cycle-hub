@@ -6,6 +6,7 @@
 // Requiere caller admin (la RPC ya valida).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -74,9 +75,7 @@ Deno.serve(async (req) => {
           .eq("id", alumnoId)
           .maybeSingle();
         if (alumno?.email) {
-          await admin.rpc("enqueue_email", {
-            queue_name: "emails_default",
-            payload: {
+          await sendLegacyEmailPayload({
               kind: "baja_confirmada",
               to: alumno.email,
               subject: "Baja procesada",
@@ -84,8 +83,7 @@ Deno.serve(async (req) => {
                 nombre: alumno.nombre,
                 apellido: alumno.apellido,
               },
-            },
-          });
+            }, admin);
         }
       } catch (e) {
         console.warn("[process-baja-confirmacion] email warn:", (e as Error).message);

@@ -1,5 +1,6 @@
 // deno-lint-ignore-file no-explicit-any
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -127,9 +128,7 @@ Deno.serve(async (req) => {
       const messageId = crypto.randomUUID();
       const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.alumno_email);
       const idemSuffix = isSaldo ? `saldo-${Date.now()}` : `sena-manual-${Date.now()}`;
-      const { error: enqErr } = await supabase.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
+      const { error: enqErr } = await sendLegacyEmailPayload({
           message_id: messageId,
           to: r.alumno_email,
           from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
@@ -142,8 +141,7 @@ Deno.serve(async (req) => {
           idempotency_key: `preorder-remind-${r.id}-${idemSuffix}`,
           unsubscribe_token: unsubToken,
           queued_at: new Date().toISOString(),
-        },
-      });
+        }, supabase);
       if (enqErr) throw enqErr;
 
       await supabase.from("store_preorders")
@@ -200,9 +198,7 @@ Deno.serve(async (req) => {
 
       const messageId = crypto.randomUUID();
       const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.alumno_email);
-      const { error: enqErr } = await supabase.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
+      const { error: enqErr } = await sendLegacyEmailPayload({
           message_id: messageId,
           to: r.alumno_email,
           from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
@@ -215,8 +211,7 @@ Deno.serve(async (req) => {
           idempotency_key: `preorder-remind-${r.id}-${nextIdx}`,
           unsubscribe_token: unsubToken,
           queued_at: new Date().toISOString(),
-        },
-      });
+        }, supabase);
       if (enqErr) { results.push({ id: r.id, error: enqErr.message }); continue; }
 
       await supabase.from("store_preorders")

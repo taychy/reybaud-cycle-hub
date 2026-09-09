@@ -3,6 +3,7 @@
 // Para 2 cuotas: hoy se cobra la cuota 1 y la cuota 2 queda como deuda en cuenta corriente (vence a 30 días).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -155,9 +156,7 @@ async function enqueueEnrollmentEmail(admin: any, params: {
       ? `Inscripción confirmada · ${params.planNombre}`
       : `Recibimos tu inscripción · ${params.planNombre}`;
 
-    await admin.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    await sendLegacyEmailPayload({
         message_id: messageId,
         to: params.toEmail,
         from: `${FROM_NAME} <programas@${SENDER_DOMAIN}>`,
@@ -170,8 +169,7 @@ async function enqueueEnrollmentEmail(admin: any, params: {
         idempotency_key: `programa-inscripcion-${params.suscripcionId}`,
         unsubscribe_token: unsub,
         queued_at: new Date().toISOString(),
-      },
-    });
+      }, admin);
   } catch (e) {
     console.error("[enroll-programa] enqueue email", e);
   }
