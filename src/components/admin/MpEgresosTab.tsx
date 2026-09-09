@@ -541,8 +541,9 @@ export default function MpEgresosTab() {
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
                   <div className="text-[10px] text-muted-foreground">{m.currency}</div>
                 </div>
-                {m.direccion === "egreso" && !m.gasto_id && (
+                {m.direccion === "egreso" && !m.gasto_id && !devoluciones[m.id] && (
                   <Button size="sm" onClick={() => openDialog(m)}>Categorizar</Button>
+
                 )}
               </CardContent>
             </Card>
