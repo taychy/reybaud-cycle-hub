@@ -23,8 +23,16 @@ type Row = {
   motivo: string;
   notas: string | null;
   created_at: string;
+  mp_movement_id: string | null;
+  cuenta_mp_id: string | null;
+  reservation_id: string | null;
+  reservation_payment_id: string | null;
   alumnos: { id: string; nombre: string; apellido: string | null; email: string } | null;
+  cuentas_mp: { nombre: string } | null;
+  mp_account_movements: { mp_payment_id: string } | null;
+  event_reservations: { id: string; estado: string | null; events: { title: string } | null } | null;
 };
+
 
 const fmtDate = (d: string | null) => {
   if (!d) return "—";
@@ -48,7 +56,13 @@ export default function DevolucionesList() {
     const end = new Date(y, m, 1).toISOString().substring(0, 10);
     const { data, error } = await supabase
       .from("devoluciones")
-      .select("id, alumno_id, monto, moneda, fecha, metodo, referencia, motivo, notas, created_at, alumnos(id, nombre, apellido, email)")
+      .select(`id, alumno_id, monto, moneda, fecha, metodo, referencia, motivo, notas, created_at,
+        mp_movement_id, cuenta_mp_id, reservation_id, reservation_payment_id,
+        alumnos(id, nombre, apellido, email),
+        cuentas_mp(nombre),
+        mp_account_movements(mp_payment_id),
+        event_reservations(id, estado, events(title))`)
+
       .gte("fecha", start)
       .lt("fecha", end)
       .order("fecha", { ascending: false })
@@ -118,9 +132,11 @@ export default function DevolucionesList() {
                 <TableHead>Fecha</TableHead>
                 <TableHead>Alumno</TableHead>
                 <TableHead>Monto</TableHead>
-                <TableHead>Método</TableHead>
+                <TableHead>Medio</TableHead>
+                <TableHead>Cuenta de salida</TableHead>
+                <TableHead>Origen</TableHead>
                 <TableHead>Motivo</TableHead>
-                <TableHead>Ref.</TableHead>
+                <TableHead>Operación / Ref.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -133,11 +149,27 @@ export default function DevolucionesList() {
                   </TableCell>
                   <TableCell className="text-sm font-medium">{formatPrice(Number(r.monto), r.moneda)}</TableCell>
                   <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{r.metodo}</Badge></TableCell>
-                  <TableCell className="text-xs max-w-[260px] truncate" title={r.motivo}>{r.motivo}</TableCell>
-                  <TableCell className="text-[11px] text-muted-foreground">{r.referencia || "—"}</TableCell>
+                  <TableCell className="text-[11px] text-muted-foreground">{r.cuentas_mp?.nombre || "—"}</TableCell>
+                  <TableCell className="text-[11px]">
+                    {r.event_reservations ? (
+                      <div>
+                        <div className="text-foreground">{r.event_reservations.events?.title || "Evento"}</div>
+                        {r.event_reservations.estado && (
+                          <div className="text-muted-foreground">{r.event_reservations.estado}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs max-w-[220px] truncate" title={r.motivo}>{r.motivo}</TableCell>
+                  <TableCell className="text-[11px] text-muted-foreground font-mono">
+                    {r.mp_account_movements?.mp_payment_id || r.referencia || "—"}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
+
           </Table>
         )}
 

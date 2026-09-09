@@ -3053,14 +3053,18 @@ export type Database = {
           baja_solicitud_id: string | null
           created_at: string
           created_by: string | null
+          cuenta_mp_id: string | null
           fecha: string
           id: string
           metodo: string
           moneda: string
           monto: number
           motivo: string
+          mp_movement_id: string | null
           notas: string | null
           referencia: string | null
+          reservation_id: string | null
+          reservation_payment_id: string | null
           suscripcion_id: string | null
           updated_at: string
         }
@@ -3070,14 +3074,18 @@ export type Database = {
           baja_solicitud_id?: string | null
           created_at?: string
           created_by?: string | null
+          cuenta_mp_id?: string | null
           fecha?: string
           id?: string
           metodo?: string
           moneda?: string
           monto: number
           motivo: string
+          mp_movement_id?: string | null
           notas?: string | null
           referencia?: string | null
+          reservation_id?: string | null
+          reservation_payment_id?: string | null
           suscripcion_id?: string | null
           updated_at?: string
         }
@@ -3087,14 +3095,18 @@ export type Database = {
           baja_solicitud_id?: string | null
           created_at?: string
           created_by?: string | null
+          cuenta_mp_id?: string | null
           fecha?: string
           id?: string
           metodo?: string
           moneda?: string
           monto?: number
           motivo?: string
+          mp_movement_id?: string | null
           notas?: string | null
           referencia?: string | null
+          reservation_id?: string | null
+          reservation_payment_id?: string | null
           suscripcion_id?: string | null
           updated_at?: string
         }
@@ -3132,6 +3144,62 @@ export type Database = {
             columns: ["baja_solicitud_id"]
             isOneToOne: false
             referencedRelation: "bajas_solicitudes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_mp_movement_id_fkey"
+            columns: ["mp_movement_id"]
+            isOneToOne: true
+            referencedRelation: "mp_account_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_mp_movement_id_fkey"
+            columns: ["mp_movement_id"]
+            isOneToOne: true
+            referencedRelation: "vw_mp_preapproval_movimientos"
+            referencedColumns: ["movimiento_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_mp_movement_id_fkey"
+            columns: ["mp_movement_id"]
+            isOneToOne: true
+            referencedRelation: "vw_pagos_disponibles"
+            referencedColumns: ["pago_origen_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_mp_movement_id_fkey"
+            columns: ["mp_movement_id"]
+            isOneToOne: true
+            referencedRelation: "vw_posibles_pagos_profesor"
+            referencedColumns: ["movement_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "devoluciones_reservation_payment_id_fkey"
+            columns: ["reservation_payment_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_payments"
             referencedColumns: ["id"]
           },
           {
@@ -16009,13 +16077,17 @@ export type Database = {
         Args: {
           p_alumno_id: string
           p_baja_solicitud_id?: string
+          p_cuenta_mp_id?: string
           p_fecha?: string
           p_metodo?: string
           p_moneda?: string
           p_monto: number
           p_motivo?: string
+          p_mp_movement_id?: string
           p_notas?: string
           p_referencia?: string
+          p_reservation_id?: string
+          p_reservation_payment_id?: string
           p_suscripcion_id?: string
         }
         Returns: string

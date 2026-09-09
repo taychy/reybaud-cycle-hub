@@ -103,7 +103,9 @@ const TIPO_LABEL: Record<string, { label: string; className: string }> = {
   pago_entrega: { label: "Pago entrega", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   ajuste_cargo: { label: "Ajuste (cargo)", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   ajuste_credito: { label: "Ajuste (crédito)", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
+  devolucion: { label: "Devolución", className: "bg-rose-500/15 text-rose-400 border-rose-500/30" },
 };
+
 
 // Etiquetas legibles para los datos adicionales de cada movimiento.
 const EXTRA_FIELD_LABELS: Record<string, string> = {
@@ -131,6 +133,7 @@ const EXTRA_FIELD_LABELS: Record<string, string> = {
   producto_nombre: "Producto",
   cuota_numero: "Cuota",
   source_type: "Tipo de origen",
+  motivo: "Motivo",
 };
 
 const EXTRA_FIELDS_HIDDEN = new Set([
@@ -138,7 +141,9 @@ const EXTRA_FIELDS_HIDDEN = new Set([
   "referencia_externa", "mp_payment_id", "cuenta_mp_id", "fecha_pago",
   "comprobante_url", "proof_url", "comprobante_path", "notas", "notes",
   "alumno_id", "list_id", "item_id", "plan_id", "created_at",
+  "mp_movement_id", "reservation_id", "reservation_payment_id", "suscripcion_id",
 ]);
+
 
 function formatExtraValue(v: any): string | null {
   if (v === null || v === undefined || v === "") return null;

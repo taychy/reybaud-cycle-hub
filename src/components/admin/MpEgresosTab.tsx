@@ -9,9 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2, RotateCcw } from "lucide-react";
 import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
 import { collectorIdDeMovimiento, matchCoachPorContraparte, type ContraparteCoach } from "@/lib/gastoReglas";
+import RegistrarDevolucionDialog, { type DevolucionMpMovement } from "@/components/admin/RegistrarDevolucionDialog";
+
 
 type AiSugerencia = {
   movement_id: string;
@@ -51,8 +53,19 @@ type MpEgreso = {
   fecha_movimiento: string;
   direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
+  cuenta_mp_id: string | null;
   cuentas_mp?: { nombre: string; slug: string };
 };
+
+type DevolucionMov = {
+  id: string;
+  mp_movement_id: string;
+  monto: number;
+  moneda: string;
+  motivo: string;
+  alumnos: { nombre: string; apellido: string | null } | null;
+};
+
 
 const CATEGORIAS = [
   "MP - Egresos",
@@ -103,6 +116,8 @@ export default function MpEgresosTab() {
   const [coaches, setCoaches] = useState<{ id: string; nombre: string }[]>([]);
   const [contrapartes, setContrapartes] = useState<ContraparteCoach[]>([]);
   const [coachId, setCoachId] = useState<string>("");
+  const [devoluciones, setDevoluciones] = useState<Record<string, DevolucionMov>>({});
+  const [devolucionMov, setDevolucionMov] = useState<DevolucionMpMovement | null>(null);
 
 
 
@@ -115,7 +130,7 @@ export default function MpEgresosTab() {
       .select(`
         id, mp_payment_id, amount, currency, description, payment_type,
         payment_method, payer_name, payer_email, external_reference, raw,
-        fecha_movimiento, direccion, gasto_id,
+        fecha_movimiento, direccion, gasto_id, cuenta_mp_id,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
       .in("direccion", ["egreso", "reserva_tecnica", "interno"])
@@ -124,15 +139,26 @@ export default function MpEgresosTab() {
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setItems((data as any) ?? []);
 
-    const [co, cp] = await Promise.all([
+    const [co, cp, dev] = await Promise.all([
       supabase.from("coaches").select("id, nombre").eq("estado", "activo").order("nombre"),
       supabase.from("coach_mp_contrapartes" as any).select("coach_id, mp_collector_id, nombre_contraparte"),
+      supabase
+        .from("devoluciones" as any)
+        .select("id, mp_movement_id, monto, moneda, motivo, alumnos(nombre, apellido)")
+        .not("mp_movement_id", "is", null)
+        .limit(500),
     ]);
     setCoaches(((co.data as any[]) ?? []) as { id: string; nombre: string }[]);
     setContrapartes(((cp.data as any[]) ?? []) as ContraparteCoach[]);
+    const dmap: Record<string, DevolucionMov> = {};
+    for (const d of ((dev.data as any[]) ?? []) as DevolucionMov[]) {
+      if (d.mp_movement_id) dmap[d.mp_movement_id] = d;
+    }
+    setDevoluciones(dmap);
 
     setLoading(false);
   }
+
 
   async function loadEjecuciones() {
     setLoadingEjecs(true);
@@ -327,9 +353,10 @@ export default function MpEgresosTab() {
 
   }
 
-  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id);
+  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id && !devoluciones[i.id]);
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
-  const categorizados = items.filter(i => i.gasto_id);
+  const categorizados = items.filter(i => i.gasto_id || devoluciones[i.id]);
+
 
   const filteredEjecuciones = ejecuciones.filter((e) => {
     if (!incluirPagados && e.estado === "pagado") return false;
@@ -375,7 +402,7 @@ export default function MpEgresosTab() {
               <CheckCircle2 className="w-4 h-4" /> Ya categorizados
             </div>
             <div className="text-2xl font-bold mt-1">{categorizados.length}</div>
-            <div className="text-xs text-muted-foreground">egresos MP convertidos en gastos</div>
+            <div className="text-xs text-muted-foreground">egresos MP resueltos como gasto o devolución</div>
           </CardContent>
         </Card>
       </div>
@@ -474,6 +501,12 @@ export default function MpEgresosTab() {
                     {m.gasto_id && (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Gasto creado</Badge>
                     )}
+                    {devoluciones[m.id] && (
+                      <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">
+                        Devolución · {[devoluciones[m.id].alumnos?.nombre, devoluciones[m.id].alumnos?.apellido].filter(Boolean).join(" ") || "alumno"}
+                      </Badge>
+                    )}
+
                     {m.direccion === "egreso" &&
                       matchCoachPorContraparte(collectorIdDeMovimiento(m.raw), contrapartes).estado !== "sin_match" && (
                       <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">Posible pago a profesor</Badge>
@@ -508,8 +541,9 @@ export default function MpEgresosTab() {
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
                   <div className="text-[10px] text-muted-foreground">{m.currency}</div>
                 </div>
-                {m.direccion === "egreso" && !m.gasto_id && (
+                {m.direccion === "egreso" && !m.gasto_id && !devoluciones[m.id] && (
                   <Button size="sm" onClick={() => openDialog(m)}>Categorizar</Button>
+
                 )}
               </CardContent>
             </Card>
@@ -549,7 +583,7 @@ export default function MpEgresosTab() {
                 })()}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setMode("nuevo")}
@@ -564,7 +598,29 @@ export default function MpEgresosTab() {
                 >
                   <span className="inline-flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Vincular a la agenda</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = dialog;
+                    setDialog(null);
+                    setDevolucionMov({
+                      id: m.id,
+                      mp_payment_id: m.mp_payment_id,
+                      amount: Math.abs(Number(m.amount)),
+                      currency: m.currency,
+                      fecha_movimiento: m.fecha_movimiento,
+                      cuenta_mp_id: m.cuenta_mp_id ?? null,
+                      cuenta_nombre: m.cuentas_mp?.nombre ?? null,
+                      medio: getMpMovementDetail(m).medio ?? null,
+                      operacion: getMpMovementDetail(m).operacion ?? null,
+                    });
+                  }}
+                  className="rounded-md border border-border p-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span className="inline-flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Devolución a alumno</span>
+                </button>
               </div>
+
 
               {mode === "agenda" ? (
                 <div className="space-y-3">
@@ -697,6 +753,15 @@ export default function MpEgresosTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <RegistrarDevolucionDialog
+        open={!!devolucionMov}
+        onOpenChange={(o) => { if (!o) setDevolucionMov(null); }}
+        mpMovement={devolucionMov}
+        onDone={() => { setDevolucionMov(null); load(); }}
+      />
+
+
 
     </div>
   );
