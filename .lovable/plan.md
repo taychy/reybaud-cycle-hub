@@ -1,42 +1,45 @@
-# Auditoría de tablas técnicas (solo lectura)
+# Caso Ale Goro → Gastón Fernández: diagnóstico y plan mínimo
 
-Relevamiento hecho sobre `src/`, `supabase/functions/` y `supabase/migrations/`. No se ejecutó ninguna consulta pesada ni se modificó nada. Se excluyeron datos de negocio y las tablas que pediste dejar afuera (audit_log, tareas, tareas_historial, pagos, suscripciones, facturación, reservas, alumnos, cuenta corriente, movimientos MP, stock, pedidos, eventos).
+## Qué encontré en los datos reales
 
-## Candidatas de alta prioridad (log puro, crecen solas)
+La campera no es una orden ni una preventa de Tienda: no existe ninguna fila en `store_orders` ni en `store_preorders` a nombre de Ale Goro. El caso vive en la **lista de entrega** "Santini de invierno 26":
 
-| Tabla | Quién escribe | Qué guarda | Prescindible | Retención sugerida |
-|---|---|---|---|---|
-| `net._http_response` (extensión pg_net, esquema `net`) | La base al hacer `net.http_post` desde 6 migraciones/funciones y desde los cron | Respuesta HTTP completa de cada llamada disparada por la base. Con un cron cada minuto son ~43.000 filas/mes | Sí, total | 3 días (o vaciado periódico) |
-| `email_send_log` | `supabase/functions/process-email-queue`, `handle-email-suppression`, `src/lib/emailLog.ts` | Un renglón por email: plantilla, destinatario, estado, error, metadata | Sí, salvo el historial que muestra Comunicaciones | 90 días |
-| `gastos_mp_webhook_log` | `supabase/functions/mp-gastos-webhook` | Webhook crudo de Mercado Pago: headers, body, pago completo, status HTTP, decisión | Sí, es diagnóstico | 60 días |
-| `admin_notification_events` | `create-guest-reservation`, `enroll-programa`, `expire-programa-cuota2`, consumida por `process-admin-notifications` (cron cada 1 minuto) | Cola de avisos internos ya procesados | Sí, una vez procesados | 30 días para las procesadas |
-| `broadcast_recipients` | `send-broadcast`, `send-price-increase-alert` | Un renglón por destinatario de cada envío masivo | Parcial: alimenta el detalle de envíos | 180 días |
-| `turnera_notificaciones` | `_shared/turneraNotifLog.ts`, `process-turnera-reminders`, `send-turnera-email` | Bitácora de avisos de turnos (enviado / en cola / error) | Parcial: se ve en la celda de Comunicaciones de la turnera | 180 días |
-| `weekly_training_email_sends` | `send-weekly-training-digest` | Marca de qué alumno recibió el resumen semanal | Sí, pasado el control de duplicados | 90 días |
+- Ítem `432bbf91…`: producto "Campera Reybaud Santini", talle L, USD 180.
+- `cliente_nombre = "Ale Goro"` (el encabezado que ves).
+- `alumno_id = Gastón Fernández` (la fila vinculada con su email).
+- `cliente_alumno_id` sigue vacío.
+- No hay cobros cargados para ese cliente en la lista.
 
-## Candidatas secundarias
+En la cuenta corriente de Gastón el cargo **sí aparece hoy en preview**: "Entrega — Santini de invierno 26 — Campera Reybaud Santini (L), USD 180". Eso ya lo resolvió el bloque de entregas que hicimos antes; lo que todavía no está publicado a producción es lo que estás mirando.
 
-| Tabla | Quién escribe | Qué guarda | Retención sugerida |
-|---|---|---|---|
-| `delivery_item_check_log` | `src/pages/deposito/DepositoEntregaDetail.tsx` | Cada tilde/destilde de ítems en una entrega | 180 días |
-| `vehiculo_chequeo_scans` | `src/pages/deposito/DepositoCamioneta.tsx` | Cada escaneo de código en el chequeo de la camioneta | 180 días |
-| `scan_incidents` | `SupplierOrderCheckStage.tsx`, visible en `/admin/scan-incidents` | Escaneos con error o inesperados | 180 días |
-| `importaciones_usuarios` | `src/pages/admin/ImportStudents.tsx` | Resultado de cada importación masiva | 1 año |
-| `email_dlq_decisions` | Sin escritor en el código actual (sólo aparece en los tipos generados) | Decisiones sobre emails fallidos | Revisar: posible tabla muerta |
-| `qa_backfill_test_results`, `qa_stock_test_results` | Sin escritor en el código actual | Resultados de pruebas de QA | Candidatas a vaciado total |
-| `_audit_suscripciones_20260624`, `_tmp_repair_check` | Sólo creadas por migraciones puntuales, sin uso en el código | Copias temporales de arreglos ya hechos | Candidatas a eliminación futura |
+## Causa estructural de cada problema
 
-## No tocar
+**1) El encabezado sigue diciendo "Ale Goro".**
+El nombre visible sale del campo de texto `cliente_nombre` guardado en el ítem, mientras que "vincular alumno" escribe únicamente `alumno_id`. Son dos campos independientes: vincular no renombra. El botón "Vincular alumno" (`DeliveryClientNotify`) no toca el nombre; el que sí lo hace es la reasignación de comprador (`ReassignBuyerDialog` → función `reasignar_comprador_entrega`), que está sólo en la pantalla de admin de la entrega, no en la de depósito ni en la fila de vínculo.
 
-- `email_send_state`: es una única fila de configuración del envío de emails, no crece.
-- `suppressed_emails`, `email_unsubscribe_tokens`: reglas vigentes de bajas y desuscripción, borrarlas volvería a enviar correo a quien pidió no recibirlo.
-- `registro_sesiones`: es dato de negocio (sesiones de entrenamiento de los alumnos), no un log técnico.
-- `whatsapp_check_runs/items/extras`, `student_activity_log`, `process_instances`: operativas y visibles en pantalla.
+**2) "Vincular" no siempre lleva la compra a la cuenta corriente.**
+La cuenta corriente arma los movimientos exclusivamente por `alumno_id`:
+- cargos de entrega: por `delivery_list_items.alumno_id` y con precio > 0;
+- cobros de entrega: por `delivery_list_payments.alumno_id`, y sólo si están validados.
 
-## Qué falta confirmar cuando la base responda
+Vincular actualiza los ítems pero **no los cobros**, así que un pago cargado a nombre del cliente anterior queda sin dueño y nunca aparece en la cuenta del nuevo. En este caso puntual no hay cobros, por eso el cargo se ve y el pago no existe. Además el cargo sólo entra si el ítem no proviene de una orden/preventa de Tienda (para no duplicar con el cargo de Tienda).
 
-La base no está respondiendo ahora, así que el tamaño real y la cantidad de filas de cada tabla no pudieron medirse. Cuando vuelva, conviene medir peso y filas de las siete tablas de alta prioridad antes de decidir el orden de limpieza; lo más probable es que `net._http_response` sea la más grande por lejos, empujada por el proceso que corre cada minuto.
+**3) El botón de detalle sólo aparecía en algunos movimientos.**
+En el código actual el detalle está habilitado para **todos** los movimientos; lo que cambia por tipo son las acciones extra (aplicar crédito, cambiar plan, anular). La diferencia que ves es porque esa mejora está en preview y no en producción.
 
-## Recomendación
+## Plan mínimo propuesto (sin implementar aún)
 
-Primero revisar la frecuencia del proceso de avisos internos (hoy cada minuto) y programar una limpieza de respuestas HTTP; eso baja peso y trabajo de la base al mismo tiempo. Después aplicar retención a los registros de email y al log de webhooks de gastos. Todo esto sería un paso posterior: en esta etapa no se borró ni se cambió nada.
+1. **Un solo camino para "cambiar de comprador".** Reemplazar el vínculo suelto por la reasignación completa en las dos pantallas (admin y depósito): elegir alumno actualiza a la vez responsable económico y nombre visible, y deja registro en auditoría del comprador anterior. El botón de "sólo vincular" se retira para evitar el estado híbrido nombre-viejo / alumno-nuevo.
+2. **Arrastrar los cobros cuando corresponda.** Al reasignar, si el comprador anterior tenía cobros en esa lista, ofrecer explícitamente qué hacer con cada uno: dejarlos donde están (si el dinero fue de la otra persona) o moverlos al nuevo comprador. Nunca mover en silencio.
+3. **Mostrar en pantalla el estado real.** En la ficha del cliente de la entrega, mostrar el nombre y, debajo, a quién se le imputa económicamente; si difieren, un aviso "el cargo se imputa a X".
+4. **Cerrar este caso desde la pantalla**, no por base de datos: reasignar el ítem de la campera a Gastón para que el encabezado también cambie. El historial de Ale queda en la auditoría.
+5. **Publicar.** Buena parte de lo que falta (detalle universal en cuenta corriente, cargo de entrega visible) ya está resuelto en preview; hace falta publicar para que lo veas en producción.
+
+## Detalles técnicos
+
+- Pantallas: `src/pages/admin/AdminEntregaDetail.tsx`, `src/pages/deposito/DepositoEntregaDetail.tsx`, `src/components/deposito/DeliveryClientNotify.tsx`, `src/components/deposito/ReassignBuyerDialog.tsx`.
+- Tablas: `delivery_list_items` (`cliente_nombre`, `alumno_id`, `cliente_alumno_id`, `source_type`), `delivery_list_payments` (`cliente_nombre`, `alumno_id`, `validado`).
+- Vista: `vw_cuenta_corriente_movimientos`, ramas `cargo_entrega` y `pago_entrega` (join por `alumno_id`).
+- Función existente: `reasignar_comprador_entrega(item, alumno, nombre)` — hoy actualiza sólo el ítem y audita; habría que extenderla con un parámetro opcional para reasignar cobros seleccionados.
+- Cuenta corriente: `src/components/admin/StudentCuentaCorrienteSection.tsx` (detalle ya universal).
+- Sin borrado de historial: todo por actualización + `audit_log`.
