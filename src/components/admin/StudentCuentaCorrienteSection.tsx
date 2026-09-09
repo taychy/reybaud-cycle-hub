@@ -99,9 +99,59 @@ const TIPO_LABEL: Record<string, { label: string; className: string }> = {
   pago_preventa: { label: "Pago preventa", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   cargo_tienda: { label: "Tienda", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
   pago_tienda: { label: "Pago tienda", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cargo_entrega: { label: "Entrega", className: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  pago_entrega: { label: "Pago entrega", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   ajuste_cargo: { label: "Ajuste (cargo)", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   ajuste_credito: { label: "Ajuste (crédito)", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
 };
+
+// Etiquetas legibles para los datos adicionales de cada movimiento.
+const EXTRA_FIELD_LABELS: Record<string, string> = {
+  list_title: "Lista de entrega",
+  producto: "Producto",
+  variante: "Variante",
+  cantidad: "Cantidad",
+  precio_unitario: "Precio unitario",
+  cliente_nombre: "Comprador",
+  preparado: "Preparado",
+  fecha_entrega: "Fecha de entrega",
+  forma_pago: "Forma de pago",
+  origen: "Origen",
+  cargado_por_nombre: "Cargado por",
+  validado: "Validado",
+  validado_at: "Fecha de validación",
+  validado_notas: "Notas de validación",
+  plan_nombre: "Plan",
+  periodo: "Período",
+  evento_nombre: "Evento",
+  paquete_nombre: "Paquete",
+  orden_numero: "Nº de pedido",
+  order_number: "Nº de pedido",
+  estado_orden: "Estado del pedido",
+  producto_nombre: "Producto",
+  cuota_numero: "Cuota",
+  source_type: "Tipo de origen",
+};
+
+const EXTRA_FIELDS_HIDDEN = new Set([
+  "medio_pago", "metodo_pago", "payment_method", "forma_pago_sena",
+  "referencia_externa", "mp_payment_id", "cuenta_mp_id", "fecha_pago",
+  "comprobante_url", "proof_url", "comprobante_path", "notas", "notes",
+  "alumno_id", "list_id", "item_id", "plan_id", "created_at",
+]);
+
+function formatExtraValue(v: any): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "boolean") return v ? "Sí" : "No";
+  if (typeof v === "object") return null;
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const p = s.substring(0, 10).split("-");
+    return `${p[2]}/${p[1]}/${p[0]}`;
+  }
+  return s;
+}
+
 
 function formatDate(d: string): string {
   if (!d) return "—";
@@ -608,7 +658,12 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 const notas = rx.notas || rx.notes || null;
                 const rowKey = `${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`;
                 const isPago = m.haber > 0;
-                const hasDetalle = (isPago || isAjuste) && (medioRaw || referencia || cuentaMpNombre || fechaPago || comprobante || notas);
+                const extras = Object.entries(rx)
+                  .filter(([k]) => !EXTRA_FIELDS_HIDDEN.has(k))
+                  .map(([k, v]) => ({ label: EXTRA_FIELD_LABELS[k] || k.replace(/_/g, " "), value: formatExtraValue(v) }))
+                  .filter((e) => e.value !== null) as { label: string; value: string }[];
+                // El detalle está disponible para todos los movimientos.
+                const hasDetalle = true;
                 const isExpanded = expandedRow === rowKey;
                 return (
                   <Fragment key={rowKey}>
@@ -731,6 +786,40 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                       <TableRow key={`${rowKey}-detalle`} className="bg-secondary/30 hover:bg-secondary/30">
                         <TableCell colSpan={8} className="py-3">
                           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 text-xs">
+                            <div className="flex items-start gap-2 col-span-2">
+                              <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                              <div className="min-w-0">
+                                <div className="text-muted-foreground text-[10px] uppercase">Concepto</div>
+                                <div className="text-foreground font-medium break-words">{m.concepto}</div>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Banknote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                              <div>
+                                <div className="text-muted-foreground text-[10px] uppercase">Importe</div>
+                                <div className="text-foreground font-medium">
+                                  {m.debe > 0
+                                    ? `Debe ${formatPrice(Number(m.debe), m.moneda)}`
+                                    : `Haber ${formatPrice(Number(m.haber), m.moneda)}`}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2">
+                              <Calendar className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                              <div>
+                                <div className="text-muted-foreground text-[10px] uppercase">Fecha</div>
+                                <div className="text-foreground">{formatDate(m.fecha)}</div>
+                              </div>
+                            </div>
+                            {m.estado && (
+                              <div className="flex items-start gap-2">
+                                <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div>
+                                  <div className="text-muted-foreground text-[10px] uppercase">Estado</div>
+                                  <div className="text-foreground capitalize">{m.estado}</div>
+                                </div>
+                              </div>
+                            )}
                             {medioRaw && (
                               <div className="flex items-start gap-2">
                                 <Banknote className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
@@ -795,7 +884,17 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                                 </div>
                               </div>
                             )}
+                            {extras.map((e) => (
+                              <div key={e.label} className="flex items-start gap-2">
+                                <Info className="h-3.5 w-3.5 text-muted-foreground mt-0.5" />
+                                <div className="min-w-0">
+                                  <div className="text-muted-foreground text-[10px] uppercase">{e.label}</div>
+                                  <div className="text-foreground break-words">{e.value}</div>
+                                </div>
+                              </div>
+                            ))}
                           </div>
+
                         </TableCell>
                       </TableRow>
                     )}
