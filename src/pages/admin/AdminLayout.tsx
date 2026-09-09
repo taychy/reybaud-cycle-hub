@@ -45,7 +45,7 @@ const modules: NavModule[] = [
         items: [
           { to: "/admin/eventos", label: "Eventos", icon: Trophy, noveltyKey: "eventos" },
           // { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" }, // oculto: casi sin uso
-          // { to: "/admin/waitlist-plantillas", label: "Plantillas waitlist", icon: ClipboardList, badgeKey: "waitlist_entries" }, // oculto: configuración puntual de eventos
+          { to: "/admin/waitlist-plantillas", label: "Preinscripciones", icon: ClipboardList, noveltyKey: "preinscripciones" },
 
         ],
       },
