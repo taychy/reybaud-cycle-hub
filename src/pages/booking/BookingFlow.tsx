@@ -706,23 +706,27 @@ const BookingFlow = () => {
 
   // Un coach se ofrece sólo si tiene al menos un bloque válido para el servicio
   // (y la sede elegida, si ya se eligió una) Y además al menos un turno real
-  // reservable en los próximos 60 días.
-  const coachTieneTurnos = (coachId: string) => {
+  // reservable en el horizonte público (60 días), ya aplicando ajustes,
+  // ausencias, sedes activas, coach activo y anticipación mínima.
+  // Nota: se calcula en render (no con useMemo) porque este bloque está
+  // después de returns tempranos y un hook acá rompería el orden de hooks.
+  const coachesConTurnos = (() => {
+    const ids = new Set<string>();
+    if (step < 2) return ids;
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     for (let i = 0; i < 60; i++) {
       const d = new Date(today);
       d.setDate(d.getDate() + i);
-      if (getAvailableSlots(d).some(s => s.coach_id === coachId)) return true;
+      for (const s of getAvailableSlots(d)) ids.add(s.coach_id);
     }
-    return false;
-  };
+    return ids;
+  })();
 
-  const coachesDisponibles = useMemo(
-    () => coaches.filter(c => filteredDisps.some(d => d.coach_id === c.id) && coachTieneTurnos(c.id)),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [coaches, filteredDisps, reservasExistentes, ausencias, ajustes, servicio, selectedCoach],
+  const coachesDisponibles = coaches.filter(
+    c => filteredDisps.some(d => d.coach_id === c.id) && coachesConTurnos.has(c.id),
   );
+
 
   // Sedes reales del coach según su disponibilidad vigente (nunca coach.sede_id)
   const sedesDeCoach = (coachId: string) =>

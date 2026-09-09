@@ -134,8 +134,25 @@ const AdminAgenda = () => {
     [eventos, tipoFiltro, sedeFiltro, coachFiltro],
   );
 
+  // Bloques de disponibilidad que "Todos" deja fuera de la vista.
+  // Se informan explícitamente para que nunca queden ocultos en silencio
+  // (la turnera pública sí los usa para ofrecer coaches).
+  const dispOcultas = useMemo(
+    () =>
+      tipoFiltro === "todos"
+        ? eventos.filter((e) => {
+            if (e.tipo !== "disponibilidad") return false;
+            if (sedeFiltro !== "all" && (e.sede_id || "none") !== sedeFiltro) return false;
+            if (coachFiltro !== "all" && e.coach_id !== coachFiltro) return false;
+            return true;
+          })
+        : [],
+    [eventos, tipoFiltro, sedeFiltro, coachFiltro],
+  );
+
   const conflictos = useMemo(() => detectarConflictos(eventos), [eventos]);
   const conflictosVisibles = filtrados.filter((e) => conflictos.has(e.id));
+
 
   // ---------------- Diálogo "Agregar bloque" ----------------
   const [openForm, setOpenForm] = useState(false);
@@ -537,7 +554,7 @@ const AdminAgenda = () => {
             <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
               <SelectTrigger className="h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos (clases + turnos)</SelectItem>
+                <SelectItem value="todos">Todos (clases + turnos, sin disponibilidad)</SelectItem>
                 <SelectItem value="grupal">Clases grupales</SelectItem>
                 <SelectItem value="turno">Turnos</SelectItem>
                 <SelectItem value="disponibilidad">Disponibilidad</SelectItem>
@@ -555,6 +572,25 @@ const AdminAgenda = () => {
           </p>
         </div>
       )}
+
+      {dispOcultas.length > 0 && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/40 bg-primary/10 px-3 py-2">
+          <AlertTriangle className="w-4 h-4 text-primary shrink-0" />
+          <p className="text-xs text-primary">
+            Hay {dispOcultas.length} bloque(s) de disponibilidad esta semana que no se muestran con este filtro.
+            Estos bloques sí habilitan turnos en la reserva pública.{" "}
+            <button
+              type="button"
+              className="underline font-medium"
+              onClick={() => setTipoFiltro("disponibilidad")}
+            >
+              Ver disponibilidad
+            </button>
+          </p>
+        </div>
+      )}
+
+
 
       {loading ? (
         <p className="text-sm text-muted-foreground text-center py-10 animate-pulse">Cargando agenda…</p>
