@@ -13563,12 +13563,125 @@ export type Database = {
           },
         ]
       }
+      vw_mp_preapproval_movimientos: {
+        Row: {
+          alumno_id: string | null
+          amount: number | null
+          assigned_at: string | null
+          assigned_manually: boolean | null
+          currency: string | null
+          description: string | null
+          fecha_movimiento: string | null
+          imputado: boolean | null
+          movimiento_id: string | null
+          mp_payment_id: string | null
+          payer_email: string | null
+          preapproval_id: string | null
+          status: string | null
+          status_detail: string | null
+          suscripcion_id: string | null
+        }
+        Insert: {
+          alumno_id?: string | null
+          amount?: number | null
+          assigned_at?: string | null
+          assigned_manually?: boolean | null
+          currency?: string | null
+          description?: string | null
+          fecha_movimiento?: string | null
+          imputado?: never
+          movimiento_id?: string | null
+          mp_payment_id?: string | null
+          payer_email?: string | null
+          preapproval_id?: never
+          status?: string | null
+          status_detail?: string | null
+          suscripcion_id?: string | null
+        }
+        Update: {
+          alumno_id?: string | null
+          amount?: number | null
+          assigned_at?: string | null
+          assigned_manually?: boolean | null
+          currency?: string | null
+          description?: string | null
+          fecha_movimiento?: string | null
+          imputado?: never
+          movimiento_id?: string | null
+          mp_payment_id?: string | null
+          payer_email?: string | null
+          preapproval_id?: never
+          status?: string | null
+          status_detail?: string | null
+          suscripcion_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "mp_account_movements_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
+          },
+        ]
+      }
       vw_mp_preapprovals_admin: {
         Row: {
+          alumno_emails: string | null
           alumno_id: string | null
           alumno_nombre: string | null
           confirmado_at: string | null
           confirmado_por: string | null
+          confirmado_por_email: string | null
           created_at: string | null
           cuenta_mp_id: string | null
           descripcion_mp: string | null
@@ -13922,13 +14035,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_1_id"]
-            isOneToOne: false
-            referencedRelation: "alumnos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
@@ -13938,8 +14044,8 @@ export type Database = {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
             isOneToOne: false
-            referencedRelation: "vw_backfill_identidad_sugerida"
-            referencedColumns: ["alumno_sugerido_id"]
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
@@ -13951,13 +14057,20 @@ export type Database = {
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_2_id"]
+            columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
@@ -14432,6 +14545,17 @@ export type Database = {
           p_precio_final: number
         }
         Returns: Json
+      }
+      buscar_alumnos_mp: {
+        Args: { _limit?: number; _q: string }
+        Returns: {
+          apellido: string
+          email: string
+          emails_adicionales: string[]
+          estado: string
+          id: string
+          nombre: string
+        }[]
       }
       cambiar_plan_suscripcion: {
         Args: {
@@ -16078,6 +16202,17 @@ export type Database = {
           _patron?: string
         }
         Returns: string
+      }
+      set_mp_preapproval_mapping: {
+        Args: {
+          _alumno_id?: string
+          _aplicar_mapping?: boolean
+          _estado: string
+          _notas?: string
+          _plan_id?: string
+          _preapproval_id: string
+        }
+        Returns: Json
       }
       solicitar_cambio_agenda: {
         Args: {
