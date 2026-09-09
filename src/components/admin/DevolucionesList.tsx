@@ -132,9 +132,11 @@ export default function DevolucionesList() {
                 <TableHead>Fecha</TableHead>
                 <TableHead>Alumno</TableHead>
                 <TableHead>Monto</TableHead>
-                <TableHead>Método</TableHead>
+                <TableHead>Medio</TableHead>
+                <TableHead>Cuenta de salida</TableHead>
+                <TableHead>Origen</TableHead>
                 <TableHead>Motivo</TableHead>
-                <TableHead>Ref.</TableHead>
+                <TableHead>Operación / Ref.</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -147,11 +149,27 @@ export default function DevolucionesList() {
                   </TableCell>
                   <TableCell className="text-sm font-medium">{formatPrice(Number(r.monto), r.moneda)}</TableCell>
                   <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{r.metodo}</Badge></TableCell>
-                  <TableCell className="text-xs max-w-[260px] truncate" title={r.motivo}>{r.motivo}</TableCell>
-                  <TableCell className="text-[11px] text-muted-foreground">{r.referencia || "—"}</TableCell>
+                  <TableCell className="text-[11px] text-muted-foreground">{r.cuentas_mp?.nombre || "—"}</TableCell>
+                  <TableCell className="text-[11px]">
+                    {r.event_reservations ? (
+                      <div>
+                        <div className="text-foreground">{r.event_reservations.events?.title || "Evento"}</div>
+                        {r.event_reservations.estado && (
+                          <div className="text-muted-foreground">{r.event_reservations.estado}</div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-xs max-w-[220px] truncate" title={r.motivo}>{r.motivo}</TableCell>
+                  <TableCell className="text-[11px] text-muted-foreground font-mono">
+                    {r.mp_account_movements?.mp_payment_id || r.referencia || "—"}
+                  </TableCell>
                 </TableRow>
               ))}
             </TableBody>
+
           </Table>
         )}
 
