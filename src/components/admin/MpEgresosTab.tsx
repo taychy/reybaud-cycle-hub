@@ -9,9 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2 } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2, RotateCcw } from "lucide-react";
 import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
 import { collectorIdDeMovimiento, matchCoachPorContraparte, type ContraparteCoach } from "@/lib/gastoReglas";
+import RegistrarDevolucionDialog, { type DevolucionMpMovement } from "@/components/admin/RegistrarDevolucionDialog";
+
 
 type AiSugerencia = {
   movement_id: string;
