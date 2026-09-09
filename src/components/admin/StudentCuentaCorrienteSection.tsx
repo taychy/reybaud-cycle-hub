@@ -99,9 +99,59 @@ const TIPO_LABEL: Record<string, { label: string; className: string }> = {
   pago_preventa: { label: "Pago preventa", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   cargo_tienda: { label: "Tienda", className: "bg-violet-500/15 text-violet-400 border-violet-500/30" },
   pago_tienda: { label: "Pago tienda", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
+  cargo_entrega: { label: "Entrega", className: "bg-orange-500/15 text-orange-400 border-orange-500/30" },
+  pago_entrega: { label: "Pago entrega", className: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" },
   ajuste_cargo: { label: "Ajuste (cargo)", className: "bg-amber-500/15 text-amber-400 border-amber-500/30" },
   ajuste_credito: { label: "Ajuste (crédito)", className: "bg-blue-500/15 text-blue-400 border-blue-500/30" },
 };
+
+// Etiquetas legibles para los datos adicionales de cada movimiento.
+const EXTRA_FIELD_LABELS: Record<string, string> = {
+  list_title: "Lista de entrega",
+  producto: "Producto",
+  variante: "Variante",
+  cantidad: "Cantidad",
+  precio_unitario: "Precio unitario",
+  cliente_nombre: "Comprador",
+  preparado: "Preparado",
+  fecha_entrega: "Fecha de entrega",
+  forma_pago: "Forma de pago",
+  origen: "Origen",
+  cargado_por_nombre: "Cargado por",
+  validado: "Validado",
+  validado_at: "Fecha de validación",
+  validado_notas: "Notas de validación",
+  plan_nombre: "Plan",
+  periodo: "Período",
+  evento_nombre: "Evento",
+  paquete_nombre: "Paquete",
+  orden_numero: "Nº de pedido",
+  order_number: "Nº de pedido",
+  estado_orden: "Estado del pedido",
+  producto_nombre: "Producto",
+  cuota_numero: "Cuota",
+  source_type: "Tipo de origen",
+};
+
+const EXTRA_FIELDS_HIDDEN = new Set([
+  "medio_pago", "metodo_pago", "payment_method", "forma_pago_sena",
+  "referencia_externa", "mp_payment_id", "cuenta_mp_id", "fecha_pago",
+  "comprobante_url", "proof_url", "comprobante_path", "notas", "notes",
+  "alumno_id", "list_id", "item_id", "plan_id", "created_at",
+]);
+
+function formatExtraValue(v: any): string | null {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "boolean") return v ? "Sí" : "No";
+  if (typeof v === "object") return null;
+  const s = String(v);
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+    const p = s.substring(0, 10).split("-");
+    return `${p[2]}/${p[1]}/${p[0]}`;
+  }
+  return s;
+}
+
 
 function formatDate(d: string): string {
   if (!d) return "—";
