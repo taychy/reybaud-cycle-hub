@@ -554,7 +554,7 @@ const AdminAgenda = () => {
             <Select value={tipoFiltro} onValueChange={(v) => setTipoFiltro(v as TipoFiltro)}>
               <SelectTrigger className="h-9"><SelectValue placeholder="Tipo" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="todos">Todos (clases + turnos)</SelectItem>
+                <SelectItem value="todos">Todos (clases + turnos, sin disponibilidad)</SelectItem>
                 <SelectItem value="grupal">Clases grupales</SelectItem>
                 <SelectItem value="turno">Turnos</SelectItem>
                 <SelectItem value="disponibilidad">Disponibilidad</SelectItem>
