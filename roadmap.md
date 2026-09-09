@@ -45,3 +45,12 @@
 - [x] Vista de cuenta corriente con `cargo_entrega` y `pago_entrega` (sin duplicar pedidos/preventas ni cobros no validados)
 - [x] Detalle inspeccionable en todos los movimientos de la cuenta corriente
 - [ ] No se ejecutó ninguna reasignación histórica por SQL (Ale Goro → Gastón se hace desde la pantalla)
+
+## Preinscripciones públicas (preview)
+- [x] Plantillas de lista de espera publicables como formulario público (slug, publicada/activa, título/descripción pública, mensaje de confirmación, cupos informados)
+- [x] Tabla `waitlist_template_entries` (respuestas directas, únicas por plantilla+email) + RLS admin y RPCs seguras (`get_waitlist_template_public`, `submit_waitlist_template_entry`, `get_waitlist_template_direct_entries`, `mark_waitlist_template_entries_seen`)
+- [x] Ruta pública `/preinscripcion/:slug` (mobile first, sin login, consentimiento obligatorio)
+- [x] Admin: estado, copiar link, abrir formulario, edición de datos públicos y respuestas combinadas (evento / formulario público)
+- [x] Novedad admin `preinscripciones` en `count_admin_novedades` + acceso "Preinscripciones" en el menú
+- [x] Lista creada y publicada: "Programa de Iniciación · Octubre 2026" (`programa-iniciacion-octubre-2026`, 15 cupos)
+- [ ] Sin publicar a producción (pendiente confirmación)
