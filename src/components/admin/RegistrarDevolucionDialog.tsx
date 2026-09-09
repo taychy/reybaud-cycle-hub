@@ -146,7 +146,7 @@ export default function RegistrarDevolucionDialog({
     const [resRes, payRes] = await Promise.all([
       supabase
         .from("event_reservations")
-        .select("id, estado, event_id, total_amount, currency, events(title)")
+        .select("id, estado, event_id, amount_total, currency_snapshot, events(title)")
         .eq("alumno_id", alumnoId)
         .order("created_at", { ascending: false })
         .limit(30),
@@ -166,8 +166,8 @@ export default function RegistrarDevolucionDialog({
         id: r.id,
         estado: r.estado ?? null,
         event_title: r.events?.title ?? "Evento",
-        total: r.total_amount ?? null,
-        currency: r.currency ?? "ARS",
+        total: r.amount_total ?? null,
+        currency: r.currency_snapshot ?? "ARS",
         pagos: ps,
         pagado: ps.reduce((s, p) => s + Number(p.amount || 0), 0),
       };
