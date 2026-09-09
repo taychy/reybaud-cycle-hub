@@ -56,7 +56,13 @@ export default function DevolucionesList() {
     const end = new Date(y, m, 1).toISOString().substring(0, 10);
     const { data, error } = await supabase
       .from("devoluciones")
-      .select("id, alumno_id, monto, moneda, fecha, metodo, referencia, motivo, notas, created_at, alumnos(id, nombre, apellido, email)")
+      .select(`id, alumno_id, monto, moneda, fecha, metodo, referencia, motivo, notas, created_at,
+        mp_movement_id, cuenta_mp_id, reservation_id, reservation_payment_id,
+        alumnos(id, nombre, apellido, email),
+        cuentas_mp(nombre),
+        mp_account_movements(mp_payment_id),
+        event_reservations(id, estado, events(title))`)
+
       .gte("fecha", start)
       .lt("fecha", end)
       .order("fecha", { ascending: false })
