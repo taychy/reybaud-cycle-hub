@@ -582,7 +582,7 @@ export default function MpEgresosTab() {
                 })()}
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 <button
                   type="button"
                   onClick={() => setMode("nuevo")}
@@ -597,7 +597,29 @@ export default function MpEgresosTab() {
                 >
                   <span className="inline-flex items-center gap-1"><LinkIcon className="w-3 h-3" /> Vincular a la agenda</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const m = dialog;
+                    setDialog(null);
+                    setDevolucionMov({
+                      id: m.id,
+                      mp_payment_id: m.mp_payment_id,
+                      amount: Math.abs(Number(m.amount)),
+                      currency: m.currency,
+                      fecha_movimiento: m.fecha_movimiento,
+                      cuenta_mp_id: m.cuenta_mp_id ?? null,
+                      cuenta_nombre: m.cuentas_mp?.nombre ?? null,
+                      medio: getMpMovementDetail(m).medio ?? null,
+                      operacion: getMpMovementDetail(m).operacion ?? null,
+                    });
+                  }}
+                  className="rounded-md border border-border p-2 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <span className="inline-flex items-center gap-1"><RotateCcw className="w-3 h-3" /> Devolución a alumno</span>
+                </button>
               </div>
+
 
               {mode === "agenda" ? (
                 <div className="space-y-3">
