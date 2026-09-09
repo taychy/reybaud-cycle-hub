@@ -12,7 +12,7 @@ import { setPrevSeen } from "@/lib/adminNovelty";
 /* ─── Nav structure ─── */
 type BadgeKey = "turnera" | "agenda_solicitudes";
 /** Secciones con "pelotita" de novedad (contenido nuevo desde la última visita) */
-type NoveltyKey = "alumnos" | "eventos" | "tienda_ventas" | "pedidos_proveedor" | "cobros_entrega" | "cambios_plan";
+type NoveltyKey = "alumnos" | "eventos" | "tienda_ventas" | "pedidos_proveedor" | "cobros_entrega" | "cambios_plan" | "preinscripciones";
 type NavItem = { to: string; label: string; icon: any; badgeKey?: BadgeKey; noveltyKey?: NoveltyKey; superAdmin?: boolean };
 type NavGroup = { label: string; items: NavItem[] };
 type NavModule = { key: string; label: string; icon: any; groups: NavGroup[] };
