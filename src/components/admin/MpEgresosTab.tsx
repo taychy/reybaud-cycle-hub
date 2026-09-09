@@ -353,9 +353,10 @@ export default function MpEgresosTab() {
 
   }
 
-  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id);
+  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id && !devoluciones[i.id]);
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
-  const categorizados = items.filter(i => i.gasto_id);
+  const categorizados = items.filter(i => i.gasto_id || devoluciones[i.id]);
+
 
   const filteredEjecuciones = ejecuciones.filter((e) => {
     if (!incluirPagados && e.estado === "pagado") return false;
@@ -500,6 +501,12 @@ export default function MpEgresosTab() {
                     {m.gasto_id && (
                       <Badge className="bg-green-500/20 text-green-400 border-green-500/30 text-[10px]">Gasto creado</Badge>
                     )}
+                    {devoluciones[m.id] && (
+                      <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">
+                        Devolución · {[devoluciones[m.id].alumnos?.nombre, devoluciones[m.id].alumnos?.apellido].filter(Boolean).join(" ") || "alumno"}
+                      </Badge>
+                    )}
+
                     {m.direccion === "egreso" &&
                       matchCoachPorContraparte(collectorIdDeMovimiento(m.raw), contrapartes).estado !== "sin_match" && (
                       <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">Posible pago a profesor</Badge>
