@@ -658,7 +658,12 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 const notas = rx.notas || rx.notes || null;
                 const rowKey = `${m.fuente_tabla}-${m.fuente_id}-${m.tipo}`;
                 const isPago = m.haber > 0;
-                const hasDetalle = (isPago || isAjuste) && (medioRaw || referencia || cuentaMpNombre || fechaPago || comprobante || notas);
+                const extras = Object.entries(rx)
+                  .filter(([k]) => !EXTRA_FIELDS_HIDDEN.has(k))
+                  .map(([k, v]) => ({ label: EXTRA_FIELD_LABELS[k] || k.replace(/_/g, " "), value: formatExtraValue(v) }))
+                  .filter((e) => e.value !== null) as { label: string; value: string }[];
+                // El detalle está disponible para todos los movimientos.
+                const hasDetalle = true;
                 const isExpanded = expandedRow === rowKey;
                 return (
                   <Fragment key={rowKey}>
