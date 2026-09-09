@@ -47,8 +47,6 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.send-factura-email]
     verify_jwt = false
-  [functions.process-email-queue]
-    verify_jwt = true
   [functions.notify-reservation]
     verify_jwt = false
   [functions.send-reservation-payment-recorded]
@@ -99,20 +97,17 @@ project_id = "tgqfakfloonbunwkdoug"
   [functions.send-delivery-ready-pickup]
     verify_jwt = false
 
-[functions.send-transactional-email]
-verify_jwt = true
 
 [functions.preview-transactional-email]
 verify_jwt = false
 
-[functions.handle-email-unsubscribe]
-verify_jwt = false
 
-[functions.handle-email-suppression]
-verify_jwt = false
 
 [functions.request-email-link]
 verify_jwt = false
 
 [functions.send-weekly-training-digest]
 verify_jwt = false
+
+[functions.send-supplier-order-email]
+verify_jwt = true

@@ -3,6 +3,7 @@
 // Invoked by the cron worker (process-admin-notifications) or directly by admin.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,9 +187,7 @@ Deno.serve(async (req) => {
     const messageId = force
       ? `confirm-pay-${reservation_id}-${Date.now()}`
       : `confirm-pay-${reservation_id}`;
-    const { error: enqErr } = await sb.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    const { error: enqErr } = await sendLegacyEmailPayload({
         message_id: messageId,
         to: email,
         from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -201,8 +200,7 @@ Deno.serve(async (req) => {
         idempotency_key: messageId,
         unsubscribe_token: unsubToken,
         queued_at: new Date().toISOString(),
-      },
-    });
+      }, sb);
 
     if (enqErr) {
       await sb.from("event_reservations").update({

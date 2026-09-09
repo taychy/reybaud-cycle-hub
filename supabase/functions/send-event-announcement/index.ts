@@ -3,6 +3,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -223,9 +224,7 @@ Deno.serve(async (req) => {
       try {
         const messageId = crypto.randomUUID();
         const unsubToken = await getOrCreateUnsubscribeToken(supabase, r.email);
-        const { error: enqErr } = await supabase.rpc('enqueue_email', {
-          queue_name: 'transactional_emails',
-          payload: {
+        const { error: enqErr } = await sendLegacyEmailPayload({
             message_id: messageId,
             to: r.email,
             from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -238,8 +237,7 @@ Deno.serve(async (req) => {
             idempotency_key: idemKey,
             unsubscribe_token: unsubToken,
             queued_at: new Date().toISOString(),
-          },
-        });
+          }, supabase);
         if (enqErr) emailError = enqErr.message;
         else emailSent = true;
       } catch (e: any) {

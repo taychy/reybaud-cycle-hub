@@ -1,6 +1,7 @@
 // Sends a chosen email template from `email_templates` to all active subscribers of a cohort (plan).
 // Called from the admin Programa Flujo runner when a stage's accion_final is 'send_cohort_email'.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -85,9 +86,7 @@ Deno.serve(async (req) => {
       const html = interpolate(tpl.html_body || "", vars);
       const text = tpl.text_body ? interpolate(tpl.text_body, vars) : undefined;
       const idem = `${messageId}-${a.email}`;
-      const { error: enqErr } = await sb.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
+      const { error: enqErr } = await sendLegacyEmailPayload({
           message_id: idem,
           to: a.email, from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
           sender_domain: SENDER_DOMAIN,
@@ -95,8 +94,7 @@ Deno.serve(async (req) => {
           purpose: "transactional", label: `cohort_playbook_${template_key}`,
           idempotency_key: idem,
           queued_at: new Date().toISOString(),
-        },
-      });
+        }, sb);
       results.push({ to: a.email, queued: !enqErr, error: enqErr?.message });
     }
 

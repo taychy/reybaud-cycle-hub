@@ -8,6 +8,7 @@
 // - "accepted": mail al que invitó (y opcionalmente al invitado) confirmando.
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -158,10 +159,7 @@ Deno.serve(async (req) => {
       queued_at: new Date().toISOString(),
     };
 
-    const { error: enqErr } = await supabase.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload,
-    });
+    const { error: enqErr } = await sendLegacyEmailPayload(payload, supabase);
 
     await supabase.from("reservation_notifications").insert({
       reservation_id: rm.reservation_id,

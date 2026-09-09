@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const SENDER_DOMAIN = "notify.reybaud-app.com";
 const FROM_NAME = "Ciclismo Reybaud";
@@ -105,10 +106,7 @@ Deno.serve(async (req) => {
       queued_at: new Date().toISOString(),
     };
 
-    const { error: enqueueErr } = await supabase.rpc('enqueue_email', {
-      queue_name: 'transactional_emails',
-      payload: emailPayload,
-    });
+    const { error: enqueueErr } = await sendLegacyEmailPayload(emailPayload, supabase);
 
     if (enqueueErr) {
       console.error("Queue error:", enqueueErr.message);

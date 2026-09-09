@@ -2,6 +2,7 @@
 // Reads service config (politica_cancelacion, ics_adjunto, email_*_enabled) from servicios_turnera.
 // Logs every send to reservation_notifications (reusing the table; reservation_id stores reservas_turnera.id).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -392,9 +393,7 @@ Deno.serve(async (req) => {
     const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipientEmail);
     const idempotencyKey = `turnera-${tipo}-${r.id}`;
 
-    const { error: qErr } = await supabase.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    const { error: qErr } = await sendLegacyEmailPayload({
         message_id: messageId,
         to: recipientEmail,
         from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -407,8 +406,7 @@ Deno.serve(async (req) => {
         idempotency_key: idempotencyKey,
         unsubscribe_token: unsubscribeToken,
         queued_at: new Date().toISOString(),
-      },
-    });
+      }, supabase);
 
     if (qErr) {
       await supabase.from("turnera_notificaciones").upsert({
@@ -501,9 +499,7 @@ Deno.serve(async (req) => {
               <p style="font-size:12px;color:#999;margin-top:32px;text-align:center;">Reybaud Ciclismo · <a href="${APP_DOMAIN}" style="color:#999;">reybaud-app.com</a></p>
             </div></body></html>`;
 
-          await supabase.rpc("enqueue_email", {
-            queue_name: "transactional_emails",
-            payload: {
+          await sendLegacyEmailPayload({
               message_id: admMsgId,
               to: adm,
               from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -516,8 +512,7 @@ Deno.serve(async (req) => {
               idempotency_key: `turnera-${tipo}-admin-${r.id}-${adm}`,
               unsubscribe_token: admToken,
               queued_at: new Date().toISOString(),
-            },
-          });
+            }, supabase);
         }
       } catch (e) {
         console.error("[send-turnera-email] admin copy error:", (e as Error).message);
@@ -711,9 +706,7 @@ async function handleTransferenciaEmail(
   const messageId = crypto.randomUUID();
   const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipient);
 
-  const { error: qErr } = await supabase.rpc("enqueue_email", {
-    queue_name: "transactional_emails",
-    payload: {
+  const { error: qErr } = await sendLegacyEmailPayload({
       message_id: messageId,
       to: recipient,
       from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -726,8 +719,7 @@ async function handleTransferenciaEmail(
       idempotency_key: idempotencyKey,
       unsubscribe_token: unsubscribeToken,
       queued_at: new Date().toISOString(),
-    },
-  });
+    }, supabase);
 
   if (qErr) {
     return new Response(JSON.stringify({ error: "queue_failed", detail: qErr.message }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -879,9 +871,7 @@ async function handleReprogramacionEmail(
   const messageId = crypto.randomUUID();
   const unsubscribeToken = await getOrCreateUnsubscribeToken(supabase, recipient);
 
-  const { error: qErr } = await supabase.rpc("enqueue_email", {
-    queue_name: "transactional_emails",
-    payload: {
+  const { error: qErr } = await sendLegacyEmailPayload({
       message_id: messageId,
       to: recipient,
       from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -895,8 +885,7 @@ async function handleReprogramacionEmail(
       idempotency_key: `turnera-${tipo}-${r.id}-${messageId}`,
       unsubscribe_token: unsubscribeToken,
       queued_at: new Date().toISOString(),
-    },
-  });
+    }, supabase);
 
   if (qErr) {
     return new Response(JSON.stringify({ error: "queue_failed", detail: qErr.message }), {

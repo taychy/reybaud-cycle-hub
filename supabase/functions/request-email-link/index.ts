@@ -1,6 +1,7 @@
 // Pide vincular un email nuevo a una ficha de alumno existente.
 // Envía un email de confirmación a la casilla PRINCIPAL de la ficha.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const SENDER_DOMAIN = "notify.reybaud-app.com";
 const FROM_NAME = "Ciclismo Reybaud";
@@ -78,9 +79,7 @@ Deno.serve(async (req) => {
     `;
 
     const messageId = crypto.randomUUID();
-    const { error: qErr } = await supabase.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    const { error: qErr } = await sendLegacyEmailPayload({
         message_id: messageId,
         to: row.destino_email,
         from: `${FROM_NAME} <noreply@${SENDER_DOMAIN}>`,
@@ -92,8 +91,7 @@ Deno.serve(async (req) => {
         label: "alumno_email_link_request",
         idempotency_key: messageId,
         queued_at: new Date().toISOString(),
-      },
-    });
+      }, supabase);
 
     if (qErr) {
       return new Response(JSON.stringify({ error: qErr.message }), {

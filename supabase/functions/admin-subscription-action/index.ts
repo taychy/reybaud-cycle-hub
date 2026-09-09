@@ -4,6 +4,7 @@
 //  - simulate_fail: force the auto-charge-failure branch (super admin only) — useful
 //                   to QA the email + banner without waiting for MP to actually fail
 import { createClient } from "npm:@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,9 +167,7 @@ Deno.serve(async (req) => {
       // Email student
       if (alumno?.email) {
         const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, alumno.email);
-        await admin.rpc("enqueue_email" as any, {
-          queue_name: "transactional_emails",
-          payload: {
+        await sendLegacyEmailPayload({
             message_id: crypto.randomUUID(),
             to: alumno.email,
             from: FROM,
@@ -181,8 +180,7 @@ Deno.serve(async (req) => {
             idempotency_key: `pay-rejected-${subId}-${Date.now()}`,
             unsubscribe_token,
             queued_at: nowIso,
-          },
-        });
+          }, admin);
       }
 
       await logAudit(admin, userId, adminProfile?.email, role, "rechazar_pago_informado", subId, { alumno: alumno?.nombre, motivo: reason || null });
@@ -202,9 +200,7 @@ Deno.serve(async (req) => {
 
       if (alumno?.email) {
         const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, alumno.email);
-        await admin.rpc("enqueue_email" as any, {
-          queue_name: "transactional_emails",
-          payload: {
+        await sendLegacyEmailPayload({
             message_id: crypto.randomUUID(),
             to: alumno.email,
             from: FROM,
@@ -217,8 +213,7 @@ Deno.serve(async (req) => {
             idempotency_key: `auto-fail-sim-${subId}-${Date.now()}`,
             unsubscribe_token,
             queued_at: nowIso,
-          },
-        });
+          }, admin);
       }
 
       await logAudit(admin, userId, adminProfile?.email, role, "simular_renovacion_fallida", subId, { alumno: alumno?.nombre });
@@ -230,9 +225,7 @@ Deno.serve(async (req) => {
       if (!alumno?.email) return json({ error: "Alumno sin email" }, 400);
       const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, alumno.email);
       const planName = (sub.planes as any)?.nombre || "tu plan";
-      await admin.rpc("enqueue_email" as any, {
-        queue_name: "transactional_emails",
-        payload: {
+      await sendLegacyEmailPayload({
           message_id: crypto.randomUUID(),
           to: alumno.email,
           from: FROM,
@@ -245,8 +238,7 @@ Deno.serve(async (req) => {
           idempotency_key: `auto-not-auth-${subId}-${new Date().toISOString().split("T")[0]}`,
           unsubscribe_token,
           queued_at: nowIso,
-        },
-      });
+        }, admin);
       await logAudit(admin, userId, adminProfile?.email, role, "notificar_renovacion_no_autorizada", subId, { alumno: alumno?.nombre });
       return json({ ok: true, action });
     }
@@ -355,9 +347,7 @@ async function handleBulkNotify(
       const unsubscribe_token = await getOrCreateUnsubscribeToken(admin, email);
       const planName = (s.planes as any)?.nombre || "tu plan";
       const nombre = (s.alumnos as any)?.nombre || "";
-      await admin.rpc("enqueue_email" as any, {
-        queue_name: "transactional_emails",
-        payload: {
+      await sendLegacyEmailPayload({
           message_id: crypto.randomUUID(),
           to: email,
           from: FROM,
@@ -370,8 +360,7 @@ async function handleBulkNotify(
           idempotency_key: `auto-fail-bulk-${s.id}-${firstDay}`,
           unsubscribe_token,
           queued_at: nowIso,
-        },
-      });
+        }, admin);
       sent++;
     } catch (e) {
       failures.push(`${s.id}: ${(e as Error).message}`);

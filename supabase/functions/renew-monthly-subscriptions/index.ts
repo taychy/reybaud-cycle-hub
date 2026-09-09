@@ -40,6 +40,7 @@
 // Programado por pg_cron diariamente (00:05 America/Argentina/Buenos_Aires).
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -406,9 +407,7 @@ Deno.serve(async (req) => {
           const subject = interpolate(renewalTpl.subject, vars);
           const html = interpolate(renewalTpl.html_body, vars);
           const messageId = `renewal-pending-${newSub.id}`;
-          const { error: enqErr } = await supabase.rpc("enqueue_email", {
-            queue_name: "transactional_emails",
-            payload: {
+          const { error: enqErr } = await sendLegacyEmailPayload({
               message_id: messageId,
               to, from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
               sender_domain: SENDER_DOMAIN,
@@ -417,8 +416,7 @@ Deno.serve(async (req) => {
               purpose: "transactional", label: "renewal_pending",
               idempotency_key: messageId,
               queued_at: new Date().toISOString(),
-            },
-          });
+            }, supabase);
           emailQueued = !enqErr;
           if (enqErr) console.warn("[renew-monthly-subs] enqueue email failed", { new_sub: newSub.id, err: enqErr.message });
         }

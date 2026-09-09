@@ -1,6 +1,7 @@
 // Sends a test email to the configured admin_notification_emails list.
 // Super-admin only. Does not block any flow if it fails.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -59,9 +60,7 @@ Deno.serve(async (req) => {
 
     const results: any[] = [];
     for (const to of emails) {
-      const { error: enqErr } = await sb.rpc("enqueue_email", {
-        queue_name: "transactional_emails",
-        payload: {
+      const { error: enqErr } = await sendLegacyEmailPayload({
           message_id: `${messageId}-${to}`,
           to, from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
           sender_domain: SENDER_DOMAIN,
@@ -69,8 +68,7 @@ Deno.serve(async (req) => {
           purpose: "transactional", label: "admin_test_email",
           idempotency_key: `${messageId}-${to}`,
           queued_at: new Date().toISOString(),
-        },
-      });
+        }, sb);
       results.push({ to, queued: !enqErr, error: enqErr?.message });
     }
 

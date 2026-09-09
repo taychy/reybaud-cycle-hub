@@ -246,7 +246,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       detail.entrega_metodo === "moto"
         ? `Envío a domicilio del cliente: ${detail.envio_direccion || "(a confirmar)"}`
         : "Entrega en la escuela (retiro del cliente en clase).";
-    const { error } = await supabase.functions.invoke("send-transactional-email", {
+    const { error } = await supabase.functions.invoke("send-supplier-order-email", {
       body: {
         templateName: "supplier-order-created",
         recipientEmail: supplier.email,

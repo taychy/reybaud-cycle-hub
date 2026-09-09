@@ -12,6 +12,7 @@
  * exactamente la misma regla de asignación que el dashboard del alumno.
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -175,9 +176,7 @@ async function sendForAlumno(
 
   try {
     const unsub = await getUnsubToken(sb, alumno.email);
-    const { error } = await sb.rpc("enqueue_email", {
-      queue_name: "transactional_emails",
-      payload: {
+    const { error } = await sendLegacyEmailPayload({
         message_id: messageId,
         to: alumno.email,
         from: `${FROM_NAME} <notificaciones@${SENDER_DOMAIN}>`,
@@ -188,8 +187,7 @@ async function sendForAlumno(
         idempotency_key: `${TEMPLATE}-${alumno.id}-${range.inicio}-${modo}-${messageId.slice(0, 8)}`,
         queued_at: new Date().toISOString(),
         unsubscribe_token: unsub,
-      },
-    });
+      }, sb);
     if (error) throw error;
   } catch (e) {
     await sb.from("weekly_training_email_sends")
