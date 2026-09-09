@@ -12732,33 +12732,104 @@ export type Database = {
       }
       waitlist_question_templates: {
         Row: {
+          activa: boolean
           created_at: string
           created_by: string | null
+          cupos_informados: number | null
           descripcion: string | null
+          descripcion_publica: string | null
           id: string
+          mensaje_confirmacion: string | null
           nombre: string
           preguntas: Json
+          publicada: boolean
+          slug: string
+          titulo_publico: string | null
           updated_at: string
         }
         Insert: {
+          activa?: boolean
           created_at?: string
           created_by?: string | null
+          cupos_informados?: number | null
           descripcion?: string | null
+          descripcion_publica?: string | null
           id?: string
+          mensaje_confirmacion?: string | null
           nombre: string
           preguntas?: Json
+          publicada?: boolean
+          slug: string
+          titulo_publico?: string | null
           updated_at?: string
         }
         Update: {
+          activa?: boolean
           created_at?: string
           created_by?: string | null
+          cupos_informados?: number | null
           descripcion?: string | null
+          descripcion_publica?: string | null
           id?: string
+          mensaje_confirmacion?: string | null
           nombre?: string
           preguntas?: Json
+          publicada?: boolean
+          slug?: string
+          titulo_publico?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      waitlist_template_entries: {
+        Row: {
+          admin_visto_at: string | null
+          created_at: string
+          email: string
+          estado: string
+          id: string
+          nombre: string
+          respuestas: Json
+          telefono: string | null
+          template_id: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_visto_at?: string | null
+          created_at?: string
+          email: string
+          estado?: string
+          id?: string
+          nombre: string
+          respuestas?: Json
+          telefono?: string | null
+          template_id: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_visto_at?: string | null
+          created_at?: string
+          email?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          respuestas?: Json
+          telefono?: string | null
+          template_id?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waitlist_template_entries_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "waitlist_question_templates"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       weekly_training_email_sends: {
         Row: {
@@ -14035,13 +14106,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_1_id"]
-            isOneToOne: false
-            referencedRelation: "alumnos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
@@ -14051,8 +14115,8 @@ export type Database = {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
             isOneToOne: false
-            referencedRelation: "vw_backfill_identidad_sugerida"
-            referencedColumns: ["alumno_sugerido_id"]
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
@@ -14064,13 +14128,20 @@ export type Database = {
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_2_id"]
+            columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
@@ -15459,6 +15530,20 @@ export type Database = {
           telefono: string
         }[]
       }
+      get_waitlist_template_direct_entries: {
+        Args: { p_template_id: string }
+        Returns: {
+          created_at: string
+          email: string
+          entry_id: string
+          estado: string
+          nombre: string
+          respuestas: Json
+          telefono: string
+          updated_at: string
+        }[]
+      }
+      get_waitlist_template_public: { Args: { p_slug: string }; Returns: Json }
       grupo_rank: { Args: { p_grupo: string }; Returns: number }
       has_role: {
         Args: {
@@ -15566,6 +15651,10 @@ export type Database = {
       mark_waitlist_entries_seen: { Args: never; Returns: number }
       mark_waitlist_entries_seen_for_template: {
         Args: { p_template_id: string }
+        Returns: number
+      }
+      mark_waitlist_template_entries_seen: {
+        Args: { p_template_id?: string }
         Returns: number
       }
       match_gasto_categoria: {
@@ -16279,6 +16368,17 @@ export type Database = {
           p_respuestas: Json
           p_telefono: string
           p_user_agent: string
+        }
+        Returns: Json
+      }
+      submit_waitlist_template_entry: {
+        Args: {
+          p_email: string
+          p_nombre: string
+          p_respuestas: Json
+          p_slug: string
+          p_telefono: string
+          p_user_agent?: string
         }
         Returns: Json
       }

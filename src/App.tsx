@@ -121,6 +121,7 @@ import AdminWaitlistRequests from "./pages/admin/AdminWaitlistRequests";
 import AdminWaitlistTemplates from "./pages/admin/AdminWaitlistTemplates";
 import AdminEventWaitlist from "./pages/admin/AdminEventWaitlist";
 import EventWaitlistPage from "./pages/EventWaitlistPage";
+import PreinscripcionPage from "./pages/PreinscripcionPage";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
 import FormacionInicial from "./pages/FormacionInicial";
 
@@ -189,6 +190,7 @@ const App = () => (
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />
           <Route path="/eventos/:id/lista-espera" element={<EventWaitlistPage />} />
+          <Route path="/preinscripcion/:slug" element={<PreinscripcionPage />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
           <Route path="/mis-reservas/:id" element={<MisReservas />} />
           <Route path="/mi-reserva/:token" element={<GuestReservationView />} />
