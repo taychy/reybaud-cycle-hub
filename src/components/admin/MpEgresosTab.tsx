@@ -116,6 +116,8 @@ export default function MpEgresosTab() {
   const [coaches, setCoaches] = useState<{ id: string; nombre: string }[]>([]);
   const [contrapartes, setContrapartes] = useState<ContraparteCoach[]>([]);
   const [coachId, setCoachId] = useState<string>("");
+  const [devoluciones, setDevoluciones] = useState<Record<string, DevolucionMov>>({});
+  const [devolucionMov, setDevolucionMov] = useState<DevolucionMpMovement | null>(null);
 
 
 
@@ -128,7 +130,7 @@ export default function MpEgresosTab() {
       .select(`
         id, mp_payment_id, amount, currency, description, payment_type,
         payment_method, payer_name, payer_email, external_reference, raw,
-        fecha_movimiento, direccion, gasto_id,
+        fecha_movimiento, direccion, gasto_id, cuenta_mp_id,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
       .in("direccion", ["egreso", "reserva_tecnica", "interno"])
@@ -137,15 +139,26 @@ export default function MpEgresosTab() {
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setItems((data as any) ?? []);
 
-    const [co, cp] = await Promise.all([
+    const [co, cp, dev] = await Promise.all([
       supabase.from("coaches").select("id, nombre").eq("estado", "activo").order("nombre"),
       supabase.from("coach_mp_contrapartes" as any).select("coach_id, mp_collector_id, nombre_contraparte"),
+      supabase
+        .from("devoluciones" as any)
+        .select("id, mp_movement_id, monto, moneda, motivo, alumnos(nombre, apellido)")
+        .not("mp_movement_id", "is", null)
+        .limit(500),
     ]);
     setCoaches(((co.data as any[]) ?? []) as { id: string; nombre: string }[]);
     setContrapartes(((cp.data as any[]) ?? []) as ContraparteCoach[]);
+    const dmap: Record<string, DevolucionMov> = {};
+    for (const d of ((dev.data as any[]) ?? []) as DevolucionMov[]) {
+      if (d.mp_movement_id) dmap[d.mp_movement_id] = d;
+    }
+    setDevoluciones(dmap);
 
     setLoading(false);
   }
+
 
   async function loadEjecuciones() {
     setLoadingEjecs(true);
