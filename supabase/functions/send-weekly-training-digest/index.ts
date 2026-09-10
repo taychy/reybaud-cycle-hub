@@ -232,17 +232,41 @@ Deno.serve(async (req) => {
       return json({ ok: true, mode, semana: range, candidatos: (alumnos || []).length, sent, skipped, errors });
     }
 
-    /* ---------- Manual / preview: sólo admin ---------- */
+    /* ---------- Manual / preview: administración ---------- */
     const auth = req.headers.get("Authorization");
     if (!auth?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+    const token = auth.replace("Bearer ", "");
     const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
       global: { headers: { Authorization: auth } },
     });
-    const { data: claims } = await userClient.auth.getClaims(auth.replace("Bearer ", ""));
-    const userId = claims?.claims?.sub;
-    if (!userId) return json({ error: "Unauthorized" }, 401);
-    const { data: isAdmin } = await sb.rpc("has_role", { _user_id: userId, _role: "admin" });
-    if (!isAdmin) return json({ error: "Only admin" }, 403);
+    const { data: claims, error: claimsErr } = await userClient.auth.getClaims(token);
+    const userId = claims?.claims?.sub as string | undefined;
+    if (claimsErr || !userId) return json({ error: "Unauthorized" }, 401);
+
+    // La pantalla de Gestión de alumnos es usada por admin, super_admin y soporte.
+    // La función antes comprobaba sólo `has_role(..., "admin")`, dejando afuera
+    // perfiles administrativos válidos y haciendo fallar la vista previa con 403.
+    const { data: adminProfile, error: profileErr } = await sb
+      .from("admin_profiles")
+      .select("role")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (profileErr) throw profileErr;
+
+    const role = adminProfile?.role ?? null;
+    let canManageTrainingEmails = role === "super_admin" || role === "admin" || role === "support";
+
+    // Compatibilidad con administradores legacy que puedan existir sólo en user_roles.
+    if (!canManageTrainingEmails) {
+      const { data: legacyAdmin, error: legacyRoleErr } = await sb.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      if (legacyRoleErr) throw legacyRoleErr;
+      canManageTrainingEmails = !!legacyAdmin;
+    }
+
+    if (!canManageTrainingEmails) return json({ error: "Forbidden" }, 403);
 
     const alumnoId: string = body.alumno_id;
     if (!alumnoId) return json({ error: "alumno_id required" }, 400);
