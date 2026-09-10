@@ -1,34 +1,85 @@
-# Diagnóstico: por qué no se ve el pago MP 175392747499
+# Caso Marcelo Hamui: diagnóstico y corrección segura
 
-Solo análisis. No se modificó nada.
+Análisis de solo lectura. No se modificó ningún dato ni código.
 
-## Respuesta corta
+## Qué pasó, punto por punto
 
-El pago existe y está correctamente vinculado. No se ve porque la pantalla está mostrando **septiembre 2026** y ese pago pertenece a **agosto 2026**. Cambiando el selector de período a "ago 2026" (o "Todos los meses") aparece.
+### 1. Por qué existe la ficha de alumno de Marcelo
+No es un "participante externo" del sistema: la ficha se creó por el registro normal de la app
+(alumno creado 30/06/2026 22:11, usuario de acceso confirmado 01/07/2026 00:57, y su reserva del
+Training Camp el 01/07 14:30). Es decir, se registró como alumno para poder reservar el viaje.
+Su ficha quedó con grupo "Sin grupo", perfil incompleto y, hasta agosto, en estado inactivo.
 
-## Causa exacta, punto por punto
+### 2. De dónde salió la mensualidad de $65.500
+La creó el checkout de planes de la propia app (pantalla de elección de plan), no un proceso
+automático: se insertó la suscripción en estado pendiente el 30/08/2026 11:58:20 y 38 segundos
+después llegó el pago aprobado. El período 01/08–31/08 es el que calcula esa pantalla para el mes
+en curso.
 
-1. **Pestaña "Pagos" (mensualidades)**
-   - El filtro de período arranca siempre en el mes actual (`filterPeriodo = mes de hoy` = `2026-09`).
-   - Una mensualidad entra en el período si su `fecha_fin`/`fecha_inicio` o su fecha de creación caen en ese mes.
-   - La suscripción `8aae29fc…` tiene `fecha_inicio 2026-08-01`, `fecha_fin 2026-08-31` y fue creada el `2026-08-30`. Todo es agosto → queda fuera del listado en la vista de septiembre.
-   - No es un problema de estado: con `estado = vencida` y `origen_registro = automatico`, la pantalla igual la clasifica como **Pagado** (regla explícita: vencida + origen automático/admin = pagado). Es decir, en "ago 2026" se ve como pago cobrado por $65.500.
+Punto crítico confirmado en el código: esa pantalla identifica al alumno **leyendo un id guardado
+en el navegador** (`registro_alumno_id` en localStorage), sin contrastarlo con la sesión que está
+realmente iniciada. Ese id lo escriben registro, login, reingreso y varias pantallas, y queda
+guardado indefinidamente. En un dispositivo compartido, el último id escrito manda.
 
-2. **Pestaña "Movimientos MP"**
-   - Recibe el mismo período y filtra `fecha_movimiento` por mes: con septiembre seleccionado, un movimiento del `2026-08-30` queda excluido por consulta.
-   - Además, el filtro de conciliación viene por defecto en **"Pendientes"**, y este movimiento ya está imputado (tiene `suscripcion_id`), así que aunque se elija agosto no aparece hasta poner el filtro en "Todos" o "Imputado".
+### 3. Por qué el pago de Eugenia quedó en la ficha de Marcelo
+Porque la preferencia de pago se generó con la suscripción de Marcelo como referencia externa. El
+webhook no mira el email de quien paga: vincula por esa referencia. La cuenta pagadora (Eugenia)
+sólo aparece como dato informativo. O sea: el pago se ató a Marcelo desde antes de pagarse, en el
+momento en que se creó la suscripción con su id.
 
-3. **`pagos_imputaciones` vacío no es la causa**
-   - Ni la pestaña de Pagos ni la de Movimientos MP consultan esa tabla. La imputación se considera hecha por el vínculo directo `mp_account_movements.suscripcion_id` / `suscripciones.mp_payment_id`, que sí existe. Por eso el movimiento figura como "Imputado".
+Contexto que refuerza la hipótesis del id viejo en el navegador: Eugenia ya había pagado su propio
+plan de agosto el 04/08, y ese mismo 30/08 la familia estaba pagando la cuota 3 del Training Camp
+de Marcelo. La mensualidad de $65.500 no corresponde a ninguna cuota del viaje.
 
-4. **Efecto en los totales del encabezado**
-   - Los KPIs (cobrado/pendiente) también se calculan sobre el período elegido, así que en septiembre estos $65.500 no suman en ningún total. En agosto sí suman como cobrado.
+Lo que **no** está probado documentalmente: qué persona/dispositivo abrió la pantalla, porque no
+hay registro de auditoría de ese checkout. Es la primera cosa a instrumentar.
 
-## Cómo verificarlo sin tocar nada
+### 4. Por qué "no se lo ve" desde administración
+Dos causas verificadas:
+- El buscador de alumnos y el de Cuenta corriente exigen coincidencia de texto contigua. Su ficha
+  dice "Marcelo Fabian Hamui": buscar "Marcelo Hamui" no encuentra nada.
+- Estuvo inactivo hasta que el pago del 30/08 lo reactivó automáticamente ("reingreso" registrado
+  11:59:01), por lo que antes no aparecía en las vistas de alumnos activos.
+Su cuenta corriente sí existe y tiene saldo deudor de ARS 355.250 (saldo del viaje).
 
-- En Pagos y Cobranzas, cambiar el selector de mes a **ago 2026**: debería aparecer la fila del alumno con estado Pagado, método Mercado Pago (automático).
-- En la pestaña Movimientos MP, con ago 2026 y filtro de conciliación en "Todos": aparece el movimiento aprobado de $65.500 marcado como Imputado.
+### 5. Otros casos con el mismo patrón
+Se revisaron todos los pagos de mensualidad donde el email pagador no coincide con el del alumno.
+Casi todos son parejas/empresas pagando el plan de otra persona real: comportamiento legítimo.
+El único caso donde el pagador es otro alumno y el titular no tiene historia de alumno regular es
+el de Marcelo. No hay contagio masivo.
 
-## Observación (no es bug, es UX)
+## Propuesta de corrección
 
-Nada indica en pantalla que un pago aprobado quede oculto por el mes seleccionado. Si querés, en un paso siguiente se puede: (a) mostrar el mes activo de forma más visible junto a un aviso cuando la búsqueda por alumno no encuentra nada en ese mes, o (b) que buscar por nombre/ID ignore el filtro de período. Eso requiere aprobación aparte.
+### A. Reparación del caso histórico (aparte, con aprobación explícita)
+1. Decidir con Natalia si esa mensualidad se anula y el dinero se acredita a la cuota del viaje de
+   Marcelo, o si se acredita como saldo a favor de Eugenia.
+2. Ejecutarla con las herramientas ya existentes (reasignación / saldo a favor / imputación),
+   dejando registro en auditoría. Sin borrar el pago ni la suscripción.
+3. Revisar el estado de Marcelo: si no es alumno regular, volverlo al estado correcto y evitar que
+   una futura reactivación automática lo vuelva a listar como activo.
+
+### B. Prevención del bug (lo importante)
+1. La pantalla de elección de plan debe validar que el alumno guardado en el navegador coincide
+   con la persona con sesión iniciada. Si no coincide, descartar el id viejo y usar el de la
+   sesión.
+2. Limpiar ese id al cerrar sesión y al iniciar sesión con otra persona.
+3. Mostrar el nombre del titular en el paso de confirmación del pago ("Vas a pagar el plan de
+   X"), para que un error de identidad sea visible antes de pagar.
+4. Registrar en auditoría quién inicia cada checkout de plan (usuario de sesión + alumno destino).
+
+### C. Mejoras menores de búsqueda
+Hacer que el buscador de alumnos y el de Cuenta corriente acepten palabras sueltas en cualquier
+orden, para que "Marcelo Hamui" encuentre a "Marcelo Fabian Hamui".
+
+## Detalle técnico
+- `src/pages/PlanSelection.tsx:63` toma `localStorage.getItem("registro_alumno_id")` y lo usa en
+  el insert de `suscripciones` (líneas 664-672) y en el payload a `create-mp-preference` (742).
+- `supabase/functions/create-mp-preference/index.ts` valida plan/alumno/suscripción y fija
+  `external_reference = suscripcion_id`.
+- `supabase/functions/mp-webhook/index.ts` resuelve titularidad por `external_reference`; nunca por
+  `payer_email`.
+- Filtros de búsqueda: `src/pages/admin/ManageStudents.tsx:498-506` y
+  `src/pages/admin/AdminCuentaCorriente.tsx:146-150`.
+- Datos: suscripción `8aae29fc…` (creada 30/08 11:58:20), movimiento MP `4db19cde…`
+  (pago 175392747499, `assigned_manually=false`), reserva del camp con seña + cuotas 2 y 3 pagas y
+  cuota 4 pendiente por ARS 189.750.
