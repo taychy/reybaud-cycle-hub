@@ -14934,10 +14934,6 @@ export type Database = {
         }
         Returns: Json
       }
-      delete_email: {
-        Args: { message_id: number; queue_name: string }
-        Returns: boolean
-      }
       delete_gasto_deuda_mov: { Args: { p_id: string }; Returns: undefined }
       delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
       delivery_add_payment_by_token: {
@@ -15029,11 +15025,6 @@ export type Database = {
       eliminar_gasto_categoria: {
         Args: { _categoria_id: string }
         Returns: string
-      }
-      email_queue_dispatch: { Args: never; Returns: undefined }
-      enqueue_email: {
-        Args: { payload: Json; queue_name: string }
-        Returns: number
       }
       evaluate_room_impact: {
         Args: {
@@ -15740,15 +15731,6 @@ export type Database = {
         Args: { _duplicado_id: string; _principal_id: string }
         Returns: Json
       }
-      move_to_dlq: {
-        Args: {
-          dlq_name: string
-          message_id: number
-          payload: Json
-          source_queue: string
-        }
-        Returns: number
-      }
       mp_egreso_to_ejecucion: {
         Args: {
           _ejecucion_id: string
@@ -15924,14 +15906,6 @@ export type Database = {
       }
       publish_month: { Args: { p_mes: string }; Returns: number }
       reactivar_alumno: { Args: { p_alumno_id: string }; Returns: undefined }
-      read_email_batch: {
-        Args: { batch_size: number; queue_name: string; vt: number }
-        Returns: {
-          message: Json
-          msg_id: number
-          read_ct: number
-        }[]
-      }
       reasignar_comprador_entrega: {
         Args: {
           _alumno_id?: string

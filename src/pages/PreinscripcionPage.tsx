@@ -23,6 +23,20 @@ interface PublicTemplate {
 
 type Status = "loading" | "ready" | "not_found" | "error" | "done";
 
+// Definido fuera del componente: si se define dentro, cada keystroke crea un
+// tipo de componente nuevo y React remonta todo el árbol, perdiendo foco/scroll.
+const Shell = ({ children }: { children: React.ReactNode }) => (
+  <div className="min-h-screen bg-background flex flex-col">
+    <header className="flex items-center gap-3 px-5 pt-6 pb-2">
+      <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
+      <span className="text-sm font-heading uppercase tracking-wider text-muted-foreground">
+        Ciclismo Reybaud
+      </span>
+    </header>
+    <main className="flex-1 w-full max-w-lg mx-auto px-4 py-6">{children}</main>
+  </div>
+);
+
 export default function PreinscripcionPage() {
   const { slug } = useParams<{ slug: string }>();
   const [status, setStatus] = useState<Status>("loading");
@@ -125,17 +139,6 @@ export default function PreinscripcionPage() {
     }
   };
 
-  const Shell = ({ children }: { children: React.ReactNode }) => (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="flex items-center gap-3 px-5 pt-6 pb-2">
-        <img src={logo} alt="Ciclismo Reybaud" className="w-9 h-9" />
-        <span className="text-sm font-heading uppercase tracking-wider text-muted-foreground">
-          Ciclismo Reybaud
-        </span>
-      </header>
-      <main className="flex-1 w-full max-w-lg mx-auto px-4 py-6">{children}</main>
-    </div>
-  );
 
   if (status === "loading") {
     return (
