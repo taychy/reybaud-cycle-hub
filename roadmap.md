@@ -63,3 +63,8 @@
 - [x] Retirados del repo: cola/despachador, suppression, unsubscribe, envío transaccional legacy, página `/unsubscribe` y la migración de infraestructura de email
 - [x] Tablas de datos (`email_send_log`, `suppressed_emails`, `email_unsubscribe_tokens`, `email_send_state`) conservadas
 - [ ] Sin publicar: el cambio se completa al publicar y no puede deshacerse
+
+## Cuenta corriente · Aplicar a deuda
+- [x] Las mensualidades en estado pendiente vuelven a aparecer como deuda aplicable (la renovación automática precargaba "efectivo" y la presunción de pago las ocultaba)
+- [x] Se descuenta lo ya aplicado desde saldos a favor para no ofrecer dos veces la misma deuda
+- [ ] Sin cambios en datos financieros históricos (caso Paula Blasco se resuelve desde la pantalla)

@@ -94,7 +94,8 @@ export function SaldoDisponibleSection({
     setTargets([
       ...((d.subscriptions ?? []) as any[]).map((s) => ({
         key: `suscripcion:${s.id}`, type: "suscripcion" as const, id: s.id,
-        label: s.label, currency: s.currency, amount: Number(s.total) || 0, icon: "📅",
+        label: s.label, currency: s.currency,
+        amount: Number(s.balance ?? s.total) || 0, icon: "📅",
       })),
       ...((d.reservations ?? []) as any[]).map((r) => ({
         key: `reserva:${r.id}`, type: "reserva" as const, id: r.id,
