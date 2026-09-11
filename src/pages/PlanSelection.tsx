@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
-import { calendarMonthPeriod } from "@/lib/subscriptionPeriod";
+import { calendarMonthPeriod, resolvePurchasePeriod, monthLabel } from "@/lib/subscriptionPeriod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
@@ -624,9 +624,15 @@ const PlanSelection = () => {
         fechaInicio = pausaNextStart.fechaInicio;
         fechaFin = pausaNextStart.fechaFin;
       } else {
-        // Toda mensualidad arranca el día 1 del mes calendario, sin importar
-        // el día de la compra (evita el corrimiento permanente del período).
-        const period = calendarMonthPeriod();
+        // El período es el que el alumno está COMPRANDO, no el mes en el que
+        // toca el botón: si paga el último día del mes (o ya tiene el mes en
+        // curso cubierto), la mensualidad corresponde al mes siguiente.
+        const period = resolvePurchasePeriod({
+          earlyRenewalPeriod: earlyRenewal
+            ? { fechaInicio: earlyRenewal.fechaInicio, fechaFin: earlyRenewal.fechaFin }
+            : null,
+          coveredUntil: previousSub?.fechaFin ?? null,
+        });
         fechaInicio = period.fechaInicio;
         fechaFin = period.fechaFin;
       }
