@@ -427,6 +427,17 @@ const PlanSelection = () => {
     return { fechaInicio: fmt(start), fechaFin: fmt(end) };
   })();
 
+  // Período que el alumno está comprando (fuente de verdad para mostrar y para
+  // crear la obligación). No depende del día en que se procesa el pago.
+  const purchasePeriod = resolvePurchasePeriod({
+    earlyRenewalPeriod: earlyRenewal
+      ? { fechaInicio: earlyRenewal.fechaInicio, fechaFin: earlyRenewal.fechaFin }
+      : null,
+    coveredUntil: previousSub?.fechaFin ?? null,
+  });
+
+
+
   const handleScheduleAfterPausa = () => {
     setScheduleAfterPausa(true);
     setPausaBlocked(false);
