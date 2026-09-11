@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
-import { calendarMonthPeriod } from "@/lib/subscriptionPeriod";
+import { calendarMonthPeriod, resolvePurchasePeriod, monthLabel } from "@/lib/subscriptionPeriod";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
@@ -427,6 +427,17 @@ const PlanSelection = () => {
     return { fechaInicio: fmt(start), fechaFin: fmt(end) };
   })();
 
+  // Período que el alumno está comprando (fuente de verdad para mostrar y para
+  // crear la obligación). No depende del día en que se procesa el pago.
+  const purchasePeriod = resolvePurchasePeriod({
+    earlyRenewalPeriod: earlyRenewal
+      ? { fechaInicio: earlyRenewal.fechaInicio, fechaFin: earlyRenewal.fechaFin }
+      : null,
+    coveredUntil: previousSub?.fechaFin ?? null,
+  });
+
+
+
   const handleScheduleAfterPausa = () => {
     setScheduleAfterPausa(true);
     setPausaBlocked(false);
@@ -624,9 +635,15 @@ const PlanSelection = () => {
         fechaInicio = pausaNextStart.fechaInicio;
         fechaFin = pausaNextStart.fechaFin;
       } else {
-        // Toda mensualidad arranca el día 1 del mes calendario, sin importar
-        // el día de la compra (evita el corrimiento permanente del período).
-        const period = calendarMonthPeriod();
+        // El período es el que el alumno está COMPRANDO, no el mes en el que
+        // toca el botón: si paga el último día del mes (o ya tiene el mes en
+        // curso cubierto), la mensualidad corresponde al mes siguiente.
+        const period = resolvePurchasePeriod({
+          earlyRenewalPeriod: earlyRenewal
+            ? { fechaInicio: earlyRenewal.fechaInicio, fechaFin: earlyRenewal.fechaFin }
+            : null,
+          coveredUntil: previousSub?.fechaFin ?? null,
+        });
         fechaInicio = period.fechaInicio;
         fechaFin = period.fechaFin;
       }
@@ -781,7 +798,11 @@ const PlanSelection = () => {
         },
         body: JSON.stringify({
           alumno_id: alumnoId,
-          plan_id: previousSub?.planId ?? null,
+          // La elección explícita del alumno gana sobre el plan histórico.
+          plan_id: selectedPlan?.id ?? previousSub?.planId ?? null,
+          plan_explicito: !!selectedPlan,
+          fecha_inicio: purchasePeriod.fechaInicio,
+          fecha_fin: purchasePeriod.fechaFin,
           payment_type: "plataforma_externa",
           tipo: "pago_externo",
         }),
@@ -892,6 +913,7 @@ const PlanSelection = () => {
             otherDetail={otherMethodDetail}
             upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
             overrideFechaFin={selectedPlan.categoria === "pausa" ? pausaFechaRegreso : null}
+            periodo={selectedPlan.categoria === "pausa" ? null : purchasePeriod}
             onProcessing={setProcessing}
           />
         </div>
@@ -1336,6 +1358,13 @@ const PlanSelection = () => {
               discountName={selectedDiscount.discount?.nombre}
               discountValue={selectedDiscount.discount?.valor}
               discountType={selectedDiscount.discount?.tipo}
+              periodoLabel={
+                selectedPlan.categoria === "pausa" || selectedPlan.frecuencia !== "mensual"
+                  ? null
+                  : monthLabel(purchasePeriod.fechaInicio)
+              }
+              periodoInicio={selectedPlan.categoria === "pausa" ? null : purchasePeriod.fechaInicio}
+              periodoFin={selectedPlan.categoria === "pausa" ? null : purchasePeriod.fechaFin}
               processing={processing}
               onConfirm={handleConfirm}
               onBack={() => setStep("select-method")}

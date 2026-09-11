@@ -29,7 +29,16 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const { alumno_id, plan_id, suscripcion_id, payment_type, tipo } = await req.json();
+    const {
+      alumno_id,
+      plan_id,
+      plan_explicito,
+      suscripcion_id,
+      fecha_inicio,
+      fecha_fin,
+      payment_type,
+      tipo,
+    } = await req.json();
 
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -42,7 +51,11 @@ Deno.serve(async (req) => {
       .eq("id", alumno_id)
       .single();
 
-    let resolvedPlanId = plan_id ?? null;
+    // El plan histórico sólo sirve para informar a administración: NUNCA para
+    // crear una obligación nueva a espaldas del alumno (caso Laura Palermo:
+    // pagó Pase Libre y el sistema le generó una cuota de su plan anterior).
+    let resolvedPlanId: string | null = plan_id ?? null;
+    let planIsExplicit = !!plan_explicito && !!plan_id;
 
     if (!resolvedPlanId) {
       const { data: latestSub } = await supabase
@@ -56,6 +69,7 @@ Deno.serve(async (req) => {
         .maybeSingle();
 
       resolvedPlanId = latestSub?.plan_id ?? null;
+      planIsExplicit = false;
     }
 
     const { data: plan } = resolvedPlanId
@@ -73,13 +87,32 @@ Deno.serve(async (req) => {
       });
     }
 
-    const now = new Date();
-    const fechaInicio = now.toISOString().split("T")[0];
-    const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const fechaFin = lastDay.toISOString().split("T")[0];
+    // Período de la obligación: el que llegó del checkout (lo que el alumno
+    // está comprando). Si no vino, mes calendario, con la salvedad de que un
+    // aviso de los últimos 2 días del mes corresponde al mes siguiente.
+    const iso = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    let fechaInicio: string;
+    let fechaFinal: string;
+    if (typeof fecha_inicio === "string" && typeof fecha_fin === "string") {
+      fechaInicio = fecha_inicio.substring(0, 10);
+      fechaFinal = fecha_fin.substring(0, 10);
+    } else {
+      const now = new Date();
+      const lastDayCurrent = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      const targetsNextMonth = now.getDate() > lastDayCurrent - 2;
+      const y = now.getFullYear();
+      const m = now.getMonth() + (targetsNextMonth ? 1 : 0);
+      fechaInicio = iso(new Date(y, m, 1));
+      fechaFinal = iso(new Date(y, m + 1, 0));
+    }
+
     const metodoPago = payment_type === "plataforma_externa" || tipo === "pago_externo"
       ? "plataforma_externa"
       : payment_type || "efectivo";
+
+    let obligacionCreada = false;
+    let obligacionOmitida: string | null = null;
 
     if (suscripcion_id) {
       await supabase
@@ -92,33 +125,75 @@ Deno.serve(async (req) => {
         })
         .eq("id", suscripcion_id)
         .eq("alumno_id", alumno_id);
+    } else if (!planIsExplicit) {
+      // Sin plan elegido explícitamente sólo avisamos a administración.
+      obligacionOmitida = "plan_no_explicito";
     } else {
-      const { data: existingPending } = await supabase
+      // Idempotencia por alumno + período: si ya existe cualquier obligación
+      // vigente/pagada que cubra el período objetivo, no generamos otra.
+      const { data: overlapping } = await supabase
         .from("suscripciones")
-        .select("id")
+        .select("id, plan_id, estado")
         .eq("alumno_id", alumno_id)
-        .eq("plan_id", resolvedPlanId)
-        .eq("estado", "pendiente_verificacion")
-        .eq("origen_registro", "informado_alumno")
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .is("cancelada_at", null)
+        .in("estado", [
+          "activa",
+          "pendiente",
+          "pendiente_verificacion",
+          "pago_pendiente",
+          "finalizada",
+          "conciliado",
+        ])
+        .lte("fecha_inicio", fechaFinal)
+        .gte("fecha_fin", fechaInicio)
+        .order("created_at", { ascending: false });
 
-      if (!existingPending) {
-        await supabase.from("suscripciones").insert({
+      const samePlan = (overlapping ?? []).find((s: any) => s.plan_id === resolvedPlanId);
+      const otherPlan = (overlapping ?? []).find((s: any) => s.plan_id !== resolvedPlanId);
+
+      if (samePlan) {
+        await supabase
+          .from("suscripciones")
+          .update({
+            estado: "pendiente_verificacion",
+            metodo_pago: metodoPago,
+            origen_registro: "informado_alumno",
+          })
+          .eq("id", samePlan.id)
+          .eq("alumno_id", alumno_id);
+        obligacionOmitida = "reutilizada";
+      } else if (otherPlan) {
+        obligacionOmitida = "periodo_ya_cubierto";
+      } else {
+        const { error: insertError } = await supabase.from("suscripciones").insert({
           alumno_id,
           plan_id: resolvedPlanId,
           estado: "pendiente_verificacion",
           fecha_inicio: fechaInicio,
-          fecha_fin: fechaFin,
+          fecha_fin: fechaFinal,
           metodo_pago: metodoPago,
           origen_registro: "informado_alumno",
           notas: "Pago informado desde botón de renovación",
           precio_base: plan.precio,
           precio_final: plan.precio,
         });
+        if (insertError) {
+          console.error("[notify-cash-payment] insert failed", insertError);
+          obligacionOmitida = "insert_error";
+        } else {
+          obligacionCreada = true;
+        }
       }
     }
+    console.log("[notify-cash-payment]", {
+      alumno_id,
+      resolvedPlanId,
+      planIsExplicit,
+      fechaInicio,
+      fechaFinal,
+      obligacionCreada,
+      obligacionOmitida,
+    });
 
     const adminEmails = ["scarlettbonatto@gmail.com"];
 

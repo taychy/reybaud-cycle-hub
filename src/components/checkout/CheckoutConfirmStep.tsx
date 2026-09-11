@@ -16,6 +16,10 @@ interface CheckoutConfirmStepProps {
   discountName?: string | null;
   discountValue?: number | null;
   discountType?: string | null;
+  /** Mes que se está pagando, ej. "septiembre 2026". */
+  periodoLabel?: string | null;
+  periodoInicio?: string | null;
+  periodoFin?: string | null;
   processing: boolean;
   onConfirm: () => void;
   onBack: () => void;
@@ -63,6 +67,12 @@ const confirmLabels: Record<DeclaredPaymentMethod, string> = {
   otro: "Confirmar pago",
 };
 
+/** DD/MM a partir de un YYYY-MM-DD, sin construir Date (evita drift de zona horaria). */
+const fmtDay = (iso: string) => {
+  const [, m, d] = iso.substring(0, 10).split("-");
+  return `${d}/${m}`;
+};
+
 const CheckoutConfirmStep = ({
   planName,
   frecuencia,
@@ -76,6 +86,9 @@ const CheckoutConfirmStep = ({
   discountName,
   discountValue,
   discountType,
+  periodoLabel,
+  periodoInicio,
+  periodoFin,
   processing,
   onConfirm,
   onBack,
@@ -107,6 +120,22 @@ const CheckoutConfirmStep = ({
         discountValue={discountValue}
         discountType={discountType}
       />
+
+      {/* Período que se está pagando */}
+      {periodoLabel && (
+        <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-center">
+          <p className="text-sm font-medium text-foreground">
+            Estás pagando <span className="uppercase font-heading tracking-wide">{periodoLabel}</span>
+          </p>
+          {periodoInicio && periodoFin && (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Del {fmtDay(periodoInicio)} al {fmtDay(periodoFin)}
+            </p>
+          )}
+        </div>
+      )}
+
+
 
       {/* Activation info */}
       <div className="rounded-lg border border-border bg-secondary/30 p-4 flex items-start gap-3">
