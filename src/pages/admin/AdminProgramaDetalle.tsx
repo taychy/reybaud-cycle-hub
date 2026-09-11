@@ -157,22 +157,38 @@ const AdminProgramaDetalle = () => {
       }
       setInscriptos(list);
 
-      // Cobrado real por suscripción (movimientos con haber > 0)
+      // Cobrado real por suscripción (movimientos con haber > 0).
+      // Los pagos de Mercado Pago se listan uno por movimiento: su fuente es
+      // mp_account_movements y llevan la suscripción en referencia_extra.
       if (list.length > 0) {
-        const { data: movs } = await sb
-          .from("vw_cuenta_corriente_movimientos")
-          .select("fuente_id, haber")
-          .eq("fuente_tabla", "suscripciones")
-          .in("fuente_id", list.map((s) => s.id));
+        const ids = list.map((s) => s.id);
+        const [subsRes, mpRes] = await Promise.all([
+          sb
+            .from("vw_cuenta_corriente_movimientos")
+            .select("fuente_id, haber")
+            .eq("fuente_tabla", "suscripciones")
+            .in("fuente_id", ids),
+          sb
+            .from("vw_cuenta_corriente_movimientos")
+            .select("haber, referencia_extra")
+            .eq("fuente_tabla", "mp_account_movements")
+            .in("referencia_extra->>suscripcion_id", ids),
+        ]);
         const map: Record<string, number> = {};
-        (movs || []).forEach((m: any) => {
+        (subsRes.data || []).forEach((m: any) => {
           const h = Number(m.haber) || 0;
           if (h > 0) map[m.fuente_id] = (map[m.fuente_id] || 0) + h;
+        });
+        (mpRes.data || []).forEach((m: any) => {
+          const subId = m.referencia_extra?.suscripcion_id as string | undefined;
+          const h = Number(m.haber) || 0;
+          if (subId && h > 0) map[subId] = (map[subId] || 0) + h;
         });
         setCobrado(map);
       } else {
         setCobrado({});
       }
+
 
       // Load emails linked to these inscriptos by recipient email (best-effort)
       const emailsList = Array.from(new Set(list.map((s) => s.alumno?.email).filter(Boolean))) as string[];

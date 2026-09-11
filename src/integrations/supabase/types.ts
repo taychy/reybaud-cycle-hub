@@ -16275,6 +16275,15 @@ export type Database = {
           test: number
         }[]
       }
+      run_cuenta_corriente_pagos_parciales_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
       run_financial_regression_tests: {
         Args: never
         Returns: {
