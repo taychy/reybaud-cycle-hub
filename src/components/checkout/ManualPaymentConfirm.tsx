@@ -29,6 +29,8 @@ interface ManualPaymentConfirmProps {
   upgradeFromSubId?: string | null;
   /** Override fecha_fin (used for Pausa: forces sub.fecha_fin = fecha de regreso elegida). */
   overrideFechaFin?: string | null;
+  /** Período que el alumno está comprando (fuente de verdad; ignora el día del pago). */
+  periodo?: { fechaInicio: string; fechaFin: string } | null;
   onProcessing: (v: boolean) => void;
 }
 
@@ -56,6 +58,7 @@ const ManualPaymentConfirm = ({
   otherDetail,
   upgradeFromSubId,
   overrideFechaFin,
+  periodo,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
