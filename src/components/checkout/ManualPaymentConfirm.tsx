@@ -87,6 +87,11 @@ const ManualPaymentConfirm = ({
     } else if (overrideFechaFin) {
       fechaInicio = startOfCalendarMonth();
       fechaFin = overrideFechaFin;
+    } else if (periodo?.fechaInicio && periodo?.fechaFin) {
+      // Período que el alumno eligió comprar (puede ser el mes siguiente si paga
+      // sobre el final del mes en curso).
+      fechaInicio = periodo.fechaInicio;
+      fechaFin = periodo.fechaFin;
     } else {
       fechaInicio = currentPeriod.fechaInicio;
       fechaFin = currentPeriod.fechaFin;
