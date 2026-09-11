@@ -16,6 +16,10 @@ interface CheckoutConfirmStepProps {
   discountName?: string | null;
   discountValue?: number | null;
   discountType?: string | null;
+  /** Mes que se está pagando, ej. "septiembre 2026". */
+  periodoLabel?: string | null;
+  periodoInicio?: string | null;
+  periodoFin?: string | null;
   processing: boolean;
   onConfirm: () => void;
   onBack: () => void;
