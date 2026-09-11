@@ -613,12 +613,8 @@ const PlanSelection = () => {
       if (isPausaPlan) {
         // La pausa SIEMPRE arranca hoy: nunca hereda fechas de una renovación
         // anticipada ("próximo período"), porque suspende el acceso actual.
-        const now = new Date();
-        fechaInicio = now.toISOString().split("T")[0];
-        fechaFin = pausaFechaRegreso || (() => {
-          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-          return lastDay.toISOString().split("T")[0];
-        })();
+        fechaInicio = businessToday();
+        fechaFin = pausaFechaRegreso || endOfCalendarMonth(fechaInicio);
       } else if (earlyRenewalIsFuture && earlyRenewal) {
         fechaInicio = earlyRenewal.fechaInicio;
         fechaFin = earlyRenewal.fechaFin;
