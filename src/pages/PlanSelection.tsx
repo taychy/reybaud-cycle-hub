@@ -798,7 +798,11 @@ const PlanSelection = () => {
         },
         body: JSON.stringify({
           alumno_id: alumnoId,
-          plan_id: previousSub?.planId ?? null,
+          // La elección explícita del alumno gana sobre el plan histórico.
+          plan_id: selectedPlan?.id ?? previousSub?.planId ?? null,
+          plan_explicito: !!selectedPlan,
+          fecha_inicio: purchasePeriod.fechaInicio,
+          fecha_fin: purchasePeriod.fechaFin,
           payment_type: "plataforma_externa",
           tipo: "pago_externo",
         }),
@@ -909,6 +913,7 @@ const PlanSelection = () => {
             otherDetail={otherMethodDetail}
             upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
             overrideFechaFin={selectedPlan.categoria === "pausa" ? pausaFechaRegreso : null}
+            periodo={selectedPlan.categoria === "pausa" ? null : purchasePeriod}
             onProcessing={setProcessing}
           />
         </div>
@@ -1353,6 +1358,13 @@ const PlanSelection = () => {
               discountName={selectedDiscount.discount?.nombre}
               discountValue={selectedDiscount.discount?.valor}
               discountType={selectedDiscount.discount?.tipo}
+              periodoLabel={
+                selectedPlan.categoria === "pausa" || selectedPlan.frecuencia !== "mensual"
+                  ? null
+                  : monthLabel(purchasePeriod.fechaInicio)
+              }
+              periodoInicio={selectedPlan.categoria === "pausa" ? null : purchasePeriod.fechaInicio}
+              periodoFin={selectedPlan.categoria === "pausa" ? null : purchasePeriod.fechaFin}
               processing={processing}
               onConfirm={handleConfirm}
               onBack={() => setStep("select-method")}
