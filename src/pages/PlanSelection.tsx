@@ -61,7 +61,40 @@ type CheckoutStep = "select-plan" | "select-modality" | "select-method" | "confi
 
 const PlanSelection = () => {
   const navigate = useNavigate();
-  const alumnoId = localStorage.getItem("registro_alumno_id");
+  // Identidad del checkout. Arranca del valor guardado (para no romper la sesión
+  // persistente ni el flujo de registro sin login), pero si hay sesión activa se
+  // valida contra la ficha real de esa sesión: nunca se le cobra una renovación
+  // al alumno equivocado por un localStorage viejo de un dispositivo compartido.
+  const [alumnoId, setAlumnoId] = useState<string | null>(() =>
+    localStorage.getItem("registro_alumno_id"),
+  );
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (!user || cancel) return; // sin sesión: flujo de registro, no forzamos login
+      const email = (user.email || "").toLowerCase();
+      const { data: ficha } = await supabase
+        .from("alumnos")
+        .select("id")
+        .or(`user_id.eq.${user.id}${email ? `,email.eq.${email}` : ""}`)
+        .limit(1)
+        .maybeSingle();
+      const sessionAlumnoId = (ficha as any)?.id as string | undefined;
+      if (cancel || !sessionAlumnoId) return;
+      setAlumnoId((prev) => {
+        if (prev === sessionAlumnoId) return prev;
+        console.warn("[PlanSelection] alumno_id de localStorage no coincide con la sesión; se usa el de la sesión");
+        localStorage.setItem("registro_alumno_id", sessionAlumnoId);
+        return sessionAlumnoId;
+      });
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
   const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
