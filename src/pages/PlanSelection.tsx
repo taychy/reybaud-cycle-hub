@@ -218,7 +218,7 @@ const PlanSelection = () => {
     if (!alumnoId || !earlyRenewal) return;
     let cancel = false;
     (async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = businessToday();
       const { data, error: qErr } = await supabase
         .from("suscripciones")
         .select("id")
@@ -244,7 +244,7 @@ const PlanSelection = () => {
     if (!alumnoId) return;
     let cancel = false;
     (async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = businessToday();
 
       // Auto-purga del REUSE_SUB_KEY: si el id guardado no corresponde a este
       // alumno o ya no está en un estado reutilizable/vigente, lo limpiamos
@@ -382,7 +382,7 @@ const PlanSelection = () => {
     setEndingPausa(true);
     setError(null);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = businessToday();
       const { data: pausas } = await supabase
         .from("suscripciones")
         .select("id, planes!inner(categoria)")
@@ -704,7 +704,7 @@ const PlanSelection = () => {
             setError("La pausa no puede durar más de 2 meses.");
           } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
             // Diferenciar: ¿es el MISMO plan que ya tiene activo/pagado?
-            const today = new Date().toISOString().split("T")[0];
+            const today = businessToday();
             const { data: sameActive } = await supabase
               .from("suscripciones")
               .select("id, fecha_fin, estado, planes(nombre)")
