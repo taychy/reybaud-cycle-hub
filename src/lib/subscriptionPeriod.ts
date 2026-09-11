@@ -4,33 +4,28 @@
  * Business rule: todas las suscripciones mensuales cierran el último día
  * del mes calendario de la fecha de inicio. No se permite "30 días rolling".
  * Si se paga el 09/06, la sub vence el 30/06 (no el 08/07).
+ *
+ * Todas las fechas "hoy" se resuelven en la zona de negocio
+ * (America/Argentina/Buenos_Aires), nunca en UTC ni en la zona del navegador.
  */
 
+import { businessDateParts, businessToday, daysInMonth, isoDateParts } from "@/lib/businessTime";
+
+function partsOf(input?: string | Date) {
+  if (!input) return businessDateParts();
+  if (typeof input === "string") return isoDateParts(input);
+  return businessDateParts(input);
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
+
 /**
- * Devuelve el último día (YYYY-MM-DD, hora local) del mes calendario de la fecha dada.
- * Acepta un string YYYY-MM-DD o un Date. Si no se pasa nada, usa hoy.
+ * Devuelve el último día (YYYY-MM-DD) del mes calendario de la fecha dada.
+ * Acepta un string YYYY-MM-DD o un Date. Si no se pasa nada, usa hoy (zona de negocio).
  */
 export function endOfCalendarMonth(input?: string | Date): string {
-  let y: number;
-  let m: number; // 1-12
-  if (!input) {
-    const d = new Date();
-    y = d.getFullYear();
-    m = d.getMonth() + 1;
-  } else if (typeof input === "string") {
-    const [ys, ms] = input.substring(0, 10).split("-");
-    y = parseInt(ys, 10);
-    m = parseInt(ms, 10);
-  } else {
-    y = input.getFullYear();
-    m = input.getMonth() + 1;
-  }
-  // Day 0 del mes siguiente = último día del mes actual
-  const last = new Date(y, m, 0);
-  const ystr = String(last.getFullYear());
-  const mstr = String(last.getMonth() + 1).padStart(2, "0");
-  const dstr = String(last.getDate()).padStart(2, "0");
-  return `${ystr}-${mstr}-${dstr}`;
+  const { year, month } = partsOf(input);
+  return `${year}-${pad(month)}-${pad(daysInMonth(year, month))}`;
 }
 
 /**
@@ -39,21 +34,8 @@ export function endOfCalendarMonth(input?: string | Date): string {
  * sin importar el día en que se paga ni si es la primera compra.
  */
 export function startOfCalendarMonth(input?: string | Date): string {
-  let y: number;
-  let m: number; // 1-12
-  if (!input) {
-    const d = new Date();
-    y = d.getFullYear();
-    m = d.getMonth() + 1;
-  } else if (typeof input === "string") {
-    const [ys, ms] = input.substring(0, 10).split("-");
-    y = parseInt(ys, 10);
-    m = parseInt(ms, 10);
-  } else {
-    y = input.getFullYear();
-    m = input.getMonth() + 1;
-  }
-  return `${y}-${String(m).padStart(2, "0")}-01`;
+  const { year, month } = partsOf(input);
+  return `${year}-${pad(month)}-01`;
 }
 
 /** Período calendario completo (día 1 → último día) del mes de la fecha dada. */
@@ -64,10 +46,10 @@ export function calendarMonthPeriod(input?: string | Date): { fechaInicio: strin
 
 /** Período siguiente al que termina en `fechaFin`: siempre el día 1 del mes próximo. */
 export function nextCalendarMonthPeriod(fechaFin: string): { fechaInicio: string; fechaFin: string } {
-  const [y, m] = fechaFin.substring(0, 10).split("-").map(Number);
-  const nextY = m === 12 ? y + 1 : y;
-  const nextM = m === 12 ? 1 : m + 1;
-  return calendarMonthPeriod(`${nextY}-${String(nextM).padStart(2, "0")}-01`);
+  const { year, month } = isoDateParts(fechaFin);
+  const nextY = month === 12 ? year + 1 : year;
+  const nextM = month === 12 ? 1 : month + 1;
+  return calendarMonthPeriod(`${nextY}-${pad(nextM)}-01`);
 }
 
 /**
@@ -83,14 +65,14 @@ export type PurchasePeriodReason =
   | "late_month"
   | "current_month";
 
+/** Intención explícita del flujo que inició la compra. */
+export type PurchaseIntent = "buy_now" | "renew_next_period";
+
 export interface PurchasePeriod {
   fechaInicio: string;
   fechaFin: string;
   reason: PurchasePeriodReason;
-}
-
-function lastDayOfMonth(d: Date): number {
-  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+  intent: PurchaseIntent;
 }
 
 /**
@@ -107,30 +89,40 @@ function lastDayOfMonth(d: Date): number {
  * La fecha real del pago no se toca nunca: sólo se decide el período de la obligación.
  */
 export function resolvePurchasePeriod(opts?: {
-  today?: Date;
+  /** Instante (o fecha YYYY-MM-DD) de la compra. Se interpreta en zona de negocio. */
+  today?: Date | string;
   earlyRenewalPeriod?: { fechaInicio: string; fechaFin: string } | null;
   coveredUntil?: string | null;
 }): PurchasePeriod {
-  const today = opts?.today ?? new Date();
-  const current = calendarMonthPeriod(today);
+  const todayIso =
+    typeof opts?.today === "string"
+      ? opts.today.substring(0, 10)
+      : businessToday(opts?.today ?? new Date());
+  const current = calendarMonthPeriod(todayIso);
 
   const early = opts?.earlyRenewalPeriod;
   if (early?.fechaInicio && early.fechaInicio > current.fechaInicio) {
-    return { fechaInicio: early.fechaInicio, fechaFin: early.fechaFin, reason: "early_renewal" };
+    return {
+      fechaInicio: early.fechaInicio,
+      fechaFin: early.fechaFin,
+      reason: "early_renewal",
+      intent: "renew_next_period",
+    };
   }
 
   const covered = opts?.coveredUntil?.substring(0, 10);
   if (covered && covered >= current.fechaFin) {
     const next = nextCalendarMonthPeriod(current.fechaFin);
-    return { ...next, reason: "covered_current_month" };
+    return { ...next, reason: "covered_current_month", intent: "renew_next_period" };
   }
 
-  if (today.getDate() > lastDayOfMonth(today) - LATE_MONTH_DAYS) {
+  const { year, month, day } = isoDateParts(todayIso);
+  if (day > daysInMonth(year, month) - LATE_MONTH_DAYS) {
     const next = nextCalendarMonthPeriod(current.fechaFin);
-    return { ...next, reason: "late_month" };
+    return { ...next, reason: "late_month", intent: "renew_next_period" };
   }
 
-  return { ...current, reason: "current_month" };
+  return { ...current, reason: "current_month", intent: "buy_now" };
 }
 
 const MONTH_NAMES = [
@@ -140,8 +132,7 @@ const MONTH_NAMES = [
 
 /** "septiembre 2026" a partir de un YYYY-MM-DD, sin drift de zona horaria. */
 export function monthLabel(iso: string): string {
-  const [y, m] = iso.substring(0, 10).split("-").map(Number);
-  if (!y || !m) return "";
-  return `${MONTH_NAMES[m - 1]} ${y}`;
+  const { year, month } = isoDateParts(iso);
+  if (!year || !month) return "";
+  return `${MONTH_NAMES[month - 1]} ${year}`;
 }
-

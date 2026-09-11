@@ -76,3 +76,7 @@
 - [x] "Ya hice el pago" envía el plan elegido por el alumno y el período; sin plan explícito ya no se genera obligación con el plan histórico
 - [x] `notify-cash-payment` reutiliza la obligación del mismo plan/período y no duplica si el período ya está cubierto
 - [x] Pruebas nuevas de período de compra (9) + batería completa (376) en verde
+- [x] Zona horaria de negocio: nuevo `src/lib/businessTime.ts` (America/Argentina/Buenos_Aires). Todo "hoy" del checkout, de la reutilización de suscripciones y de `notify-cash-payment` usa hora argentina, nunca UTC ni la del navegador
+- [x] El período de compra declara su intención (`buy_now` vs `renew_next_period`) y viaja explícito hasta la creación de la suscripción y el checkout
+- [x] Identidad del checkout validada contra la sesión activa (si hay sesión, gana la ficha de esa sesión; sin sesión no se fuerza login)
+- [x] Regresiones nuevas de borde: 31/08 21:48 ART (= 01/09 UTC), febrero bisiesto y no bisiesto, fin de año, compra inmediata vs renovación anticipada. 381 pruebas en verde

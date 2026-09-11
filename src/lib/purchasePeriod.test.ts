@@ -64,3 +64,55 @@ describe("monthLabel", () => {
     expect(monthLabel("2027-01-01")).toBe("enero 2027");
   });
 });
+
+describe("zona horaria de negocio (America/Argentina/Buenos_Aires)", () => {
+  // 31/08/2026 21:48 en Argentina == 01/09/2026 00:48 UTC.
+  const AUG_31_ART_NIGHT = new Date("2026-09-01T00:48:00Z");
+
+  it("un pago del 31/08 a la noche (Argentina) NO se imputa a septiembre por UTC ni a agosto por fecha", () => {
+    const p = resolvePurchasePeriod({ today: AUG_31_ART_NIGHT });
+    // Sigue siendo 31/08 en Argentina → últimos días del mes → compra septiembre
+    expect(p.fechaInicio).toBe("2026-09-01");
+    expect(p.fechaFin).toBe("2026-09-30");
+    expect(p.reason).toBe("late_month");
+    expect(p.intent).toBe("renew_next_period");
+  });
+
+  it("el mes calendario se calcula en hora argentina, no en UTC", () => {
+    // 01/09/2026 02:00 UTC == 31/08/2026 23:00 en Argentina
+    expect(calendarMonthPeriod(new Date("2026-09-01T02:00:00Z")).fechaInicio).toBe("2026-08-01");
+    // 01/09/2026 12:00 UTC == 01/09/2026 09:00 en Argentina
+    expect(calendarMonthPeriod(new Date("2026-09-01T12:00:00Z")).fechaInicio).toBe("2026-09-01");
+  });
+
+  it("febrero: compra a mitad de mes y compra sobre el cierre", () => {
+    expect(resolvePurchasePeriod({ today: "2027-02-10" })).toMatchObject({
+      fechaInicio: "2027-02-01",
+      fechaFin: "2027-02-28",
+      reason: "current_month",
+    });
+    expect(resolvePurchasePeriod({ today: "2028-02-28" })).toMatchObject({
+      fechaInicio: "2028-03-01",
+      fechaFin: "2028-03-31",
+    });
+    // 2028 es bisiesto: el 27/02 todavía es compra de febrero
+    expect(resolvePurchasePeriod({ today: "2028-02-27" }).fechaInicio).toBe("2028-02-01");
+  });
+
+  it("fin de año en hora argentina cruza a enero", () => {
+    // 01/01/2027 01:00 UTC == 31/12/2026 22:00 en Argentina
+    const p = resolvePurchasePeriod({ today: new Date("2027-01-01T01:00:00Z") });
+    expect(p.fechaInicio).toBe("2027-01-01");
+    expect(p.fechaFin).toBe("2027-01-31");
+  });
+
+  it("distingue compra inmediata de renovación anticipada", () => {
+    expect(resolvePurchasePeriod({ today: "2026-09-10" }).intent).toBe("buy_now");
+    expect(
+      resolvePurchasePeriod({
+        today: "2026-09-10",
+        earlyRenewalPeriod: { fechaInicio: "2026-10-01", fechaFin: "2026-10-31" },
+      }).intent,
+    ).toBe("renew_next_period");
+  });
+});

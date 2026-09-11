@@ -90,21 +90,31 @@ Deno.serve(async (req) => {
     // Período de la obligación: el que llegó del checkout (lo que el alumno
     // está comprando). Si no vino, mes calendario, con la salvedad de que un
     // aviso de los últimos 2 días del mes corresponde al mes siguiente.
-    const iso = (d: Date) =>
-      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    // La fecha "hoy" SIEMPRE se resuelve en zona de negocio (Argentina): en UTC,
+    // el 31/08 21:48 hora argentina ya es 01/09 y el período salía mal.
+    const BUSINESS_TZ = "America/Argentina/Buenos_Aires";
+    const businessToday = new Intl.DateTimeFormat("en-CA", {
+      timeZone: BUSINESS_TZ,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(new Date());
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const lastDay = (y: number, m: number) => new Date(Date.UTC(y, m, 0)).getUTCDate();
+
     let fechaInicio: string;
     let fechaFinal: string;
     if (typeof fecha_inicio === "string" && typeof fecha_fin === "string") {
       fechaInicio = fecha_inicio.substring(0, 10);
       fechaFinal = fecha_fin.substring(0, 10);
     } else {
-      const now = new Date();
-      const lastDayCurrent = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
-      const targetsNextMonth = now.getDate() > lastDayCurrent - 2;
-      const y = now.getFullYear();
-      const m = now.getMonth() + (targetsNextMonth ? 1 : 0);
-      fechaInicio = iso(new Date(y, m, 1));
-      fechaFinal = iso(new Date(y, m + 1, 0));
+      const [ty, tm, td] = businessToday.split("-").map(Number);
+      const targetsNextMonth = td > lastDay(ty, tm) - 2;
+      let y = ty;
+      let m = tm + (targetsNextMonth ? 1 : 0);
+      if (m > 12) { m = 1; y += 1; }
+      fechaInicio = `${y}-${pad(m)}-01`;
+      fechaFinal = `${y}-${pad(m)}-${pad(lastDay(y, m))}`;
     }
 
     const metodoPago = payment_type === "plataforma_externa" || tipo === "pago_externo"

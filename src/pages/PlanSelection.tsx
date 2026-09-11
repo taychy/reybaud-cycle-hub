@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { formatPrice } from "@/lib/currency";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
-import { calendarMonthPeriod, resolvePurchasePeriod, monthLabel } from "@/lib/subscriptionPeriod";
+import { calendarMonthPeriod, resolvePurchasePeriod, monthLabel, endOfCalendarMonth } from "@/lib/subscriptionPeriod";
+import { businessToday } from "@/lib/businessTime";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
@@ -60,7 +61,40 @@ type CheckoutStep = "select-plan" | "select-modality" | "select-method" | "confi
 
 const PlanSelection = () => {
   const navigate = useNavigate();
-  const alumnoId = localStorage.getItem("registro_alumno_id");
+  // Identidad del checkout. Arranca del valor guardado (para no romper la sesión
+  // persistente ni el flujo de registro sin login), pero si hay sesión activa se
+  // valida contra la ficha real de esa sesión: nunca se le cobra una renovación
+  // al alumno equivocado por un localStorage viejo de un dispositivo compartido.
+  const [alumnoId, setAlumnoId] = useState<string | null>(() =>
+    localStorage.getItem("registro_alumno_id"),
+  );
+
+  useEffect(() => {
+    let cancel = false;
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const user = data.session?.user;
+      if (!user || cancel) return; // sin sesión: flujo de registro, no forzamos login
+      const email = (user.email || "").toLowerCase();
+      const { data: ficha } = await supabase
+        .from("alumnos")
+        .select("id")
+        .or(`user_id.eq.${user.id}${email ? `,email.eq.${email}` : ""}`)
+        .limit(1)
+        .maybeSingle();
+      const sessionAlumnoId = (ficha as any)?.id as string | undefined;
+      if (cancel || !sessionAlumnoId) return;
+      setAlumnoId((prev) => {
+        if (prev === sessionAlumnoId) return prev;
+        console.warn("[PlanSelection] alumno_id de localStorage no coincide con la sesión; se usa el de la sesión");
+        localStorage.setItem("registro_alumno_id", sessionAlumnoId);
+        return sessionAlumnoId;
+      });
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, []);
   const isRenewal = localStorage.getItem("alumno_renewal") === "1";
   const isFromVacation = localStorage.getItem("alumno_from_vacation") === "1";
   const upgradeFromSubId = localStorage.getItem("upgrade_from_sub_id");
@@ -218,7 +252,7 @@ const PlanSelection = () => {
     if (!alumnoId || !earlyRenewal) return;
     let cancel = false;
     (async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = businessToday();
       const { data, error: qErr } = await supabase
         .from("suscripciones")
         .select("id")
@@ -244,7 +278,7 @@ const PlanSelection = () => {
     if (!alumnoId) return;
     let cancel = false;
     (async () => {
-      const today = new Date().toISOString().split("T")[0];
+      const today = businessToday();
 
       // Auto-purga del REUSE_SUB_KEY: si el id guardado no corresponde a este
       // alumno o ya no está en un estado reutilizable/vigente, lo limpiamos
@@ -382,7 +416,7 @@ const PlanSelection = () => {
     setEndingPausa(true);
     setError(null);
     try {
-      const today = new Date().toISOString().split("T")[0];
+      const today = businessToday();
       const { data: pausas } = await supabase
         .from("suscripciones")
         .select("id, planes!inner(categoria)")
@@ -613,12 +647,8 @@ const PlanSelection = () => {
       if (isPausaPlan) {
         // La pausa SIEMPRE arranca hoy: nunca hereda fechas de una renovación
         // anticipada ("próximo período"), porque suspende el acceso actual.
-        const now = new Date();
-        fechaInicio = now.toISOString().split("T")[0];
-        fechaFin = pausaFechaRegreso || (() => {
-          const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-          return lastDay.toISOString().split("T")[0];
-        })();
+        fechaInicio = businessToday();
+        fechaFin = pausaFechaRegreso || endOfCalendarMonth(fechaInicio);
       } else if (earlyRenewalIsFuture && earlyRenewal) {
         fechaInicio = earlyRenewal.fechaInicio;
         fechaFin = earlyRenewal.fechaFin;
@@ -704,7 +734,7 @@ const PlanSelection = () => {
             setError("La pausa no puede durar más de 2 meses.");
           } else if (msg.includes("DUPLICATE_GRUPAL_CATEGORY")) {
             // Diferenciar: ¿es el MISMO plan que ya tiene activo/pagado?
-            const today = new Date().toISOString().split("T")[0];
+            const today = businessToday();
             const { data: sameActive } = await supabase
               .from("suscripciones")
               .select("id, fecha_fin, estado, planes(nombre)")

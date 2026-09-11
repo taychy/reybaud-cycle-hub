@@ -12,6 +12,7 @@
  */
 
 import { supabase } from "@/integrations/supabase/client";
+import { businessToday } from "@/lib/businessTime";
 
 export const REUSE_SUB_KEY = "alumno_pay_existing_sub_id";
 
@@ -78,7 +79,7 @@ export async function tryReuseExistingSubscription(
   // sub pendiente del mismo alumno+plan cuyo período siga vigente para evitar
   // que el trigger `DUPLICATE_GRUPAL_CATEGORY` bloquee un INSERT redundante.
   if (!existingId) {
-    const today = new Date().toISOString().split("T")[0];
+    const today = businessToday();
     const { data: candidate } = await supabase
       .from("suscripciones")
       .select("id")
@@ -129,7 +130,7 @@ export async function closeOrphanPendingSubs(
   paidSubId?: string,
 ): Promise<void> {
   try {
-    const today = new Date().toISOString().split("T")[0];
+    const today = businessToday();
     const { data: orphans } = await supabase
       .from("suscripciones")
       .select("id, plan_id, planes:plan_id(nombre)")
