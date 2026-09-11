@@ -68,3 +68,11 @@
 - [x] Las mensualidades en estado pendiente vuelven a aparecer como deuda aplicable (la renovación automática precargaba "efectivo" y la presunción de pago las ocultaba)
 - [x] Se descuenta lo ya aplicado desde saldos a favor para no ofrecer dos veces la misma deuda
 - [ ] Sin cambios en datos financieros históricos (caso Paula Blasco se resuelve desde la pantalla)
+
+## Período de la mensualidad y plan elegido (caso Laura Palermo)
+- [x] Corrección de datos: el Pase Libre pagado el 31/08 pasó a período septiembre (01/09–30/09, activa); se anuló la cuota de Grupal 2x de septiembre creada por error. Pago de Mercado Pago y su fecha real intactos. Saldo de septiembre: 0.
+- [x] El período que se compra ya no depende del día del pago: `resolvePurchasePeriod` (últimos 2 días del mes → mes siguiente; mes ya cubierto → mes siguiente; renovación anticipada explícita manda)
+- [x] Checkout muestra "Estás pagando <mes>" con las fechas antes de ir a pagar
+- [x] "Ya hice el pago" envía el plan elegido por el alumno y el período; sin plan explícito ya no se genera obligación con el plan histórico
+- [x] `notify-cash-payment` reutiliza la obligación del mismo plan/período y no duplica si el período ya está cubierto
+- [x] Pruebas nuevas de período de compra (9) + batería completa (376) en verde
