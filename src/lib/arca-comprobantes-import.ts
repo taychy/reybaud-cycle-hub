@@ -52,7 +52,10 @@ function findValue(row: Record<string, string>, header: string): string {
 }
 
 function parseMoney(value: string): number | null {
-  const raw = value.trim().replace(/\s/g, "");
+  const raw = value
+    .trim()
+    .replace(/\s/g, "")
+    .replace(/[^0-9,.-]/g, "");
   if (!raw) return null;
 
   const normalized = raw.includes(",")
@@ -168,7 +171,7 @@ export function parseArcaComprobantesRows(
 export async function readArcaComprobantesXlsx(file: File): Promise<ArcaImportPreview> {
   const workbook = new Workbook();
   const buffer = await file.arrayBuffer();
-  await workbook.xlsx.load(buffer);
+  await workbook.xlsx.load(buffer as unknown as Parameters<typeof workbook.xlsx.load>[0]);
 
   const worksheet = workbook.worksheets[0];
   if (!worksheet) throw new Error("El archivo no contiene hojas de cálculo.");
