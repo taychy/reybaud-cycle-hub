@@ -31,6 +31,8 @@ interface ManualPaymentConfirmProps {
   overrideFechaFin?: string | null;
   /** Período que el alumno está comprando (fuente de verdad; ignora el día del pago). */
   periodo?: { fechaInicio: string; fechaFin: string } | null;
+  /** El período fue elegido explícitamente (reingreso): manda sobre cualquier inferencia. */
+  periodoExplicito?: boolean;
   onProcessing: (v: boolean) => void;
 }
 
@@ -59,6 +61,7 @@ const ManualPaymentConfirm = ({
   upgradeFromSubId,
   overrideFechaFin,
   periodo,
+  periodoExplicito,
   onProcessing,
 }: ManualPaymentConfirmProps) => {
   const navigate = useNavigate();
@@ -78,10 +81,16 @@ const ManualPaymentConfirm = ({
     const currentPeriod = calendarMonthPeriod();
     // Si el contexto apunta al mes en curso, no es una "renovación anticipada":
     // tratamos el pago como del período actual y priorizamos reutilizar la sub pendiente.
-    const isFuturePeriod = !!earlyRenewal && earlyRenewal.fechaInicio > currentPeriod.fechaInicio;
+    const explicitPeriod = !!periodoExplicito && !!periodo?.fechaInicio && !!periodo?.fechaFin;
+    const isFuturePeriod =
+      !explicitPeriod && !!earlyRenewal && earlyRenewal.fechaInicio > currentPeriod.fechaInicio;
     let fechaInicio: string;
     let fechaFin: string;
-    if (earlyRenewal && isFuturePeriod) {
+    if (explicitPeriod && periodo) {
+      // Reingreso: el alumno eligió el período de forma explícita.
+      fechaInicio = periodo.fechaInicio;
+      fechaFin = periodo.fechaFin;
+    } else if (earlyRenewal && isFuturePeriod) {
       fechaInicio = earlyRenewal.fechaInicio;
       fechaFin = earlyRenewal.fechaFin;
     } else if (overrideFechaFin) {

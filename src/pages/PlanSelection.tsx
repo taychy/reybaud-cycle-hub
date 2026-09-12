@@ -17,8 +17,17 @@ import CheckoutConfirmStep from "@/components/checkout/CheckoutConfirmStep";
 import ManualPaymentConfirm from "@/components/checkout/ManualPaymentConfirm";
 import { getEffectiveSubStatus } from "@/lib/subscriptionStatus";
 import { getEarlyRenewal, clearEarlyRenewal, formatLocalDate, revalidateEarlyRenewalSource } from "@/lib/earlyRenewal";
-import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs, closeOrphanPendingSubs } from "@/lib/paymentReuseSub";
+import { tryReuseExistingSubscription, clearReuseSubId, getReuseSubId, expireStaleSubs, closeOrphanPendingSubs, setReuseSubId } from "@/lib/paymentReuseSub";
 import PausaConfirmDialog from "@/components/PausaConfirmDialog";
+import ReingresoPeriodStep from "@/components/checkout/ReingresoPeriodStep";
+import {
+  parseReingresoContext,
+  needsPeriodChoice,
+  effectivePurchasePeriod,
+  existingSubForPeriod,
+  type ReingresoContext,
+  type ReingresoOption,
+} from "@/lib/reingreso";
 
 interface Plan {
   id: string;
@@ -57,7 +66,7 @@ const frecuenciaLabels: Record<string, string> = {
 import type { DeclaredPaymentMethod } from "@/components/checkout/CheckoutMethodStep";
 
 type PaymentMethod = DeclaredPaymentMethod;
-type CheckoutStep = "select-plan" | "select-modality" | "select-method" | "confirm" | "processing" | "card-form";
+type CheckoutStep = "select-plan" | "select-period" | "select-modality" | "select-method" | "confirm" | "processing" | "card-form";
 
 const PlanSelection = () => {
   const navigate = useNavigate();
@@ -120,6 +129,26 @@ const PlanSelection = () => {
   const [otherMethodDetail, setOtherMethodDetail] = useState<string | null>(null);
   const [previousSub, setPreviousSub] = useState<PreviousSubInfo | null>(null);
   const [renewalContextLoaded, setRenewalContextLoaded] = useState(!isRenewal);
+  // Reingreso: si el alumno viene de una baja o de un corte de continuidad, el
+  // período NO se infiere — se lo pedimos explícitamente y lo guardamos en backend.
+  const [reingresoCtx, setReingresoCtx] = useState<ReingresoContext | null>(null);
+  const [chosenPeriod, setChosenPeriod] = useState<ReingresoOption | null>(null);
+  const [reingresoSeleccionId, setReingresoSeleccionId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!alumnoId) return;
+    let cancel = false;
+    (async () => {
+      const { data, error: ctxErr } = await supabase.rpc("get_reingreso_checkout_context" as any, {
+        p_alumno_id: alumnoId,
+      });
+      if (cancel || ctxErr) return;
+      setReingresoCtx(parseReingresoContext(data));
+    })();
+    return () => {
+      cancel = true;
+    };
+  }, [alumnoId]);
   const [notifyDone, setNotifyDone] = useState(false);
   const [notifyProcessing, setNotifyProcessing] = useState(false);
   const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
@@ -463,12 +492,14 @@ const PlanSelection = () => {
 
   // Período que el alumno está comprando (fuente de verdad para mostrar y para
   // crear la obligación). No depende del día en que se procesa el pago.
-  const purchasePeriod = resolvePurchasePeriod({
+  // Si hubo elección explícita de reingreso, esa elección manda.
+  const inferredPeriod = resolvePurchasePeriod({
     earlyRenewalPeriod: earlyRenewal
       ? { fechaInicio: earlyRenewal.fechaInicio, fechaFin: earlyRenewal.fechaFin }
       : null,
     coveredUntil: previousSub?.fechaFin ?? null,
   });
+  const purchasePeriod = effectivePurchasePeriod(inferredPeriod, chosenPeriod);
 
 
 

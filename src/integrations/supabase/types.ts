@@ -8927,6 +8927,51 @@ export type Database = {
         }
         Relationships: []
       }
+      reingreso_selecciones: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          motivo: string | null
+          mp_payment_id: string | null
+          origen: string
+          periodo_fin: string
+          periodo_inicio: string
+          plan_id: string | null
+          suscripcion_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motivo?: string | null
+          mp_payment_id?: string | null
+          origen?: string
+          periodo_fin: string
+          periodo_inicio: string
+          plan_id?: string | null
+          suscripcion_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          motivo?: string | null
+          mp_payment_id?: string | null
+          origen?: string
+          periodo_fin?: string
+          periodo_inicio?: string
+          plan_id?: string | null
+          suscripcion_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reservas_turnera: {
         Row: {
           acepto_politica: boolean
@@ -14747,6 +14792,14 @@ export type Database = {
         Args: { _chequeo_id: string; _notas?: string }
         Returns: Json
       }
+      completar_seleccion_reingreso: {
+        Args: {
+          p_id: string
+          p_mp_payment_id?: string
+          p_suscripcion_id?: string
+        }
+        Returns: boolean
+      }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
@@ -15445,6 +15498,10 @@ export type Database = {
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
       get_public_program: { Args: { _cohort_slug: string }; Returns: Json }
+      get_reingreso_checkout_context: {
+        Args: { p_alumno_id: string }
+        Returns: Json
+      }
       get_reingreso_status: { Args: { p_alumno_id: string }; Returns: Json }
       get_reserva_turnera_by_token: {
         Args: { _id: string; _token: string }
@@ -16062,6 +16119,18 @@ export type Database = {
           p_referencia?: string
           p_reservation_id?: string
           p_reservation_payment_id?: string
+          p_suscripcion_id?: string
+        }
+        Returns: string
+      }
+      registrar_seleccion_reingreso: {
+        Args: {
+          p_alumno_id: string
+          p_fecha_fin: string
+          p_fecha_inicio: string
+          p_motivo?: string
+          p_origen?: string
+          p_plan_id: string
           p_suscripcion_id?: string
         }
         Returns: string
