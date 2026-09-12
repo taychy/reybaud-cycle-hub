@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2/cors";
+import { resolveClienteFiscal } from "../_shared/fiscal-identity.ts";
 
 type Segmento = "escuela" | "viajes" | "tienda";
 
@@ -295,8 +296,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         factura_id: factura.id,
         emisor_id: emisorElegido.id,
-        cliente_cuit: alumno?.documento || null,
-        condicion_fiscal: "consumidor_final",
+        cliente_cuit: documentoValido,
+        condicion_fiscal: condicionCliente,
       }),
     });
 
