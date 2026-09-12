@@ -329,8 +329,8 @@ Deno.serve(async (req) => {
       .from("facturas")
       .update({
         emisor_id: emisor_id,
-        cliente_cuit: cliente_cuit || null,
-        condicion_fiscal: condicion_fiscal,
+        cliente_cuit: clienteCuitClean,
+        condicion_fiscal: condicionEfectiva,
         estado: "emitida",
         numero_comprobante: nroComprobante,
         tipo_comprobante: comprobante.tipo,
