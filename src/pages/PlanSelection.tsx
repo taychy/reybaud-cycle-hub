@@ -588,9 +588,8 @@ const PlanSelection = () => {
     setStep("select-method");
   };
 
-  const handleContinueFromPlan = () => {
-    if (!selected) return;
-    const plan = planes.find(p => p.id === selected);
+  const goAfterPeriod = () => {
+    const plan = planes.find((p) => p.id === selected);
     if (plan?.tipo === "programa" && plan.cuotas_cantidad && plan.cuota_valor) {
       setStep("select-modality");
     } else {
@@ -598,6 +597,52 @@ const PlanSelection = () => {
       setStep("select-method");
     }
   };
+
+  const handleContinueFromPlan = () => {
+    if (!selected) return;
+    const plan = planes.find(p => p.id === selected);
+    // Reingreso: antes de cualquier checkout, el alumno elige qué mensualidad paga.
+    if (
+      needsPeriodChoice({
+        context: reingresoCtx,
+        chosen: chosenPeriod,
+        isUpgrade: isUpgradeFlow,
+        isPausa: plan?.categoria === "pausa",
+        isEarlyRenewal,
+        scheduleAfterPausa,
+      })
+    ) {
+      setStep("select-period");
+      return;
+    }
+    goAfterPeriod();
+  };
+
+  /** Guarda la elección en backend (no en localStorage) y sigue al checkout. */
+  const handleSelectReingresoPeriod = async (option: ReingresoOption) => {
+    setChosenPeriod(option);
+    setError(null);
+    try {
+      const { data } = await supabase.rpc("registrar_seleccion_reingreso" as any, {
+        p_alumno_id: alumnoId,
+        p_plan_id: selected,
+        p_fecha_inicio: option.fechaInicio,
+        p_fecha_fin: option.fechaFin,
+        p_origen: "alumno",
+        p_suscripcion_id: option.suscripcionId,
+        p_motivo: reingresoCtx?.motivo ?? null,
+      });
+      if (typeof data === "string") setReingresoSeleccionId(data);
+    } catch (e) {
+      console.warn("[reingreso] no se pudo registrar la selección", e);
+    }
+    // Si ya existe una obligación para ese período, la reutilizamos (nunca duplicamos).
+    const existing = existingSubForPeriod(reingresoCtx, option);
+    if (existing?.suscripcionId) setReuseSubId(existing.suscripcionId);
+    goAfterPeriod();
+  };
+
+
 
   const handleExitPlans = () => {
     const returnTo = new URLSearchParams(window.location.search).get("returnTo");
