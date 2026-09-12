@@ -80,3 +80,12 @@
 - [x] El período de compra declara su intención (`buy_now` vs `renew_next_period`) y viaja explícito hasta la creación de la suscripción y el checkout
 - [x] Identidad del checkout validada contra la sesión activa (si hay sesión, gana la ficha de esa sesión; sin sesión no se fuerza login)
 - [x] Regresiones nuevas de borde: 31/08 21:48 ART (= 01/09 UTC), febrero bisiesto y no bisiesto, fin de año, compra inmediata vs renovación anticipada. 381 pruebas en verde
+
+## Reingreso: elegir qué mensualidad se paga (caso Emiliano Grosso)
+- [x] Corrección de datos: el pago real de Mercado Pago 175612089827 (31/08, ARS 83.500) quedó imputado a la mensualidad de septiembre; se quitó la acreditación manual duplicada. Cuenta corriente de septiembre: cargo 83.500 + pago 83.500 = 0. La cuota artificial de agosto sigue cancelada y sin haber.
+- [x] Nueva tabla `reingreso_selecciones` + RPCs `get_reingreso_checkout_context`, `registrar_seleccion_reingreso`, `completar_seleccion_reingreso` (con auditoría en audit_log y en el historial del alumno)
+- [x] Si el alumno viene de una baja o de un corte de continuidad, el checkout pregunta "¿Qué mensualidad querés pagar?" con fechas completas, plan y monto, y marca la deuda real si existe
+- [x] La elección se guarda en la base (no en el navegador) y manda sobre cualquier inferencia de período
+- [x] Si ya existe una obligación para el período elegido, se reutiliza; nunca se duplica
+- [x] Alumno activo con continuidad: sigue la renovación automática actual, sin preguntar
+- [x] 10 pruebas nuevas de reingreso; batería completa: 391 en verde
