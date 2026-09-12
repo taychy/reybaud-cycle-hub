@@ -859,7 +859,7 @@ const PlanSelection = () => {
       if (subId && reingresoSeleccionId) {
         await supabase
           .rpc("completar_seleccion_reingreso" as any, {
-            p_seleccion_id: reingresoSeleccionId,
+            p_id: reingresoSeleccionId,
             p_suscripcion_id: subId,
           })
           .then(undefined, () => undefined);
