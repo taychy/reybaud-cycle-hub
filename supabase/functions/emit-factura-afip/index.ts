@@ -247,7 +247,7 @@ Deno.serve(async (req) => {
         monto: factura.monto,
         concepto: 2, // Servicios
         clienteCuit: docOverride?.clienteCuit ?? clienteCuitClean,
-        condicionFiscal: docOverride?.condicionFiscal ?? condicion_fiscal,
+        condicionFiscal: docOverride?.condicionFiscal ?? condicionEfectiva,
         ivaIncluido21: tipo.ivaIncluido21,
       });
 
