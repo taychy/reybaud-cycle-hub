@@ -11,6 +11,22 @@ import { formatPrice } from "@/lib/currency";
 import { BillingInvoiceLauncher, InvoiceSource } from "@/components/admin/BillingInvoiceLauncher";
 import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 import { isFacturaEmitida, edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
+import { AlertTriangle } from "lucide-react";
+import { Link } from "react-router-dom";
+
+interface PreflightRow {
+  cola_id: string;
+  clase: "ok" | "documento_faltante" | "documento_invalido" | "tipo_inconsistente" | "cliente_sin_identidad";
+  mensaje: string | null;
+  alumno_id: string | null;
+}
+
+const PREFLIGHT_UI: Record<string, { label: string; blocking: boolean }> = {
+  documento_faltante: { label: "⚠ Datos fiscales incompletos", blocking: true },
+  documento_invalido: { label: "⚠ Documento inválido", blocking: true },
+  cliente_sin_identidad: { label: "⚠ Sin ficha de cliente", blocking: true },
+  tipo_inconsistente: { label: "Tipo de documento inconsistente", blocking: false },
+};
 
 const PAGE_SIZE = 50;
 
@@ -67,6 +83,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   const [bulkRows, setBulkRows] = useState<BulkFacturaRow[]>([]);
   const [preparing, setPreparing] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
+  const [preflight, setPreflight] = useState<Map<string, PreflightRow>>(new Map());
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -109,14 +126,18 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
     setLoading(true);
     setSelected(new Set());
     try {
-      const [page, emisoresRes] = await Promise.all([
+      const [page, emisoresRes, preflightRes] = await Promise.all([
         fetchPage(0),
         supabase
           .from("emisores_fiscales")
           .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
           .eq("activo", true),
+        supabase.rpc("preflight_facturacion_cola" as any, {}),
       ]);
       setEmisores((emisoresRes.data as any[]) || []);
+      setPreflight(
+        new Map(((preflightRes.data as any[]) || []).map((p: PreflightRow) => [p.cola_id, p])),
+      );
       setRows(page);
       setHasMore(page.length === PAGE_SIZE);
     } catch (e: any) {
@@ -154,7 +175,15 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
     }
   };
 
-  const selectable = useMemo(() => rows.filter((r) => !isFacturaEmitida(r.factura_estado ? { estado: r.factura_estado, cae: r.factura_cae } : null)), [rows]);
+  const isBlocked = useCallback(
+    (id: string) => {
+      const p = preflight.get(id);
+      return !!p && !!PREFLIGHT_UI[p.clase]?.blocking;
+    },
+    [preflight],
+  );
+
+  const selectable = useMemo(() => rows.filter((r) => !isBlocked(r.id)).filter((r) => !isFacturaEmitida(r.factura_estado ? { estado: r.factura_estado, cae: r.factura_cae } : null)), [rows, isBlocked]);
   const allSelected = selectable.length > 0 && selectable.every((r) => selected.has(r.id));
 
   const toInvoiceSource = (r: ColaRow): InvoiceSource => ({
@@ -310,9 +339,12 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
               day: "numeric", month: "short", year: "numeric", timeZone: "America/Argentina/Buenos_Aires",
             });
             const emitida = isFacturaEmitida({ estado: r.factura_estado, cae: r.factura_cae });
+            const pf = preflight.get(r.id);
+            const pfUi = pf ? PREFLIGHT_UI[pf.clase] : undefined;
+            const blocked = !!pfUi?.blocking;
             return (
               <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                {!emitida && (
+                {!emitida && !blocked && (
                   <Checkbox
                     checked={selected.has(r.id)}
                     onCheckedChange={() =>
@@ -332,6 +364,18 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                     {emitida && <Badge variant="default" className="text-[10px]">Facturada</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{r.concepto}</p>
+                  {pfUi && (
+                    <div className={`flex items-center gap-1.5 text-xs ${blocked ? "text-destructive" : "text-yellow-600"}`}>
+                      <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{pfUi.label}</span>
+                      {pf?.mensaje && <span className="text-muted-foreground hidden sm:inline">· {pf.mensaje}</span>}
+                      {r.alumno_id && (
+                        <Link to={`/admin/alumnos?alumno=${r.alumno_id}`} className="underline font-medium">
+                          Abrir ficha
+                        </Link>
+                      )}
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
                     {r.metodo_pago && <span className="bg-muted px-1.5 py-0.5 rounded">{r.metodo_pago}</span>}
@@ -339,7 +383,9 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <p className="text-sm font-bold tabular-nums">{formatPrice(r.monto, r.moneda as any)}</p>
-                  {r.alumno_id ? (
+                  {blocked ? (
+                    <span className="text-xs text-destructive font-medium">Completá los datos fiscales</span>
+                  ) : r.alumno_id ? (
                     <BillingInvoiceLauncher
                       source={toInvoiceSource(r)}
                       variant="default"
