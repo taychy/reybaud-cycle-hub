@@ -161,6 +161,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ==========================================================
+    // Step 0: identidad fiscal ACTUAL del cliente (fuente canónica).
+    // Nunca se emite contra ARCA sin documento válido.
+    // ==========================================================
+    const cliente = await resolveClienteFiscal(adminClient as any, {
+      alumnoId: factura.alumno_id ?? null,
+      snapshotNombre: factura.cliente_nombre ?? null,
+      snapshotDocumento: cliente_cuit ?? factura.cliente_cuit ?? null,
+      snapshotCondicion: condicion_fiscal ?? factura.condicion_fiscal ?? null,
+    });
+
+    if (cliente.identity.clase !== "ok" || !cliente.identity.docNro) {
+      const detalle =
+        cliente.identity.mensaje || "Falta completar/validar DNI o CUIT en la ficha del cliente";
+      await adminClient
+        .from("facturas")
+        .update({
+          estado: "requiere_datos_fiscales",
+          error_detalle: detalle,
+          cliente_nombre: cliente.nombre || factura.cliente_nombre,
+        } as any)
+        .eq("id", factura_id);
+      return new Response(
+        JSON.stringify({ error: `Datos fiscales incompletos: ${detalle}` }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Sincronizar el snapshot de la factura con los datos fiscales vigentes.
+    const condicionEfectiva = cliente.condicionFiscal || condicion_fiscal || "consumidor_final";
+    await adminClient
+      .from("facturas")
+      .update({
+        cliente_nombre: cliente.nombre || factura.cliente_nombre,
+        cliente_cuit: cliente.identity.docNro,
+        condicion_fiscal: condicionEfectiva,
+      } as any)
+      .eq("id", factura_id);
+
     // Step 1: WSAA Authentication
     const wsaaResult = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
     if (wsaaResult.error) {
