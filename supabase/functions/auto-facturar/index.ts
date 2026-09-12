@@ -234,6 +234,25 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Sin documento válido no se llama a ARCA bajo ningún concepto.
+    if (!documentoValido) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          created: true,
+          factura_id: factura.id,
+          emitted: false,
+          requiere_datos_fiscales: true,
+          emisor: emisorElegido.nombre_fiscal,
+          error:
+            cliente.identity.mensaje ||
+            "Falta completar/validar DNI o CUIT en la ficha del cliente",
+          message: "Falta completar/validar DNI o CUIT en la ficha del cliente antes de facturar.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const origenPermitido =
       !origenInferido ||
       !emisorElegido.auto_facturar_origenes ||
