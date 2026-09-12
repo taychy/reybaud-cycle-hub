@@ -1036,6 +1036,7 @@ const PlanSelection = () => {
             upgradeFromSubId={isUpgradeFlow ? upgradeFromSubId : null}
             overrideFechaFin={selectedPlan.categoria === "pausa" ? pausaFechaRegreso : null}
             periodo={selectedPlan.categoria === "pausa" ? null : purchasePeriod}
+            periodoExplicito={!!chosenPeriod}
             onProcessing={setProcessing}
           />
         </div>
