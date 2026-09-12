@@ -411,6 +411,7 @@ const PlanSelection = () => {
   const getStepNumber = (): number => {
     switch (step) {
       case "select-plan": return 1;
+      case "select-period": return 1;
       case "select-modality": return 2;
       case "select-method": return hasCuotas ? 3 : 2;
       case "confirm": return hasCuotas ? 4 : 3;
