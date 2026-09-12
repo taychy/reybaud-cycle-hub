@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { Loader2, AlertTriangle, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { resolveFiscalIdentity } from "@/lib/fiscalIdentity";
 
 interface Emisor {
   id: string;
@@ -61,7 +62,8 @@ const REF_LABELS: Record<string, string> = {
 };
 
 function validateRow(d: DraftRow): string | null {
-  if (!d.cliente_cuit?.trim()) return "Falta DNI/CUIT";
+  const fiscal = resolveFiscalIdentity(d.cliente_cuit);
+  if (fiscal.clase !== "ok") return fiscal.mensaje || "DNI/CUIT inválido";
   if (!d.condicion_fiscal) return "Falta condición fiscal";
   if (!d.monto || Number(d.monto) <= 0) return "Monto inválido";
   return null;
@@ -102,7 +104,9 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
             const full = `${a.nombre || ""} ${a.apellido || ""}`.trim().toLowerCase();
             return full === target;
           });
-          if (match?.documento) return { ...d, cliente_cuit: match.documento };
+          if (match?.documento && resolveFiscalIdentity(match.documento).clase === "ok") {
+            return { ...d, cliente_cuit: match.documento };
+          }
           return d;
         })
       );
