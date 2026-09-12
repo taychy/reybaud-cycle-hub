@@ -277,31 +277,31 @@ Deno.serve(async (req) => {
       console.warn(
         `[emit-factura] AFIP rechazó Factura C para CUIT ${cuitClean}. Reintentando con comprobante de Responsable Inscripto.`
       );
-      comprobante = resolveComprobanteAfip("Responsable Inscripto", condicion_fiscal, clienteCuitClean);
+      comprobante = resolveComprobanteAfip("Responsable Inscripto", condicionEfectiva, clienteCuitClean);
       ({ cbteNro, result: emitResult } = await emitirConTipo(comprobante));
     }
 
-    // Retry como Consumidor Final si AFIP rechaza el CUIT/DNI por padrón
+    // NO hay reintento silencioso como Consumidor Final (DocTipo 99): si ARCA
+    // rechaza el documento del cliente identificado, el comprobante queda sin
+    // emitir para que alguien corrija la ficha.
     const padronRejected =
       emitResult.error &&
       /no se encuentra registrado en los padrones|no corresponde a una cuit|DocNro|DocTipo/i.test(emitResult.error);
 
-    if (padronRejected && clienteCuitClean !== "0") {
-      console.warn(`[emit-factura] CUIT/DNI ${clienteCuitClean} rechazado por padrón AFIP. Reintentando como Consumidor Final.`);
-      const retry = await emitirFacturaAfip({
-        token: wsaaResult.token || "",
-        sign: wsaaResult.sign || "",
-        cuit: cuitClean,
-        puntoVenta: emisor.punto_venta,
-        cbteNro: cbteNro || 1,
-        cbteTipo: comprobante.tipo,
-        monto: factura.monto,
-        concepto: 2,
-        clienteCuit: "0",
-        condicionFiscal: "consumidor_final",
-        ivaIncluido21: comprobante.ivaIncluido21,
-      });
-      emitResult = retry;
+    if (padronRejected) {
+      await adminClient
+        .from("facturas")
+        .update({
+          estado: "requiere_datos_fiscales",
+          error_detalle: `ARCA rechazó el documento del cliente: ${emitResult.error}`,
+        } as any)
+        .eq("id", factura_id);
+      return new Response(
+        JSON.stringify({
+          error: `ARCA rechazó el documento del cliente (${clienteCuitClean}). Revisá y corregí el DNI o CUIT en la ficha. Detalle: ${emitResult.error}`,
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (emitResult.error) {
