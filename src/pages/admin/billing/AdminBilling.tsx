@@ -8,6 +8,7 @@ import { ManualInvoiceButton } from "./ManualInvoiceButton";
 import { TrayPendientes } from "./TrayPendientes";
 import { TrayProblemas } from "./TrayProblemas";
 import { TrayHistorial } from "./TrayHistorial";
+import { FiscalComprobantesLab } from "./FiscalComprobantesLab";
 import { useBillingCounts } from "./useBillingCounts";
 
 interface Emisor {
@@ -20,7 +21,7 @@ interface Emisor {
   limite_anual_ars?: number | null;
 }
 
-type Tab = "pendientes" | "problemas" | "historial";
+type Tab = "pendientes" | "problemas" | "historial" | "fiscal-beta";
 
 function Indicator({
   label, value, loading, icon: Icon, tone,
@@ -83,10 +84,11 @@ export default function AdminBilling() {
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="space-y-4">
-        <TabsList className="bg-secondary">
+        <TabsList className="bg-secondary flex-wrap h-auto">
           <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
           <TabsTrigger value="problemas">Problemas</TabsTrigger>
           <TabsTrigger value="historial">Historial</TabsTrigger>
+          <TabsTrigger value="fiscal-beta">Fiscal beta</TabsTrigger>
         </TabsList>
 
         <TabsContent value="pendientes" className="mt-0">
@@ -97,6 +99,9 @@ export default function AdminBilling() {
         </TabsContent>
         <TabsContent value="historial" className="mt-0">
           {tab === "historial" && <TrayHistorial emisores={emisores} />}
+        </TabsContent>
+        <TabsContent value="fiscal-beta" className="mt-0">
+          {tab === "fiscal-beta" && <FiscalComprobantesLab />}
         </TabsContent>
       </Tabs>
     </div>
