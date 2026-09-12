@@ -735,6 +735,10 @@ const PlanSelection = () => {
             .eq("id", earlyRenewal.subId);
         }
 
+      } else if (chosenPeriod) {
+        // Reingreso: el alumno eligió explícitamente la mensualidad que paga.
+        fechaInicio = chosenPeriod.fechaInicio;
+        fechaFin = chosenPeriod.fechaFin;
       } else if (scheduleAfterPausa && pausaNextStart && plan.categoria !== "pausa") {
         // Renovación con cambio de plan estando en pausa: el plan nuevo arranca
         // el día siguiente al fin de la pausa (no se corta la pausa vigente).
