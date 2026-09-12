@@ -214,8 +214,8 @@ Deno.serve(async (req) => {
     }
 
     const cuitClean = emisor.cuit.replace(/-/g, "");
-    const clienteCuitClean = cliente_cuit?.replace(/\D/g, "") || "0";
-    let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicion_fiscal, clienteCuitClean);
+    const clienteCuitClean = cliente.identity.docNro;
+    let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicionEfectiva, clienteCuitClean);
 
     const emitirConTipo = async (
       tipo: ComprobanteAfip,
