@@ -1413,7 +1413,34 @@ const PlanSelection = () => {
           </>
         )}
 
+        {/* STEP reingreso: elegir explícitamente qué mensualidad se paga */}
+        {step === "select-period" && selectedPlan && selectedDiscount && reingresoCtx && (
+          <div className="max-w-lg mx-auto space-y-6">
+            <CheckoutSummaryCard
+              planName={selectedPlan.nombre}
+              precioBase={selectedDiscount.original}
+              precioFinal={selectedDiscount.final}
+              moneda={selectedPlan.moneda || "ARS"}
+              frecuencia={selectedPlan.frecuencia}
+              discountName={selectedDiscount.discount?.nombre}
+              discountValue={selectedDiscount.discount?.valor}
+              discountType={selectedDiscount.discount?.tipo}
+              collapsible
+            />
+            <ReingresoPeriodStep
+              options={reingresoCtx.opciones}
+              planName={selectedPlan.nombre}
+              precioFinal={selectedDiscount.final}
+              moneda={selectedPlan.moneda || "ARS"}
+              ultimaCobertura={reingresoCtx.ultimaCobertura}
+              onSelect={handleSelectReingresoPeriod}
+              onBack={() => setStep("select-plan")}
+            />
+          </div>
+        )}
+
         {/* STEP 2 (programs only): Select Modality */}
+
         {step === "select-modality" && selectedPlan && selectedDiscount && (
           <div className="max-w-lg mx-auto space-y-6">
             <CheckoutSummaryCard
