@@ -151,16 +151,12 @@ Deno.serve(async (req) => {
         : resolvedOrigen === "cargado_admin" ? "manual_admin"
         : undefined);
 
-    // Datos del alumno
-    const { data: alumno } = await adminClient
-      .from("alumnos")
-      .select("nombre, apellido, documento")
-      .eq("id", alumno_id)
-      .single();
+    // Identidad fiscal ACTUAL del alumno (nunca el snapshot viejo de la cola)
+    const cliente = await resolveClienteFiscal(adminClient as any, { alumnoId: alumno_id });
+    const clienteNombre = cliente.nombre || "Sin nombre";
+    const documentoValido = cliente.identity.clase === "ok" ? cliente.identity.docNro : null;
+    const condicionCliente = cliente.condicionFiscal || "consumidor_final";
 
-    const clienteNombre = alumno
-      ? `${alumno.nombre}${alumno.apellido ? ` ${alumno.apellido}` : ""}`
-      : "Sin nombre";
 
     // ============================================================
     // RUTEO: elegir el mejor emisor para este segmento
