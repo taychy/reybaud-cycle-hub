@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2/cors";
+import { resolveClienteFiscal } from "../_shared/fiscal-identity.ts";
 
 type Segmento = "escuela" | "viajes" | "tienda";
 
@@ -151,16 +152,12 @@ Deno.serve(async (req) => {
         : resolvedOrigen === "cargado_admin" ? "manual_admin"
         : undefined);
 
-    // Datos del alumno
-    const { data: alumno } = await adminClient
-      .from("alumnos")
-      .select("nombre, apellido, documento")
-      .eq("id", alumno_id)
-      .single();
+    // Identidad fiscal ACTUAL del alumno (nunca el snapshot viejo de la cola)
+    const cliente = await resolveClienteFiscal(adminClient as any, { alumnoId: alumno_id });
+    const clienteNombre = cliente.nombre || "Sin nombre";
+    const documentoValido = cliente.identity.clase === "ok" ? cliente.identity.docNro : null;
+    const condicionCliente = cliente.condicionFiscal || "consumidor_final";
 
-    const clienteNombre = alumno
-      ? `${alumno.nombre}${alumno.apellido ? ` ${alumno.apellido}` : ""}`
-      : "Sin nombre";
 
     // ============================================================
     // RUTEO: elegir el mejor emisor para este segmento
@@ -172,15 +169,15 @@ Deno.serve(async (req) => {
       const { error: insertErr } = await adminClient.from("facturas").insert({
         alumno_id,
         cliente_nombre: clienteNombre,
-        cliente_cuit: alumno?.documento || null,
+        cliente_cuit: documentoValido,
         concepto,
         monto,
         moneda: moneda || "ARS",
         referencia_tipo: referencia_tipo || "suscripcion",
         referencia_id: referencia_id || null,
         segmento: segmentoNormalizado,
-        estado: "sin_factura",
-        condicion_fiscal: "consumidor_final",
+        estado: documentoValido ? "sin_factura" : "requiere_datos_fiscales",
+        condicion_fiscal: condicionCliente,
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
         facturacion_cola_id: facturacion_cola_id || null,
@@ -212,7 +209,7 @@ Deno.serve(async (req) => {
       .insert({
         alumno_id,
         cliente_nombre: clienteNombre,
-        cliente_cuit: alumno?.documento || null,
+        cliente_cuit: documentoValido,
         concepto,
         monto,
         moneda: moneda || "ARS",
@@ -220,8 +217,8 @@ Deno.serve(async (req) => {
         referencia_id: referencia_id || null,
         segmento: segmentoNormalizado,
         emisor_id: emisorElegido.id,
-        estado: "sin_factura",
-        condicion_fiscal: "consumidor_final",
+        estado: documentoValido ? "sin_factura" : "requiere_datos_fiscales",
+        condicion_fiscal: condicionCliente,
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
         facturacion_cola_id: facturacion_cola_id || null,
@@ -235,6 +232,25 @@ Deno.serve(async (req) => {
       return new Response(
         JSON.stringify({ error: "Error al crear registro de factura" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Sin documento válido no se llama a ARCA bajo ningún concepto.
+    if (!documentoValido) {
+      return new Response(
+        JSON.stringify({
+          success: true,
+          created: true,
+          factura_id: factura.id,
+          emitted: false,
+          requiere_datos_fiscales: true,
+          emisor: emisorElegido.nombre_fiscal,
+          error:
+            cliente.identity.mensaje ||
+            "Falta completar/validar DNI o CUIT en la ficha del cliente",
+          message: "Falta completar/validar DNI o CUIT en la ficha del cliente antes de facturar.",
+        }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -280,8 +296,8 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         factura_id: factura.id,
         emisor_id: emisorElegido.id,
-        cliente_cuit: alumno?.documento || null,
-        condicion_fiscal: "consumidor_final",
+        cliente_cuit: documentoValido,
+        condicion_fiscal: condicionCliente,
       }),
     });
 

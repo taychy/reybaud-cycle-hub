@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import forge from "npm:node-forge@1.3.1";
+import { resolveClienteFiscal } from "../_shared/fiscal-identity.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -160,6 +161,45 @@ Deno.serve(async (req) => {
       );
     }
 
+    // ==========================================================
+    // Step 0: identidad fiscal ACTUAL del cliente (fuente canónica).
+    // Nunca se emite contra ARCA sin documento válido.
+    // ==========================================================
+    const cliente = await resolveClienteFiscal(adminClient as any, {
+      alumnoId: factura.alumno_id ?? null,
+      snapshotNombre: factura.cliente_nombre ?? null,
+      snapshotDocumento: cliente_cuit ?? factura.cliente_cuit ?? null,
+      snapshotCondicion: condicion_fiscal ?? factura.condicion_fiscal ?? null,
+    });
+
+    if (cliente.identity.clase !== "ok" || !cliente.identity.docNro) {
+      const detalle =
+        cliente.identity.mensaje || "Falta completar/validar DNI o CUIT en la ficha del cliente";
+      await adminClient
+        .from("facturas")
+        .update({
+          estado: "requiere_datos_fiscales",
+          error_detalle: detalle,
+          cliente_nombre: cliente.nombre || factura.cliente_nombre,
+        } as any)
+        .eq("id", factura_id);
+      return new Response(
+        JSON.stringify({ error: `Datos fiscales incompletos: ${detalle}` }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Sincronizar el snapshot de la factura con los datos fiscales vigentes.
+    const condicionEfectiva = cliente.condicionFiscal || condicion_fiscal || "consumidor_final";
+    await adminClient
+      .from("facturas")
+      .update({
+        cliente_nombre: cliente.nombre || factura.cliente_nombre,
+        cliente_cuit: cliente.identity.docNro,
+        condicion_fiscal: condicionEfectiva,
+      } as any)
+      .eq("id", factura_id);
+
     // Step 1: WSAA Authentication
     const wsaaResult = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
     if (wsaaResult.error) {
@@ -174,8 +214,8 @@ Deno.serve(async (req) => {
     }
 
     const cuitClean = emisor.cuit.replace(/-/g, "");
-    const clienteCuitClean = cliente_cuit?.replace(/\D/g, "") || "0";
-    let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicion_fiscal, clienteCuitClean);
+    const clienteCuitClean = cliente.identity.docNro;
+    let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicionEfectiva, clienteCuitClean);
 
     const emitirConTipo = async (
       tipo: ComprobanteAfip,
@@ -207,7 +247,7 @@ Deno.serve(async (req) => {
         monto: factura.monto,
         concepto: 2, // Servicios
         clienteCuit: docOverride?.clienteCuit ?? clienteCuitClean,
-        condicionFiscal: docOverride?.condicionFiscal ?? condicion_fiscal,
+        condicionFiscal: docOverride?.condicionFiscal ?? condicionEfectiva,
         ivaIncluido21: tipo.ivaIncluido21,
       });
 
@@ -237,31 +277,31 @@ Deno.serve(async (req) => {
       console.warn(
         `[emit-factura] AFIP rechazó Factura C para CUIT ${cuitClean}. Reintentando con comprobante de Responsable Inscripto.`
       );
-      comprobante = resolveComprobanteAfip("Responsable Inscripto", condicion_fiscal, clienteCuitClean);
+      comprobante = resolveComprobanteAfip("Responsable Inscripto", condicionEfectiva, clienteCuitClean);
       ({ cbteNro, result: emitResult } = await emitirConTipo(comprobante));
     }
 
-    // Retry como Consumidor Final si AFIP rechaza el CUIT/DNI por padrón
+    // NO hay reintento silencioso como Consumidor Final (DocTipo 99): si ARCA
+    // rechaza el documento del cliente identificado, el comprobante queda sin
+    // emitir para que alguien corrija la ficha.
     const padronRejected =
       emitResult.error &&
       /no se encuentra registrado en los padrones|no corresponde a una cuit|DocNro|DocTipo/i.test(emitResult.error);
 
-    if (padronRejected && clienteCuitClean !== "0") {
-      console.warn(`[emit-factura] CUIT/DNI ${clienteCuitClean} rechazado por padrón AFIP. Reintentando como Consumidor Final.`);
-      const retry = await emitirFacturaAfip({
-        token: wsaaResult.token || "",
-        sign: wsaaResult.sign || "",
-        cuit: cuitClean,
-        puntoVenta: emisor.punto_venta,
-        cbteNro: cbteNro || 1,
-        cbteTipo: comprobante.tipo,
-        monto: factura.monto,
-        concepto: 2,
-        clienteCuit: "0",
-        condicionFiscal: "consumidor_final",
-        ivaIncluido21: comprobante.ivaIncluido21,
-      });
-      emitResult = retry;
+    if (padronRejected) {
+      await adminClient
+        .from("facturas")
+        .update({
+          estado: "requiere_datos_fiscales",
+          error_detalle: `ARCA rechazó el documento del cliente: ${emitResult.error}`,
+        } as any)
+        .eq("id", factura_id);
+      return new Response(
+        JSON.stringify({
+          error: `ARCA rechazó el documento del cliente (${clienteCuitClean}). Revisá y corregí el DNI o CUIT en la ficha. Detalle: ${emitResult.error}`,
+        }),
+        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     if (emitResult.error) {
@@ -289,8 +329,8 @@ Deno.serve(async (req) => {
       .from("facturas")
       .update({
         emisor_id: emisor_id,
-        cliente_cuit: cliente_cuit || null,
-        condicion_fiscal: condicion_fiscal,
+        cliente_cuit: clienteCuitClean,
+        condicion_fiscal: condicionEfectiva,
         estado: "emitida",
         numero_comprobante: nroComprobante,
         tipo_comprobante: comprobante.tipo,

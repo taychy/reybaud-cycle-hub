@@ -14776,6 +14776,10 @@ export type Database = {
         Args: { _alumno_id: string; _plan_id: string }
         Returns: Json
       }
+      clasificar_documento_fiscal: {
+        Args: { p_doc: string; p_tipo_documento?: string }
+        Returns: Json
+      }
       classify_package_change: {
         Args: {
           p_package_nuevo_id: string
@@ -15136,6 +15140,8 @@ export type Database = {
           nombre: string
         }[]
       }
+      fiscal_cuit_valido: { Args: { p_doc: string }; Returns: boolean }
+      fiscal_doc_digits: { Args: { p_doc: string }; Returns: string }
       fn_imputar_credito_a_suscripcion: {
         Args: { _ajuste_id: string; _suscripcion_id: string }
         Returns: undefined
@@ -15871,6 +15877,27 @@ export type Database = {
           p_monto: number
         }
         Returns: undefined
+      }
+      preflight_facturacion_cola: {
+        Args: never
+        Returns: {
+          alumno_id: string
+          clase: string
+          cliente_nombre: string
+          cola_id: string
+          concepto: string
+          doc_nro: string
+          doc_tipo: number
+          documento_actual: string
+          documento_cola: string
+          inconsistente: boolean
+          mensaje: string
+          monto: number
+          nombre_fiscal: string
+          pagado_at: string
+          segmento: string
+          tipo_documento: string
+        }[]
       }
       preparar_liquidacion_mensual: {
         Args: { p_coach_id: string; p_mes: string }
