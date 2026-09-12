@@ -855,6 +855,18 @@ const PlanSelection = () => {
       // Cerrar subs pendientes huérfanas de otros planes (evita "sub fantasma")
       if (subId) await closeOrphanPendingSubs(alumnoId, plan.id, subId);
 
+      // Reingreso: dejamos asentada la obligación generada por la elección explícita.
+      if (subId && reingresoSeleccionId) {
+        await supabase
+          .rpc("completar_seleccion_reingreso" as any, {
+            p_seleccion_id: reingresoSeleccionId,
+            p_suscripcion_id: subId,
+          })
+          .then(undefined, () => undefined);
+      }
+
+
+
 
       const functionUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preference`;
       const response = await fetch(functionUrl, {
