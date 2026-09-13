@@ -59,6 +59,40 @@ from current_limits cl
 where e.categoria_monotributo = cl.categoria
   and coalesce(e.condicion_iva, '') ilike '%monotribut%';
 
+-- Keep the convenience limit synchronized whenever an emitter's declared category is saved.
+create or replace function public.sync_emisor_monotributo_limite()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  v_limite numeric(16,2);
+begin
+  if new.categoria_monotributo in ('A','B','C','D','E','F','G','H','I','J','K') then
+    select ingresos_brutos_limite
+      into v_limite
+    from public.monotributo_categoria_parametros
+    where categoria = new.categoria_monotributo
+      and vigencia_desde <= current_date
+    order by vigencia_desde desc
+    limit 1;
+
+    if v_limite is not null then
+      new.limite_anual_ars := v_limite;
+    end if;
+  elsif new.categoria_monotributo = 'RI' then
+    new.limite_anual_ars := null;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists trg_sync_emisor_monotributo_limite on public.emisores_fiscales;
+create trigger trg_sync_emisor_monotributo_limite
+before insert or update of categoria_monotributo on public.emisores_fiscales
+for each row execute function public.sync_emisor_monotributo_limite();
+
 create or replace view public.emisor_facturado_anual
 with (security_invoker = true)
 as
