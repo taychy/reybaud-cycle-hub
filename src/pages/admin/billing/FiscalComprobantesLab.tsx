@@ -69,9 +69,9 @@ export function FiscalComprobantesLab() {
       <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 flex gap-3">
         <ShieldCheck className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
         <div>
-          <p className="font-medium text-sm">Laboratorio fiscal — modo seguro</p>
+          <p className="font-medium text-sm">Importación fiscal protegida</p>
           <p className="text-xs text-muted-foreground mt-1">
-            Podés revisar todo el flujo de importación. El botón final sigue bloqueado: todavía no se guarda nada en Supabase ni se envía nada a ARCA.
+            Primero se valida y cruza todo el archivo. La importación solo guarda comprobantes históricos nuevos, vuelve a verificar duplicados en el servidor y nunca envía nada a ARCA.
           </p>
         </div>
       </div>
@@ -196,11 +196,14 @@ export function FiscalComprobantesLab() {
               ) : (
                 <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 flex gap-2 text-sm">
                   <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                  El archivo pasó la validación. Ahora revisá el cruce con Reybaud antes de habilitar la importación real.
+                  El archivo pasó la validación. Revisá el cruce con Reybaud y confirmá la importación cuando todo esté correcto.
                 </div>
               )}
 
-              <FiscalImportReconciliation preview={importPreview} />
+              <FiscalImportReconciliation
+                preview={importPreview}
+                sourceFileName={importedFileName || "ARCA - Mis Comprobantes Emitidos.xlsx"}
+              />
             </div>
           )}
         </CardContent>

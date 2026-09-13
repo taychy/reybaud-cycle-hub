@@ -47,8 +47,25 @@ describe("fiscal reconciliation", () => {
     ]);
 
     expect(result.existingDocuments).toHaveLength(1);
+    expect(result.existingDocuments[0].source).toBe("app");
     expect(result.newDocuments).toHaveLength(0);
     expect(result.mismatches).toHaveLength(0);
+  });
+
+  it("recognizes a previously imported historical comprobante", () => {
+    const result = reconcileArcaWithReybaud([doc()], [
+      {
+        id: "historical-1",
+        tipo_comprobante: 11,
+        numero_comprobante: "00004-00000869",
+        monto: 16590,
+        source: "historical",
+      },
+    ]);
+
+    expect(result.existingDocuments).toHaveLength(1);
+    expect(result.existingDocuments[0].source).toBe("historical");
+    expect(result.newDocuments).toHaveLength(0);
   });
 
   it("keeps a different point of sale as new", () => {

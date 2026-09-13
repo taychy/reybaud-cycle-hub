@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import type { ArcaImportPreview, ArcaImportedFiscalDocument } from "@/lib/arca-comprobantes-import";
 import { FISCAL_DOCUMENT_TYPES, calculateFiscalNet } from "@/lib/fiscal-comprobantes";
 import {
@@ -15,6 +16,7 @@ import {
 
 interface Props {
   preview: ArcaImportPreview;
+  sourceFileName: string;
 }
 
 interface EmisorContext {
@@ -28,6 +30,25 @@ interface EmisorContext {
 interface BusinessLink {
   unidad: string;
   cuentaNombre: string;
+}
+
+interface HistoricalRow {
+  id: string;
+  tipo_comprobante: number;
+  punto_venta: number;
+  numero_comprobante: number;
+  importe_total: number | string;
+  fecha_emision: string;
+}
+
+interface ImportResult {
+  batch_id?: string;
+  source_total_documents?: number;
+  imported_documents?: number;
+  skipped_app_documents?: number;
+  skipped_historical_documents?: number;
+  source_neto_fiscal?: number;
+  imported_neto_fiscal?: number;
 }
 
 type DetailKind = "new" | "existing" | "mismatch" | null;
@@ -61,13 +82,22 @@ function fiscalNumber(document: ArcaImportedFiscalDocument): string {
   return `${String(document.puntoVenta).padStart(4, "0")}-${String(document.numeroComprobante).padStart(8, "0")}`;
 }
 
-export function FiscalImportReconciliation({ preview }: Props) {
+function historicalNumber(row: HistoricalRow): string {
+  return `${String(row.punto_venta).padStart(5, "0")}-${String(row.numero_comprobante).padStart(8, "0")}`;
+}
+
+export function FiscalImportReconciliation({ preview, sourceFileName }: Props) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [emisor, setEmisor] = useState<EmisorContext | null>(null);
   const [businessLinks, setBusinessLinks] = useState<BusinessLink[]>([]);
   const [reconciliation, setReconciliation] = useState<FiscalReconciliation | null>(null);
   const [detailKind, setDetailKind] = useState<DetailKind>(null);
+  const [dbReady, setDbReady] = useState(false);
+  const [dbError, setDbError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [importing, setImporting] = useState(false);
+  const [importResult, setImportResult] = useState<ImportResult | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -79,6 +109,7 @@ export function FiscalImportReconciliation({ preview }: Props) {
       setBusinessLinks([]);
       setReconciliation(null);
       setDetailKind(null);
+      setDbError(null);
 
       const cuitArchivo = normalizeCuit(preview.cuitEmisor);
       if (cuitArchivo.length !== 11) {
@@ -117,7 +148,7 @@ export function FiscalImportReconciliation({ preview }: Props) {
       const selectedEmisor = matches[0];
       setEmisor(selectedEmisor);
 
-      const [facturasRes, routingRes, cuentasRes] = await Promise.all([
+      const [facturasRes, routingRes, cuentasRes, historicalRes] = await Promise.all([
         supabase
           .from("facturas")
           .select("id, tipo_comprobante, numero_comprobante, monto, cae, fecha_emision, estado")
@@ -132,6 +163,10 @@ export function FiscalImportReconciliation({ preview }: Props) {
           .from("cuentas_mp" as any)
           .select("id, nombre, emisor_fiscal_default_id, activa")
           .eq("activa", true),
+        (supabase as any)
+          .from("fiscal_historical_documents")
+          .select("id, tipo_comprobante, punto_venta, numero_comprobante, importe_total, fecha_emision")
+          .eq("emisor_id", selectedEmisor.id),
       ]);
 
       if (cancelled) return;
@@ -141,8 +176,28 @@ export function FiscalImportReconciliation({ preview }: Props) {
         return;
       }
 
-      const facturas = (facturasRes.data as ReybaudFiscalInvoiceLike[] | null) ?? [];
-      setReconciliation(reconcileArcaWithReybaud(preview.documents, facturas));
+      const facturas = ((facturasRes.data as ReybaudFiscalInvoiceLike[] | null) ?? []).map((factura) => ({
+        ...factura,
+        source: "app" as const,
+      }));
+
+      let historical: ReybaudFiscalInvoiceLike[] = [];
+      if (historicalRes.error) {
+        setDbReady(false);
+        setDbError("La estructura de importación histórica todavía no está disponible en Supabase. La revisión sigue funcionando, pero el botón de importar permanecerá bloqueado hasta aplicar la migración.");
+      } else {
+        setDbReady(true);
+        historical = (((historicalRes.data as HistoricalRow[] | null) ?? []).map((row) => ({
+          id: row.id,
+          tipo_comprobante: row.tipo_comprobante,
+          numero_comprobante: historicalNumber(row),
+          monto: row.importe_total,
+          fecha_emision: row.fecha_emision,
+          source: "historical" as const,
+        })));
+      }
+
+      setReconciliation(reconcileArcaWithReybaud(preview.documents, [...facturas, ...historical]));
 
       if (!routingRes.error && !cuentasRes.error) {
         const cuentas = ((cuentasRes.data as any[]) ?? []);
@@ -169,7 +224,7 @@ export function FiscalImportReconciliation({ preview }: Props) {
 
     void load();
     return () => { cancelled = true; };
-  }, [preview]);
+  }, [preview, refreshKey]);
 
   const linkedUnits = useMemo(() => {
     const units = [...new Set(businessLinks.map((link) => link.unidad))];
@@ -191,13 +246,16 @@ export function FiscalImportReconciliation({ preview }: Props) {
     if (detailKind === "new") {
       return {
         title: `Nuevos para importar (${reconciliation.newDocuments.length})`,
-        rows: reconciliation.newDocuments.map((document) => ({ document, note: "Se importaría" })),
+        rows: reconciliation.newDocuments.map((document) => ({ document, note: "Se importará como histórico ARCA" })),
       };
     }
     if (detailKind === "existing") {
       return {
         title: `Ya existen en Reybaud (${reconciliation.existingDocuments.length})`,
-        rows: reconciliation.existingDocuments.map((item) => ({ document: item.document, note: "Se omite" })),
+        rows: reconciliation.existingDocuments.map((item) => ({
+          document: item.document,
+          note: item.source === "historical" ? "Ya importado histórico · se omite" : "Factura Reybaud · se omite",
+        })),
       };
     }
     return {
@@ -206,19 +264,68 @@ export function FiscalImportReconciliation({ preview }: Props) {
     };
   }, [detailKind, reconciliation]);
 
+  const canImport = Boolean(
+    dbReady &&
+    emisor &&
+    reconciliation &&
+    reconciliation.newDocuments.length > 0 &&
+    reconciliation.mismatches.length === 0 &&
+    preview.issues.length === 0 &&
+    !importing,
+  );
+
+  const handleImport = async () => {
+    if (!canImport || !emisor || !reconciliation) return;
+
+    const confirmed = window.confirm(
+      `Se importarán ${reconciliation.newDocuments.length} comprobantes históricos para ${emisor.nombre_fiscal}.\n\n` +
+      `Los comprobantes que ya existen se volverán a verificar en el servidor y se omitirán.\n` +
+      `Neto fiscal nuevo estimado: ${money.format(netoNuevo)}.\n\n¿Confirmás la importación?`,
+    );
+    if (!confirmed) return;
+
+    setImporting(true);
+    setImportResult(null);
+    try {
+      // Enviamos todos los comprobantes válidos del archivo. La RPC vuelve a verificar
+      // cada identidad contra facturas operativas e históricos antes de insertar.
+      const { data, error: rpcError } = await (supabase as any).rpc("import_fiscal_history", {
+        p_emisor_id: emisor.id,
+        p_source_filename: sourceFileName || "ARCA - Mis Comprobantes Emitidos.xlsx",
+        p_source_cuit: preview.cuitEmisor,
+        p_documents: preview.documents,
+      });
+
+      if (rpcError) throw rpcError;
+
+      const result = (data ?? {}) as ImportResult;
+      setImportResult(result);
+      toast.success("Importación histórica completada", {
+        description: `${result.imported_documents ?? 0} comprobantes nuevos guardados.`,
+      });
+      setRefreshKey((key) => key + 1);
+    } catch (importError: any) {
+      toast.error("No se pudo importar el histórico", {
+        description: importError?.message || "La operación fue cancelada sin guardar cambios.",
+      });
+    } finally {
+      setImporting(false);
+    }
+  };
+
   return (
     <Card className="border-sky-500/30">
       <CardHeader>
         <CardTitle className="text-base flex items-center gap-2">
           <Link2 className="h-4 w-4" />
-          Cruce con Reybaud — solo lectura
+          Cruce con Reybaud e histórico fiscal
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         {loading && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
             <Loader2 className="h-4 w-4 animate-spin" />
-            Buscando el emisor y comparando contra las facturas ya emitidas…
+            Buscando el emisor y comparando contra facturas e históricos ya guardados…
           </div>
         )}
 
@@ -257,6 +364,13 @@ export function FiscalImportReconciliation({ preview }: Props) {
               )}
             </div>
 
+            {dbError && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 flex gap-2 text-sm">
+                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>{dbError}</span>
+              </div>
+            )}
+
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-lg border p-3">
                 <p className="text-xs text-muted-foreground">En el archivo ARCA</p>
@@ -288,9 +402,9 @@ export function FiscalImportReconciliation({ preview }: Props) {
                 {detail.rows.length === 0 ? (
                   <p className="p-4 text-sm text-muted-foreground">No hay comprobantes en esta categoría.</p>
                 ) : (
-                  <div className="max-h-[420px] overflow-auto">
+                  <div className="relative max-h-[420px] overflow-auto">
                     <div className="min-w-[760px]">
-                      <div className="grid grid-cols-[90px_130px_130px_1fr_130px_1.4fr] gap-3 bg-muted/50 px-3 py-2 text-xs font-medium text-muted-foreground sticky top-0">
+                      <div className="sticky top-0 z-20 grid grid-cols-[90px_130px_130px_1fr_130px_1.4fr] gap-3 border-b bg-card px-3 py-2 text-xs font-medium text-muted-foreground shadow-sm">
                         <span>Fecha</span>
                         <span>Comprobante</span>
                         <span>Número</span>
@@ -322,26 +436,42 @@ export function FiscalImportReconciliation({ preview }: Props) {
 
             <div className="rounded-lg border p-3 text-xs text-muted-foreground space-y-1">
               <p><strong className="text-foreground">Cómo se compara:</strong> tipo de comprobante + punto de venta + número de comprobante.</p>
-              <p>Si la identidad fiscal coincide pero el importe no, el registro se manda a revisión y no se considera duplicado seguro.</p>
+              <p>La comparación incluye tanto facturas emitidas por Reybaud como históricos ARCA ya importados.</p>
+              <p>Si la identidad fiscal coincide pero el importe no, la importación se bloquea para evitar guardar un conflicto.</p>
               <p><strong>Duplicados dentro del Excel:</strong> {preview.duplicates}. Esta cifra es distinta de “Ya existen en Reybaud”.</p>
             </div>
 
             <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4 space-y-3">
               <div>
-                <p className="font-medium text-sm">Resumen de la importación que se habilitará después de tu revisión</p>
+                <p className="font-medium text-sm">Resumen de importación</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Se importarían {reconciliation.newDocuments.length} comprobantes históricos. Se omitirían {reconciliation.existingDocuments.length} porque ya existen en Reybaud. Neto fiscal nuevo a incorporar: <strong className="text-foreground">{money.format(netoNuevo)}</strong>.
+                  Se importarán {reconciliation.newDocuments.length} comprobantes históricos. Se omitirán {reconciliation.existingDocuments.length} porque ya existen en Reybaud. Neto fiscal nuevo estimado: <strong className="text-foreground">{money.format(netoNuevo)}</strong>.
                 </p>
               </div>
-              <Button type="button" disabled className="w-full sm:w-auto">
-                Importar {reconciliation.newDocuments.length} comprobantes — modo seguro
+              <Button type="button" disabled={!canImport} onClick={() => void handleImport()} className="w-full sm:w-auto">
+                {importing ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Importando…</> : `Importar ${reconciliation.newDocuments.length} comprobantes`}
               </Button>
-              <p className="text-xs text-muted-foreground">El botón está visible para revisar el flujo, pero todavía no escribe en Supabase.</p>
+              {!dbReady && <p className="text-xs text-amber-700">El botón se habilitará cuando la migración fiscal esté disponible en Supabase.</p>}
+              {preview.issues.length > 0 && <p className="text-xs text-amber-700">Hay observaciones en el archivo. Resolvelas antes de importar.</p>}
+              {reconciliation.mismatches.length > 0 && <p className="text-xs text-amber-700">Hay comprobantes en conflicto. La importación está bloqueada.</p>}
+              {dbReady && reconciliation.newDocuments.length === 0 && <p className="text-xs text-muted-foreground">No quedan comprobantes nuevos para importar.</p>}
             </div>
 
-            <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 flex gap-2 text-sm">
-              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-              Este cruce es solo de lectura. Todavía no se guardó ni modificó ningún comprobante.
+            {importResult && (
+              <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-3 flex gap-2 text-sm">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-medium">Importación completada.</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Nuevos guardados: {importResult.imported_documents ?? 0}. Omitidos porque ya estaban en facturas: {importResult.skipped_app_documents ?? 0}. Omitidos porque ya estaban en el histórico: {importResult.skipped_historical_documents ?? 0}. Neto incorporado: {money.format(Number(importResult.imported_neto_fiscal ?? 0))}.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="rounded-lg border border-sky-500/30 bg-sky-500/5 p-3 flex gap-2 text-sm">
+              <CheckCircle2 className="h-4 w-4 text-sky-600 shrink-0 mt-0.5" />
+              La importación histórica no modifica facturas operativas existentes y no envía ningún comprobante a ARCA.
             </div>
           </>
         )}
