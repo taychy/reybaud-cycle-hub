@@ -24,6 +24,7 @@ import {
   readArcaComprobantesXlsx,
   type ArcaImportPreview,
 } from "@/lib/arca-comprobantes-import";
+import { FiscalImportReconciliation } from "./FiscalImportReconciliation";
 
 type TestDocument = {
   id: number;
@@ -191,7 +192,7 @@ export function FiscalComprobantesLab() {
                 <span><strong>CUIT detectado:</strong> {importPreview.cuitEmisor ?? "No detectado"}</span>
                 <span><strong>Comprobantes válidos:</strong> {importPreview.documents.length}</span>
                 <span><strong>Observaciones:</strong> {importPreview.issues.length}</span>
-                <span><strong>Duplicados:</strong> {importPreview.duplicates}</span>
+                <span><strong>Duplicados dentro del Excel:</strong> {importPreview.duplicates}</span>
               </div>
 
               <div className="grid gap-3 md:grid-cols-3">
@@ -261,6 +262,8 @@ export function FiscalComprobantesLab() {
                   El archivo pasó la validación de esta etapa. Todavía no se importó a la base.
                 </div>
               )}
+
+              <FiscalImportReconciliation preview={importPreview} />
             </div>
           )}
         </CardContent>
