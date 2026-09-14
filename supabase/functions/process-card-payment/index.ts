@@ -8,6 +8,45 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const getPaymentErrorMessage = (statusDetail?: string | null) => {
+  switch (statusDetail) {
+    case "cc_rejected_bad_filled_card_number":
+      return "Revisá el número de la tarjeta e intentá nuevamente.";
+    case "cc_rejected_bad_filled_date":
+      return "Revisá la fecha de vencimiento de la tarjeta.";
+    case "cc_rejected_bad_filled_security_code":
+      return "Revisá el código de seguridad (CVV) de la tarjeta.";
+    case "cc_rejected_bad_filled_other":
+      return "Revisá los datos ingresados de la tarjeta e intentá nuevamente.";
+    case "cc_rejected_call_for_authorize":
+      return "El banco requiere que autorices la compra. Contactá a tu banco y volvé a intentar.";
+    case "cc_rejected_card_disabled":
+      return "La tarjeta está inhabilitada. Contactá a tu banco o intentá con otra tarjeta.";
+    case "cc_rejected_card_error":
+      return "La tarjeta no pudo ser procesada. Intentá nuevamente o usá otra tarjeta.";
+    case "cc_rejected_card_type_not_allowed":
+      return "Este tipo de tarjeta no está habilitado para este pago. Intentá con otra tarjeta.";
+    case "cc_rejected_duplicated_payment":
+      return "Mercado Pago detectó un pago igual realizado recientemente. Revisá si el pago ya fue efectuado.";
+    case "cc_rejected_high_risk":
+      return "Mercado Pago rechazó la operación por seguridad. Intentá con otra tarjeta o medio de pago.";
+    case "cc_rejected_insufficient_amount":
+      return "La tarjeta no tiene saldo o límite suficiente para realizar el pago.";
+    case "cc_rejected_invalid_installments":
+      return "La cantidad de cuotas seleccionada no está disponible para esta tarjeta.";
+    case "cc_rejected_max_attempts":
+      return "Se alcanzó el máximo de intentos permitidos con esta tarjeta. Intentá más tarde o usá otra tarjeta.";
+    case "cc_rejected_blacklist":
+      return "Mercado Pago no pudo aprobar esta tarjeta. Intentá con otra tarjeta.";
+    case "cc_rejected_bank_error":
+      return "El banco emisor no pudo procesar la operación. Intentá nuevamente o consultá con tu banco.";
+    case "cc_rejected_other_reason":
+      return "El banco rechazó el pago. Intentá nuevamente o utilizá otra tarjeta.";
+    default:
+      return "El pago fue rechazado. Intentá nuevamente o utilizá otra tarjeta.";
+  }
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -95,9 +134,9 @@ Deno.serve(async (req) => {
     }
 
     // Process payment via MP API — uso el monto validado del servidor.
-    const paymentBody = {
+    // issuer_id es opcional: algunas tarjetas/medios no lo informan.
+    const paymentBody: Record<string, unknown> = {
       token,
-      issuer_id,
       payment_method_id,
       transaction_amount: expectedAmount,
       installments: Number(installments),
@@ -109,6 +148,10 @@ Deno.serve(async (req) => {
       description: "Suscripción Ciclismo Reybaud",
       statement_descriptor: "CICLISMO REYBAUD",
     };
+
+    if (issuer_id) {
+      paymentBody.issuer_id = issuer_id;
+    }
 
     console.log("Processing card payment:", { suscripcion_id, amount: expectedAmount });
 
@@ -237,7 +280,7 @@ Deno.serve(async (req) => {
       // Rechazo: dejamos la sub en "pendiente" (no "cancelada") para:
       //  1) No contar como baja en métricas/alertas admin.
       //  2) Permitir reintento con otra tarjeta sobre la misma sub.
-      // El detalle del rechazo queda en mp_status para auditoría.
+      // El detalle del rechazo queda disponible en la respuesta para mostrarlo al alumno.
       await supabaseAdmin
         .from("suscripciones")
         .update({
@@ -251,11 +294,15 @@ Deno.serve(async (req) => {
         .eq("id", suscripcion_id);
     }
 
+    const rejectionError =
+      mpData.status === "rejected" ? getPaymentErrorMessage(mpData.status_detail) : undefined;
+
     return new Response(
       JSON.stringify({
         status: mpData.status,
         status_detail: mpData.status_detail,
         payment_id: mpData.id,
+        ...(rejectionError ? { error: rejectionError } : {}),
       }),
       { status: mpResponse.ok ? 200 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
