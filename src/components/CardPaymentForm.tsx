@@ -297,9 +297,9 @@ const CardPaymentForm = ({
                   apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
                 },
                 body: JSON.stringify({
-                  token: formData.token,
+                  token: cardToken,
                   issuer_id: formData.issuerId,
-                  payment_method_id: formData.paymentMethodId,
+                  payment_method_id: paymentMethodId,
                   transaction_amount: planPrice,
                   // MP CardForm puede no devolver installments en planes test de $1.
                   // Forzamos 1 cuota como fallback seguro para pago único.
