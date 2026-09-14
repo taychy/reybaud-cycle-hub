@@ -63,12 +63,13 @@ const CardPaymentForm = ({
           }),
           supabase.from("alumnos").select("email").eq("id", alumnoId).maybeSingle(),
         ]);
-        const data = await keyRes.json();
-        if (data.public_key) {
+        const data = await keyRes.json().catch(() => ({}));
+        if (keyRes.ok && data.public_key) {
           setMpPublicKey(data.public_key);
           setPayerEmail((alumnoRes.data?.email || "").trim().toLowerCase());
         } else {
-          setError("No se pudo obtener la configuración de pago.");
+          setError(data?.error || "No se pudo obtener la configuración de pago.");
+          setLoading(false);
         }
       } catch {
         setError("Error al conectar con el servicio de pagos.");
