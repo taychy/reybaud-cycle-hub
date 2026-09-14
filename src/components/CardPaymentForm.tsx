@@ -275,7 +275,12 @@ const CardPaymentForm = ({
                   issuer_id: formData.issuerId,
                   payment_method_id: formData.paymentMethodId,
                   transaction_amount: planPrice,
-                  installments: Number(formData.installments),
+                  // MP CardForm puede no devolver installments en planes test de $1.
+                  // Forzamos 1 cuota como fallback seguro para pago único.
+                  installments: (() => {
+                    const n = Number(formData.installments);
+                    return Number.isInteger(n) && n >= 1 ? n : 1;
+                  })(),
                   payer: {
                     email,
                     identification: {
