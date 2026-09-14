@@ -168,40 +168,6 @@ const Login = () => {
         return;
       }
 
-      const { data: recentSubs } = await supabase
-        .from("suscripciones")
-        .select("id, estado, fecha_fin, cancelada_at")
-        .eq("alumno_id", alumno.id)
-        .in("estado", ["activa", "pendiente_verificacion", "cancelada"])
-        .order("fecha_fin", { ascending: false })
-        .limit(10);
-
-      const hasAccess = (recentSubs || []).some((sub: any) => {
-        if (sub.estado === "pendiente_verificacion") return true;
-        if (sub.estado !== "activa" && sub.estado !== "cancelada") return false;
-        if (!sub.fecha_fin) return sub.estado === "activa";
-        const parts = sub.fecha_fin.substring(0, 10).split("-");
-        const finDate = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]), 23, 59, 59);
-        const now2 = new Date();
-        now2.setHours(0, 0, 0, 0);
-        if (now2 <= finDate) return true;
-        const expMonth = finDate.getMonth();
-        const expYear = finDate.getFullYear();
-        const curMonth = now2.getMonth();
-        const curYear = now2.getFullYear();
-        const isNextMonth =
-          (curYear === expYear && curMonth === expMonth + 1) ||
-          (curYear === expYear + 1 && expMonth === 11 && curMonth === 0);
-        return sub.estado === "activa" && isNextMonth && now2.getDate() <= 5;
-      });
-
-      if (!hasAccess) {
-        clearPendingOtpState();
-        localStorage.setItem("registro_alumno_id", alumno.id);
-        localStorage.setItem("alumno_renewal", "1");
-        navigate("/planes", { replace: true });
-        return;
-      }
       localStorage.removeItem("alumno_renewal");
       localStorage.removeItem("alumno_from_vacation");
       localStorage.removeItem("upgrade_from_sub_id");
