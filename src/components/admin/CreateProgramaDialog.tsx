@@ -93,6 +93,7 @@ export default function CreateProgramaDialog({ open, onOpenChange, onCreated }: 
 
     const cuota = parseOptionalNumber(form.cuota_valor);
     if (cuota != null && cuota <= 0) return "El valor de la cuota debe ser mayor a 0.";
+    if (cuota != null && cuotas == null) return "Indicá la cantidad de cuotas para definir un valor por cuota.";
 
     return null;
   };
@@ -144,12 +145,13 @@ export default function CreateProgramaDialog({ open, onOpenChange, onCreated }: 
         .single();
 
       if (planError || !plan?.id) throw planError || new Error("No se pudo crear el programa.");
-      newPlanId = plan.id;
+      const createdPlanId = String(plan.id);
+      newPlanId = createdPlanId;
 
       // Se crea una etapa comercial inicial para que el precio quede utilizable
       // por la landing cuando más adelante se decida publicarla.
       const { error: stageError } = await sb.from("plan_price_stages").insert({
-        plan_id: newPlanId,
+        plan_id: createdPlanId,
         nombre: "Precio general",
         precio,
         precio_cuota: cuotaValor,
@@ -167,7 +169,7 @@ export default function CreateProgramaDialog({ open, onOpenChange, onCreated }: 
         description: "Quedó creado en Programas y con su configuración comercial asociada, sin publicarse todavía.",
       });
       onOpenChange(false);
-      onCreated(newPlanId);
+      onCreated(createdPlanId);
     } catch (error: any) {
       // Si falló la creación de la etapa inicial, intentamos no dejar un programa
       // incompleto. Como todavía es nuevo, no tiene inscripciones ni pagos.
