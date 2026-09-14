@@ -114,17 +114,36 @@ const StudentDashboard = () => {
           return;
         }
 
-        const { data } = await supabase
+        // 1) Canonical record by auth user_id (not merged)
+        const { data: byUserId } = await supabase
           .from("alumnos")
           .select("*")
-          .eq("email", session.user.email.toLowerCase().trim())
+          .eq("user_id", session.user.id)
+          .is("fusionada_en", null)
           .maybeSingle();
 
-        if (!data) {
+        if (byUserId) {
+          alumnoData = byUserId;
+        } else {
+          // 2) Fallback: resolve canonical ID from email/aliases/merged chain
+          const { data: lookup } = await supabase
+            .rpc("lookup_alumno_by_email", { p_email: session.user.email.toLowerCase().trim() })
+            .maybeSingle();
+
+          if (lookup?.id) {
+            const { data: canonical } = await supabase
+              .from("alumnos")
+              .select("*")
+              .eq("id", lookup.id)
+              .maybeSingle();
+            alumnoData = canonical || null;
+          }
+        }
+
+        if (!alumnoData) {
           navigate("/");
           return;
         }
-        alumnoData = data;
       }
 
       if (cancelled) return;
