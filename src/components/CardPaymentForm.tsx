@@ -333,40 +333,10 @@ const CardPaymentForm = ({
               }
 
               // Payment approved
+              // Nota: si el alumno pidió auto-renovación, el flujo A ya
+              // resolvió (activado) o cortó pidiendo tarjeta nueva; acá
+              // nunca llegamos con un token ya usado en el preapproval.
               if (result.status === "approved") {
-                // Si el alumno tildó auto-renovación y llegamos acá es porque
-                // el flujo A falló (token ya se consumió en process-card-payment).
-                // Fallback: pedimos preapproval SIN token → init_point.
-                // create-mp-preapproval mandará el mail con el link.
-                if (wantsAutoRenewal) {
-                  try {
-                    const preapprovalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`;
-                    const ppRes = await fetch(preapprovalUrl, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                      },
-                      body: JSON.stringify({
-                        payer_email: email,
-                        suscripcion_id: subId,
-                        alumno_id: alumnoId,
-                        plan_id: planId,
-                        transaction_amount: planPrice,
-                      }),
-                    });
-                    const ppData = await ppRes.json().catch(() => null);
-                    if (ppRes.ok && ppData?.init_point) {
-                      // Redirigimos a MP para autorizar; si no completa,
-                      // el mail que ya salió le va a permitir volver luego.
-                      window.location.href = ppData.init_point;
-                      return;
-                    }
-                    console.warn("Preapproval fallback (redirect) failed:", ppData);
-                  } catch (ppErr) {
-                    console.warn("Preapproval fallback error:", ppErr);
-                  }
-                }
                 navigate("/pago-resultado?status=approved");
               } else if (result.status === "in_process") {
                 navigate("/pago-resultado?status=pending");
