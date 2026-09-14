@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { GraduationCap, Users, Calendar, ArrowRight, Plus } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import CreateProgramaDialog from "@/components/admin/CreateProgramaDialog";
 
 interface CohortRow {
   id: string;
@@ -41,9 +42,11 @@ const daysUntil = (d: string | null): number | null => {
 };
 
 const AdminProgramas = () => {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<CohortRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"activos" | "todos">("activos");
+  const [createOpen, setCreateOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -70,7 +73,7 @@ const AdminProgramas = () => {
             <GraduationCap className="w-6 h-6 text-primary" /> Programas
           </h1>
           <p className="text-sm text-muted-foreground">
-            Cohortes de programas cerrados (Formación Inicial y otros). Cada plan de tipo programa cerrado es una cohorte.
+            Gestioná cada edición desde acá. El precio y la configuración comercial forman parte del mismo programa.
           </p>
         </div>
         <div className="flex gap-2">
@@ -80,11 +83,9 @@ const AdminProgramas = () => {
           <Button variant={filter === "todos" ? "default" : "outline"} size="sm" onClick={() => setFilter("todos")}>
             Todos
           </Button>
-          <Link to="/admin/planes">
-            <Button size="sm" variant="secondary">
-              <Plus className="w-4 h-4 mr-1" /> Nueva cohorte
-            </Button>
-          </Link>
+          <Button size="sm" variant="secondary" onClick={() => setCreateOpen(true)}>
+            <Plus className="w-4 h-4 mr-1" /> Nuevo programa
+          </Button>
         </div>
       </div>
 
@@ -92,12 +93,13 @@ const AdminProgramas = () => {
         <div className="text-center py-12 text-muted-foreground">Cargando…</div>
       ) : rows.length === 0 ? (
         <Card>
-          <CardContent className="p-12 text-center text-muted-foreground">
-            No hay cohortes {filter === "activos" ? "activas" : ""}. Creá un plan tipo <b>programa cerrado</b> en{" "}
-            <Link to="/admin/planes" className="underline">
-              Planes
-            </Link>
-            .
+          <CardContent className="p-12 text-center space-y-4">
+            <p className="text-muted-foreground">
+              No hay programas {filter === "activos" ? "activos" : ""} todavía.
+            </p>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Crear primer programa
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -168,7 +170,10 @@ const AdminProgramas = () => {
                   </div>
 
                   <div className="flex items-center justify-between pt-1">
-                    <span className="text-sm font-heading font-bold">{formatPrice(r.precio, r.moneda)}</span>
+                    <div>
+                      <span className="text-sm font-heading font-bold">{formatPrice(r.precio, r.moneda)}</span>
+                      <p className="text-[10px] text-muted-foreground">Configuración comercial asociada</p>
+                    </div>
                     <Link to={`/admin/programas/${r.id}`}>
                       <Button size="sm" variant="ghost">
                         Ver detalle <ArrowRight className="w-4 h-4 ml-1" />
@@ -178,6 +183,7 @@ const AdminProgramas = () => {
 
                   <div className="flex gap-1 flex-wrap">
                     {!r.activo && <Badge variant="outline" className="text-[10px]">Inactivo</Badge>}
+                    {r.visibilidad === "oculto" && <Badge variant="outline" className="text-[10px]">Oculto</Badge>}
                     {r.landing_public && <Badge variant="outline" className="text-[10px]">Landing pública</Badge>}
                     {r.cohort_slug && <Badge variant="outline" className="text-[10px]">{r.cohort_slug}</Badge>}
                   </div>
@@ -187,6 +193,12 @@ const AdminProgramas = () => {
           })}
         </div>
       )}
+
+      <CreateProgramaDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={(programId) => navigate(`/admin/programas/${programId}`)}
+      />
     </div>
   );
 };
