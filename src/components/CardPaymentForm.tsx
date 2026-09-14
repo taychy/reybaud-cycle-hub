@@ -272,8 +272,20 @@ const CardPaymentForm = ({
                   return;
                 }
 
-                console.warn("Preapproval-first path failed, falling back to single payment:", ppData);
-                // Continúa abajo con el flujo de pago simple.
+                // El token de tarjeta ya fue enviado a Mercado Pago en el
+                // preapproval: es de un solo uso. NO lo reutilizamos para el
+                // pago simple (MP lo rechazaría y quedaría un error confuso).
+                // Regeneramos el formulario para que se cargue la tarjeta de
+                // nuevo y se emita un token nuevo.
+                console.warn("Preapproval con token falló; se requiere nuevo token:", ppData);
+                setError(
+                  ppData?.error
+                    ? `No pudimos activar la renovación automática: ${ppData.error} Volvé a ingresar los datos de la tarjeta para reintentar.`
+                    : "No pudimos activar la renovación automática. Volvé a ingresar los datos de la tarjeta para reintentar."
+                );
+                setProcessing(false);
+                remountCardForm();
+                return;
               }
 
               // ── Flow B: pago simple (sin auto-renovación, o fallback) ──
