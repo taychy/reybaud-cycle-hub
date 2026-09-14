@@ -102,6 +102,18 @@ const CardPaymentForm = ({
     };
   }, [mpPublicKey]);
 
+  // Vuelve a montar el formulario de tarjeta para generar un token nuevo.
+  // Los tokens de MP son de un solo uso: si uno ya se envió (por ejemplo al
+  // crear el preapproval), no puede reutilizarse para cobrar.
+  const remountCardForm = () => {
+    try {
+      cardFormRef.current?.unmount();
+    } catch {}
+    cardFormRef.current = null;
+    setLoading(true);
+    setTimeout(() => initCardForm(), 0);
+  };
+
   const initCardForm = () => {
     try {
       const mp = new window.MercadoPago(mpPublicKey, { locale: "es-AR" });
