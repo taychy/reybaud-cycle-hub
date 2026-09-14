@@ -178,6 +178,19 @@ const CardPaymentForm = ({
                 return;
               }
 
+              // Sin token o sin medio de pago no hay cobro posible: cortamos
+              // ANTES de crear/reutilizar una suscripción pendiente, para no
+              // dejar suscripciones fantasma por formularios incompletos.
+              const cardToken = String(formData.token || "").trim();
+              const paymentMethodId = String(formData.paymentMethodId || "").trim();
+              if (!cardToken || !paymentMethodId) {
+                setError(
+                  "No pudimos validar los datos de la tarjeta. Revisá número, vencimiento, CVV y documento, y volvé a intentar."
+                );
+                setProcessing(false);
+                return;
+              }
+
               // Limpieza previa: expira subs "activas" con fecha_fin vencida (cron dormido)
               // para que el trigger de duplicado no bloquee al insertar la sub del período nuevo.
               await expireStaleSubs(alumnoId, planId);
