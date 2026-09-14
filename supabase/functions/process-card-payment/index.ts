@@ -96,13 +96,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    const installmentCount = Number(installments);
-    if (!Number.isInteger(installmentCount) || installmentCount < 1) {
-      return new Response(
-        JSON.stringify({ error: "Seleccioná una cantidad de cuotas válida." }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Mercado Pago no siempre devuelve installments (ej. planes test de $1).
+    // Usamos 1 cuota como fallback seguro para pago único.
+    const rawInstallments = Number(installments);
+    const installmentCount =
+      Number.isInteger(rawInstallments) && rawInstallments >= 1 ? rawInstallments : 1;
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
