@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3, Settings2, CalendarClock, AlertTriangle, MoreHorizontal, UserMinus } from "lucide-react";
+import { ArrowLeft, Users, Calendar, DollarSign, AlertCircle, MessageCircle, ExternalLink, Workflow, Play, Loader2, Edit3, Settings2, CalendarClock, AlertTriangle, MoreHorizontal, UserMinus, Calculator } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -21,6 +21,7 @@ import { getShareOrigin } from "@/lib/eventLinks";
 import EditProgramaDialog from "@/components/admin/EditProgramaDialog";
 import DarDeBajaProgramaDialog from "@/components/admin/DarDeBajaProgramaDialog";
 import ProgramaClasesBloque from "@/components/admin/ProgramaClasesBloque";
+import ProgramBudgetPanel from "@/components/admin/ProgramBudgetPanel";
 import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
 
 
@@ -606,10 +607,11 @@ const AdminProgramaDetalle = () => {
       )}
 
       <Tabs defaultValue="inscriptos">
-        <TabsList>
+        <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="inscriptos">Inscriptos activos ({activos.length})</TabsTrigger>
           <TabsTrigger value="bajas">Bajas ({bajas.length})</TabsTrigger>
           <TabsTrigger value="playbook">Playbook</TabsTrigger>
+          <TabsTrigger value="presupuesto"><Calculator className="w-3.5 h-3.5 mr-1" /> Presupuesto</TabsTrigger>
           <TabsTrigger value="comunicaciones">Comunicaciones ({emails.length})</TabsTrigger>
         </TabsList>
 
@@ -680,6 +682,16 @@ const AdminProgramaDetalle = () => {
           </Card>
 
           {cohortId && <ProgramaClasesBloque planId={cohortId} />}
+        </TabsContent>
+
+        <TabsContent value="presupuesto">
+          <ProgramBudgetPanel
+            planId={cohortId!}
+            moneda={plan.moneda}
+            precioLista={Number(plan.precio) || 0}
+            cupoMax={cap}
+            inscriptosActivos={activos.length}
+          />
         </TabsContent>
 
 
