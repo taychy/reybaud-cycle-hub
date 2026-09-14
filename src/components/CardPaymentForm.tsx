@@ -63,12 +63,13 @@ const CardPaymentForm = ({
           }),
           supabase.from("alumnos").select("email").eq("id", alumnoId).maybeSingle(),
         ]);
-        const data = await keyRes.json();
-        if (data.public_key) {
+        const data = await keyRes.json().catch(() => ({}));
+        if (keyRes.ok && data.public_key) {
           setMpPublicKey(data.public_key);
           setPayerEmail((alumnoRes.data?.email || "").trim().toLowerCase());
         } else {
-          setError("No se pudo obtener la configuración de pago.");
+          setError(data?.error || "No se pudo obtener la configuración de pago.");
+          setLoading(false);
         }
       } catch {
         setError("Error al conectar con el servicio de pagos.");
@@ -100,6 +101,18 @@ const CardPaymentForm = ({
       }
     };
   }, [mpPublicKey]);
+
+  // Vuelve a montar el formulario de tarjeta para generar un token nuevo.
+  // Los tokens de MP son de un solo uso: si uno ya se envió (por ejemplo al
+  // crear el preapproval), no puede reutilizarse para cobrar.
+  const remountCardForm = () => {
+    try {
+      cardFormRef.current?.unmount();
+    } catch {}
+    cardFormRef.current = null;
+    setLoading(true);
+    setTimeout(() => initCardForm(), 0);
+  };
 
   const initCardForm = () => {
     try {
@@ -173,6 +186,19 @@ const CardPaymentForm = ({
 
               if (!email) {
                 setError("Ingresá un email para continuar con Mercado Pago.");
+                setProcessing(false);
+                return;
+              }
+
+              // Sin token o sin medio de pago no hay cobro posible: cortamos
+              // ANTES de crear/reutilizar una suscripción pendiente, para no
+              // dejar suscripciones fantasma por formularios incompletos.
+              const cardToken = String(formData.token || "").trim();
+              const paymentMethodId = String(formData.paymentMethodId || "").trim();
+              if (!cardToken || !paymentMethodId) {
+                setError(
+                  "No pudimos validar los datos de la tarjeta. Revisá número, vencimiento, CVV y documento, y volvé a intentar."
+                );
                 setProcessing(false);
                 return;
               }
@@ -258,8 +284,20 @@ const CardPaymentForm = ({
                   return;
                 }
 
-                console.warn("Preapproval-first path failed, falling back to single payment:", ppData);
-                // Continúa abajo con el flujo de pago simple.
+                // El token de tarjeta ya fue enviado a Mercado Pago en el
+                // preapproval: es de un solo uso. NO lo reutilizamos para el
+                // pago simple (MP lo rechazaría y quedaría un error confuso).
+                // Regeneramos el formulario para que se cargue la tarjeta de
+                // nuevo y se emita un token nuevo.
+                console.warn("Preapproval con token falló; se requiere nuevo token:", ppData);
+                setError(
+                  ppData?.error
+                    ? `No pudimos activar la renovación automática: ${ppData.error} Volvé a ingresar los datos de la tarjeta para reintentar.`
+                    : "No pudimos activar la renovación automática. Volvé a ingresar los datos de la tarjeta para reintentar."
+                );
+                setProcessing(false);
+                remountCardForm();
+                return;
               }
 
               // ── Flow B: pago simple (sin auto-renovación, o fallback) ──
@@ -271,9 +309,9 @@ const CardPaymentForm = ({
                   apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
                 },
                 body: JSON.stringify({
-                  token: formData.token,
+                  token: cardToken,
                   issuer_id: formData.issuerId,
-                  payment_method_id: formData.paymentMethodId,
+                  payment_method_id: paymentMethodId,
                   transaction_amount: planPrice,
                   // MP CardForm puede no devolver installments en planes test de $1.
                   // Forzamos 1 cuota como fallback seguro para pago único.
@@ -307,40 +345,10 @@ const CardPaymentForm = ({
               }
 
               // Payment approved
+              // Nota: si el alumno pidió auto-renovación, el flujo A ya
+              // resolvió (activado) o cortó pidiendo tarjeta nueva; acá
+              // nunca llegamos con un token ya usado en el preapproval.
               if (result.status === "approved") {
-                // Si el alumno tildó auto-renovación y llegamos acá es porque
-                // el flujo A falló (token ya se consumió en process-card-payment).
-                // Fallback: pedimos preapproval SIN token → init_point.
-                // create-mp-preapproval mandará el mail con el link.
-                if (wantsAutoRenewal) {
-                  try {
-                    const preapprovalUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-mp-preapproval`;
-                    const ppRes = await fetch(preapprovalUrl, {
-                      method: "POST",
-                      headers: {
-                        "Content-Type": "application/json",
-                        apikey: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-                      },
-                      body: JSON.stringify({
-                        payer_email: email,
-                        suscripcion_id: subId,
-                        alumno_id: alumnoId,
-                        plan_id: planId,
-                        transaction_amount: planPrice,
-                      }),
-                    });
-                    const ppData = await ppRes.json().catch(() => null);
-                    if (ppRes.ok && ppData?.init_point) {
-                      // Redirigimos a MP para autorizar; si no completa,
-                      // el mail que ya salió le va a permitir volver luego.
-                      window.location.href = ppData.init_point;
-                      return;
-                    }
-                    console.warn("Preapproval fallback (redirect) failed:", ppData);
-                  } catch (ppErr) {
-                    console.warn("Preapproval fallback error:", ppErr);
-                  }
-                }
                 navigate("/pago-resultado?status=approved");
               } else if (result.status === "in_process") {
                 navigate("/pago-resultado?status=pending");
