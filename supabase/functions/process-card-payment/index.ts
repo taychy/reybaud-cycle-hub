@@ -47,6 +47,29 @@ const getPaymentErrorMessage = (statusDetail?: string | null) => {
   }
 };
 
+const getApiErrorUserMessage = (rawMessage?: string | null, errorCode?: string | null) => {
+  const raw = (rawMessage || "").toLowerCase();
+  if (raw.includes("issuer")) {
+    return "No se pudo identificar el banco emisor de la tarjeta. Volvé a ingresar los datos de la tarjeta.";
+  }
+  if (raw.includes("identification") || raw.includes("document")) {
+    return "Revisá el tipo y número de documento del titular de la tarjeta.";
+  }
+  if (raw.includes("payment_method")) {
+    return "No se pudo identificar el tipo de tarjeta. Volvé a ingresar el número de tarjeta.";
+  }
+  if (raw.includes("token")) {
+    return "Los datos de la tarjeta vencieron o no pudieron validarse. Volvé a ingresarlos e intentá nuevamente.";
+  }
+  if (raw.includes("installment")) {
+    return "La cantidad de cuotas seleccionada no pudo procesarse. Elegí otra opción de cuotas.";
+  }
+  if (errorCode === "bad_request") {
+    return "Mercado Pago no pudo procesar los datos de la tarjeta. Revisalos e intentá nuevamente.";
+  }
+  return "Mercado Pago no pudo procesar la tarjeta. Revisá los datos e intentá nuevamente.";
+};
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -66,9 +89,17 @@ Deno.serve(async (req) => {
       plan_id,
     } = body;
 
-    if (!token || !suscripcion_id || !alumno_id || !plan_id) {
+    if (!token || !payment_method_id || !suscripcion_id || !alumno_id || !plan_id) {
       return new Response(
-        JSON.stringify({ error: "Faltan parámetros requeridos" }),
+        JSON.stringify({ error: "Faltan datos requeridos para procesar la tarjeta." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const installmentCount = Number(installments);
+    if (!Number.isInteger(installmentCount) || installmentCount < 1) {
+      return new Response(
+        JSON.stringify({ error: "Seleccioná una cantidad de cuotas válida." }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -87,12 +118,6 @@ Deno.serve(async (req) => {
     }
     console.log("[process-card-payment] cuenta MP:", { slug: cuenta.slug, source: cuenta.source });
 
-
-    // ──────────────────────────────────────────────────────────────
-    // VALIDACIÓN SERVER-SIDE: el monto que mandó el cliente tiene
-    // que coincidir con el precio_final ya persistido en la sub.
-    // Esto evita que un cliente manipulado pague $1 por un plan caro.
-    // ──────────────────────────────────────────────────────────────
     const { data: sub, error: subFetchErr } = await supabaseAdmin
       .from("suscripciones")
       .select("id, alumno_id, plan_id, precio_final, estado, mp_payment_id")
@@ -108,7 +133,6 @@ Deno.serve(async (req) => {
     }
 
     if (sub.alumno_id !== alumno_id || sub.plan_id !== plan_id) {
-      console.warn("Sub mismatch:", { sub_alumno: sub.alumno_id, body_alumno: alumno_id });
       return new Response(
         JSON.stringify({ error: "Datos de suscripción inválidos" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -124,41 +148,47 @@ Deno.serve(async (req) => {
 
     const expectedAmount = Number(sub.precio_final);
     const clientAmount = Number(transaction_amount);
-    // Tolerancia de 1 centavo para evitar falsos negativos por float
     if (!Number.isFinite(clientAmount) || Math.abs(expectedAmount - clientAmount) > 0.01) {
-      console.warn("Amount mismatch:", { expected: expectedAmount, received: clientAmount });
       return new Response(
         JSON.stringify({ error: "El monto no coincide con el precio del plan" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Process payment via MP API — uso el monto validado del servidor.
-    // issuer_id es opcional: algunas tarjetas/medios no lo informan.
+    const payerEmail = String(payer?.email || "").trim().toLowerCase();
+    const identificationType = String(payer?.identification?.type || "").trim();
+    const identificationNumber = String(payer?.identification?.number || "").replace(/\D/g, "");
+
+    if (!payerEmail || !identificationType || !identificationNumber) {
+      return new Response(
+        JSON.stringify({ error: "Completá email, tipo y número de documento del titular." }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const paymentBody: Record<string, unknown> = {
       token,
       payment_method_id,
       transaction_amount: expectedAmount,
-      installments: Number(installments),
+      installments: installmentCount,
       payer: {
-        email: payer?.email || "",
-        identification: payer?.identification || {},
+        email: payerEmail,
+        identification: {
+          type: identificationType,
+          number: identificationNumber,
+        },
       },
       external_reference: suscripcion_id,
       description: "Suscripción Ciclismo Reybaud",
       statement_descriptor: "CICLISMO REYBAUD",
     };
 
-    if (issuer_id) {
-      paymentBody.issuer_id = issuer_id;
+    const normalizedIssuer = issuer_id == null ? "" : String(issuer_id).trim();
+    if (normalizedIssuer && normalizedIssuer !== "null" && normalizedIssuer !== "undefined" && normalizedIssuer !== "0") {
+      paymentBody.issuer_id = normalizedIssuer;
     }
 
-    console.log("Processing card payment:", { suscripcion_id, amount: expectedAmount });
-
-    // Idempotency key con timestamp: permite reintentos con otra tarjeta
-    // después de un rechazo, sin que MP cachee el resultado anterior 24h.
     const idempotencyKey = `${suscripcion_id}:${Date.now()}`;
-
     const mpResponse = await fetch("https://api.mercadopago.com/v1/payments", {
       method: "POST",
       headers: {
@@ -169,7 +199,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify(paymentBody),
     });
 
-    const mpData = await mpResponse.json();
+    const mpData = await mpResponse.json().catch(() => ({}));
     console.log("MP payment response:", {
       http_status: mpResponse.status,
       status: mpData?.status,
@@ -180,25 +210,44 @@ Deno.serve(async (req) => {
       cause: mpData?.cause,
     });
 
-    // Si MP devuelve un 4xx sin "status" (ej. token inválido, datos faltantes),
-    // propagamos el error de forma legible SIN tocar la suscripción para que
-    // el alumno pueda reintentar sin que aparezca como "baja".
-    if (!mpResponse.ok && !mpData?.status) {
-      const mpMessage =
-        mpData?.message ||
-        (Array.isArray(mpData?.cause) && mpData.cause[0]?.description) ||
-        "Mercado Pago rechazó la solicitud. Revisá los datos de la tarjeta.";
+    // Mercado Pago usa `status: 400` también dentro de sus respuestas de error.
+    // Ese número NO es un estado de pago. Cualquier HTTP no-2xx se trata primero
+    // como error de API y nunca como un pago rechazado por el banco.
+    if (!mpResponse.ok) {
+      const causeDescription =
+        Array.isArray(mpData?.cause) && mpData.cause.length > 0
+          ? String(mpData.cause[0]?.description || mpData.cause[0]?.code || "")
+          : "";
+      const rawMessage = String(mpData?.message || causeDescription || "").trim();
+      const errorCode = String(mpData?.error || `http_${mpResponse.status}`);
+      const statusDetail = String(mpData?.status_detail || errorCode);
+      const userMessage = getApiErrorUserMessage(rawMessage, errorCode);
+
+      await supabaseAdmin
+        .from("suscripciones")
+        .update({
+          estado: "pendiente",
+          mp_payment_id: null,
+          mp_status: `error_${mpResponse.status}`,
+          mp_status_detail: statusDetail,
+          mp_error_code: errorCode,
+          mp_error_message: rawMessage || null,
+          metodo_pago: "mercadopago",
+          origen_registro: "automatico",
+          cuenta_mp_id: cuenta.cuenta_id,
+        })
+        .eq("id", suscripcion_id);
+
       return new Response(
         JSON.stringify({
           status: "rejected",
-          status_detail: mpData?.status_detail || mpData?.error || null,
-          error: mpMessage,
+          status_detail: statusDetail,
+          error: userMessage,
         }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        { status: mpResponse.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Update subscription based on payment result
     const now = new Date().toISOString().split("T")[0];
     const endOfMonth = new Date(
       new Date().getFullYear(),
@@ -207,17 +256,12 @@ Deno.serve(async (req) => {
     ).toISOString().split("T")[0];
 
     if (mpData.status === "approved") {
-      // Preservar el período (fecha_inicio/fecha_fin) si la sub ya lo tiene
-      // definido (renovación pendiente del cron, período pre-cargado, etc.).
-      // Sólo cuando no hay período cargado usamos hoy→fin del mes calendario.
-      // Nunca extender un plan al mes siguiente por pagar tarde en el mes.
       const { data: currentSub } = await supabaseAdmin
         .from("suscripciones")
         .select("fecha_inicio, fecha_fin")
         .eq("id", suscripcion_id)
         .maybeSingle();
 
-      // Capturamos comisiones MP para calcular el neto real.
       let feesPatch: Record<string, unknown> = {};
       try {
         const detailed = await fetchMpPayment(String(mpData.id), cuenta.access_token);
@@ -236,12 +280,16 @@ Deno.serve(async (req) => {
       const updatePayload: Record<string, unknown> = {
         estado: "activa",
         mp_payment_id: String(mpData.id),
-        mp_status: mpData.status,
+        mp_status: "approved",
+        mp_status_detail: mpData.status_detail || null,
+        mp_error_code: null,
+        mp_error_message: null,
         metodo_pago: "mercadopago",
         origen_registro: "automatico",
         cuenta_mp_id: cuenta.cuenta_id,
         ...feesPatch,
       };
+
       if (currentSub?.fecha_inicio && currentSub?.fecha_fin) {
         updatePayload.fecha_inicio = currentSub.fecha_inicio;
         updatePayload.fecha_fin = currentSub.fecha_fin;
@@ -250,43 +298,34 @@ Deno.serve(async (req) => {
         updatePayload.fecha_fin = endOfMonth;
       }
 
-      const { error: updateErr } = await supabaseAdmin
-        .from("suscripciones")
-        .update(updatePayload)
-        .eq("id", suscripcion_id);
-
-      if (updateErr) {
-        console.error("Error updating subscription (possible duplicate):", updateErr);
-      }
-
-      // Activate student
-      await supabaseAdmin
-        .from("alumnos")
-        .update({ estado: "activo" })
-        .eq("id", alumno_id);
+      await supabaseAdmin.from("suscripciones").update(updatePayload).eq("id", suscripcion_id);
+      await supabaseAdmin.from("alumnos").update({ estado: "activo" }).eq("id", alumno_id);
     } else if (mpData.status === "in_process") {
       await supabaseAdmin
         .from("suscripciones")
         .update({
           estado: "pendiente",
           mp_payment_id: String(mpData.id),
-          mp_status: mpData.status,
+          mp_status: "in_process",
+          mp_status_detail: mpData.status_detail || null,
+          mp_error_code: null,
+          mp_error_message: null,
           metodo_pago: "mercadopago",
           origen_registro: "automatico",
           cuenta_mp_id: cuenta.cuenta_id,
         })
         .eq("id", suscripcion_id);
     } else {
-      // Rechazo: dejamos la sub en "pendiente" (no "cancelada") para:
-      //  1) No contar como baja en métricas/alertas admin.
-      //  2) Permitir reintento con otra tarjeta sobre la misma sub.
-      // El detalle del rechazo queda disponible en la respuesta para mostrarlo al alumno.
+      const rejectionMessage = getPaymentErrorMessage(mpData.status_detail);
       await supabaseAdmin
         .from("suscripciones")
         .update({
           estado: "pendiente",
           mp_payment_id: mpData.id ? String(mpData.id) : null,
           mp_status: mpData.status || "rejected",
+          mp_status_detail: mpData.status_detail || null,
+          mp_error_code: mpData.status === "rejected" ? "payment_rejected" : null,
+          mp_error_message: mpData.status === "rejected" ? rejectionMessage : null,
           metodo_pago: "mercadopago",
           origen_registro: "automatico",
           cuenta_mp_id: cuenta.cuenta_id,
@@ -304,7 +343,7 @@ Deno.serve(async (req) => {
         payment_id: mpData.id,
         ...(rejectionError ? { error: rejectionError } : {}),
       }),
-      { status: mpResponse.ok ? 200 : 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err) {
     console.error("Card payment error:", err);
