@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { formatPrice } from "@/lib/currency";
+import { MONOTRIBUTO_CATEGORIAS } from "@/lib/monotributo";
 import { AlertTriangle, Settings2 } from "lucide-react";
 
 interface Row {
@@ -25,6 +26,8 @@ interface Row {
 interface Props {
   refreshKey?: number;
 }
+
+const categoriasMonotributo = MONOTRIBUTO_CATEGORIAS.filter((categoria) => categoria.id !== "RI");
 
 export function BillingEmisorSummary({ refreshKey }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -66,6 +69,17 @@ export function BillingEmisorSummary({ refreshKey }: Props) {
           const attention = pct !== null && pct >= 80 && pct < 90;
           const needsAttention = exceeded || critical || warning;
           const inferredCategory = r.categoria_por_ingresos;
+          const inferredIndex = categoriasMonotributo.findIndex((categoria) => categoria.id === inferredCategory);
+          const declaredIndex = categoriasMonotributo.findIndex((categoria) => categoria.id === r.categoria_monotributo);
+          const inferredBand = inferredIndex >= 0 ? categoriasMonotributo[inferredIndex] : null;
+          const nextIncomeCategory = inferredIndex >= 0 && inferredIndex < categoriasMonotributo.length - 1
+            ? categoriasMonotributo[inferredIndex + 1]
+            : null;
+          const remainingBeforeNextIncomeBand = inferredBand
+            ? Math.max(inferredBand.tope_anual_ars - r.facturado_anual, 0)
+            : null;
+          const movesUpByIncome = declaredIndex >= 0 && inferredIndex > declaredIndex;
+          const sameIncomeBandAsDeclared = declaredIndex >= 0 && inferredIndex === declaredIndex;
           const categoryDiffers = Boolean(
             r.categoria_monotributo &&
             inferredCategory &&
@@ -104,10 +118,18 @@ export function BillingEmisorSummary({ refreshKey }: Props) {
                       <span className="rounded border px-1.5 py-0.5 text-foreground">Cat. declarada {r.categoria_monotributo}</span>
                     )}
                     {inferredCategory === "FUERA_REGIMEN" ? (
-                      <span className="rounded border border-destructive/40 bg-destructive/5 px-1.5 py-0.5 text-destructive">Supera máximo Monotributo</span>
+                      <span className="rounded border border-destructive/40 bg-destructive/5 px-1.5 py-0.5 text-destructive">
+                        Supera el tope máximo del Monotributo
+                      </span>
                     ) : categoryDiffers ? (
-                      <span className="rounded border border-amber-500/40 bg-amber-500/5 px-1.5 py-0.5 text-amber-600">
-                        Por ingresos: {inferredCategory}
+                      <span
+                        className={`rounded border px-1.5 py-0.5 ${
+                          movesUpByIncome
+                            ? "border-amber-500/40 bg-amber-500/5 text-amber-600"
+                            : "border-border bg-muted/20 text-muted-foreground"
+                        }`}
+                      >
+                        Rango por ingresos: {inferredCategory}
                       </span>
                     ) : null}
                   </div>
@@ -128,7 +150,7 @@ export function BillingEmisorSummary({ refreshKey }: Props) {
                       <span>Tope Cat. {r.categoria_monotributo || "—"}: {formatPrice(r.limite_anual_ars, "ARS")}</span>
                       {exceeded ? (
                         <span className="font-medium text-destructive">
-                          Excede {formatPrice(r.exceso_categoria ?? 0, "ARS")}
+                          Supera Cat. {r.categoria_monotributo || "—"} en {formatPrice(r.exceso_categoria ?? 0, "ARS")}
                         </span>
                       ) : (
                         <span>
@@ -154,6 +176,19 @@ export function BillingEmisorSummary({ refreshKey }: Props) {
                   <span>Histórico ARCA neto</span>
                   <span className="font-medium text-foreground">{formatPrice(r.facturado_historico_12m ?? 0, "ARS")}</span>
                 </div>
+                {nextIncomeCategory && remainingBeforeNextIncomeBand !== null && (movesUpByIncome || sameIncomeBandAsDeclared) && (
+                  <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-1">
+                    <span>Siguiente rango por ingresos: Cat. {nextIncomeCategory.id}</span>
+                    <span className="font-medium text-foreground">
+                      Faltan {formatPrice(remainingBeforeNextIncomeBand, "ARS")} para superar {inferredBand?.id}
+                    </span>
+                  </div>
+                )}
+                {movesUpByIncome && inferredCategory !== "FUERA_REGIMEN" && (
+                  <p className="border-t border-border/40 pt-1 text-amber-600">
+                    Superar la categoría declarada implica un cambio de rango; no significa quedar afuera del Monotributo.
+                  </p>
+                )}
                 {r.disponible_hasta_max_regimen !== null && r.disponible_hasta_max_regimen !== undefined && inferredCategory !== "FUERA_REGIMEN" && (
                   <div className="flex items-center justify-between gap-3 border-t border-border/40 pt-1">
                     <span>Disponible hasta máximo del régimen</span>
