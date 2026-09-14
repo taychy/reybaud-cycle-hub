@@ -6186,6 +6186,163 @@ export type Database = {
           },
         ]
       }
+      fiscal_historical_documents: {
+        Row: {
+          cae: string | null
+          clase: string
+          cliente_doc_nro: string | null
+          cliente_doc_tipo: string | null
+          cliente_nombre: string | null
+          created_at: string
+          emisor_id: string
+          fecha_emision: string
+          id: string
+          import_batch_id: string
+          importe_total: number
+          letra: string
+          moneda: string
+          numero_comprobante: number
+          origen: string
+          punto_venta: number
+          source_row_number: number | null
+          tipo_comprobante: number
+        }
+        Insert: {
+          cae?: string | null
+          clase: string
+          cliente_doc_nro?: string | null
+          cliente_doc_tipo?: string | null
+          cliente_nombre?: string | null
+          created_at?: string
+          emisor_id: string
+          fecha_emision: string
+          id?: string
+          import_batch_id: string
+          importe_total: number
+          letra: string
+          moneda?: string
+          numero_comprobante: number
+          origen?: string
+          punto_venta: number
+          source_row_number?: number | null
+          tipo_comprobante: number
+        }
+        Update: {
+          cae?: string | null
+          clase?: string
+          cliente_doc_nro?: string | null
+          cliente_doc_tipo?: string | null
+          cliente_nombre?: string | null
+          created_at?: string
+          emisor_id?: string
+          fecha_emision?: string
+          id?: string
+          import_batch_id?: string
+          importe_total?: number
+          letra?: string
+          moneda?: string
+          numero_comprobante?: number
+          origen?: string
+          punto_venta?: number
+          source_row_number?: number | null
+          tipo_comprobante?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_historical_documents_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "fiscal_historical_documents_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fiscal_historical_documents_import_batch_id_fkey"
+            columns: ["import_batch_id"]
+            isOneToOne: false
+            referencedRelation: "fiscal_import_batches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      fiscal_import_batches: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          emisor_id: string
+          id: string
+          imported_documents: number
+          imported_facturas_total: number
+          imported_neto_fiscal: number
+          imported_notas_credito_total: number
+          skipped_app_documents: number
+          skipped_historical_documents: number
+          source_cuit: string
+          source_facturas_total: number
+          source_filename: string
+          source_neto_fiscal: number
+          source_notas_credito_total: number
+          source_total_documents: number
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          emisor_id: string
+          id?: string
+          imported_documents?: number
+          imported_facturas_total?: number
+          imported_neto_fiscal?: number
+          imported_notas_credito_total?: number
+          skipped_app_documents?: number
+          skipped_historical_documents?: number
+          source_cuit: string
+          source_facturas_total?: number
+          source_filename: string
+          source_neto_fiscal?: number
+          source_notas_credito_total?: number
+          source_total_documents?: number
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          emisor_id?: string
+          id?: string
+          imported_documents?: number
+          imported_facturas_total?: number
+          imported_neto_fiscal?: number
+          imported_notas_credito_total?: number
+          skipped_app_documents?: number
+          skipped_historical_documents?: number
+          source_cuit?: string
+          source_facturas_total?: number
+          source_filename?: string
+          source_neto_fiscal?: number
+          source_notas_credito_total?: number
+          source_total_documents?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fiscal_import_batches_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "fiscal_import_batches_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gasto_categorias: {
         Row: {
           activa: boolean
@@ -7164,6 +7321,30 @@ export type Database = {
         }
         Relationships: []
       }
+      monotributo_categoria_parametros: {
+        Row: {
+          categoria: string
+          created_at: string
+          fuente: string | null
+          ingresos_brutos_limite: number
+          vigencia_desde: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          fuente?: string | null
+          ingresos_brutos_limite: number
+          vigencia_desde: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          fuente?: string | null
+          ingresos_brutos_limite?: number
+          vigencia_desde?: string
+        }
+        Relationships: []
+      }
       movimientos_liquidacion: {
         Row: {
           alumno_id: string | null
@@ -7651,6 +7832,127 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notas_credito: {
+        Row: {
+          alumno_id: string | null
+          cae: string | null
+          cae_vencimiento: string | null
+          cliente_cuit: string | null
+          cliente_nombre: string
+          concepto: string
+          condicion_fiscal: string
+          created_at: string
+          created_by: string | null
+          emisor_id: string
+          error_detalle: string | null
+          estado: string
+          factura_origen_id: string
+          fecha_emision: string | null
+          id: string
+          idempotency_key: string
+          letra_comprobante: string
+          moneda: string
+          monto: number
+          motivo: string | null
+          numero_comprobante: string | null
+          tipo_comprobante: number
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          cae?: string | null
+          cae_vencimiento?: string | null
+          cliente_cuit?: string | null
+          cliente_nombre: string
+          concepto: string
+          condicion_fiscal?: string
+          created_at?: string
+          created_by?: string | null
+          emisor_id: string
+          error_detalle?: string | null
+          estado?: string
+          factura_origen_id: string
+          fecha_emision?: string | null
+          id?: string
+          idempotency_key: string
+          letra_comprobante: string
+          moneda?: string
+          monto: number
+          motivo?: string | null
+          numero_comprobante?: string | null
+          tipo_comprobante: number
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          cae?: string | null
+          cae_vencimiento?: string | null
+          cliente_cuit?: string | null
+          cliente_nombre?: string
+          concepto?: string
+          condicion_fiscal?: string
+          created_at?: string
+          created_by?: string | null
+          emisor_id?: string
+          error_detalle?: string | null
+          estado?: string
+          factura_origen_id?: string
+          fecha_emision?: string | null
+          id?: string
+          idempotency_key?: string
+          letra_comprobante?: string
+          moneda?: string
+          monto?: number
+          motivo?: string | null
+          numero_comprobante?: string | null
+          tipo_comprobante?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notas_credito_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_credito_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "notas_credito_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "notas_credito_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "notas_credito_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notas_credito_factura_origen_id_fkey"
+            columns: ["factura_origen_id"]
+            isOneToOne: false
+            referencedRelation: "facturas"
             referencedColumns: ["id"]
           },
         ]
@@ -8483,6 +8785,95 @@ export type Database = {
             columns: ["store_product_id"]
             isOneToOne: false
             referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_budget_items: {
+        Row: {
+          budget_id: string
+          cantidad: number
+          categoria: string
+          concepto: string
+          costo_real: number | null
+          costo_unitario: number
+          created_at: string
+          id: string
+          orden: number
+          updated_at: string
+        }
+        Insert: {
+          budget_id: string
+          cantidad?: number
+          categoria?: string
+          concepto?: string
+          costo_real?: number | null
+          costo_unitario?: number
+          created_at?: string
+          id?: string
+          orden?: number
+          updated_at?: string
+        }
+        Update: {
+          budget_id?: string
+          cantidad?: number
+          categoria?: string
+          concepto?: string
+          costo_real?: number | null
+          costo_unitario?: number
+          created_at?: string
+          id?: string
+          orden?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_budget_items_budget_id_fkey"
+            columns: ["budget_id"]
+            isOneToOne: false
+            referencedRelation: "program_budgets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_budgets: {
+        Row: {
+          created_at: string
+          id: string
+          moneda: string
+          participantes_base: number
+          plan_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          moneda?: string
+          participantes_base?: number
+          plan_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          moneda?: string
+          participantes_base?: number
+          plan_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_budgets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_budgets_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: true
+            referencedRelation: "planes_con_inscriptos"
             referencedColumns: ["id"]
           },
         ]
@@ -12208,11 +12599,14 @@ export type Database = {
           iibb: number | null
           intentos_cobro_fallidos: number
           metodo_pago: string
+          mp_error_code: string | null
+          mp_error_message: string | null
           mp_payment_id: string | null
           mp_preapproval_id: string | null
           mp_preapproval_status: string | null
           mp_preference_id: string | null
           mp_status: string | null
+          mp_status_detail: string | null
           neto_recibido: number | null
           notas: string | null
           origen_registro: string
@@ -12257,11 +12651,14 @@ export type Database = {
           iibb?: number | null
           intentos_cobro_fallidos?: number
           metodo_pago?: string
+          mp_error_code?: string | null
+          mp_error_message?: string | null
           mp_payment_id?: string | null
           mp_preapproval_id?: string | null
           mp_preapproval_status?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          mp_status_detail?: string | null
           neto_recibido?: number | null
           notas?: string | null
           origen_registro?: string
@@ -12306,11 +12703,14 @@ export type Database = {
           iibb?: number | null
           intentos_cobro_fallidos?: number
           metodo_pago?: string
+          mp_error_code?: string | null
+          mp_error_message?: string | null
           mp_payment_id?: string | null
           mp_preapproval_id?: string | null
           mp_preapproval_status?: string | null
           mp_preference_id?: string | null
           mp_status?: string | null
+          mp_status_detail?: string | null
           neto_recibido?: number | null
           notas?: string | null
           origen_registro?: string
@@ -13219,12 +13619,21 @@ export type Database = {
       }
       emisor_facturado_anual: {
         Row: {
+          categoria_monotributo: string | null
+          categoria_por_ingresos: string | null
           cuit: string | null
           cupo_disponible: number | null
+          disponible_hasta_max_regimen: number | null
           emisor_id: string | null
+          exceso_categoria: number | null
           facturado_anual: number | null
+          facturado_app_12m: number | null
+          facturado_historico_12m: number | null
           limite_anual_ars: number | null
+          limite_max_regimen: number | null
+          limite_vigencia_desde: string | null
           nombre_fiscal: string | null
+          notas_credito_app_12m: number | null
           porcentaje_uso: number | null
         }
         Relationships: []
@@ -15674,6 +16083,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      import_fiscal_history: {
+        Args: {
+          p_documents: Json
+          p_emisor_id: string
+          p_source_cuit: string
+          p_source_filename: string
+        }
+        Returns: Json
+      }
       importe_a_pagar_ahora: {
         Args: { _reservation_id: string }
         Returns: Json
@@ -16281,6 +16699,16 @@ export type Database = {
           p_reason: string
         }
         Returns: undefined
+      }
+      reserve_nota_credito: {
+        Args: {
+          p_factura_id: string
+          p_idempotency_key: string
+          p_monto: number
+          p_motivo: string
+          p_usuario_id: string
+        }
+        Returns: string
       }
       resolve_alumno_for_enrollment: {
         Args: {
