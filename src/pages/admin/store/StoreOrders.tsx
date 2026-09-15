@@ -428,11 +428,13 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     const nowIso = new Date().toISOString();
     const traza = `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(value.monto, o.currency)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`;
     const patch: any = {
-      status: "pagado",
       pagado_at: nowIso,
       metodo_pago: value.metodo_pago,
       notes: [o.notes, traza].filter(Boolean).join("\n"),
     };
+    // El cobro no pisa el estado operativo: sólo mueve los status legacy iniciales.
+    if (isLegacyInitialStatus(o.status)) patch.status = "pagado";
+
     // Sólo cobra si el pedido sigue sin pago registrado (evita duplicar el ingreso).
     const { data, error } = await supabase
       .from("store_orders")
