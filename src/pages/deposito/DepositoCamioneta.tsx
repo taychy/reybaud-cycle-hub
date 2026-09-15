@@ -1004,8 +1004,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                   </div>
                   );
                 })}
-
-                ))}
               </div>
             </div>
           ))}
