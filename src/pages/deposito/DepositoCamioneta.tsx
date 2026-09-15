@@ -535,15 +535,66 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     await Promise.all([load(), loadRondas()]);
   };
 
+  // Pedidos de tienda cancelados cuya mercadería sigue arriba de la camioneta.
+  const [cancelledByItem, setCancelledByItem] = useState<Record<string, { orderId: string; orderNumber: number | null }>>({});
+  const [retornoBusy, setRetornoBusy] = useState<string | null>(null);
+
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
       supabase.from("vehiculo_cargas" as any).select("*").eq("id", id).single(),
       supabase.from("vehiculo_carga_items" as any).select("*").eq("carga_id", id).order("cliente_nombre").order("producto"),
     ]);
     setCarga(cRes.data as any);
-    setItems((iRes.data as any[]) || []);
+    const list = ((iRes.data as any[]) || []);
+    setItems(list);
+
+    // Resolver el pedido padre de los ítems de tienda para detectar cancelaciones.
+    const soiIds = list
+      .filter((i: any) => i.source_table === "store_order_items" && i.source_id)
+      .map((i: any) => i.source_id);
+    if (soiIds.length) {
+      const { data: soi } = await supabase
+        .from("store_order_items")
+        .select("id, order_id")
+        .in("id", soiIds);
+      const orderIds = Array.from(new Set((soi || []).map((s: any) => s.order_id).filter(Boolean)));
+      if (orderIds.length) {
+        const { data: ords } = await supabase
+          .from("store_orders")
+          .select("id, order_number, status, stock_restored_at")
+          .in("id", orderIds);
+        const cancelled = new Map<string, any>();
+        (ords || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
+        const map: Record<string, { orderId: string; orderNumber: number | null }> = {};
+        list.forEach((it: any) => {
+          if (it.source_table !== "store_order_items") return;
+          const rel = (soi || []).find((s: any) => s.id === it.source_id);
+          const ord = rel?.order_id ? cancelled.get(rel.order_id) : null;
+          if (ord) map[it.id] = { orderId: ord.id, orderNumber: ord.order_number ?? null };
+        });
+        setCancelledByItem(map);
+      } else {
+        setCancelledByItem({});
+      }
+    } else {
+      setCancelledByItem({});
+    }
     setLoading(false);
   };
+
+  /** El ítem pertenece a una compra cancelada y todavía está arriba de la camioneta. */
+  const cancelInfo = (it: any) =>
+    it.estado === "cargado" ? cancelledByItem[it.id] : undefined;
+
+  const confirmarRetorno = async (orderId: string) => {
+    setRetornoBusy(orderId);
+    const { error } = await (supabase as any).rpc("confirm_cancelled_store_order_return", { _order_id: orderId });
+    setRetornoBusy(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Retorno confirmado: la mercadería volvió al depósito y el stock quedó repuesto.");
+    await load();
+  };
+
   useEffect(() => { load(); loadRondas(); }, [id]);
 
   useEffect(() => {
