@@ -67,8 +67,8 @@ export async function ensureCurrentFxRates(supabase: SupabaseClient) {
       const reference = num(row?.tipoCotizacion);
       if (reference <= 0) throw new Error(`BCRA no devolvió ${currency}`);
       const marginKey = `fx_${currency.toLowerCase()}_margin_pct`;
-      const configuredMargin = num(cfg[marginKey]);
-      const margin = configuredMargin > 0 ? configuredMargin : DEFAULT_MARGIN[currency];
+      const hasConfiguredMargin = Object.prototype.hasOwnProperty.call(cfg, marginKey);
+      const margin = hasConfiguredMargin ? Math.max(0, num(cfg[marginKey])) : DEFAULT_MARGIN[currency];
       const rate = Math.round(reference * (1 + margin / 100) * 10000) / 10000;
       effective[currency] = rate;
 
@@ -99,9 +99,7 @@ export async function ensureCurrentFxRates(supabase: SupabaseClient) {
 export async function getReybaudFxRate(supabase: SupabaseClient, currency: string): Promise<number> {
   const code = String(currency || "ARS").toUpperCase() as FxCurrency;
   if (code === "ARS") return 1;
-  if (!FOREIGN.includes(code as Exclude<FxCurrency, "ARS">)) {
-    throw new Error(`Moneda no soportada: ${code}`);
-  }
+  if (!FOREIGN.includes(code as Exclude<FxCurrency, "ARS">)) throw new Error(`Moneda no soportada: ${code}`);
   const rates = await ensureCurrentFxRates(supabase);
   const rate = rates[code as Exclude<FxCurrency, "ARS">];
   if (!rate || rate <= 0) throw new Error(`Sin cotización vigente para ${code}`);
