@@ -16,17 +16,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Plus, Trash2, Copy, Archive, Save, Sparkles, Calculator } from "lucide-react";
 import { formatPrice, MONEDAS } from "@/lib/currency";
+import { normalizePaymentMethod } from "@/lib/paymentMethods";
 import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
 import { planRoomSync, capacityReductionError } from "@/lib/lodgingCapacity";
 import CostGroupSection from "@/components/admin/CostGroupSection";
 
 import {
-  calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto,
+  calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto, toBase,
   type CostItem, type GrupoCosto, type Modalidad, type Supuestos,
 } from "@/lib/eventCostCalculator";
 
-
+const IMPUESTO_BANCARIZADO_PCT = 5;
 
 interface Props {
   eventId: string;
@@ -60,8 +61,9 @@ export interface EscenarioInscripcion {
   nombre: string;
   inscriptos: number;
   distribucion?: Record<string, number>;
+  /** Porcentaje estimado de ventas cobradas por medios bancarizados. */
+  pct_cobros_bancarizados?: number;
 }
-
 
 interface ItemRow extends CostItem { id: string; simulation_id: string; }
 interface ActualRow {
@@ -70,6 +72,13 @@ interface ActualRow {
   monto_real: number; moneda: string;
   fuente: "manual" | "gasto"; gasto_id: string | null; notas: string | null;
 }
+interface EventPaymentRow {
+  amount: number;
+  currency: string;
+  payment_method: string | null;
+  status: string;
+  anulado_at: string | null;
+}
 
 export default function EventCostSimulator({ eventId }: Props) {
   const [loading, setLoading] = useState(true);
@@ -77,6 +86,7 @@ export default function EventCostSimulator({ eventId }: Props) {
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
   const [actuals, setActuals] = useState<ActualRow[]>([]);
+  const [eventPayments, setEventPayments] = useState<EventPaymentRow[]>([]);
   const [modalidades, setModalidades] = useState<Modalidad[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [rooms, setRooms] = useState<any[]>([]);
@@ -115,8 +125,17 @@ export default function EventCostSimulator({ eventId }: Props) {
     setLoading(false);
   }, [eventId, currentId]);
 
-
   useEffect(() => { loadSims(); }, [loadSims]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("reservation_payments")
+        .select("amount, currency, payment_method, status, anulado_at, event_reservations!inner(event_id)")
+        .eq("event_reservations.event_id", eventId);
+      setEventPayments((data as any) || []);
+    })();
+  }, [eventId]);
 
   useEffect(() => {
     if (!currentId) return;
@@ -195,10 +214,12 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   const normalizarEscenario = useCallback(
     (e: EscenarioInscripcion): EscenarioInscripcion => {
+      const pctBancarizado = Math.min(100, Math.max(0, Number(e.pct_cobros_bancarizados ?? 100)));
       const base: EscenarioInscripcion = {
         id: String(e.id),
         nombre: String(e.nombre || ""),
         inscriptos: Number(e.inscriptos) || 0,
+        pct_cobros_bancarizados: pctBancarizado,
       };
       if (e.distribucion && typeof e.distribucion === "object") {
         base.distribucion = Object.fromEntries(
@@ -288,7 +309,6 @@ export default function EventCostSimulator({ eventId }: Props) {
     paquete_base_id: current.paquete_base_id || null,
   } : null;
 
-
   const lodgingPackages = useMemo(
     () => packages.filter((p) => p.sin_alojamiento !== true),
     [packages],
@@ -304,11 +324,45 @@ export default function EventCostSimulator({ eventId }: Props) {
     [packages],
   );
 
-
   const calculo = useMemo(() => {
     if (!supuestos) return null;
-    return calcularSimulacion(items, modalidades, supuestos);
-  }, [items, modalidades, supuestos]);
+    const base = calcularSimulacion(items, modalidades, supuestos);
+    const pctCobrosBancarizados = Math.min(
+      100,
+      Math.max(0, Number(escenarioActivo?.pct_cobros_bancarizados ?? 100)),
+    );
+    const ingreso = base.escenario_ingreso_total;
+    const impuestoBancarizado = ingreso != null
+      ? ingreso * (pctCobrosBancarizados / 100) * (IMPUESTO_BANCARIZADO_PCT / 100)
+      : null;
+    const gananciaBruta = base.escenario_ganancia_total;
+    const gananciaNeta = gananciaBruta != null && impuestoBancarizado != null
+      ? gananciaBruta - impuestoBancarizado
+      : gananciaBruta;
+    const margenNeto = ingreso != null && ingreso > 0 && gananciaNeta != null
+      ? gananciaNeta / ingreso
+      : base.escenario_margen;
+    return {
+      ...base,
+      pct_cobros_bancarizados: pctCobrosBancarizados,
+      pct_impuesto_bancarizado: IMPUESTO_BANCARIZADO_PCT,
+      impuesto_bancarizado_estimado: impuestoBancarizado,
+      escenario_ganancia_bruta_total: gananciaBruta,
+      escenario_ganancia_total: gananciaNeta,
+      escenario_margen: margenNeto,
+    };
+  }, [items, modalidades, supuestos, escenarioActivo?.pct_cobros_bancarizados]);
+
+  const impuestoBancarizadoReal = useMemo(() => {
+    if (!supuestos) return 0;
+    return eventPayments.reduce((total, p) => {
+      if (p.anulado_at || p.status !== "validado") return total;
+      const metodo = normalizePaymentMethod(p.payment_method);
+      if (!metodo || metodo === "efectivo") return total;
+      const montoBase = toBase(Number(p.amount) || 0, p.currency || supuestos.moneda_base, supuestos);
+      return total + montoBase * (IMPUESTO_BANCARIZADO_PCT / 100);
+    }, 0);
+  }, [eventPayments, supuestos]);
 
   const calculoReal = useMemo(() => {
     if (!supuestos) return null;
@@ -356,7 +410,6 @@ export default function EventCostSimulator({ eventId }: Props) {
     }, 900);
     return () => clearTimeout(t);
   }, [currentId, calculoHash]);
-
 
   /* ─── CRUD simulaciones ─── */
   const nuevaVersion = async (duplicarDe?: SimRow) => {
@@ -471,7 +524,6 @@ export default function EventCostSimulator({ eventId }: Props) {
     if (data) setItems([...items, data as any]);
   };
 
-
   /** Crea la línea principal de costo de un alojamiento recién creado. */
   const addLodgingItemFor = async (opts: {
     packageId: string;
@@ -578,7 +630,6 @@ export default function EventCostSimulator({ eventId }: Props) {
       p.id === packageId ? { ...p, cupo: plan.capacidad, personas_por_habitacion: personas } : p));
   };
 
-
   const patchItem = async (id: string, patch: Partial<ItemRow>) => {
     setItems((old) => old.map((i) => i.id === id ? { ...i, ...patch } : i));
   };
@@ -636,8 +687,6 @@ export default function EventCostSimulator({ eventId }: Props) {
     if (data) setItems([...items, data as any]);
     toast({ title: "Gasto duplicado" });
   };
-
-
 
   /* ─── actuals ─── */
   const addActual = async () => {
@@ -725,7 +774,6 @@ export default function EventCostSimulator({ eventId }: Props) {
     setApplyDialog(false);
     loadSims();
   };
-
 
   if (loading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
 
@@ -818,6 +866,10 @@ export default function EventCostSimulator({ eventId }: Props) {
                   <Input type="number" value={current.pct_imprevistos}
                     onChange={(e) => patchCurrent({ pct_imprevistos: Number(e.target.value) })}
                     onBlur={guardarCambios} /></div>
+                <div><Label className="text-xs">% Impuesto bancarizado</Label>
+                  <Input type="number" value={IMPUESTO_BANCARIZADO_PCT} disabled />
+                  <p className="text-[10px] text-muted-foreground mt-1">Sobre precio de venta; efectivo 0%.</p>
+                </div>
                 <div><Label className="text-xs">Modelo de rentabilidad</Label>
                   <Select value={current.rentabilidad_modo || "margen"}
                     onValueChange={(v) => { patchCurrent({ rentabilidad_modo: v }); setTimeout(guardarCambios, 0); }}>
@@ -1053,20 +1105,20 @@ export default function EventCostSimulator({ eventId }: Props) {
               onDelete={delItem}
             />
 
-
             {/* Escenarios de inscripción */}
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
                 <div>
                   <CardTitle className="text-sm">Escenarios de inscripción</CardTitle>
                   <p className="text-xs text-muted-foreground mt-1 max-w-xl">
-                    El total de inscriptos del escenario activo es el denominador del prorrateo de los costos generales del viaje.
+                    El total de inscriptos del escenario activo es el denominador del prorrateo de los costos generales del viaje. El % bancarizado estima el impuesto del 5% sobre las ventas no cobradas en efectivo.
                   </p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => {
                   const next = [...escenarios, {
                     id: `esc_${Date.now()}`, nombre: "Personalizado",
                     inscriptos: escenarioActivo?.inscriptos || 0,
+                    pct_cobros_bancarizados: escenarioActivo?.pct_cobros_bancarizados ?? 100,
                   }];
                   persistEscenarios(next);
                 }}>
@@ -1106,6 +1158,17 @@ export default function EventCostSimulator({ eventId }: Props) {
                             }}
                             onBlur={() => persistEscenarios(escenarios)} />
                         </div>
+                        <div className="flex items-center gap-2">
+                          <Label className="text-[10px] text-muted-foreground">% cobros bancarizados</Label>
+                          <Input type="number" min={0} max={100} className="h-8 w-24"
+                            value={e.pct_cobros_bancarizados ?? 100}
+                            onChange={(ev) => {
+                              const pct = Math.min(100, Math.max(0, Number(ev.target.value)));
+                              const next = escenarios.map((x, i) => i === idx ? { ...x, pct_cobros_bancarizados: pct } : x);
+                              patchCurrent({ escenarios_inscripcion: next });
+                            }}
+                            onBlur={() => persistEscenarios(escenarios)} />
+                        </div>
                         {activo ? (
                           <Badge className="text-[10px]">Activo · usado para precios</Badge>
                         ) : (
@@ -1138,7 +1201,6 @@ export default function EventCostSimulator({ eventId }: Props) {
                 )}
               </CardContent>
             </Card>
-
 
             {/* Resultados */}
             {calculo && (
@@ -1182,6 +1244,8 @@ export default function EventCostSimulator({ eventId }: Props) {
                       <div>Generales: {formatPrice(calculo.costo_general_por_persona, current.moneda_base)}/pax</div>
                       <div>Imprevistos: {Number(current.pct_imprevistos) || 0}% (ya incluidos)</div>
                       <div>Escenario activo: {calculo.escenario_inscriptos} pax</div>
+                      <div>Cobros bancarizados: {calculo.pct_cobros_bancarizados}%</div>
+                      <div>Impuesto: {IMPUESTO_BANCARIZADO_PCT}% sobre venta bancarizada</div>
                     </div>
                     <div className="flex flex-wrap gap-6 pt-2">
                       <div>
@@ -1235,7 +1299,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                     )}
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                     <div className="bg-muted/40 rounded p-3">
                       <div className="text-xs text-muted-foreground">Ingreso del escenario</div>
                       <div className="font-semibold">
@@ -1244,14 +1308,24 @@ export default function EventCostSimulator({ eventId }: Props) {
                       </div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Ganancia del escenario</div>
+                      <div className="text-xs text-muted-foreground">Impuesto bancarizado estimado</div>
+                      <div className="font-semibold">
+                        {calculo.impuesto_bancarizado_estimado != null
+                          ? formatPrice(calculo.impuesto_bancarizado_estimado, current.moneda_base) : "—"}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">
+                        {calculo.pct_cobros_bancarizados}% de ventas × {IMPUESTO_BANCARIZADO_PCT}%
+                      </div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Ganancia neta del escenario</div>
                       <div className="font-semibold">
                         {calculo.escenario_ganancia_total != null
                           ? formatPrice(calculo.escenario_ganancia_total, current.moneda_base) : "—"}
                       </div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Margen del escenario</div>
+                      <div className="text-xs text-muted-foreground">Margen neto del escenario</div>
                       <div className={`font-semibold ${(calculo.escenario_margen ?? 0) < 0 ? "text-destructive" : "text-emerald-500"}`}>
                         {calculo.escenario_margen != null ? `${(calculo.escenario_margen * 100).toFixed(1)}%` : "—"}
                       </div>
@@ -1283,8 +1357,6 @@ export default function EventCostSimulator({ eventId }: Props) {
                       })}
                     </div>
                   </div>
-
-
 
                   <div className="space-y-1">
                     <div className="text-xs text-muted-foreground">Por categoría</div>
@@ -1379,21 +1451,48 @@ export default function EventCostSimulator({ eventId }: Props) {
               <Card>
                 <CardHeader><CardTitle className="text-sm">Comparativa Estimado vs Real</CardTitle></CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Impuesto estimado</div>
+                      <div className="font-semibold">
+                        {formatPrice(calculo.impuesto_bancarizado_estimado || 0, current.moneda_base)}
+                      </div>
+                      <div className="text-[10px] text-muted-foreground">Según % bancarizado del escenario</div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Impuesto real</div>
+                      <div className="font-semibold">{formatPrice(impuestoBancarizadoReal, current.moneda_base)}</div>
+                      <div className="text-[10px] text-muted-foreground">5% de pagos validados no efectivos</div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Costo total estimado</div>
+                      <div className="font-semibold">
+                        {formatPrice(calculo.total_con_imprevistos + (calculo.impuesto_bancarizado_estimado || 0), current.moneda_base)}
+                      </div>
+                    </div>
+                    <div className="bg-muted/40 rounded p-3">
+                      <div className="text-xs text-muted-foreground">Costo total real</div>
+                      <div className="font-semibold">
+                        {formatPrice(calculoReal.total_con_imprevistos + impuestoBancarizadoReal, current.moneda_base)}
+                      </div>
+                    </div>
+                  </div>
                   <div className="grid grid-cols-3 gap-3 text-sm">
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Costo estimado</div>
+                      <div className="text-xs text-muted-foreground">Costo operativo estimado</div>
                       <div className="font-semibold">{formatPrice(calculo.total_con_imprevistos, current.moneda_base)}</div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Costo real</div>
+                      <div className="text-xs text-muted-foreground">Costo operativo real</div>
                       <div className="font-semibold">{formatPrice(calculoReal.total_con_imprevistos, current.moneda_base)}</div>
                     </div>
                     <div className="bg-muted/40 rounded p-3">
-                      <div className="text-xs text-muted-foreground">Desvío</div>
+                      <div className="text-xs text-muted-foreground">Desvío total incl. impuesto</div>
                       {(() => {
-                        const dif = calculoReal.total_con_imprevistos - calculo.total_con_imprevistos;
-                        const pct = calculo.total_con_imprevistos > 0
-                          ? (dif / calculo.total_con_imprevistos) * 100 : 0;
+                        const est = calculo.total_con_imprevistos + (calculo.impuesto_bancarizado_estimado || 0);
+                        const real = calculoReal.total_con_imprevistos + impuestoBancarizadoReal;
+                        const dif = real - est;
+                        const pct = est > 0 ? (dif / est) * 100 : 0;
                         return (
                           <div className={`font-semibold ${Math.abs(pct) > 15 ? "text-destructive" : ""}`}>
                             {formatPrice(dif, current.moneda_base)} ({pct.toFixed(1)}%)
@@ -1505,4 +1604,3 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   );
 }
-
