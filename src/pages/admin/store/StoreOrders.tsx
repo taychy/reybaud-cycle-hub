@@ -764,8 +764,9 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
             <SelectItem value="all">{restrictStatuses ? "Todos (nuevos)" : "Todos los estados"}</SelectItem>
             {!restrictStatuses && <SelectItem value="cancelados">Cancelados</SelectItem>}
             {(restrictStatuses || STATUSES).map((e) => (
-              <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
+              <SelectItem key={e} value={e}>{operationalLabel(e)}</SelectItem>
             ))}
+
           </SelectContent>
         </Select>
         <div className="flex items-center gap-3 self-center ml-auto text-xs">
@@ -898,14 +899,22 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       onValueChange={(v) => updateField(r.id, { status: v } as any)}
                       disabled={r.status === "cancelado"}
                     >
-                      <SelectTrigger className={`h-7 text-xs w-[160px] mx-auto ${estadoColor(r.status)}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className={`h-7 text-xs w-[160px] mx-auto ${estadoColor(r.status)}`}>
+                        <SelectValue>{operationalLabel(r.status)}</SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
-                        {STATUSES.filter((e) => e !== "cancelado").map((e) => (
-                          <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
+                        {operationalOptions(r.status).filter((e) => e.value !== "cancelado").map((e) => (
+                          <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {needsPhysicalReturn(r) && (
+                      <div className="text-[10px] text-destructive mt-1 flex items-center justify-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Retorno pendiente
+                      </div>
+                    )}
                   </td>
+
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {!isPagado(r) && r.status !== "cancelado" && (
@@ -922,11 +931,17 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
                         <Eye className="w-4 h-4" />
                       </Button>
+                      {needsPhysicalReturn(r) && (
+                        <Button size="sm" variant="ghost" title="Confirmar retorno al depósito" className="text-destructive hover:text-destructive" disabled={returnBusy === r.id} onClick={() => confirmarRetorno(r)}>
+                          <PackageCheck className="w-4 h-4" />
+                        </Button>
+                      )}
                       {r.status !== "cancelado" && (
-                        <Button size="sm" variant="ghost" title="Anular pedido (devuelve stock)" className="text-destructive hover:text-destructive" onClick={() => { setCancelOrder(r); setCancelReason(""); }}>
+                        <Button size="sm" variant="ghost" title="Anular pedido" className="text-destructive hover:text-destructive" onClick={() => { setCancelOrder(r); setCancelReason(""); }}>
                           <Ban className="w-4 h-4" />
                         </Button>
                       )}
+
                     </div>
                   </td>
                 </tr>
@@ -972,20 +987,28 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <div className="text-xs text-muted-foreground italic">Sin items registrados.</div>
                     ) : (
                       <ul className="divide-y divide-border">
-                        {items.map((it, i) => (
-                          <li key={i} className="py-2 space-y-1">
-                            <div className="flex justify-between gap-2">
-                              <div className="font-medium">{it.producto_nombre} <span className="text-muted-foreground">x{it.cantidad}</span></div>
-                              <div className="text-xs text-muted-foreground">{formatPrice(Number(it.precio_unitario || 0), detail.currency)}</div>
-                            </div>
-                            {Object.keys(it.variante || {}).length > 0 && (
-                              <div className="text-[11px] text-muted-foreground">{varianteToKey(it.variante)}</div>
-                            )}
-                          </li>
-                        ))}
+                        {(() => {
+                          // Importes visuales en la moneda del pedido (precios base legacy aparte).
+                          const amounts = distributeOrderTotal(
+                            items.map((it) => ({ unit_price: it.precio_unitario, quantity: it.cantidad })),
+                            Number(detail.total || 0),
+                          );
+                          return items.map((it, i) => (
+                            <li key={i} className="py-2 space-y-1">
+                              <div className="flex justify-between gap-2">
+                                <div className="font-medium">{it.producto_nombre} <span className="text-muted-foreground">x{it.cantidad}</span></div>
+                                <div className="text-xs text-muted-foreground">{formatPrice(amounts[i] ?? 0, detail.currency)}</div>
+                              </div>
+                              {Object.keys(it.variante || {}).length > 0 && (
+                                <div className="text-[11px] text-muted-foreground">{varianteToKey(it.variante)}</div>
+                              )}
+                            </li>
+                          ));
+                        })()}
                       </ul>
                     )}
                   </section>
+
 
                   {/* Entrega */}
                   <section className="rounded-lg border border-border p-3 space-y-2">
