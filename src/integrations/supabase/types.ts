@@ -15238,6 +15238,10 @@ export type Database = {
           mp_preapproval_ids: string[]
         }[]
       }
+      confirm_cancelled_store_order_return: {
+        Args: { _order_id: string }
+        Returns: Json
+      }
       confirm_mp_preapproval_mapping: {
         Args: {
           _alumno_id?: string
@@ -16464,6 +16468,7 @@ export type Database = {
         Returns: Json
       }
       refresh_backfill_preview: { Args: never; Returns: string }
+      refresh_combo_stock: { Args: { p_combo_id: string }; Returns: undefined }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
         Returns: undefined

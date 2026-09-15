@@ -3,8 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw, XCircle } from "lucide-react";
+import { ShoppingBag, ChevronRight, Package, CheckCircle2, Clock, RefreshCw, XCircle, Truck } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { getPaymentState, PAYMENT_LABEL } from "@/lib/storeOrderStatus";
+
 import MisPreventas from "@/components/store/MisPreventas";
 import MisCambios from "@/components/store/MisCambios";
 import RequestCambioDialog from "@/components/store/RequestCambioDialog";
@@ -15,16 +17,27 @@ interface Props {
 }
 
 const orderStatusMeta = (s: string) => ({
-  pendiente: { label: "Pendiente", color: "text-muted-foreground", icon: Clock },
-  pendiente_pago: { label: "Esperando pago", color: "text-muted-foreground", icon: Clock },
-  pendiente_pago_efectivo: { label: "Pago efectivo al retirar", color: "text-amber-400", icon: Clock },
-  pagado: { label: "Pagado", color: "text-cyan", icon: CheckCircle2 },
+  pendiente: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago_efectivo: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
+  pagado: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
+  en_camioneta: { label: "En camioneta", color: "text-cyan", icon: Truck },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
   listo_retiro: { label: "Listo para retirar", color: "text-green-400", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
   cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
+
+const pagoMeta = (o: { pagado_at?: string | null; metodo_pago?: string | null }) => {
+  const st = getPaymentState(o);
+  return {
+    label: PAYMENT_LABEL[st],
+    color: st === "pagado" ? "text-green-400" : st === "efectivo_pendiente" ? "text-amber-400" : "text-muted-foreground",
+    icon: st === "pagado" ? CheckCircle2 : Clock,
+  };
+};
+
 
 const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
 const WINDOW_MS = 12 * 60 * 60 * 1000;
@@ -63,7 +76,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
     (async () => {
       const [pre, ord] = await Promise.all([
         supabase.from("store_preorders" as any).select("id, product_id, producto_nombre, estado, estado_pago_sena, sena_monto, saldo_pendiente, moneda, created_at, delivered_at, cantidad, variante, forma_pago_sena").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
-        supabase.from("store_orders").select("id, order_number, total, currency, status, created_at, delivered_at, alumno_id").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
+        supabase.from("store_orders").select("id, order_number, total, currency, status, created_at, delivered_at, alumno_id, pagado_at, metodo_pago").eq("alumno_id", alumnoId).order("created_at", { ascending: false }),
       ]);
       if (!active) return;
       const ordList = (ord.data as any[]) || [];
@@ -72,7 +85,7 @@ const MisComprasSection = ({ alumnoId }: Props) => {
 
       // Items para órdenes donde se puede pedir cambio (entregadas, en preparación o enviadas)
       const eligibleIds = ordList
-        .filter((o) => ["pagado", "pendiente_pago_efectivo", "preparando", "enviado", "entregado"].includes(o.status))
+        .filter((o) => ["pagado", "pendiente_pago_efectivo", "preparando", "en_camioneta", "enviado", "entregado"].includes(o.status))
         .map((o) => o.id);
       if (eligibleIds.length) {
         const { data: items } = await supabase
@@ -99,10 +112,11 @@ const MisComprasSection = ({ alumnoId }: Props) => {
 
   const pendientes =
     preorders.filter((p) => ["pendiente_pago_sena", "reservada"].includes(p.estado)).length +
-    orders.filter((o) => ["pendiente", "pendiente_pago"].includes(o.status)).length;
+    orders.filter((o) => !o.pagado_at && o.status !== "cancelado").length;
   const activas =
     preorders.filter((p) => ["en_produccion", "lista_para_retirar"].includes(p.estado)).length +
-    orders.filter((o) => ["pagado", "preparando", "enviado"].includes(o.status)).length;
+    orders.filter((o) => ["preparando", "en_camioneta", "enviado"].includes(o.status)).length;
+
   const entregadas =
     preorders.filter((p) => p.estado === "entregada").length +
     orders.filter((o) => o.status === "entregado").length;
@@ -189,6 +203,8 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                   orders.map((o) => {
                     const meta = orderStatusMeta(o.status);
                     const Icon = meta.icon;
+                    const pago = pagoMeta(o);
+                    const PagoIcon = pago.icon;
                     const items = orderItems[o.id] || [];
                     const eligible = canRequestChangeOrder(o.status, o.delivered_at);
                     const editable = isWithinEditWindow(o.created_at, o.status);
@@ -205,6 +221,13 @@ const MisComprasSection = ({ alumnoId }: Props) => {
                               <Icon className="w-3 h-3" /> {meta.label}
                             </span>
                           </div>
+                          <div className="flex items-center gap-1 text-[10px] font-heading font-bold uppercase">
+                            <span className="text-muted-foreground">Pago:</span>
+                            <span className={`inline-flex items-center gap-1 ${pago.color}`}>
+                              <PagoIcon className="w-3 h-3" /> {pago.label}
+                            </span>
+                          </div>
+
                           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
                             <span>{new Date(o.created_at).toLocaleDateString("es-AR", { day: "numeric", month: "short", year: "numeric" })}</span>
                             <b className="text-foreground">{formatPrice(Number(o.total), o.currency || "ARS")}</b>

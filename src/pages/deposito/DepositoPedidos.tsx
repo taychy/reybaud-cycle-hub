@@ -4,48 +4,42 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Truck, QrCode, Printer, Banknote } from "lucide-react";
+import { Search, Eye, Truck, QrCode, Printer, Banknote, Ban, PackageCheck, AlertTriangle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { type PreorderLabelData } from "@/lib/preorderLabels";
 import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
 import PruebasSection from "@/components/store/PruebasSection";
 import {
-  CASH_PENDING_STATUS,
   CASH_BLOCK_MESSAGE,
   buildCashPaymentPatch,
   canConfirmCashPayment,
   cashConfirmBlockReason,
 } from "@/lib/storeCashPayment";
+import {
+  distributeOrderTotal,
+  getPaymentState,
+  isLegacyInitialStatus,
+  needsPhysicalReturn,
+  operationalBadgeClass,
+  operationalLabel,
+  operationalOptions,
+  paymentBadgeClass,
+  PAYMENT_LABEL,
+  NUEVO_LABEL,
+} from "@/lib/storeOrderStatus";
+import { formatPrice } from "@/lib/currency";
 
-
-const STATUSES = [
-  "pendiente_pago",
-  "pendiente_pago_efectivo",
-  "pagado",
-  "preparando",
-  "en_camioneta",
-  "enviado",
-  "entregado",
-  "cancelado",
+/** Filtros de la lista: expresan logística, no pago. */
+const FILTER_OPTIONS = [
+  { value: "nuevos", label: NUEVO_LABEL },
+  { value: "preparando", label: "Preparando" },
+  { value: "en_camioneta", label: "En camioneta" },
+  { value: "enviado", label: "Enviado" },
+  { value: "entregado", label: "Entregado" },
+  { value: "cancelado", label: "Cancelado" },
 ];
-
-const statusColor = (s: string) => {
-  switch (s) {
-    case "pagado": return "bg-green-500/20 text-green-400";
-    case "preparando": return "bg-cyan/20 text-cyan";
-    case "en_camioneta": return "bg-cyan-500/20 text-cyan-400";
-    case "enviado": return "bg-primary/20 text-primary";
-    case "entregado": return "bg-green-500/20 text-green-400";
-    case "cancelado": return "bg-destructive/20 text-destructive";
-    case CASH_PENDING_STATUS: return "bg-amber-500/20 text-amber-400";
-    default: return "bg-muted text-muted-foreground";
-  }
-};
-
-const labelStatus = (s: string) =>
-  s === CASH_PENDING_STATUS ? "Efectivo pendiente" : (s || "").replace(/_/g, " ");
-
 
 const CLOSED_STATUSES = ["entregado", "cancelado"];
 
@@ -83,6 +77,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [printing, setPrinting] = useState(false);
   const [cobrando, setCobrando] = useState<string | null>(null);
   const [labelTargets, setLabelTargets] = useState<PreorderLabelData[]>([]);
+  const [cancelTarget, setCancelTarget] = useState<any>(null);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [returnBusy, setReturnBusy] = useState<string | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -160,13 +158,14 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     const patch = buildCashPaymentPatch(order, { actor: "Depósito" });
     if (!patch) return;
     setCobrando(order.id);
-    // Condición de carrera: sólo actualiza si sigue pendiente y sin cobro previo.
+    // Condición de carrera: sólo cobra si sigue siendo efectivo sin cobrar y no está anulado.
     const { data, error } = await supabase
       .from("store_orders")
       .update(patch as any)
       .eq("id", order.id)
-      .eq("status", CASH_PENDING_STATUS)
+      .eq("metodo_pago", "efectivo")
       .is("pagado_at", null)
+      .neq("status", "cancelado")
       .select("id");
     setCobrando(null);
     if (error) {
@@ -183,7 +182,56 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (selected?.id === order.id) setSelected((s: any) => ({ ...s, ...patch }));
   };
 
+  const cancelarPedido = async () => {
+    if (!cancelTarget) return;
+    if (!cancelReason.trim()) {
+      toast({ title: "Falta el motivo", description: "Escribí por qué se cancela la compra.", variant: "destructive" });
+      return;
+    }
+    setCancelBusy(true);
+    const { data, error } = await (supabase.rpc as any)("cancel_store_order", {
+      _order_id: cancelTarget.id,
+      _reason: cancelReason.trim(),
+    });
+    setCancelBusy(false);
+    if (error) {
+      toast({ title: "No se pudo cancelar", description: error.message, variant: "destructive" });
+      return;
+    }
+    const res: any = Array.isArray(data) ? data[0] : data;
+    const retornoPendiente = !!res?.retorno_pendiente;
+    toast({
+      title: "Compra cancelada",
+      description: retornoPendiente
+        ? "La mercadería sigue fuera del depósito: el stock NO se repone hasta confirmar el retorno físico."
+        : "Stock repuesto y movimiento registrado.",
+    });
+    if (cancelTarget.pagado_at) {
+      toast({
+        title: "Pago ya registrado",
+        description: "Cancelar no devuelve el dinero: el reembolso se gestiona aparte.",
+      });
+    }
+    setCancelTarget(null);
+    setCancelReason("");
+    setSelected(null);
+    await load();
+  };
 
+  const confirmarRetorno = async (order: any) => {
+    setReturnBusy(order.id);
+    const { error } = await (supabase.rpc as any)("confirm_cancelled_store_order_return", {
+      _order_id: order.id,
+    });
+    setReturnBusy(null);
+    if (error) {
+      toast({ title: "No se pudo confirmar el retorno", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Retorno confirmado", description: "La mercadería volvió al depósito y el stock quedó repuesto." });
+    setSelected(null);
+    await load();
+  };
 
   const saveTracking = async () => {
     if (!selected) return;
@@ -225,7 +273,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       ? `${its.length} productos`
       : (first?.product_name || "Pedido");
     const total = Number(r.total || 0);
-    const pagado = r.status === "pagado" || r.status === "preparando" || r.status === "en_camioneta" || r.status === "enviado" || r.status === "entregado";
+    // El pago sale de pagado_at, nunca del estado operativo.
+    const pagado = !!r.pagado_at;
     return {
       id: r.id,
       alumno_id: r.alumno_id || undefined,
@@ -235,7 +284,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       variante: first?.variant_selection || {},
       items: its.map((i: any) => ({
         nombre: i.product_name,
+        producto_nombre: i.product_name,
         variante: i.variant_selection,
+        cantidad: Number(i.quantity || 1) || 1,
         precio: i.unit_price,
       })),
       precio_total: total,
@@ -259,7 +310,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
-    if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterStatus === "nuevos" && !isLegacyInitialStatus(r.status)) return false;
+    if (filterStatus !== "all" && filterStatus !== "nuevos" && r.status !== filterStatus) return false;
     if (filterStatus === "all" && !restrictStatuses && !showFinalizados && CLOSED_STATUSES.includes(r.status)) return false;
     if (search) {
       const s = search.toLowerCase();
@@ -270,7 +322,6 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     }
     return true;
   }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
-
 
   const printBulk = () => {
     const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
@@ -300,6 +351,29 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     [filtered, selectedIds],
   );
 
+  const PagoBadge = ({ o }: { o: any }) => {
+    const st = getPaymentState(o);
+    return (
+      <span className={`inline-block text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${paymentBadgeClass(st)}`}>
+        {PAYMENT_LABEL[st]}
+      </span>
+    );
+  };
+
+  const EstadoBadge = ({ o }: { o: any }) => (
+    <span className={`inline-block text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${operationalBadgeClass(o.status)}`}>
+      {operationalLabel(o.status)}
+    </span>
+  );
+
+  const puedeCancelar = (r: any) => r.status !== "cancelado" && r.status !== "entregado";
+
+  // Importes visuales en la moneda del pedido (los precios base pueden ser legacy en otra moneda).
+  const lineAmounts = useMemo(
+    () => distributeOrderTotal(orderItems, Number(selected?.total || 0)),
+    [orderItems, selected?.total],
+  );
+
   if (loading) return <div className="animate-pulse text-muted-foreground">Cargando pedidos...</div>;
 
   return (
@@ -322,7 +396,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
           <SelectTrigger className="w-[200px]"><SelectValue placeholder="Estado" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
+            {FILTER_OPTIONS.map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
           </SelectContent>
         </Select>
         {!restrictStatuses && filterStatus === "all" && (
@@ -332,7 +406,6 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
           </label>
         )}
       </div>
-
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
@@ -353,24 +426,33 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   <div className="text-xs text-muted-foreground mt-0.5">{nombreCliente(r)} · #{r.order_number}{res.cantidad ? ` · x${res.cantidad}` : ""}</div>
                   <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
                 </div>
-                <div className="text-right shrink-0">
+                <div className="text-right shrink-0 space-y-1">
                   <div className="font-heading font-bold text-sm">${Number(r.total || 0).toLocaleString("es-AR")}</div>
-                  <span className={`inline-block mt-1 text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${statusColor(r.status)}`}>
-                    {labelStatus(r.status)}
-                  </span>
+                  <div><PagoBadge o={r} /></div>
+                  <div><EstadoBadge o={r} /></div>
                 </div>
               </div>
+              {needsPhysicalReturn(r) && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-2 space-y-2">
+                  <p className="text-[11px] text-destructive flex items-start gap-1">
+                    <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" />
+                    Compra cancelada con mercadería fuera del depósito. El stock no vuelve hasta confirmar el retorno físico.
+                  </p>
+                  <Button size="sm" variant="outline" className="w-full h-9" disabled={returnBusy === r.id} onClick={() => confirmarRetorno(r)}>
+                    <PackageCheck className="w-4 h-4 mr-1" /> Confirmar retorno al depósito
+                  </Button>
+                </div>
+              )}
               {canConfirmCashPayment(r) && (
                 <Button size="sm" className="w-full h-9" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
                   <Banknote className="w-4 h-4 mr-1" /> Cobré el efectivo
                 </Button>
               )}
               <div className="flex items-center gap-2">
-
                 <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
                   <SelectTrigger className="h-9 flex-1 text-xs"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
+                    {operationalOptions(r.status).map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
                 <Button variant="outline" size="sm" className="h-9" onClick={() => openOrder(r)}>
@@ -379,6 +461,11 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <Button variant="outline" size="sm" className="h-9" onClick={() => printOne(r)} disabled={printing}>
                   <QrCode className="w-4 h-4" />
                 </Button>
+                {puedeCancelar(r) && (
+                  <Button variant="outline" size="sm" className="h-9 text-destructive" onClick={() => { setCancelTarget(r); setCancelReason(""); }}>
+                    <Ban className="w-4 h-4" />
+                  </Button>
+                )}
               </div>
             </div>
           );
@@ -399,6 +486,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
               <th className="px-4 py-3 text-left font-heading text-xs uppercase">Cliente</th>
               <th className="px-4 py-3 text-center font-heading text-xs uppercase">Cant.</th>
               <th className="px-4 py-3 text-right font-heading text-xs uppercase">Total</th>
+              <th className="px-4 py-3 text-center font-heading text-xs uppercase">Pago</th>
               <th className="px-4 py-3 text-center font-heading text-xs uppercase">Estado</th>
               <th className="px-4 py-3 text-left font-heading text-xs uppercase hidden md:table-cell">Fecha</th>
               <th className="px-4 py-3 text-right font-heading text-xs uppercase">Acciones</th>
@@ -419,10 +507,12 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   <td className="px-4 py-2 text-foreground">{nombreCliente(r)}</td>
                   <td className="px-4 py-2 text-center">{res.cantidad || "—"}</td>
                   <td className="px-4 py-2 text-right font-heading font-bold">${Number(r.total || 0).toLocaleString("es-AR")}</td>
+                  <td className="px-4 py-2 text-center"><PagoBadge o={r} /></td>
                   <td className="px-4 py-2 text-center">
-                    <span className={`text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded ${statusColor(r.status)}`}>
-                      {labelStatus(r.status)}
-                    </span>
+                    <EstadoBadge o={r} />
+                    {needsPhysicalReturn(r) && (
+                      <div className="text-[10px] text-destructive mt-1">Retorno pendiente</div>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-4 py-2">
@@ -431,12 +521,17 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                       {canConfirmCashPayment(r) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)} title="Cobré el efectivo"><Banknote className="w-4 h-4" /></Button>
                       )}
-
+                      {needsPhysicalReturn(r) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-destructive/10 hover:bg-destructive/20 text-destructive" disabled={returnBusy === r.id} onClick={() => confirmarRetorno(r)} title="Confirmar retorno al depósito"><PackageCheck className="w-4 h-4" /></Button>
+                      )}
+                      {puedeCancelar(r) && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setCancelTarget(r); setCancelReason(""); }} title="Cancelar compra"><Ban className="w-4 h-4" /></Button>
+                      )}
                       <Button variant="ghost" size="icon" className="h-8 w-8 bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => printOne(r)} disabled={printing} title="Etiqueta con QR"><QrCode className="w-4 h-4" /></Button>
                       <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
                         <SelectTrigger className="h-8 w-[150px] text-xs"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {STATUSES.map((e) => <SelectItem key={e} value={e}>{labelStatus(e)}</SelectItem>)}
+                          {operationalOptions(r.status).map((e) => <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>)}
                         </SelectContent>
                       </Select>
                     </div>
@@ -459,6 +554,24 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
               <Button onClick={() => printOne(selected)} disabled={printing} className="w-full gap-2">
                 <QrCode className="w-4 h-4" /> Imprimir etiqueta
               </Button>
+
+              {needsPhysicalReturn(selected) && (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 space-y-2">
+                  <p className="text-xs text-destructive">
+                    Compra cancelada, pero el stock NO se repone hasta que la mercadería vuelva físicamente al depósito.
+                  </p>
+                  <Button variant="outline" className="w-full gap-2" disabled={returnBusy === selected.id} onClick={() => confirmarRetorno(selected)}>
+                    <PackageCheck className="w-4 h-4" /> Confirmar retorno al depósito
+                  </Button>
+                </div>
+              )}
+
+              {selected.status === "cancelado" && selected.pagado_at && (
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                  Pago registrado · el reembolso se gestiona aparte: cancelar no devuelve el dinero automáticamente.
+                </div>
+              )}
+
               {canConfirmCashPayment(selected) && (
                 <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
                   <p className="text-xs text-amber-200">Este pedido se paga en efectivo y todavía no está cobrado.</p>
@@ -472,15 +585,16 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <div><span className="text-muted-foreground">Cliente:</span> <div className="font-medium">{nombreCliente(selected)}</div></div>
                 <div><span className="text-muted-foreground">Email:</span> <div className="font-medium break-all">{selected.customer_email || "—"}</div></div>
                 <div><span className="text-muted-foreground">Teléfono:</span> <div className="font-medium">{selected.customer_phone || "—"}</div></div>
-                <div><span className="text-muted-foreground">Total:</span> <div className="font-heading font-bold">${Number(selected.total || 0).toLocaleString("es-AR")}</div></div>
-                <div><span className="text-muted-foreground">Estado:</span> <div className="font-medium">{labelStatus(selected.status)}</div></div>
+                <div><span className="text-muted-foreground">Total:</span> <div className="font-heading font-bold">{formatPrice(Number(selected.total || 0), selected.currency || "ARS")}</div></div>
+                <div><span className="text-muted-foreground">Pago:</span> <div className="mt-0.5"><PagoBadge o={selected} /></div></div>
+                <div><span className="text-muted-foreground">Estado:</span> <div className="mt-0.5"><EstadoBadge o={selected} /></div></div>
                 <div><span className="text-muted-foreground">Fecha:</span> <div className="font-medium">{new Date(selected.created_at).toLocaleDateString("es-AR")}</div></div>
               </div>
 
               <div>
                 <h3 className="text-xs font-heading uppercase text-muted-foreground mb-1">Productos</h3>
                 <div className="divide-y divide-border rounded-lg border border-border">
-                  {orderItems.map((it) => (
+                  {orderItems.map((it, idx) => (
                     <div key={it.id} className="px-3 py-2 flex justify-between">
                       <span>
                         {it.product_name} × {it.quantity}
@@ -488,7 +602,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                           <span className="block text-xs text-muted-foreground">{variantText(it.variant_selection)}</span>
                         )}
                       </span>
-                      <span className="font-heading font-bold">${(it.unit_price * it.quantity).toLocaleString("es-AR")}</span>
+                      <span className="font-heading font-bold">
+                        {formatPrice(lineAmounts[idx] ?? 0, selected.currency || "ARS")}
+                      </span>
                     </div>
                   ))}
                   {orderItems.length === 0 && <div className="p-3 text-muted-foreground text-center text-sm">Sin productos</div>}
@@ -501,7 +617,15 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 currency={selected.currency || "ARS"}
               />
 
-
+              {puedeCancelar(selected) && (
+                <Button
+                  variant="outline"
+                  className="w-full gap-2 text-destructive"
+                  onClick={() => { setCancelTarget(selected); setCancelReason(""); }}
+                >
+                  <Ban className="w-4 h-4" /> Cancelar compra
+                </Button>
+              )}
 
               <div>
                 <h3 className="text-xs font-heading uppercase text-muted-foreground mb-1">Tracking de envío</h3>
@@ -514,6 +638,35 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
           )}
         </SheetContent>
       </Sheet>
+
+      <Dialog open={!!cancelTarget} onOpenChange={(v) => { if (!v) { setCancelTarget(null); setCancelReason(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Cancelar compra #{cancelTarget?.order_number}</DialogTitle>
+            <DialogDescription>
+              El motivo queda registrado. Si la mercadería ya salió del depósito, el stock se repone recién cuando vuelve.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            {cancelTarget?.pagado_at && (
+              <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-200">
+                Este pedido figura pagado. Cancelar no devuelve el dinero: el reembolso se gestiona aparte.
+              </div>
+            )}
+            <div>
+              <label className="text-xs font-heading uppercase text-muted-foreground">Motivo (obligatorio)</label>
+              <Input value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="Ej: el cliente se arrepintió" />
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setCancelTarget(null); setCancelReason(""); }}>Volver</Button>
+              <Button variant="destructive" disabled={cancelBusy || !cancelReason.trim()} onClick={cancelarPedido}>
+                {cancelBusy ? "Cancelando..." : "Cancelar compra"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <OrderLabelPrintDialog
         open={labelTargets.length > 0}
         onOpenChange={(o) => !o && setLabelTargets([])}

@@ -4,7 +4,12 @@
  * Fuente de verdad: `store_orders`. Un pedido está pagado sólo cuando tiene
  * `pagado_at`. Confirmar efectivo escribe una sola vez ese campo (idempotente)
  * y NO genera ningún movimiento de Mercado Pago.
+ *
+ * El pago es independiente del estado operativo: un pedido puede estar
+ * `preparando` o `en_camioneta` y seguir pendiente de cobro en efectivo.
  */
+
+import { isLegacyInitialStatus } from "@/lib/storeOrderStatus";
 
 export const CASH_PENDING_STATUS = "pendiente_pago_efectivo";
 
@@ -23,9 +28,9 @@ export function isOrderPaid(o: StoreOrderCashLike): boolean {
   return !!o.pagado_at;
 }
 
-/** Pedido creado para pagar en efectivo y todavía sin cobrar. */
+/** Pedido a cobrar en efectivo y todavía sin cobrar (sin importar la logística). */
 export function isCashPending(o: StoreOrderCashLike): boolean {
-  return o.status === CASH_PENDING_STATUS && !isOrderPaid(o);
+  return (o.metodo_pago || "") === "efectivo" && !isOrderPaid(o) && o.status !== "cancelado";
 }
 
 export type CashConfirmBlockReason = "ya_pagado" | "cancelado" | "no_es_efectivo";
@@ -34,7 +39,7 @@ export type CashConfirmBlockReason = "ya_pagado" | "cancelado" | "no_es_efectivo
 export function cashConfirmBlockReason(o: StoreOrderCashLike): CashConfirmBlockReason | null {
   if (isOrderPaid(o)) return "ya_pagado";
   if (o.status === "cancelado") return "cancelado";
-  if (o.status !== CASH_PENDING_STATUS) return "no_es_efectivo";
+  if ((o.metodo_pago || "") !== "efectivo") return "no_es_efectivo";
   return null;
 }
 
@@ -49,7 +54,7 @@ export const CASH_BLOCK_MESSAGE: Record<CashConfirmBlockReason, string> = {
 };
 
 export interface CashPaymentPatch {
-  status: "pagado";
+  status?: string;
   pagado_at: string;
   metodo_pago: "efectivo";
   notes: string | null;
@@ -58,6 +63,8 @@ export interface CashPaymentPatch {
 /**
  * Parche a aplicar sobre `store_orders` al confirmar el efectivo.
  * Devuelve null cuando el pedido no está en condiciones (idempotencia).
+ * Sólo mueve el status si el pedido todavía está en un estado legacy inicial:
+ * nunca pisa `preparando`, `en_camioneta`, `enviado`, etc.
  */
 export function buildCashPaymentPatch(
   o: StoreOrderCashLike,
@@ -67,10 +74,11 @@ export function buildCashPaymentPatch(
   const nowIso = opts.nowIso ?? new Date().toISOString();
   const monto = opts.monto ?? Number(o.total || 0);
   const traza = `[${new Date(nowIso).toLocaleString("es-AR")}] Pago en efectivo registrado por ${opts.actor} · ${monto}`;
-  return {
-    status: "pagado",
+  const patch: CashPaymentPatch = {
     pagado_at: nowIso,
     metodo_pago: "efectivo",
     notes: [o.notes, traza].filter(Boolean).join("\n") || null,
   };
+  if (isLegacyInitialStatus(o.status)) patch.status = "pagado";
+  return patch;
 }

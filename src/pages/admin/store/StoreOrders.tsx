@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin,
-  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban,
+  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban, PackageCheck, AlertTriangle,
 } from "lucide-react";
+
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -25,6 +26,15 @@ import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
+import {
+  distributeOrderTotal,
+  isLegacyInitialStatus,
+  needsPhysicalReturn,
+  operationalBadgeClass,
+  operationalLabel,
+  operationalOptions,
+} from "@/lib/storeOrderStatus";
+
 
 
 interface OrderItem {
@@ -59,6 +69,8 @@ interface Order {
   envio_costo: number | null;
   envio_estado: string | null;
   delivered_at: string | null;
+  stock_restored_at?: string | null;
+
   customer_phone?: string | null;
   es_externo?: boolean | null;
   supplier_notified_at?: string | null;
@@ -95,25 +107,11 @@ const STATUSES = [
 
 const ENVIO_ESTADOS = ["a_cotizar", "cotizado", "pagado", "enviado", "entregado"];
 
-const estadoColor = (e: string) => {
-  switch (e) {
-    case "pagado": return "bg-emerald-500/20 text-emerald-400";
-    case "preparando": return "bg-accent/20 text-accent";
-    case "en_camioneta": return "bg-cyan-500/20 text-cyan-400";
-    case "enviado": return "bg-primary/20 text-primary";
-    case "entregado": return "bg-green-500/20 text-green-400";
-    case "cancelado": return "bg-destructive/20 text-destructive";
-    case "pendiente_pago":
-    case "pendiente_pago_efectivo": return "bg-amber-500/20 text-amber-400";
-    default: return "bg-muted text-muted-foreground";
-  }
-};
+const estadoColor = (e: string) => operationalBadgeClass(e);
 
-// El pago es independiente del estado de fulfillment.
-// Solo se considera pagado cuando hay un registro real en `pagado_at`
-// (lo setea el admin al confirmar el cobro) o cuando el flujo
-// originó el pedido ya pago (status inicial "pagado" sin tránsito por entrega).
+// El pago es independiente del estado operativo: sólo `pagado_at` manda.
 const isPagado = (o: Order) => !!o.pagado_at;
+
 
 const isEntregado = (o: Order) => o.status === "entregado" || !!o.delivered_at;
 
@@ -195,7 +193,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       return;
     }
     setCancelling(true);
-    const { error } = await supabase.rpc("cancel_store_order", {
+    const { data, error } = await supabase.rpc("cancel_store_order", {
       _order_id: cancelOrder.id,
       _reason: cancelReason.trim(),
     });
@@ -204,12 +202,42 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       toast({ title: "Error al anular", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Pedido anulado", description: "Stock devuelto y movimiento registrado." });
+    const res: any = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Pedido anulado",
+      description: res?.retorno_pendiente
+        ? "La mercadería está fuera del depósito: el stock queda pendiente de retorno físico."
+        : "Stock devuelto y movimiento registrado.",
+    });
+    if (cancelOrder.pagado_at) {
+      toast({
+        title: "Pago registrado · reembolso a gestionar",
+        description: "Anular no devuelve el dinero automáticamente.",
+      });
+    }
     setCancelOrder(null);
     setCancelReason("");
     if (detail?.id === cancelOrder.id) setDetail(null);
     load();
   };
+
+  const [returnBusy, setReturnBusy] = useState<string | null>(null);
+
+  const confirmarRetorno = async (o: Order) => {
+    setReturnBusy(o.id);
+    const { error } = await (supabase.rpc as any)("confirm_cancelled_store_order_return", {
+      _order_id: o.id,
+    });
+    setReturnBusy(null);
+    if (error) {
+      toast({ title: "No se pudo confirmar el retorno", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Retorno confirmado", description: "La mercadería volvió al depósito y el stock quedó restituido." });
+    if (detail?.id === o.id) setDetail(null);
+    load();
+  };
+
 
   useEffect(() => {
     const run = async () => {
@@ -400,11 +428,13 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     const nowIso = new Date().toISOString();
     const traza = `[${new Date().toLocaleString("es-AR")}] Pago registrado por admin · ${getPaymentMethodLabel(value.metodo_pago)} · ${formatPrice(value.monto, o.currency)}${value.referencia ? ` · Ref: ${value.referencia}` : ""}`;
     const patch: any = {
-      status: "pagado",
       pagado_at: nowIso,
       metodo_pago: value.metodo_pago,
       notes: [o.notes, traza].filter(Boolean).join("\n"),
     };
+    // El cobro no pisa el estado operativo: sólo mueve los status legacy iniciales.
+    if (isLegacyInitialStatus(o.status)) patch.status = "pagado";
+
     // Sólo cobra si el pedido sigue sin pago registrado (evita duplicar el ingreso).
     const { data, error } = await supabase
       .from("store_orders")
@@ -446,9 +476,12 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       variante: firstItem?.variante || {},
       items: (o.items || []).map((i) => ({
         nombre: i.producto_nombre,
+        producto_nombre: i.producto_nombre,
         variante: i.variante,
+        cantidad: Number(i.cantidad || 1) || 1,
         precio: i.precio_unitario,
       })),
+
       precio_total: total,
       sena_monto: pagado ? total : 0,
       saldo_pendiente: pagado ? 0 : total,
@@ -564,7 +597,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           cantidad: it.cantidad,
           entrega: idx === 0 ? entrega : "",
           sede: idx === 0 ? destino : "",
-          estado: idx === 0 ? r.status.replace(/_/g, " ") : "",
+          estado: idx === 0 ? operationalLabel(r.status) : "",
           pago: idx === 0 ? (isPagado(r) ? "PAGADO" : "PENDIENTE") : "",
         });
       });
@@ -649,12 +682,19 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       doc.text("Sin método de entrega definido", 14, 68);
     }
 
-    const items = (r.items || []).map((it) => [
+    // Importes en la moneda del pedido: los precios base pueden ser legacy en otra moneda.
+    const rawItems = r.items || [];
+    const pdfAmounts = distributeOrderTotal(
+      rawItems.map((it) => ({ unit_price: it.precio_unitario, quantity: it.cantidad })),
+      Number(r.total || 0),
+    );
+    const items = rawItems.map((it, idx) => [
       it.producto_nombre,
       varianteToKey(it.variante || {}),
       String(it.cantidad),
-      formatPrice(Number(it.precio_unitario || 0), r.currency),
+      formatPrice(pdfAmounts[idx] ?? 0, r.currency),
     ]);
+
 
     autoTable(doc, {
       startY: 94,
@@ -667,7 +707,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     const afterY = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(10);
     doc.text(`Total: ${formatPrice(Number(r.total), r.currency)}`, 140, afterY);
-    doc.text(`Estado: ${r.status.replace(/_/g, " ")}`, 140, afterY + 6);
+    doc.text(`Estado: ${operationalLabel(r.status)}`, 140, afterY + 6);
     doc.text(`Pago: ${isPagado(r) ? "PAGADO" : "PENDIENTE"}`, 140, afterY + 12);
 
     doc.save(`pedido-${r.order_number}.pdf`);
@@ -724,8 +764,9 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
             <SelectItem value="all">{restrictStatuses ? "Todos (nuevos)" : "Todos los estados"}</SelectItem>
             {!restrictStatuses && <SelectItem value="cancelados">Cancelados</SelectItem>}
             {(restrictStatuses || STATUSES).map((e) => (
-              <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
+              <SelectItem key={e} value={e}>{operationalLabel(e)}</SelectItem>
             ))}
+
           </SelectContent>
         </Select>
         <div className="flex items-center gap-3 self-center ml-auto text-xs">
@@ -858,14 +899,22 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       onValueChange={(v) => updateField(r.id, { status: v } as any)}
                       disabled={r.status === "cancelado"}
                     >
-                      <SelectTrigger className={`h-7 text-xs w-[160px] mx-auto ${estadoColor(r.status)}`}><SelectValue /></SelectTrigger>
+                      <SelectTrigger className={`h-7 text-xs w-[160px] mx-auto ${estadoColor(r.status)}`}>
+                        <SelectValue>{operationalLabel(r.status)}</SelectValue>
+                      </SelectTrigger>
                       <SelectContent>
-                        {STATUSES.filter((e) => e !== "cancelado").map((e) => (
-                          <SelectItem key={e} value={e}>{e.replace(/_/g, " ")}</SelectItem>
+                        {operationalOptions(r.status).filter((e) => e.value !== "cancelado").map((e) => (
+                          <SelectItem key={e.value} value={e.value}>{e.label}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
+                    {needsPhysicalReturn(r) && (
+                      <div className="text-[10px] text-destructive mt-1 flex items-center justify-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Retorno pendiente
+                      </div>
+                    )}
                   </td>
+
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-1">
                       {!isPagado(r) && r.status !== "cancelado" && (
@@ -882,11 +931,17 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <Button size="sm" variant="ghost" title="Ver detalle" onClick={() => setDetail(r)}>
                         <Eye className="w-4 h-4" />
                       </Button>
+                      {needsPhysicalReturn(r) && (
+                        <Button size="sm" variant="ghost" title="Confirmar retorno al depósito" className="text-destructive hover:text-destructive" disabled={returnBusy === r.id} onClick={() => confirmarRetorno(r)}>
+                          <PackageCheck className="w-4 h-4" />
+                        </Button>
+                      )}
                       {r.status !== "cancelado" && (
-                        <Button size="sm" variant="ghost" title="Anular pedido (devuelve stock)" className="text-destructive hover:text-destructive" onClick={() => { setCancelOrder(r); setCancelReason(""); }}>
+                        <Button size="sm" variant="ghost" title="Anular pedido" className="text-destructive hover:text-destructive" onClick={() => { setCancelOrder(r); setCancelReason(""); }}>
                           <Ban className="w-4 h-4" />
                         </Button>
                       )}
+
                     </div>
                   </td>
                 </tr>
@@ -932,20 +987,28 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                       <div className="text-xs text-muted-foreground italic">Sin items registrados.</div>
                     ) : (
                       <ul className="divide-y divide-border">
-                        {items.map((it, i) => (
-                          <li key={i} className="py-2 space-y-1">
-                            <div className="flex justify-between gap-2">
-                              <div className="font-medium">{it.producto_nombre} <span className="text-muted-foreground">x{it.cantidad}</span></div>
-                              <div className="text-xs text-muted-foreground">{formatPrice(Number(it.precio_unitario || 0), detail.currency)}</div>
-                            </div>
-                            {Object.keys(it.variante || {}).length > 0 && (
-                              <div className="text-[11px] text-muted-foreground">{varianteToKey(it.variante)}</div>
-                            )}
-                          </li>
-                        ))}
+                        {(() => {
+                          // Importes visuales en la moneda del pedido (precios base legacy aparte).
+                          const amounts = distributeOrderTotal(
+                            items.map((it) => ({ unit_price: it.precio_unitario, quantity: it.cantidad })),
+                            Number(detail.total || 0),
+                          );
+                          return items.map((it, i) => (
+                            <li key={i} className="py-2 space-y-1">
+                              <div className="flex justify-between gap-2">
+                                <div className="font-medium">{it.producto_nombre} <span className="text-muted-foreground">x{it.cantidad}</span></div>
+                                <div className="text-xs text-muted-foreground">{formatPrice(amounts[i] ?? 0, detail.currency)}</div>
+                              </div>
+                              {Object.keys(it.variante || {}).length > 0 && (
+                                <div className="text-[11px] text-muted-foreground">{varianteToKey(it.variante)}</div>
+                              )}
+                            </li>
+                          ));
+                        })()}
                       </ul>
                     )}
                   </section>
+
 
                   {/* Entrega */}
                   <section className="rounded-lg border border-border p-3 space-y-2">
