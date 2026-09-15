@@ -933,12 +933,19 @@ export default function EventCostSimulator({ eventId }: Props) {
                         <Label className="text-[10px] text-muted-foreground">Esperados</Label>
                         <Input type="number" className="w-24"
                           value={Number(current.cantidades_esperadas?.[p.id] ?? 0)}
-                          onChange={(e) => patchCurrent({
-                            cantidades_esperadas: {
+                          onChange={(e) => {
+                            const nextCant = {
                               ...(current.cantidades_esperadas || {}),
                               [p.id]: Number(e.target.value),
-                            },
-                          })}
+                            };
+                            patchCurrent({
+                              cantidades_esperadas: nextCant,
+                              escenarios_inscripcion: escenarioActivo
+                                ? escenarios.map((x) => x.id === escenarioActivo.id
+                                  ? { ...x, distribucion: nextCant } : x)
+                                : escenarios,
+                            });
+                          }}
                           onBlur={guardarCambios} />
                       </div>
                     ))}
