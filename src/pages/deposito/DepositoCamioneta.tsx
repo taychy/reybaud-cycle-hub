@@ -961,23 +961,50 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             <div key={cliente} className="glass-card rounded-lg p-3">
               <div className="font-medium text-sm text-foreground mb-2">{cliente}</div>
               <div className="space-y-1.5">
-                {its.map((it) => (
-                  <div key={it.id} className="flex items-center gap-2 text-sm">
+                {its.map((it) => {
+                  const cancelado = cancelInfo(it);
+                  return (
+                  <div key={it.id} className={`flex items-center gap-2 text-sm flex-wrap ${cancelado ? "rounded-md border border-destructive/40 bg-destructive/10 p-2" : ""}`}>
                     <div className="flex-1 min-w-0">
                       <span className="text-foreground">{it.producto || "—"}</span>
                       {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
                       <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
+                      {cancelado && (
+                        <span className="block text-[11px] text-destructive">
+                          Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
+                        </span>
+                      )}
                     </div>
-                    {it.estado !== "entregado" && it.chequeado_at && (
-                      <Badge variant="outline" className="border-cyan-500/40 text-cyan-400">En camioneta</Badge>
-                    )}
-                    {itemEstadoBadge(it.estado)}
-                    {carga.estado === "abierta" && it.estado === "cargado" && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
-                        <X className="w-3 h-3" />
-                      </Button>
+                    {cancelado ? (
+                      <>
+                        <Badge variant="outline" className="border-destructive/60 text-destructive">CANCELADO · RETORNAR</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-destructive"
+                          disabled={retornoBusy === cancelado.orderId}
+                          onClick={() => confirmarRetorno(cancelado.orderId)}
+                        >
+                          Confirmar retorno
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {it.estado !== "entregado" && it.chequeado_at && (
+                          <Badge variant="outline" className="border-cyan-500/40 text-cyan-400">En camioneta</Badge>
+                        )}
+                        {itemEstadoBadge(it.estado)}
+                        {carga.estado === "abierta" && it.estado === "cargado" && (
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
+                  );
+                })}
+
                 ))}
               </div>
             </div>
