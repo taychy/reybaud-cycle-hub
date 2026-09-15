@@ -47,7 +47,7 @@ const isWithinEditWindow = (createdAt: string, status: string) =>
 // Cambio: desde el momento de la compra (incluso pendiente pago efectivo) y hasta enviado.
 // Se corta en `listo_retiro` (ya está en sede).
 const canRequestChangeOrder = (status: string, deliveredAt: string | null) => {
-  if (["pagado", "pendiente_pago_efectivo", "preparando", "enviado"].includes(status)) return true;
+  if (["pagado", "pendiente_pago_efectivo", "preparando", "en_camioneta", "enviado"].includes(status)) return true;
   if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
   return false;
 };

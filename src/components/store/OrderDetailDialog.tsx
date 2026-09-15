@@ -192,9 +192,8 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     setBusy(true);
     // Cancelación del alumno: usa la RPC con firma de alumno (no la de admin).
     const { error } = await supabase.rpc("cancel_store_order" as any, { p_order_id: order.id });
-
-
     setBusy(false);
+
     if (error) {
       toast({ title: "No se pudo cancelar", description: error.message, variant: "destructive" });
       return;
