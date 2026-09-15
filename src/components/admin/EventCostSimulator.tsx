@@ -59,6 +59,7 @@ export interface EscenarioInscripcion {
   id: string;
   nombre: string;
   inscriptos: number;
+  distribucion?: Record<string, number>;
 }
 
 
