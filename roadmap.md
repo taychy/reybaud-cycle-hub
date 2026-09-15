@@ -89,3 +89,12 @@
 - [x] Si ya existe una obligación para el período elegido, se reutiliza; nunca se duplica
 - [x] Alumno activo con continuidad: sigue la renovación automática actual, sin preguntar
 - [x] 10 pruebas nuevas de reingreso; batería completa: 391 en verde
+
+## Tienda y depósito: pago ≠ estado operativo, etiquetas y cancelaciones
+- [x] `pagado_at` como única fuente de pago; estado del pedido reservado a logística (nuevo/preparando/en camioneta/enviado/entregado/cancelado)
+- [x] Cobro en efectivo posible aunque el pedido ya esté preparando o en camioneta, sin pisar el estado operativo
+- [x] Cancelación con motivo desde Depósito y Admin; si la mercadería está afuera, el stock se repone recién al confirmar el retorno físico
+- [x] Camioneta: ítems de pedidos cancelados marcados `CANCELADO · RETORNAR` con acción de retorno
+- [x] Etiquetas Niimbot con talle y cantidad, jerarquía grande y QR sólo si hay saldo pendiente
+- [x] Importes de línea mostrados en la moneda del pedido (precios base legacy USD)
+- [x] Stock de combos consultado a la base (`get_combo_available_stock`)

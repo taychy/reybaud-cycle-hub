@@ -535,15 +535,66 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     await Promise.all([load(), loadRondas()]);
   };
 
+  // Pedidos de tienda cancelados cuya mercadería sigue arriba de la camioneta.
+  const [cancelledByItem, setCancelledByItem] = useState<Record<string, { orderId: string; orderNumber: number | null }>>({});
+  const [retornoBusy, setRetornoBusy] = useState<string | null>(null);
+
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
       supabase.from("vehiculo_cargas" as any).select("*").eq("id", id).single(),
       supabase.from("vehiculo_carga_items" as any).select("*").eq("carga_id", id).order("cliente_nombre").order("producto"),
     ]);
     setCarga(cRes.data as any);
-    setItems((iRes.data as any[]) || []);
+    const list = ((iRes.data as any[]) || []);
+    setItems(list);
+
+    // Resolver el pedido padre de los ítems de tienda para detectar cancelaciones.
+    const soiIds = list
+      .filter((i: any) => i.source_table === "store_order_items" && i.source_id)
+      .map((i: any) => i.source_id);
+    if (soiIds.length) {
+      const { data: soi } = await supabase
+        .from("store_order_items")
+        .select("id, order_id")
+        .in("id", soiIds);
+      const orderIds = Array.from(new Set((soi || []).map((s: any) => s.order_id).filter(Boolean)));
+      if (orderIds.length) {
+        const { data: ords } = await supabase
+          .from("store_orders")
+          .select("id, order_number, status, stock_restored_at")
+          .in("id", orderIds);
+        const cancelled = new Map<string, any>();
+        (ords || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
+        const map: Record<string, { orderId: string; orderNumber: number | null }> = {};
+        list.forEach((it: any) => {
+          if (it.source_table !== "store_order_items") return;
+          const rel = (soi || []).find((s: any) => s.id === it.source_id);
+          const ord = rel?.order_id ? cancelled.get(rel.order_id) : null;
+          if (ord) map[it.id] = { orderId: ord.id, orderNumber: ord.order_number ?? null };
+        });
+        setCancelledByItem(map);
+      } else {
+        setCancelledByItem({});
+      }
+    } else {
+      setCancelledByItem({});
+    }
     setLoading(false);
   };
+
+  /** El ítem pertenece a una compra cancelada y todavía está arriba de la camioneta. */
+  const cancelInfo = (it: any) =>
+    it.estado === "cargado" ? cancelledByItem[it.id] : undefined;
+
+  const confirmarRetorno = async (orderId: string) => {
+    setRetornoBusy(orderId);
+    const { error } = await (supabase as any).rpc("confirm_cancelled_store_order_return", { _order_id: orderId });
+    setRetornoBusy(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Retorno confirmado: la mercadería volvió al depósito y el stock quedó repuesto.");
+    await load();
+  };
+
   useEffect(() => { load(); loadRondas(); }, [id]);
 
   useEffect(() => {
@@ -746,7 +797,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   const totalItems = items.length;
   const entregados = items.filter((i) => i.estado === "entregado").length;
-  const enCaja = items.filter((i) => i.estado === "cargado").length;
+  const aRetornar = items.filter((i) => !!cancelInfo(i)).length;
+  const enCaja = items.filter((i) => i.estado === "cargado" && !cancelInfo(i)).length;
+
   const chequeados = items.filter((i) => !!i.chequeado_at && i.estado !== "entregado").length;
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
@@ -795,6 +848,8 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4">
           <Metric label="Total" value={totalItems} />
           <Metric label="En caja" value={enCaja} tone="warning" />
+          {aRetornar > 0 && <Metric label="A retornar" value={aRetornar} tone="danger" />}
+
           <Metric label="Chequeados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
           <Metric label="Faltantes" value={faltantes} tone="danger" />
@@ -906,24 +961,49 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             <div key={cliente} className="glass-card rounded-lg p-3">
               <div className="font-medium text-sm text-foreground mb-2">{cliente}</div>
               <div className="space-y-1.5">
-                {its.map((it) => (
-                  <div key={it.id} className="flex items-center gap-2 text-sm">
+                {its.map((it) => {
+                  const cancelado = cancelInfo(it);
+                  return (
+                  <div key={it.id} className={`flex items-center gap-2 text-sm flex-wrap ${cancelado ? "rounded-md border border-destructive/40 bg-destructive/10 p-2" : ""}`}>
                     <div className="flex-1 min-w-0">
                       <span className="text-foreground">{it.producto || "—"}</span>
                       {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
                       <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
+                      {cancelado && (
+                        <span className="block text-[11px] text-destructive">
+                          Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
+                        </span>
+                      )}
                     </div>
-                    {it.estado !== "entregado" && it.chequeado_at && (
-                      <Badge variant="outline" className="border-cyan-500/40 text-cyan-400">En camioneta</Badge>
-                    )}
-                    {itemEstadoBadge(it.estado)}
-                    {carga.estado === "abierta" && it.estado === "cargado" && (
-                      <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
-                        <X className="w-3 h-3" />
-                      </Button>
+                    {cancelado ? (
+                      <>
+                        <Badge variant="outline" className="border-destructive/60 text-destructive">CANCELADO · RETORNAR</Badge>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 text-destructive"
+                          disabled={retornoBusy === cancelado.orderId}
+                          onClick={() => confirmarRetorno(cancelado.orderId)}
+                        >
+                          Confirmar retorno
+                        </Button>
+                      </>
+                    ) : (
+                      <>
+                        {it.estado !== "entregado" && it.chequeado_at && (
+                          <Badge variant="outline" className="border-cyan-500/40 text-cyan-400">En camioneta</Badge>
+                        )}
+                        {itemEstadoBadge(it.estado)}
+                        {carga.estado === "abierta" && it.estado === "cargado" && (
+                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
+                            <X className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </>
                     )}
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ))}

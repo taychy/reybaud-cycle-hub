@@ -969,6 +969,30 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                 </SheetHeader>
 
                 <div className="mt-4 space-y-4 text-sm">
+                  {detail.status === "cancelado" && (
+                    <section className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
+                      <div className="font-medium text-destructive">Compra cancelada</div>
+                      {needsPhysicalReturn(detail) && (
+                        <>
+                          <p className="text-xs text-muted-foreground">
+                            El stock todavía no se repuso: falta que la mercadería vuelva físicamente al depósito.
+                          </p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={returnBusy === detail.id}
+                            onClick={() => confirmarRetorno(detail)}
+                          >
+                            Confirmar retorno al depósito
+                          </Button>
+                        </>
+                      )}
+                      {detail.pagado_at && (
+                        <p className="text-xs text-muted-foreground">Pago registrado · reembolso a gestionar</p>
+                      )}
+                    </section>
+                  )}
+
                   {/* Cliente */}
                   <section className="rounded-lg border border-border p-3 space-y-1">
                     <h4 className="text-[11px] font-heading uppercase text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Cliente</h4>
