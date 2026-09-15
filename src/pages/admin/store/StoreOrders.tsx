@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin,
-  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban,
+  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban, PackageCheck, AlertTriangle,
 } from "lucide-react";
+
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -25,6 +26,15 @@ import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
+import {
+  distributeOrderTotal,
+  isLegacyInitialStatus,
+  needsPhysicalReturn,
+  operationalBadgeClass,
+  operationalLabel,
+  operationalOptions,
+} from "@/lib/storeOrderStatus";
+
 
 
 interface OrderItem {
@@ -59,6 +69,8 @@ interface Order {
   envio_costo: number | null;
   envio_estado: string | null;
   delivered_at: string | null;
+  stock_restored_at?: string | null;
+
   customer_phone?: string | null;
   es_externo?: boolean | null;
   supplier_notified_at?: string | null;
@@ -95,25 +107,11 @@ const STATUSES = [
 
 const ENVIO_ESTADOS = ["a_cotizar", "cotizado", "pagado", "enviado", "entregado"];
 
-const estadoColor = (e: string) => {
-  switch (e) {
-    case "pagado": return "bg-emerald-500/20 text-emerald-400";
-    case "preparando": return "bg-accent/20 text-accent";
-    case "en_camioneta": return "bg-cyan-500/20 text-cyan-400";
-    case "enviado": return "bg-primary/20 text-primary";
-    case "entregado": return "bg-green-500/20 text-green-400";
-    case "cancelado": return "bg-destructive/20 text-destructive";
-    case "pendiente_pago":
-    case "pendiente_pago_efectivo": return "bg-amber-500/20 text-amber-400";
-    default: return "bg-muted text-muted-foreground";
-  }
-};
+const estadoColor = (e: string) => operationalBadgeClass(e);
 
-// El pago es independiente del estado de fulfillment.
-// Solo se considera pagado cuando hay un registro real en `pagado_at`
-// (lo setea el admin al confirmar el cobro) o cuando el flujo
-// originó el pedido ya pago (status inicial "pagado" sin tránsito por entrega).
+// El pago es independiente del estado operativo: sólo `pagado_at` manda.
 const isPagado = (o: Order) => !!o.pagado_at;
+
 
 const isEntregado = (o: Order) => o.status === "entregado" || !!o.delivered_at;
 
