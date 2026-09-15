@@ -797,7 +797,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
   const totalItems = items.length;
   const entregados = items.filter((i) => i.estado === "entregado").length;
-  const enCaja = items.filter((i) => i.estado === "cargado").length;
+  const aRetornar = items.filter((i) => !!cancelInfo(i)).length;
+  const enCaja = items.filter((i) => i.estado === "cargado" && !cancelInfo(i)).length;
+
   const chequeados = items.filter((i) => !!i.chequeado_at && i.estado !== "entregado").length;
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
@@ -846,6 +848,8 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4">
           <Metric label="Total" value={totalItems} />
           <Metric label="En caja" value={enCaja} tone="warning" />
+          {aRetornar > 0 && <Metric label="A retornar" value={aRetornar} tone="danger" />}
+
           <Metric label="Chequeados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
           <Metric label="Faltantes" value={faltantes} tone="danger" />
