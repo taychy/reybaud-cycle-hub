@@ -19,7 +19,9 @@ interface Product {
   variants?: any;
   variant_stock?: any;
   stock?: number | null;
+  is_combo?: boolean | null;
 }
+
 
 interface Props {
   open: boolean;
@@ -51,14 +53,30 @@ const BuyProductDialog = ({ open, onOpenChange, product, alumnoId, customerName,
     return variantSpecs.map((s) => `${s.name}:${variante[s.name] || ""}`).join("|");
   }, [variantSpecs, variante]);
 
+  // Los combos no tienen stock propio: la base lo calcula por componentes.
+  const [comboStock, setComboStock] = useState<number | null>(null);
+  useEffect(() => {
+    if (!open || !product?.is_combo) { setComboStock(null); return; }
+    let cancelled = false;
+    void (supabase.rpc as any)("get_combo_available_stock", {
+      p_combo_id: product.id,
+      p_selection: variante,
+    }).then(({ data }: any) => {
+      if (!cancelled) setComboStock(data == null ? 0 : Number(data));
+    });
+    return () => { cancelled = true; };
+  }, [open, product?.id, product?.is_combo, variantSig]);
+
   const stockDisp: number | null = useMemo(() => {
     if (!product) return null;
+    if (product.is_combo) return comboStock;
     if (variantSpecs.length && variantSig && product.variant_stock) {
       const s = (product.variant_stock as Record<string, number>)[variantSig];
       return typeof s === "number" ? s : 0;
     }
     return typeof product.stock === "number" ? product.stock : null;
-  }, [product, variantSpecs, variantSig]);
+  }, [product, variantSpecs, variantSig, comboStock]);
+
 
   const [successOrder, setSuccessOrder] = useState<{ number: number | null; metodo: "mp" | "efectivo" } | null>(null);
   const [effectivePrice, setEffectivePrice] = useState<any>(null);
