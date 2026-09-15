@@ -76,14 +76,6 @@ interface DiffRow {
   resultado: "presente" | "nuevo" | "entregado_ok" | "faltante_sin_aviso" | "entregado_pero_presente" | "fuera_de_ronda";
 }
 
-const DIFF_SECTIONS = [
-  { key: "faltante_sin_aviso", label: "Faltan y nadie informó entrega", hint: "Estaban en la ronda anterior, no están en la camioneta y el entregador no los marcó como entregados.", tone: "text-red-500" },
-  { key: "entregado_pero_presente", label: "Informados como entregados pero siguen en la camioneta", hint: "El entregador los marcó entregados y sin embargo se escanearon acá.", tone: "text-amber-500" },
-  { key: "entregado_ok", label: "Entregas confirmadas", hint: "Ya no están en la camioneta y el entregador informó la entrega.", tone: "text-green-500" },
-  { key: "nuevo", label: "Nuevos en esta ronda", hint: "No estaban en la ronda anterior.", tone: "text-cyan-400" },
-  { key: "presente", label: "Siguen en la camioneta", hint: "Escaneados y pendientes de entrega.", tone: "text-muted-foreground" },
-] as const;
-
 const estadoBadge = (estado: string) => {
   const map: Record<string, { label: string; variant: any }> = {
     abierta: { label: "Abierta", variant: "default" },
@@ -131,7 +123,6 @@ const DepositoCamioneta = () => {
   const handleCreate = async () => {
     if (!form.sede_id) { toast.error("Elegí la sede destino"); return; }
     setCreating(true);
-    // Una sola caja activa por sede: si ya existe, la reutilizamos
     const { data: existente } = await (supabase as any)
       .from("vehiculo_cargas")
       .select("id")
@@ -167,7 +158,6 @@ const DepositoCamioneta = () => {
     setForm({ sede_id: "", fecha_salida: new Date().toISOString().slice(0, 10), entregador: "", notas: "" });
     navigate(`/deposito/camioneta/${data.id}`);
   };
-
 
   if (id) return <CargaDetail id={id} sedes={sedes} onBack={() => navigate("/deposito/camioneta")} />;
 
@@ -269,10 +259,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [etiquetaOpen, setEtiquetaOpen] = useState(false);
   const [scanCount, setScanCount] = useState(0);
   const scanBusyRef = useRef(false);
-  // --- Rondas de chequeo (cruce con lo informado por el entregador) ---
   const [chequeo, setChequeo] = useState<Chequeo | null>(null);
   const [rondas, setRondas] = useState<Chequeo[]>([]);
   const [scannedIds, setScannedIds] = useState<Set<string>>(new Set());
+  const [seenQty, setSeenQty] = useState<Record<string, number>>({});
+  const [draftSeenQty, setDraftSeenQty] = useState<Record<string, string>>({});
+  const [savingSeenIds, setSavingSeenIds] = useState<Set<string>>(new Set());
   const [diff, setDiff] = useState<DiffRow[]>([]);
   const [diffLoading, setDiffLoading] = useState(false);
   const [closingRonda, setClosingRonda] = useState(false);
@@ -297,15 +289,19 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     return match?.[1] || null;
   };
 
-  /** Resuelve qué ítems de esta carga corresponden al código escaneado. */
+  const seenForItem = (item: CargaItem): number | null => {
+    if (Object.prototype.hasOwnProperty.call(seenQty, item.id)) return seenQty[item.id];
+    // Compatibilidad con chequeos iniciados antes de guardar cantidad_vista:
+    // un scan antiguo significaba que la línea completa había sido confirmada.
+    if (scannedIds.has(item.id)) return Number(item.cantidad);
+    return null;
+  };
+
   const resolveTargets = async (code: string): Promise<{ label: string; targets: CargaItem[]; dliIds: string[] } | null> => {
-    // Durante una ronda activa, lo pendiente es lo que todavía no se escaneó en ESA ronda.
     const pendientes = chequeo
       ? items.filter((i) => i.estado !== "entregado" && !scannedIds.has(i.id))
       : items.filter((i) => i.estado !== "entregado" && !i.chequeado_at);
 
-    // Las etiquetas de pedidos codifican una URL de cobro. Resolver primero la
-    // intención de esa URL evita confundir alumno, pedido y preventa por el UUID.
     const scannedOrderId = scannedPathId(code, "pagar-preventa");
     const scannedAlumnoId = scannedPathId(code, "pagar-preventas-alumno");
     if (scannedOrderId) {
@@ -334,7 +330,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       if (targets.length) return { label: targets[0].cliente_nombre, targets, dliIds: [] };
     }
 
-    // 1) QR de lista de entrega (RBDLV1)
     const parsed = parseClientCode(code);
     if (parsed) {
       const { data: dliRows } = await supabase
@@ -351,12 +346,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       };
     }
 
-    // 2) UUID suelto o dentro de una URL (etiquetas Niimbot de pedido/preventa, QR de producto)
     const uuid = code.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];
     if (uuid) {
-      // a) coincide directo con el ítem de la carga
       let targets = pendientes.filter((i) => i.source_id.toLowerCase() === uuid.toLowerCase());
-      // b) es el id de un pedido de tienda → sus ítems
       if (targets.length === 0) {
         const { data: soi } = await supabase
           .from("store_order_items")
@@ -367,11 +359,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           targets = pendientes.filter((i) => i.source_table === "store_order_items" && soiIds.includes(i.source_id));
         }
       }
-      // c) es el id de una preventa
       if (targets.length === 0) {
         targets = pendientes.filter((i) => i.source_table === "store_preorders" && i.source_id.toLowerCase() === uuid.toLowerCase());
       }
-      // d) es el id del ALUMNO (etiquetas Niimbot con QR /pagar-preventas-alumno/:alumnoId)
       if (targets.length === 0) {
         const [{ data: ordersOfAlumno }, { data: preordersOfAlumno }] = await Promise.all([
           supabase.from("store_orders").select("id").eq("alumno_id", uuid),
@@ -397,7 +387,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             ),
           ];
         }
-        // e) sin ítems vinculados: probamos por nombre del alumno
         if (targets.length === 0) {
           const { data: al } = await supabase
             .from("alumnos")
@@ -419,8 +408,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       }
     }
 
-
-    // 3) Último recurso: texto que coincide con el nombre del cliente
     const t = norm(code);
     if (t.length >= 4) {
       const byName = pendientes.filter((i) => {
@@ -449,12 +436,15 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     }
     const { label, targets } = res;
     if (targets.length === 0) {
-      toast.info(`${label} ya estaba chequeado o entregado`);
+      toast.info(`${label} ya estaba registrado o entregado`);
       return;
     }
     scanBusyRef.current = true;
     const targetIds = targets.map((t) => t.id);
     const now = new Date().toISOString();
+    const scannedQuantities = Object.fromEntries(
+      targets.map((t) => [t.id, Number(t.cantidad) > 1 ? 1 : Number(t.cantidad)]),
+    ) as Record<string, number>;
     setItems((prev) => prev.map((i) => (targetIds.includes(i.id) ? { ...i, chequeado_at: now } : i)));
     const { data: userRes } = await supabase.auth.getUser();
 
@@ -463,11 +453,28 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .update({ chequeado_at: now, chequeado_by: userRes.user?.id ?? null })
       .in("id", targetIds);
     if (!error && chequeo) {
-      await (supabase as any).from("vehiculo_chequeo_scans").upsert(
-        targetIds.map((itemId) => ({ chequeo_id: chequeo.id, item_id: itemId, scanned_by: userRes.user?.id ?? null })),
+      const { error: scanError } = await (supabase as any).from("vehiculo_chequeo_scans").upsert(
+        targets.map((target) => ({
+          chequeo_id: chequeo.id,
+          item_id: target.id,
+          cantidad_vista: scannedQuantities[target.id],
+          scanned_by: userRes.user?.id ?? null,
+          scanned_at: now,
+        })),
         { onConflict: "chequeo_id,item_id" },
       );
+      if (scanError) {
+        scanBusyRef.current = false;
+        toast.error("No se pudo guardar lo visto");
+        return;
+      }
       setScannedIds((prev) => new Set([...prev, ...targetIds]));
+      setSeenQty((prev) => ({ ...prev, ...scannedQuantities }));
+      setDraftSeenQty((prev) => {
+        const next = { ...prev };
+        targets.forEach((target) => { next[target.id] = String(scannedQuantities[target.id]); });
+        return next;
+      });
     }
     scanBusyRef.current = false;
     if (error) {
@@ -476,8 +483,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       return;
     }
     setScanCount((n) => n + 1);
-    toast.success(`✓ ${label} en camioneta`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} chequeado${targets.length !== 1 ? "s" : ""}` });
-
+    const requiereCantidad = targets.some((t) => Number(t.cantidad) > 1);
+    toast.success(`✓ ${label} registrado`, {
+      description: requiereCantidad
+        ? "Hay líneas con más de una unidad. Revisá la columna “Veo” y ajustá la cantidad real."
+        : `${targets.length} ítem${targets.length !== 1 ? "s" : ""} registrado${targets.length !== 1 ? "s" : ""}`,
+    });
   };
 
   const loadRondas = async () => {
@@ -491,23 +502,81 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     const abierta = list.find((r) => r.estado === "en_curso") || null;
     setChequeo(abierta);
     if (abierta) {
-      const { data: scans } = await (supabase as any)
+      const { data: scans, error: scansError } = await (supabase as any)
         .from("vehiculo_chequeo_scans")
-        .select("item_id")
+        .select("item_id,cantidad_vista")
         .eq("chequeo_id", abierta.id);
-      setScannedIds(new Set(((scans as any[]) || []).map((s) => s.item_id)));
+      if (scansError) {
+        toast.error("No se pudo cargar el detalle del chequeo");
+      }
+      const scanRows = ((scans as any[]) || []);
+      setScannedIds(new Set(scanRows.map((s) => s.item_id)));
+      const qty: Record<string, number> = {};
+      const drafts: Record<string, string> = {};
+      scanRows.forEach((s) => {
+        if (s.cantidad_vista !== null && s.cantidad_vista !== undefined) {
+          qty[s.item_id] = Number(s.cantidad_vista);
+          drafts[s.item_id] = String(s.cantidad_vista);
+        }
+      });
+      setSeenQty(qty);
+      setDraftSeenQty(drafts);
     } else {
       setScannedIds(new Set());
+      setSeenQty({});
+      setDraftSeenQty({});
       setDiff([]);
     }
     return abierta;
+  };
+
+  const saveSeenQuantity = async (item: CargaItem, raw: string | number) => {
+    if (!chequeo) return;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      toast.error("Ingresá una cantidad válida");
+      return;
+    }
+    const qty = Math.floor(parsed);
+    setSavingSeenIds((prev) => new Set(prev).add(item.id));
+    const { data: userRes } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    const { error } = await (supabase as any).from("vehiculo_chequeo_scans").upsert(
+      {
+        chequeo_id: chequeo.id,
+        item_id: item.id,
+        cantidad_vista: qty,
+        scanned_by: userRes.user?.id ?? null,
+        scanned_at: now,
+      },
+      { onConflict: "chequeo_id,item_id" },
+    );
+    if (!error) {
+      await (supabase as any)
+        .from("vehiculo_carga_items")
+        .update({ chequeado_at: now, chequeado_by: userRes.user?.id ?? null })
+        .eq("id", item.id);
+    }
+    setSavingSeenIds((prev) => {
+      const next = new Set(prev);
+      next.delete(item.id);
+      return next;
+    });
+    if (error) {
+      toast.error("No se pudo guardar esta cantidad");
+      return;
+    }
+    setSeenQty((prev) => ({ ...prev, [item.id]: qty }));
+    setDraftSeenQty((prev) => ({ ...prev, [item.id]: String(qty) }));
+    setScannedIds((prev) => new Set(prev).add(item.id));
+    setItems((prev) => prev.map((i) => i.id === item.id ? { ...i, chequeado_at: now } : i));
   };
 
   const loadDiff = async (chequeoId: string) => {
     setDiffLoading(true);
     const { data, error } = await (supabase as any).rpc("get_vehiculo_chequeo_diff", { _chequeo_id: chequeoId });
     setDiffLoading(false);
-    if (error) { toast.error(error.message); return; }
+    if (error) { return; }
     setDiff(((data as any[]) || []) as DiffRow[]);
   };
 
@@ -518,24 +587,33 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setChequeo(row);
     await loadRondas();
     setScanCount(0);
-    setScannerOpen(true);
-    toast.success(row.tipo === "inicial" ? `Ronda 1 · Registro inicial` : `Ronda ${row.ronda} · Control`);
+    setScannerOpen(false);
+    toast.success(row.tipo === "inicial" ? "Chequeo iniciado" : `Ronda ${row.ronda} iniciada`, {
+      description: "Registrá la cantidad que ves físicamente en la camioneta.",
+    });
   };
 
   const cerrarRonda = async () => {
     if (!chequeo) return;
-    if (!confirm("¿Cerrar la ronda? Se aplicarán entregas y faltantes según el cruce.")) return;
+    const expectedItems = items.filter((i) => i.estado === "cargado");
+    const pendientes = expectedItems.filter((i) => seenForItem(i) === null);
+    if (pendientes.length > 0) {
+      toast.error(`Faltan registrar ${pendientes.length} línea${pendientes.length !== 1 ? "s" : ""}`, {
+        description: "Completá “Veo” o usá “Está todo” en cada línea antes de cerrar.",
+      });
+      return;
+    }
+    if (!confirm("¿Cerrar el chequeo? Se guardará la foto de lo observado. No modifica entregas ni stock.")) return;
     setClosingRonda(true);
-    const { error } = await (supabase as any).rpc("close_vehiculo_chequeo", { _chequeo_id: chequeo.id, _notas: rondaNotas || null });
+    const { error } = await (supabase as any).rpc("close_vehiculo_chequeo_observacional", { _chequeo_id: chequeo.id, _notas: rondaNotas || null });
     setClosingRonda(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Ronda cerrada y cruzada con lo informado por el entregador");
+    toast.success("Chequeo cerrado", { description: "Las diferencias quedaron registradas sin modificar entregas ni stock." });
     setRondaNotas("");
     setDiff([]);
     await Promise.all([load(), loadRondas()]);
   };
 
-  // Pedidos de tienda cancelados cuya mercadería sigue arriba de la camioneta.
   const [cancelledByItem, setCancelledByItem] = useState<Record<string, { orderId: string; orderNumber: number | null }>>({});
   const [retornoBusy, setRetornoBusy] = useState<string | null>(null);
 
@@ -548,7 +626,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     const list = ((iRes.data as any[]) || []);
     setItems(list);
 
-    // Resolver el pedido padre de los ítems de tienda para detectar cancelaciones.
     const soiIds = list
       .filter((i: any) => i.source_table === "store_order_items" && i.source_id)
       .map((i: any) => i.source_id);
@@ -582,7 +659,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setLoading(false);
   };
 
-  /** El ítem pertenece a una compra cancelada y todavía está arriba de la camioneta. */
   const cancelInfo = (it: any) =>
     it.estado === "cargado" ? cancelledByItem[it.id] : undefined;
 
@@ -610,6 +686,31 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     return c as Record<DiffRow["resultado"], number>;
   }, [diff]);
 
+  const chequeoItems = useMemo(() => items.filter((i) => i.estado === "cargado"), [items]);
+  const auditSummary = useMemo(() => {
+    let esperado = 0;
+    let visto = 0;
+    let registradas = 0;
+    let faltan = 0;
+    let sobran = 0;
+    chequeoItems.forEach((item) => {
+      const expected = Number(item.cantidad) || 0;
+      esperado += expected;
+      const seen = Object.prototype.hasOwnProperty.call(seenQty, item.id)
+        ? seenQty[item.id]
+        : scannedIds.has(item.id)
+          ? expected
+          : null;
+      if (seen !== null) {
+        registradas += 1;
+        visto += seen;
+        faltan += Math.max(expected - seen, 0);
+        sobran += Math.max(seen - expected, 0);
+      }
+    });
+    return { esperado, visto, registradas, faltan, sobran };
+  }, [chequeoItems, seenQty, scannedIds]);
+
   const grouped = useMemo(() => {
     const g: Record<string, CargaItem[]> = {};
     items.forEach((it) => {
@@ -633,7 +734,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setAddLoading(true);
     const cands: CandidateItem[] = [];
 
-    // 1) Ítems de listas de entrega abiertas, no preparados
     const { data: rows } = await supabase
       .from("delivery_list_items")
       .select("id,list_id,cliente_nombre,producto,variante,cantidad,preparado,list:delivery_lists!inner(id,titulo,estado)")
@@ -641,7 +741,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .order("cliente_nombre");
     const abiertos = ((rows as any[]) || []).filter((r) => r.list?.estado === "abierta");
 
-    // 2) Todos los pedidos de tienda abiertos (cualquier método de entrega)
     const { data: orders } = await supabase
       .from("store_orders")
       .select("id,order_number,customer_name,status,entrega_metodo,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
@@ -649,8 +748,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .order("created_at", { ascending: false });
     const pedidos = ((orders as any[]) || []);
 
-
-    // Ítems ya cargados en alguna carga activa
     const dliIds = abiertos.map((r: any) => r.id);
     const soiIds = pedidos.flatMap((o: any) => (o.items || []).map((i: any) => i.id));
     const { data: taken } = await (supabase as any)
@@ -705,9 +802,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     });
 
     setCandidates(cands);
-    // Preseleccionamos los de esta sede y los que ya están marcados "en camioneta"
     setSelected(new Set(cands.filter((c) => c.grupo === "sede" || c.enCamioneta).map((c) => c.id)));
-
     setAddLoading(false);
   };
 
@@ -799,7 +894,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const entregados = items.filter((i) => i.estado === "entregado").length;
   const aRetornar = items.filter((i) => !!cancelInfo(i)).length;
   const enCaja = items.filter((i) => i.estado === "cargado" && !cancelInfo(i)).length;
-
   const chequeados = items.filter((i) => !!i.chequeado_at && i.estado !== "entregado").length;
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
@@ -831,12 +925,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                   <Camera className="w-4 h-4 mr-1" /> Foto etiqueta (venta externa)
                 </Button>
                 {chequeo ? (
-                  <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-                    <ScanLine className="w-4 h-4 mr-1" /> Seguir ronda {chequeo.ronda}
+                  <Button variant="gold" size="sm" onClick={() => document.getElementById("chequeo-fisico")?.scrollIntoView({ behavior: "smooth" })}>
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> Seguir chequeo
                   </Button>
                 ) : (
                   <Button variant="gold" size="sm" onClick={iniciarRonda}>
-                    <ScanLine className="w-4 h-4 mr-1" /> {rondas.length === 0 ? "Iniciar registro de camioneta" : "Nueva ronda de control"}
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> {rondas.length === 0 ? "Iniciar chequeo" : "Nuevo chequeo"}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
@@ -849,7 +943,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <Metric label="Total" value={totalItems} />
           <Metric label="En caja" value={enCaja} tone="warning" />
           {aRetornar > 0 && <Metric label="A retornar" value={aRetornar} tone="danger" />}
-
           <Metric label="Chequeados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
           <Metric label="Faltantes" value={faltantes} tone="danger" />
@@ -857,67 +950,109 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       </div>
 
       {chequeo && (
-        <div className="glass-card rounded-lg p-4 border border-primary/30 space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
+        <div id="chequeo-fisico" className="glass-card rounded-lg p-4 border border-primary/30 space-y-4">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
               <div className="font-heading font-bold uppercase tracking-wider text-sm">
-                Ronda {chequeo.ronda} · {chequeo.tipo === "inicial" ? "Registro inicial" : "Control contra ronda anterior"}
+                Chequeo físico · Ronda {chequeo.ronda}
               </div>
-              <p className="text-xs text-muted-foreground">
-                {chequeo.tipo === "inicial"
-                  ? "Escaneá todo lo que hay físicamente en la camioneta. Eso queda como registro base."
-                  : "Escaneá lo que sigue en la camioneta. Se compara contra la ronda anterior y contra lo que el entregador informó como entregado."}
+              <p className="text-xs text-muted-foreground max-w-2xl">
+                Registrá lo que ves ahora en la camioneta. “Esperado” es lo que figura en el sistema y “Veo” es la cantidad física. Este chequeo solo registra diferencias: no entrega pedidos ni modifica stock.
               </p>
             </div>
-            <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-              <ScanLine className="w-4 h-4 mr-1" /> Escanear
+            <Button variant="outline" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+              <ScanLine className="w-4 h-4 mr-1" /> Usar escáner
             </Button>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <Metric label="Escaneados" value={diffCounts.presente + diffCounts.nuevo + diffCounts.entregado_pero_presente} />
-            <Metric label="Nuevos" value={diffCounts.nuevo} />
-            <Metric label="Entregas OK" value={diffCounts.entregado_ok} tone="ok" />
-            <Metric label="Faltan sin aviso" value={diffCounts.faltante_sin_aviso} tone="danger" />
-            <Metric label="Informado pero está" value={diffCounts.entregado_pero_presente} tone="warning" />
+            <Metric label="Registradas" value={auditSummary.registradas} />
+            <Metric label="Esperado" value={auditSummary.esperado} />
+            <Metric label="Visto" value={auditSummary.visto} />
+            <Metric label="Faltan" value={auditSummary.faltan} tone={auditSummary.faltan > 0 ? "danger" : undefined} />
+            <Metric label="Sobran" value={auditSummary.sobran} tone={auditSummary.sobran > 0 ? "warning" : undefined} />
           </div>
+          <p className="text-[11px] text-muted-foreground">
+            Líneas registradas: {auditSummary.registradas} de {chequeoItems.length}.
+          </p>
 
-          {diffLoading ? (
-            <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Cruzando datos...</div>
-          ) : (
-            <div className="space-y-3">
-              {DIFF_SECTIONS.map(({ key, label, hint, tone }) => {
-                const rows = diff.filter((d) => d.resultado === key);
-                if (rows.length === 0) return null;
-                return (
-                  <div key={key} className="rounded-lg border border-border p-2">
-                    <div className={`text-[11px] uppercase tracking-wider font-medium ${tone}`}>{label} · {rows.length}</div>
-                    <p className="text-[10px] text-muted-foreground mb-1">{hint}</p>
-                    <div className="space-y-1">
-                      {rows.map((d) => (
-                        <div key={d.item_id} className="text-xs flex gap-2">
-                          <span className="text-foreground font-medium truncate">{d.cliente_nombre}</span>
-                          <span className="text-muted-foreground truncate">
-                            {d.producto || "—"}{d.variante ? ` · ${d.variante}` : ""} × {Number(d.cantidad)}
-                          </span>
-                        </div>
-                      ))}
+          <div className="space-y-2">
+            {chequeoItems.length === 0 ? (
+              <div className="rounded-lg border border-border p-4 text-sm text-muted-foreground text-center">
+                No hay mercadería marcada como “en caja” para controlar.
+              </div>
+            ) : chequeoItems.map((item) => {
+              const expected = Number(item.cantidad) || 0;
+              const savedSeen = seenForItem(item);
+              const draft = draftSeenQty[item.id] ?? (savedSeen === null ? "" : String(savedSeen));
+              const delta = savedSeen === null ? null : savedSeen - expected;
+              const savingRow = savingSeenIds.has(item.id);
+              return (
+                <div key={item.id} className="rounded-lg border border-border p-3 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">{item.cliente_nombre}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {item.producto || "—"}{item.variante ? ` · ${item.variante}` : ""}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+                    <div className="text-center min-w-[72px]">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Esperado</div>
+                      <div className="text-lg font-bold">{expected}</div>
+                    </div>
+                    <div className="w-20">
+                      <Label className="text-[10px] uppercase tracking-wider text-muted-foreground">Veo</Label>
+                      <Input
+                        className="h-9 text-center"
+                        type="number"
+                        min={0}
+                        step={1}
+                        inputMode="numeric"
+                        value={draft}
+                        onChange={(e) => setDraftSeenQty((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                        onBlur={(e) => { if (e.target.value !== "") saveSeenQuantity(item, e.target.value); }}
+                        disabled={savingRow}
+                        placeholder="—"
+                      />
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-9"
+                      disabled={savingRow}
+                      onClick={() => saveSeenQuantity(item, expected)}
+                    >
+                      Está todo
+                    </Button>
+                    <div className="min-w-[90px] sm:text-right">
+                      {savedSeen === null ? (
+                        <Badge variant="outline">Pendiente</Badge>
+                      ) : delta === 0 ? (
+                        <Badge variant="default" className="bg-green-600 hover:bg-green-600">Coincide</Badge>
+                      ) : delta! < 0 ? (
+                        <Badge variant="destructive">Falta {Math.abs(delta!)}</Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-amber-500 text-amber-500">Sobran {delta}</Badge>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
 
-          <Textarea
-            rows={2}
-            placeholder="Observaciones de la ronda (opcional)"
-            value={rondaNotas}
-            onChange={(e) => setRondaNotas(e.target.value)}
-          />
+          <div className="space-y-1">
+            <Label>Observaciones</Label>
+            <Textarea
+              rows={2}
+              placeholder="Opcional. Si encontrás algo que no figura en la lista, anotá acá producto, talle y cantidad."
+              value={rondaNotas}
+              onChange={(e) => setRondaNotas(e.target.value)}
+            />
+          </div>
           <div className="flex justify-end">
-            <Button variant="gold" size="sm" onClick={cerrarRonda} disabled={closingRonda}>
-              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar ronda"}
+            <Button variant="gold" size="sm" onClick={cerrarRonda} disabled={closingRonda || savingSeenIds.size > 0}>
+              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar chequeo"}
             </Button>
           </div>
         </div>
@@ -933,10 +1068,18 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                 <span className="text-muted-foreground">{r.tipo === "inicial" ? "Registro inicial" : "Control"}</span>
                 <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
                 {r.resumen && (
-                  <span className="text-muted-foreground">
-                    · {r.resumen.entregado_ok || 0} entregados · {r.resumen.faltante_sin_aviso || 0} faltantes
-                    {r.resumen.entregado_pero_presente ? ` · ${r.resumen.entregado_pero_presente} inconsistentes` : ""}
-                  </span>
+                  typeof r.resumen.esperado === "number" ? (
+                    <span className="text-muted-foreground">
+                      · esperado {r.resumen.esperado} · visto {r.resumen.visto || 0}
+                      {r.resumen.faltan_unidades ? ` · faltan ${r.resumen.faltan_unidades}` : ""}
+                      {r.resumen.sobran_unidades ? ` · sobran ${r.resumen.sobran_unidades}` : ""}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      · {r.resumen.entregado_ok || 0} entregados · {r.resumen.faltante_sin_aviso || 0} faltantes
+                      {r.resumen.entregado_pero_presente ? ` · ${r.resumen.entregado_pero_presente} inconsistentes` : ""}
+                    </span>
+                  )
                 )}
                 {r.notas && <span className="text-muted-foreground/80 italic">"{r.notas}"</span>}
               </div>
@@ -944,8 +1087,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           </div>
         </div>
       )}
-
-
 
       {items.length === 0 ? (
         <div className="py-16 text-center">
@@ -1087,7 +1228,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         onClose={() => setScannerOpen(false)}
         onDetected={handleScannedCode}
         continuous
-        hint={`${scanCount} entrega${scanCount !== 1 ? "s" : ""} marcada${scanCount !== 1 ? "s" : ""}`}
+        hint={`${scanCount} lectura${scanCount !== 1 ? "s" : ""} registrada${scanCount !== 1 ? "s" : ""}`}
       />
     </div>
   );
