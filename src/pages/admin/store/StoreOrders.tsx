@@ -193,7 +193,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       return;
     }
     setCancelling(true);
-    const { error } = await supabase.rpc("cancel_store_order", {
+    const { data, error } = await supabase.rpc("cancel_store_order", {
       _order_id: cancelOrder.id,
       _reason: cancelReason.trim(),
     });
@@ -202,12 +202,42 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       toast({ title: "Error al anular", description: error.message, variant: "destructive" });
       return;
     }
-    toast({ title: "Pedido anulado", description: "Stock devuelto y movimiento registrado." });
+    const res: any = Array.isArray(data) ? data[0] : data;
+    toast({
+      title: "Pedido anulado",
+      description: res?.retorno_pendiente
+        ? "La mercadería está fuera del depósito: el stock queda pendiente de retorno físico."
+        : "Stock devuelto y movimiento registrado.",
+    });
+    if (cancelOrder.pagado_at) {
+      toast({
+        title: "Pago registrado · reembolso a gestionar",
+        description: "Anular no devuelve el dinero automáticamente.",
+      });
+    }
     setCancelOrder(null);
     setCancelReason("");
     if (detail?.id === cancelOrder.id) setDetail(null);
     load();
   };
+
+  const [returnBusy, setReturnBusy] = useState<string | null>(null);
+
+  const confirmarRetorno = async (o: Order) => {
+    setReturnBusy(o.id);
+    const { error } = await (supabase.rpc as any)("confirm_cancelled_store_order_return", {
+      _order_id: o.id,
+    });
+    setReturnBusy(null);
+    if (error) {
+      toast({ title: "No se pudo confirmar el retorno", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Retorno confirmado", description: "La mercadería volvió al depósito y el stock quedó restituido." });
+    if (detail?.id === o.id) setDetail(null);
+    load();
+  };
+
 
   useEffect(() => {
     const run = async () => {
