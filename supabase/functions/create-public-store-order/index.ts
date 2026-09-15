@@ -1,5 +1,6 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
+import { getReybaudFxRate } from "../_shared/fx-rates.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -9,7 +10,6 @@ const corsHeaders = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
 const ENTREGA = ["clase_kdt", "clase_parque", "moto", "retiro_local"] as const;
 
 const json = (body: unknown, status = 200) =>
@@ -35,7 +35,6 @@ Deno.serve(async (req) => {
     const optIn = body?.opt_in_marketing !== false;
     const metodoPago = String(body?.metodo_pago || "mp") === "efectivo" ? "efectivo" : "mp";
 
-
     if (!UUID_RE.test(productId)) return json({ error: "Producto inválido" }, 400);
     if (nombre.length < 3) return json({ error: "Ingresá tu nombre y apellido" }, 400);
     if (!EMAIL_RE.test(email)) return json({ error: "Email inválido" }, 400);
@@ -57,24 +56,17 @@ Deno.serve(async (req) => {
 
     if (!product) return json({ error: "El producto ya no está disponible" }, 404);
 
-    // Stock check (por variante si corresponde)
     const specs: { name: string }[] = Array.isArray(product.variants) ? product.variants : [];
     let variantSig = "";
     if (specs.length) {
       variantSig = specs.map((s: any) => `${s.name}:${(variante as any)[s.name] || ""}`).join("|");
-      if (specs.some((s: any) => !(variante as any)[s.name])) {
-        return json({ error: "Elegí talle / color" }, 400);
-      }
+      if (specs.some((s: any) => !(variante as any)[s.name])) return json({ error: "Elegí talle / color" }, 400);
     }
     const disponible = variantSig
       ? Number((product.variant_stock as any)?.[variantSig] ?? 0)
       : (typeof product.stock === "number" ? product.stock : null);
-    if (disponible != null && disponible < cantidad) {
-      return json({ error: `Solo quedan ${disponible} unidades` }, 400);
-    }
+    if (disponible != null && disponible < cantidad) return json({ error: `Solo quedan ${disponible} unidades` }, 400);
 
-    // El descuento de campaña depende de la forma de pago real del pedido.
-    // Se resuelve SIEMPRE en el servidor y antes de cualquier conversión de moneda.
     const { data: priceRows, error: priceErr } = await supabase.rpc("resolver_precio_tienda_por_pago", {
       p_product_id: product.id,
       p_variante: variante,
@@ -87,41 +79,25 @@ Deno.serve(async (req) => {
     const priceSnapshot = priceRows[0] as any;
     const unit = Number(priceSnapshot.precio_efectivo) || 0;
 
-    // Mercado Pago sólo cobra en ARS: convertimos precios en USD/EUR con el tipo de cambio fijo.
     const moneda = String(product.currency || "ARS").toUpperCase();
     let fxRate = 1;
-    if (moneda !== "ARS") {
-      const fxKey = moneda === "USD" ? "fx_usd_ars" : moneda === "EUR" ? "fx_eur_ars" : null;
-      if (!fxKey) return json({ error: "Moneda no soportada para el pago online" }, 400);
-      const { data: cfg } = await supabase
-        .from("app_config")
-        .select("value")
-        .eq("key", fxKey)
-        .maybeSingle();
-      const raw = (cfg as any)?.value;
-      fxRate = Number(typeof raw === "string" ? raw.replace(/[^\d.]/g, "") : raw) || 0;
-      if (fxRate <= 0) {
-        return json({ error: "El tipo de cambio no está configurado. Escribinos por WhatsApp para completar la compra." }, 400);
-      }
+    try {
+      fxRate = await getReybaudFxRate(supabase, moneda);
+    } catch (e) {
+      console.error("[create-public-store-order] FX", e);
+      return json({ error: "No pudimos obtener la cotización vigente. Escribinos por WhatsApp para completar la compra." }, 503);
     }
+
     const unitArs = Math.round(unit * fxRate * 100) / 100;
     const totalArs = Math.round(unitArs * cantidad * 100) / 100;
     const fxNota = moneda !== "ARS"
-      ? `Precio original: ${moneda} ${unit} x ${cantidad} (TC ${fxRate}).`
+      ? `Precio original: ${moneda} ${unit} x ${cantidad} (Cotización Reybaud ${fxRate}).`
       : "";
 
-
-    // Vincular el pedido al alumno si el email (principal o adicional) coincide,
-    // para que la compra impacte en su cuenta corriente.
     let alumnoId: string | null = null;
     try {
       const emailLc = email.trim().toLowerCase();
-      const { data: byEmail } = await supabase
-        .from("alumnos")
-        .select("id")
-        .ilike("email", emailLc)
-        .limit(1)
-        .maybeSingle();
+      const { data: byEmail } = await supabase.from("alumnos").select("id").ilike("email", emailLc).limit(1).maybeSingle();
       if (byEmail?.id) {
         alumnoId = byEmail.id;
       } else {
@@ -141,7 +117,6 @@ Deno.serve(async (req) => {
       .from("store_orders")
       .insert({
         alumno_id: alumnoId,
-
         customer_name: nombre,
         customer_email: email,
         customer_phone: telefono,
@@ -149,7 +124,6 @@ Deno.serve(async (req) => {
         currency: "ARS",
         status: metodoPago === "efectivo" ? "pendiente_pago_efectivo" : "pendiente_pago",
         metodo_pago: metodoPago === "efectivo" ? "efectivo" : "mp",
-
         origen_registro: "tienda_publica",
         es_externo: !!product.es_externo,
         entrega_metodo: entrega,
@@ -186,19 +160,11 @@ Deno.serve(async (req) => {
       return json({ error: "No pudimos crear el detalle del pedido" }, 500);
     }
 
-    // Base de clientes de tienda (segmentación)
     try {
-      const { data: existing } = await supabase
-        .from("marketing_contacts")
-        .select("id")
-        .eq("email", email)
-        .maybeSingle();
+      const { data: existing } = await supabase.from("marketing_contacts").select("id").eq("email", email).maybeSingle();
       const [nom, ...rest] = nombre.split(" ");
       if (existing) {
-        await supabase
-          .from("marketing_contacts")
-          .update({ telefono: telefono || null, opt_in_marketing: optIn })
-          .eq("id", existing.id);
+        await supabase.from("marketing_contacts").update({ telefono: telefono || null, opt_in_marketing: optIn }).eq("id", existing.id);
       } else {
         await supabase.from("marketing_contacts").insert({
           email,
@@ -215,35 +181,28 @@ Deno.serve(async (req) => {
       console.error("[create-public-store-order] marketing_contacts", e);
     }
 
-    // Efectivo: el pedido queda reservado y pendiente de cobro. No se crea
-    // ninguna preferencia ni movimiento de Mercado Pago.
     if (metodoPago === "efectivo") {
       return json({
         order_id: order.id,
         order_number: order.order_number,
         total_ars: totalArs,
         fx_rate: fxRate,
+        original_currency: moneda,
+        original_unit_price: unit,
         metodo_pago: "efectivo",
         cash_pending: true,
       });
     }
 
-    // Preferencia MP
     const cuenta = await resolveCuentaMP(supabase, { unidad_negocio: "tienda" });
     if (!cuenta.access_token) return json({ error: "Pagos no disponibles por el momento" }, 500);
-
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const prefRes = await fetch("https://api.mercadopago.com/checkout/preferences", {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${cuenta.access_token}` },
       body: JSON.stringify({
-        items: [{
-          title: product.name,
-          quantity: cantidad,
-          unit_price: unitArs,
-          currency_id: "ARS",
-        }],
+        items: [{ title: product.name, quantity: cantidad, unit_price: unitArs, currency_id: "ARS" }],
         payer: { name: nombre, email },
         back_urls: {
           success: `${origin}/pago-resultado?status=approved&kind=store_order`,
@@ -252,7 +211,13 @@ Deno.serve(async (req) => {
         },
         auto_return: "approved",
         external_reference: `store_order:${order.id}`,
-        metadata: { payment_type: "store_order", order_id: order.id },
+        metadata: {
+          payment_type: "store_order",
+          order_id: order.id,
+          original_currency: moneda,
+          original_unit_price: unit,
+          fx_rate_ars_per_unit: fxRate,
+        },
         notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/mp-webhook${cuenta.slug ? `?cuenta=${cuenta.slug}` : ""}`,
         statement_descriptor: "CICLISMO REYBAUD",
       }),
@@ -263,16 +228,15 @@ Deno.serve(async (req) => {
       return json({ error: "No pudimos iniciar el pago", order_number: order.order_number }, 500);
     }
 
-    await supabase
-      .from("store_orders")
-      .update({ mp_preference_id: pref.id, cuenta_mp_id: cuenta.cuenta_id })
-      .eq("id", order.id);
+    await supabase.from("store_orders").update({ mp_preference_id: pref.id, cuenta_mp_id: cuenta.cuenta_id }).eq("id", order.id);
 
     return json({
       order_id: order.id,
       order_number: order.order_number,
       total_ars: totalArs,
       fx_rate: fxRate,
+      original_currency: moneda,
+      original_unit_price: unit,
       init_point: pref.init_point || pref.sandbox_init_point,
     });
   } catch (err) {
