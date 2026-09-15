@@ -7,8 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
-  Clock, CheckCircle2, Package, XCircle, Plus, AlertTriangle, ShoppingBag, Loader2, RefreshCw,
+  Clock, CheckCircle2, Package, XCircle, Plus, AlertTriangle, ShoppingBag, Loader2, RefreshCw, Truck,
 } from "lucide-react";
+
+
+import { distributeOrderTotal, getPaymentState, PAYMENT_LABEL } from "@/lib/storeOrderStatus";
 
 interface OrderRow {
   id: string;
@@ -19,6 +22,8 @@ interface OrderRow {
   created_at: string;
   delivered_at?: string | null;
   alumno_id: string | null;
+  pagado_at?: string | null;
+  metodo_pago?: string | null;
 }
 
 interface Props {
@@ -38,23 +43,26 @@ const daysSince = (d: string) => Math.floor((Date.now() - new Date(d).getTime())
 // Cambio: permitido desde el momento del pago/pendiente efectivo hasta enviado.
 // Se corta en `listo_retiro` y posteriores (la mercadería ya está en sede).
 const canRequestChange = (status: string, deliveredAt: string | null | undefined) => {
-  if (["pagado", "pendiente_pago_efectivo", "preparando", "enviado"].includes(status)) return true;
+  if (["pagado", "pendiente_pago_efectivo", "preparando", "en_camioneta", "enviado"].includes(status)) return true;
   if (status === "entregado" && deliveredAt) return daysSince(deliveredAt) <= 30;
   return false;
 };
 
 
+/** Estado operativo (logística). El pago se muestra por separado. */
 const statusMeta = (s: string) => ({
-  pendiente: { label: "Pendiente", color: "text-muted-foreground", icon: Clock },
-  pendiente_pago: { label: "Esperando pago", color: "text-muted-foreground", icon: Clock },
-  pendiente_pago_efectivo: { label: "Pago efectivo al retirar", color: "text-amber-400", icon: Clock },
-  pagado: { label: "Pagado", color: "text-cyan", icon: CheckCircle2 },
+  pendiente: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
+  pendiente_pago_efectivo: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
+  pagado: { label: "Nuevo · por preparar", color: "text-muted-foreground", icon: Clock },
   preparando: { label: "Preparando", color: "text-primary", icon: Package },
+  en_camioneta: { label: "En camioneta", color: "text-cyan", icon: Truck },
   enviado: { label: "Enviado", color: "text-primary", icon: Package },
   listo_retiro: { label: "Listo para retirar", color: "text-green-400", icon: Package },
   entregado: { label: "Entregado", color: "text-green-400", icon: CheckCircle2 },
   cancelado: { label: "Cancelado", color: "text-destructive", icon: XCircle },
 }[s] || { label: s, color: "text-muted-foreground", icon: Clock });
+
 
 const WINDOW_MS = 12 * 60 * 60 * 1000;
 
@@ -125,7 +133,7 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     setProductsLoading(true);
     const { data } = await supabase
       .from("store_products")
-      .select("id, name, price, currency, stock, variants, variant_stock, status, is_preorder")
+      .select("id, name, price, currency, stock, variants, variant_stock, status, is_preorder, is_combo")
       .eq("status", "active")
       .eq("is_preorder", false)
       .order("name");
@@ -150,14 +158,30 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     if (!variantSpecs.length) return "";
     return variantSpecs.map((s) => `${s.name}:${variante[s.name] || ""}`).join("|");
   }, [variantSpecs, variante]);
+  // Los combos no tienen stock propio: la disponibilidad la calcula la base
+  // a partir de sus componentes.
+  const [comboStock, setComboStock] = useState<number | null>(null);
+  useEffect(() => {
+    if (!selectedProduct?.is_combo) { setComboStock(null); return; }
+    let cancelled = false;
+    void (supabase.rpc as any)("get_combo_available_stock", {
+      p_combo_id: selectedProduct.id,
+      p_selection: variante,
+    }).then(({ data }: any) => {
+      if (!cancelled) setComboStock(data == null ? 0 : Number(data));
+    });
+    return () => { cancelled = true; };
+  }, [selectedProduct?.id, selectedProduct?.is_combo, variantSig]);
+
   const stockDisp: number | null = useMemo(() => {
     if (!selectedProduct) return null;
+    if (selectedProduct.is_combo) return comboStock;
     if (variantSpecs.length && variantSig && selectedProduct.variant_stock) {
       const s = (selectedProduct.variant_stock as Record<string, number>)[variantSig];
       return typeof s === "number" ? s : 0;
     }
     return typeof selectedProduct.stock === "number" ? selectedProduct.stock : null;
-  }, [selectedProduct, variantSpecs, variantSig]);
+  }, [selectedProduct, variantSpecs, variantSig, comboStock]);
 
   const variantesElegidas = variantSpecs.every((s) => variante[s.name]);
   const stockOk = stockDisp == null || stockDisp >= cantidad;
@@ -166,7 +190,11 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
     if (!order) return;
     if (!confirm("¿Cancelar este pedido? Esta acción no se puede deshacer.")) return;
     setBusy(true);
-    const { error } = await supabase.rpc("cancel_store_order" as any, { p_order_id: order.id });
+    const { error } = await (supabase.rpc as any)("cancel_store_order", {
+      _order_id: order.id,
+      _reason: "Cancelado por el alumno desde la app",
+    });
+
     setBusy(false);
     if (error) {
       toast({ title: "No se pudo cancelar", description: error.message, variant: "destructive" });
@@ -232,6 +260,13 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
   const meta = statusMeta(order.status);
   const Icon = meta.icon;
   const newTotalDisplay = items.reduce((s, it) => s + Number(it.unit_price) * Number(it.quantity), 0);
+  const totalVisual = Math.max(Number(order.total), 0);
+  // Importes por línea en la moneda del pedido (los precios base pueden ser legacy en otra moneda).
+  const lineAmounts = distributeOrderTotal(items, totalVisual);
+  const pagoState = getPaymentState(order);
+  const pagoColor = pagoState === "pagado"
+    ? "text-green-400"
+    : pagoState === "efectivo_pendiente" ? "text-amber-400" : "text-muted-foreground";
 
   return (
     <>
@@ -240,10 +275,16 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center justify-between gap-2">
               <span>Pedido #{order.order_number}</span>
-              <span className={`inline-flex items-center gap-1 text-[11px] font-heading font-bold uppercase ${meta.color}`}>
-                <Icon className="w-3.5 h-3.5" /> {meta.label}
+              <span className="flex flex-col items-end gap-0.5">
+                <span className={`inline-flex items-center gap-1 text-[11px] font-heading font-bold uppercase ${meta.color}`}>
+                  <Icon className="w-3.5 h-3.5" /> {meta.label}
+                </span>
+                <span className={`text-[10px] font-heading font-bold uppercase ${pagoColor}`}>
+                  Pago: {PAYMENT_LABEL[pagoState]}
+                </span>
               </span>
             </DialogTitle>
+
             <DialogDescription>
               {new Date(order.created_at).toLocaleString("es-AR", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
             </DialogDescription>
@@ -278,20 +319,23 @@ const OrderDetailDialog = ({ open, onOpenChange, order, onChanged, onRequestCamb
               <p className="text-sm text-muted-foreground">Sin items.</p>
             ) : (
               <ul className="space-y-2">
-                {items.map((it) => {
+                {items.map((it, idx) => {
                   const variant = it.variant_selection || {};
                   const variantStr = Object.entries(variant).map(([k, v]) => `${k}: ${v}`).join(" · ");
                   const canChange = canRequestChange(order.status, order.delivered_at) && !!it.product_id && !!onRequestCambio;
+                  const lineTotal = lineAmounts[idx] ?? 0;
+                  const unit = lineTotal / Math.max(Number(it.quantity) || 1, 1);
                   return (
                     <li key={it.id} className="rounded-lg border border-border bg-card p-2 space-y-1">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-medium truncate">{it.product_name}</p>
                           {variantStr && <p className="text-[11px] text-muted-foreground truncate">{variantStr}</p>}
-                          <p className="text-[11px] text-muted-foreground">x{it.quantity} · {formatPrice(Number(it.unit_price), order.currency)}</p>
+                          <p className="text-[11px] text-muted-foreground">x{it.quantity} · {formatPrice(unit, order.currency)}</p>
                         </div>
-                        <b className="text-sm whitespace-nowrap">{formatPrice(Number(it.unit_price) * Number(it.quantity), order.currency)}</b>
+                        <b className="text-sm whitespace-nowrap">{formatPrice(lineTotal, order.currency)}</b>
                       </div>
+
                       {canChange && (
                         <button
                           type="button"

@@ -46,4 +46,19 @@ describe("storeCashPayment", () => {
     const mpPend = { ...base, status: "pendiente_pago", metodo_pago: "mp" };
     expect(cashConfirmBlockReason(mpPend)).toBe("no_es_efectivo");
   });
+
+  it("se puede cobrar efectivo aunque el pedido ya esté preparando o en camioneta", () => {
+    const preparando = { ...base, status: "preparando" };
+    const enCamioneta = { ...base, status: "en_camioneta" };
+    expect(isCashPending(preparando)).toBe(true);
+    expect(canConfirmCashPayment(preparando)).toBe(true);
+    expect(canConfirmCashPayment(enCamioneta)).toBe(true);
+  });
+
+  it("cobrar efectivo no pisa el estado operativo", () => {
+    const patch = buildCashPaymentPatch({ ...base, status: "en_camioneta" }, { actor: "depósito" });
+    expect(patch).not.toBeNull();
+    expect(patch!.status).toBeUndefined();
+    expect(patch!.pagado_at).toBeTruthy();
+  });
 });

@@ -9,8 +9,9 @@ import { downloadFileBlob, printImageBlobs } from "@/lib/printBlob";
 
 /**
  * Etiquetas de pedidos/preventas para impresora Niimbot (rollo térmico).
- * Genera un PNG por pedido, con el mismo criterio visual que las etiquetas
- * de producto: QR + datos clave, legible en 50×40mm.
+ * Jerarquía: #pedido · REYBAUD / cliente / producto / TALLE · CANT. / pago.
+ * El QR de cobro se imprime SÓLO si queda saldo pendiente; si está pagado,
+ * ese espacio se usa para un "PAGADO ✓" grande.
  */
 
 export type OrderNiimbotSize = "50x40" | "50x30" | "40x30";
@@ -19,6 +20,25 @@ const SIZE_MM: Record<OrderNiimbotSize, { w: number; h: number }> = {
   "50x40": { w: 50, h: 40 },
   "50x30": { w: 50, h: 30 },
   "40x30": { w: 40, h: 30 },
+};
+
+interface SizeConfig {
+  num: number;
+  brand: number;
+  cliente: number;
+  prod: number;
+  meta: number;
+  payLabel: number;
+  payAmount: number;
+  paid: number;
+  qrRatio: number;
+  maxProdLines: number;
+}
+
+const CONFIG: Record<OrderNiimbotSize, SizeConfig> = {
+  "50x40": { num: 5.2, brand: 2.0, cliente: 3.6, prod: 3.0, meta: 2.5, payLabel: 1.9, payAmount: 3.4, paid: 5.4, qrRatio: 0.42, maxProdLines: 2 },
+  "50x30": { num: 4.2, brand: 1.8, cliente: 3.0, prod: 2.5, meta: 2.1, payLabel: 1.7, payAmount: 2.8, paid: 4.4, qrRatio: 0.5, maxProdLines: 1 },
+  "40x30": { num: 3.8, brand: 1.6, cliente: 2.7, prod: 2.3, meta: 2.0, payLabel: 1.6, payAmount: 2.5, paid: 3.8, qrRatio: 0.5, maxProdLines: 1 },
 };
 
 const PX_PER_MM = 12;
@@ -31,9 +51,6 @@ export interface OrderLabelPreview {
   url: string;
 }
 
-const truncate = (s: string, max: number) =>
-  s.length > max ? s.slice(0, max - 1) + "…" : s;
-
 const slug = (s: string) =>
   s
     .toLowerCase()
@@ -43,32 +60,66 @@ const slug = (s: string) =>
     .replace(/^-+|-+$/g, "")
     .slice(0, 50);
 
-const varText = (v: any): string => {
+/** "TALLE M · COLOR NEGRO" — incluye el nombre de la variante, no sólo el valor. */
+export const variantLabel = (v: any): string => {
   if (!v) return "";
-  if (typeof v === "string") return v;
+  if (typeof v === "string") return v.toUpperCase();
   try {
     return Object.entries(v)
       .filter(([, val]) => val !== null && val !== "" && val !== undefined)
-      .map(([, val]) => String(val))
+      .map(([k, val]) => `${String(k).toUpperCase()} ${String(val).toUpperCase()}`)
       .join(" · ");
   } catch {
     return "";
   }
 };
 
-const itemLines = (p: PreorderLabelData): string[] => {
-  const lines: string[] = [];
+interface LabelLine {
+  nombre: string;
+  meta: string;
+}
+
+const itemLines = (p: PreorderLabelData): LabelLine[] => {
   if (Array.isArray(p.items) && p.items.length) {
-    p.items.forEach((it: any) => {
-      const nombre = it.producto_nombre || it.nombre || "Item";
-      const v = varText(it.variante);
-      lines.push(`${nombre}${v ? ` · ${v}` : ""}`);
+    return p.items.map((it: any) => {
+      const cant = Number(it.cantidad ?? it.quantity ?? 1) || 1;
+      const v = variantLabel(it.variante);
+      return {
+        nombre: it.producto_nombre || it.nombre || "Item",
+        meta: [v, `CANT. ${cant}`].filter(Boolean).join(" · "),
+      };
     });
-  } else {
-    const v = varText(p.variante);
-    lines.push(`${p.cantidad}× ${p.producto_nombre}${v ? ` · ${v}` : ""}`);
   }
-  return lines;
+  const cant = Number(p.cantidad || 1) || 1;
+  const v = variantLabel(p.variante);
+  return [{
+    nombre: p.producto_nombre,
+    meta: [v, `CANT. ${cant}`].filter(Boolean).join(" · "),
+  }];
+};
+
+/** Dibuja el texto ajustando el tamaño de fuente hasta que entre en maxW. */
+const fitText = (
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  x: number,
+  y: number,
+  maxW: number,
+  sizePx: number,
+  weight: string,
+) => {
+  let size = sizePx;
+  ctx.font = `${weight} ${size}px system-ui, -apple-system, sans-serif`;
+  while (ctx.measureText(text).width > maxW && size > 8) {
+    size -= 1;
+    ctx.font = `${weight} ${size}px system-ui, -apple-system, sans-serif`;
+  }
+  let out = text;
+  while (ctx.measureText(out).width > maxW && out.length > 3) {
+    out = out.slice(0, -2);
+  }
+  ctx.fillText(out === text ? text : out + "…", x, y);
+  return size;
 };
 
 const renderOrderLabel = async (
@@ -76,6 +127,7 @@ const renderOrderLabel = async (
   size: OrderNiimbotSize,
 ): Promise<Blob> => {
   const mm = SIZE_MM[size];
+  const cfg = CONFIG[size];
   const W = Math.round(mm.w * PX_PER_MM);
   const H = Math.round(mm.h * PX_PER_MM);
   const canvas = document.createElement("canvas");
@@ -89,72 +141,97 @@ const renderOrderLabel = async (
   ctx.fillStyle = "#000000";
   ctx.textBaseline = "top";
 
-  const pad = Math.round(1.6 * PX_PER_MM);
-  const numero = p.short_number ?? p.id.slice(0, 8).toUpperCase();
+  const pad = Math.round(1.2 * PX_PER_MM);
+  const innerW = W - pad * 2;
+  const numero = String(p.short_number ?? p.id.slice(0, 8).toUpperCase()).replace(/^#/, "");
 
-  // Header: #pedido
-  const hSize = Math.round(3.4 * PX_PER_MM);
-  ctx.font = `bold ${hSize}px system-ui, -apple-system, sans-serif`;
-  ctx.fillText(`#${numero}`, pad, pad);
-
-  ctx.font = `bold ${Math.round(1.9 * PX_PER_MM)}px system-ui, sans-serif`;
-  ctx.fillText("REYBAUD", W - pad - ctx.measureText("REYBAUD").width, pad + 4);
-
-  let y = pad + hSize + Math.round(1 * PX_PER_MM);
-  ctx.fillRect(pad, y, W - pad * 2, 2);
-  y += Math.round(1.2 * PX_PER_MM);
-
-  // Cliente
-  const cSize = Math.round(2.6 * PX_PER_MM);
-  ctx.font = `bold ${cSize}px system-ui, sans-serif`;
-  ctx.fillText(truncate(p.alumno_nombre || "—", 26), pad, y);
-  y += cSize + Math.round(0.8 * PX_PER_MM);
-
-  // QR abajo a la derecha
-  const qrSize = Math.round(mm.h * 0.42 * PX_PER_MM);
-  const qrX = W - pad - qrSize;
-  const qrY = H - pad - qrSize;
   const senaConfirmada = p.estado_pago_sena === "confirmada";
   const pendiente = senaConfirmada
     ? Number(p.saldo_pendiente || 0)
     : Number(p.sena_monto || 0) + Number(p.saldo_pendiente || 0);
-  try {
-    const qrCanvas = document.createElement("canvas");
-    await QRCode.toCanvas(qrCanvas, buildPreorderPayUrl(p), {
-      margin: 0,
-      width: qrSize,
-      errorCorrectionLevel: "M",
-    });
-    ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
-  } catch (err) {
-    console.warn("QR error", err);
+  const pagado = pendiente <= 0;
+
+  // ── Header: #75 · REYBAUD
+  const numPx = Math.round(cfg.num * PX_PER_MM);
+  const brandPx = Math.round(cfg.brand * PX_PER_MM);
+  ctx.font = `bold ${brandPx}px system-ui, sans-serif`;
+  const brandW = ctx.measureText("REYBAUD").width;
+  ctx.font = `900 ${numPx}px system-ui, -apple-system, sans-serif`;
+  ctx.fillText(`#${numero}`, pad, pad);
+  ctx.font = `bold ${brandPx}px system-ui, sans-serif`;
+  ctx.fillText("REYBAUD", W - pad - brandW, pad + Math.round(numPx * 0.45));
+
+  let y = pad + numPx + Math.round(0.5 * PX_PER_MM);
+  ctx.fillRect(pad, y, innerW, 3);
+  y += Math.round(0.8 * PX_PER_MM);
+
+  // ── Cliente (grande)
+  const cliPx = Math.round(cfg.cliente * PX_PER_MM);
+  fitText(ctx, (p.alumno_nombre || "—").toUpperCase(), pad, y, innerW, cliPx, "bold");
+  y += cliPx + Math.round(0.6 * PX_PER_MM);
+
+  // ── Zona de pago / QR reservada abajo
+  const qrSize = Math.round(mm.h * cfg.qrRatio * PX_PER_MM);
+  const bottomTop = H - pad - qrSize;
+
+  // ── Productos
+  const prodPx = Math.round(cfg.prod * PX_PER_MM);
+  const metaPx = Math.round(cfg.meta * PX_PER_MM);
+  const lines = itemLines(p).slice(0, cfg.maxProdLines);
+  lines.forEach((ln) => {
+    if (y + prodPx > bottomTop) return;
+    fitText(ctx, ln.nombre.toUpperCase(), pad, y, innerW, prodPx, "bold");
+    y += prodPx + 2;
+    if (ln.meta && y + metaPx <= bottomTop) {
+      fitText(ctx, ln.meta, pad, y, innerW, metaPx, "bold");
+      y += metaPx + Math.round(0.3 * PX_PER_MM);
+    }
+  });
+
+  if (pagado) {
+    // Sin QR: el espacio se usa para el sello PAGADO.
+    const paidPx = Math.round(cfg.paid * PX_PER_MM);
+    ctx.textBaseline = "middle";
+    ctx.font = `900 ${paidPx}px system-ui, -apple-system, sans-serif`;
+    const text = "PAGADO ✓";
+    const tw = ctx.measureText(text).width;
+    const boxY = bottomTop;
+    const boxH = H - pad - boxY;
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = "#000000";
+    ctx.strokeRect(pad, boxY, innerW, boxH);
+    ctx.fillText(text, pad + (innerW - tw) / 2, boxY + boxH / 2);
+    ctx.textBaseline = "top";
+  } else {
+    const qrX = W - pad - qrSize;
+    const qrY = H - pad - qrSize;
+    try {
+      const qrCanvas = document.createElement("canvas");
+      await QRCode.toCanvas(qrCanvas, buildPreorderPayUrl(p), {
+        margin: 0,
+        width: qrSize,
+        errorCorrectionLevel: "M",
+      });
+      ctx.drawImage(qrCanvas, qrX, qrY, qrSize, qrSize);
+    } catch (err) {
+      console.warn("QR error", err);
+    }
+
+    const payW = W - pad * 2 - qrSize - Math.round(1.2 * PX_PER_MM);
+    const labelPx = Math.round(cfg.payLabel * PX_PER_MM);
+    const amountPx = Math.round(cfg.payAmount * PX_PER_MM);
+    ctx.font = `bold ${labelPx}px system-ui, sans-serif`;
+    ctx.fillText("A COBRAR", pad, H - pad - qrSize + Math.round(qrSize * 0.12));
+    fitText(
+      ctx,
+      formatPrice(pendiente, p.moneda),
+      pad,
+      H - pad - qrSize + Math.round(qrSize * 0.12) + labelPx + 4,
+      payW,
+      amountPx,
+      "900",
+    );
   }
-
-  // Items (a la izquierda del QR)
-  const textMaxW = W - pad * 2 - qrSize - Math.round(1.5 * PX_PER_MM);
-  const iSize = Math.round(2.1 * PX_PER_MM);
-  ctx.font = `500 ${iSize}px system-ui, sans-serif`;
-  const maxLines = size === "50x40" ? 4 : 2;
-  itemLines(p)
-    .slice(0, maxLines)
-    .forEach((ln) => {
-      let text = ln;
-      while (ctx.measureText(text).width > textMaxW && text.length > 4) {
-        text = text.slice(0, -2);
-      }
-      ctx.fillText(text === ln ? ln : text + "…", pad, y);
-      y += iSize + 3;
-    });
-
-  // Saldo / pagado abajo a la izquierda
-  const sSize = Math.round(2.6 * PX_PER_MM);
-  ctx.font = `bold ${sSize}px system-ui, sans-serif`;
-  ctx.textBaseline = "alphabetic";
-  const bottomText =
-    pendiente > 0
-      ? `A COBRAR ${formatPrice(pendiente, p.moneda)}`
-      : "PAGADO ✓";
-  ctx.fillText(truncate(bottomText, 24), pad, H - pad);
 
   return await new Promise<Blob>((resolve, reject) =>
     canvas.toBlob(
@@ -171,7 +248,7 @@ export const buildOrderNiimbotPreviews = async (
   const out: OrderLabelPreview[] = [];
   for (const o of orders) {
     const blob = await renderOrderLabel(o, size);
-    const numero = String(o.short_number ?? o.id.slice(0, 8));
+    const numero = String(o.short_number ?? o.id.slice(0, 8)).replace(/^#/, "");
     out.push({
       id: o.id,
       title: `#${numero} · ${o.alumno_nombre || ""}`.trim(),
