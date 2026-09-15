@@ -476,9 +476,12 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       variante: firstItem?.variante || {},
       items: (o.items || []).map((i) => ({
         nombre: i.producto_nombre,
+        producto_nombre: i.producto_nombre,
         variante: i.variante,
+        cantidad: Number(i.cantidad || 1) || 1,
         precio: i.precio_unitario,
       })),
+
       precio_total: total,
       sena_monto: pagado ? total : 0,
       saldo_pendiente: pagado ? 0 : total,
@@ -594,7 +597,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           cantidad: it.cantidad,
           entrega: idx === 0 ? entrega : "",
           sede: idx === 0 ? destino : "",
-          estado: idx === 0 ? r.status.replace(/_/g, " ") : "",
+          estado: idx === 0 ? operationalLabel(r.status) : "",
           pago: idx === 0 ? (isPagado(r) ? "PAGADO" : "PENDIENTE") : "",
         });
       });
@@ -679,12 +682,19 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       doc.text("Sin método de entrega definido", 14, 68);
     }
 
-    const items = (r.items || []).map((it) => [
+    // Importes en la moneda del pedido: los precios base pueden ser legacy en otra moneda.
+    const rawItems = r.items || [];
+    const pdfAmounts = distributeOrderTotal(
+      rawItems.map((it) => ({ unit_price: it.precio_unitario, quantity: it.cantidad })),
+      Number(r.total || 0),
+    );
+    const items = rawItems.map((it, idx) => [
       it.producto_nombre,
       varianteToKey(it.variante || {}),
       String(it.cantidad),
-      formatPrice(Number(it.precio_unitario || 0), r.currency),
+      formatPrice(pdfAmounts[idx] ?? 0, r.currency),
     ]);
+
 
     autoTable(doc, {
       startY: 94,
@@ -697,7 +707,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     const afterY = (doc as any).lastAutoTable.finalY + 8;
     doc.setFontSize(10);
     doc.text(`Total: ${formatPrice(Number(r.total), r.currency)}`, 140, afterY);
-    doc.text(`Estado: ${r.status.replace(/_/g, " ")}`, 140, afterY + 6);
+    doc.text(`Estado: ${operationalLabel(r.status)}`, 140, afterY + 6);
     doc.text(`Pago: ${isPagado(r) ? "PAGADO" : "PENDIENTE"}`, 140, afterY + 12);
 
     doc.save(`pedido-${r.order_number}.pdf`);
