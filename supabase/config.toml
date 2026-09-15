@@ -9,6 +9,8 @@ project_id = "tgqfakfloonbunwkdoug"
     verify_jwt = false
   [functions.create-event-mp-preference]
     verify_jwt = false
+  [functions.event-ars-mp-webhook]
+    verify_jwt = false
   [functions.get-mp-public-key]
     verify_jwt = false
   [functions.invite-admin]
