@@ -17,6 +17,13 @@ const todayStr = () => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+const localDay = (value: string | null | undefined) => {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "";
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+};
+
 const addDays = (iso: string, n: number) => {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, m - 1, d + n);
@@ -78,12 +85,13 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     const esHoy = dia === todayStr();
     const fin = addDays(hoy, 7);
 
-    const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, stockRes] = await Promise.all([
+    const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, checksRes, stockRes] = await Promise.all([
       sb.from("store_orders").select("id, order_number, customer_name, status, created_at").eq("status", "pagado"),
       sb.from("delivery_lists").select("id, titulo, fecha_entrega, estado").eq("estado", "abierta"),
       sb.from("store_cambios").select("id, estado").in("estado", ["aprobado", "en_deposito", "listo_retiro"]),
       sb.from("supplier_orders").select("id, numero, proveedor_nombre, estado, fecha_estimada_entrega").not("estado", "in", "(cerrado,cancelado)"),
       sb.from("vehiculo_cargas").select("id, fecha_salida, estado").order("fecha_salida", { ascending: false }).limit(5),
+      sb.from("vehiculo_chequeos").select("id, estado, started_at, closed_at").order("started_at", { ascending: false }).limit(50),
       sb.from("store_products").select("id, stock, min_stock").eq("status", "active"),
     ]);
 
@@ -92,6 +100,7 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     const cambios = cambiosRes.data || [];
     const supplier = supplierRes.data || [];
     const vans = vanRes.data || [];
+    const checks = checksRes.data || [];
     const productos = (stockRes.data || []).filter((p: any) => (p.stock ?? 0) <= (p.min_stock ?? 0));
 
     const sinStock = productos.filter((p: any) => (p.stock ?? 0) <= 0).length;
@@ -99,6 +108,8 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
 
     const entregasHoy = deliveries.filter((d: any) => d.fecha_entrega && (esHoy ? d.fecha_entrega <= hoy : d.fecha_entrega === hoy));
     const vanHoy = vans.find((v: any) => v.fecha_salida === hoy);
+    const chequeoCerradoHoy = checks.some((c: any) => c.estado === "cerrado" && localDay(c.closed_at) === hoy);
+    const chequeoEnCursoHoy = checks.some((c: any) => c.estado === "en_curso" && localDay(c.started_at) === hoy);
 
     const cards: AlertCard[] = [];
 
@@ -126,14 +137,16 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         tone: "warn",
       });
     }
-    if (esHoy && !vanHoy) {
+    if (esHoy && vanHoy && !chequeoCerradoHoy) {
       cards.push({
         key: "camioneta",
         icon: Package,
         count: 1,
-        title: "Chequeo de camioneta pendiente",
-        desc: "Todavía no cargaste el chequeo de cajas de hoy.",
-        cta: "Iniciar chequeo",
+        title: chequeoEnCursoHoy ? "Chequeo de camioneta en curso" : "Chequeo de camioneta pendiente",
+        desc: chequeoEnCursoHoy
+          ? "Hay un chequeo iniciado hoy que todavía no fue cerrado."
+          : "Hay mercadería en camioneta, pero todavía no existe un chequeo físico cerrado hoy.",
+        cta: chequeoEnCursoHoy ? "Continuar chequeo" : "Iniciar chequeo",
         to: "/deposito/camioneta",
         tone: "warn",
       });
@@ -175,7 +188,6 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
       });
     }
 
-    // ==== Semana ====
     const items: WeekItem[] = [];
     deliveries.forEach((d: any) => {
       if (d.fecha_entrega && d.fecha_entrega > hoy && d.fecha_entrega <= fin) {
@@ -239,7 +251,6 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* HOY */}
         <div className="lg:col-span-2 space-y-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground">
             {dia === todayStr() ? "Qué hacer hoy" : `Qué hay para ${fmtDay(dia)}`}
@@ -277,7 +288,6 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
           )}
         </div>
 
-        {/* SEMANA */}
         <div className="space-y-3">
           <p className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1">
             <CalendarDays className="w-3.5 h-3.5" /> Próximos 7 días
