@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.guard_event_reservation_student_update() FROM PUBLIC, anon, authenticated;
