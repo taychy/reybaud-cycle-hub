@@ -913,47 +913,77 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
               <div className="font-heading font-bold uppercase tracking-wider text-sm">
-                Ronda {chequeo.ronda} · {chequeo.tipo === "inicial" ? "Registro inicial" : "Control contra ronda anterior"}
+                Chequeo físico {chequeo.ronda > 1 ? `· control ${chequeo.ronda}` : ""}
               </div>
               <p className="text-xs text-muted-foreground">
-                {chequeo.tipo === "inicial"
-                  ? "Escaneá todo lo que hay físicamente en la camioneta. Eso queda como registro base."
-                  : "Escaneá lo que sigue en la camioneta. Se compara contra la ronda anterior y contra lo que el entregador informó como entregado."}
+                Mirá la camioneta y anotá cuántas unidades ves de cada línea. Cerrar el chequeo solo guarda lo observado:
+                no cambia stock, pedidos, entregas ni devoluciones.
               </p>
             </div>
-            <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-              <ScanLine className="w-4 h-4 mr-1" /> Escanear
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={estaTodo} disabled={lineas.length === 0}>
+                <CheckCircle2 className="w-4 h-4 mr-1" /> Está todo
+              </Button>
+              <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+                <ScanLine className="w-4 h-4 mr-1" /> Escanear
+              </Button>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <Metric label="Escaneados" value={diffCounts.presente + diffCounts.nuevo + diffCounts.entregado_pero_presente} />
-            <Metric label="Nuevos" value={diffCounts.nuevo} />
-            <Metric label="Entregas OK" value={diffCounts.entregado_ok} tone="ok" />
-            <Metric label="Faltan sin aviso" value={diffCounts.faltante_sin_aviso} tone="danger" />
-            <Metric label="Informado pero está" value={diffCounts.entregado_pero_presente} tone="warning" />
+            <Metric label="Esperado" value={resumenChequeo.esperado} />
+            <Metric label="Visto" value={resumenChequeo.visto} tone="ok" />
+            <Metric label="Faltantes" value={resumenChequeo.faltantes} tone="danger" />
+            <Metric label="Sobrantes" value={resumenChequeo.sobrantes} tone="warning" />
+            <Metric label="Líneas registradas" value={`${resumenChequeo.registradas}/${resumenChequeo.total}`} />
           </div>
 
-          {diffLoading ? (
-            <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Cruzando datos...</div>
+          {lineasLoading ? (
+            <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Armando la lista...</div>
+          ) : lineas.length === 0 ? (
+            <div className="py-6 text-center text-muted-foreground text-sm">No hay ítems cargados en la camioneta.</div>
           ) : (
-            <div className="space-y-3">
-              {DIFF_SECTIONS.map(({ key, label, hint, tone }) => {
-                const rows = diff.filter((d) => d.resultado === key);
-                if (rows.length === 0) return null;
+            <div className="space-y-1">
+              {lineas.map((l) => {
+                const esperado = Number(l.esperado) || 0;
+                const visto = Number(l.visto) || 0;
+                const dif = visto - esperado;
                 return (
-                  <div key={key} className="rounded-lg border border-border p-2">
-                    <div className={`text-[11px] uppercase tracking-wider font-medium ${tone}`}>{label} · {rows.length}</div>
-                    <p className="text-[10px] text-muted-foreground mb-1">{hint}</p>
-                    <div className="space-y-1">
-                      {rows.map((d) => (
-                        <div key={d.item_id} className="text-xs flex gap-2">
-                          <span className="text-foreground font-medium truncate">{d.cliente_nombre}</span>
-                          <span className="text-muted-foreground truncate">
-                            {d.producto || "—"}{d.variante ? ` · ${d.variante}` : ""} × {Number(d.cantidad)}
-                          </span>
-                        </div>
-                      ))}
+                  <div key={l.item_id} className="rounded-lg border border-border p-2 flex flex-wrap items-center gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-medium truncate">{l.cliente_nombre}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {l.producto || "—"}{l.variante ? ` · ${l.variante}` : ""}
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">Esperado <b className="text-foreground">{esperado}</b></div>
+                    <div className="flex items-center gap-1">
+                      <span className="text-[11px] text-muted-foreground">Veo</span>
+                      <Input
+                        type="number"
+                        min={0}
+                        className="h-8 w-20"
+                        value={vistoDraft[l.item_id] ?? ""}
+                        onChange={(e) => setVistoDraft((p) => ({ ...p, [l.item_id]: e.target.value }))}
+                        onBlur={(e) => {
+                          const raw = e.target.value;
+                          if (raw === "") return;
+                          const n = Math.max(0, Math.floor(Number(raw) || 0));
+                          if (l.registrado && n === visto) return;
+                          registrarLineas([{ item_id: l.item_id, cantidad: n }]);
+                        }}
+                      />
+                    </div>
+                    <div className="text-[11px] w-24 text-right">
+                      {!l.registrado ? (
+                        <span className="text-muted-foreground">Sin registrar</span>
+                      ) : dif === 0 ? (
+                        <span className="text-green-500">Coincide</span>
+                      ) : dif < 0 ? (
+                        <span className="text-red-500">Falta {-dif}</span>
+                      ) : (
+                        <span className="text-amber-500">Sobran {dif}</span>
+                      )}
                     </div>
                   </div>
                 );
@@ -963,13 +993,19 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
           <Textarea
             rows={2}
-            placeholder="Observaciones de la ronda (opcional)"
+            placeholder="Observaciones (por ejemplo, mercadería que está y no figura en el sistema)"
             value={rondaNotas}
             onChange={(e) => setRondaNotas(e.target.value)}
           />
-          <div className="flex justify-end">
-            <Button variant="gold" size="sm" onClick={cerrarRonda} disabled={closingRonda}>
-              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar ronda"}
+          <div className="flex justify-end items-center gap-2">
+            {resumenChequeo.registradas < resumenChequeo.total && (
+              <span className="text-[11px] text-amber-500">
+                Faltan {resumenChequeo.total - resumenChequeo.registradas} línea(s) por registrar
+              </span>
+            )}
+            <Button variant="gold" size="sm" onClick={cerrarRonda}
+              disabled={closingRonda || lineas.length === 0 || resumenChequeo.registradas < resumenChequeo.total}>
+              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar chequeo"}
             </Button>
           </div>
         </div>
