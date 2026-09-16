@@ -979,7 +979,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                             <span className="text-muted-foreground"> · capacidad {Number(p.cupo)} plazas</span>
                           )}
                         </span>
-                        <Label className="text-[10px] text-muted-foreground">Esperados</Label>
+                        <Label className="text-[10px] text-muted-foreground">Ventas simuladas</Label>
                         <Input type="number" className="w-24"
                           value={Number(current.cantidades_esperadas?.[p.id] ?? 0)}
                           onChange={(e) => {
