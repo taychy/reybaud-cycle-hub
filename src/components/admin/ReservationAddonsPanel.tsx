@@ -50,6 +50,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
   const [selectedAddonId, setSelectedAddonId] = useState<string>("");
   const [qty, setQty] = useState("1");
   const [notas, setNotas] = useState("");
+  const [timing, setTiming] = useState<NocheTiming | "">("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,10 +65,15 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
 
   useEffect(() => { load(); }, [load]);
 
+  const selectedAddon = available.find((a) => a.id === selectedAddonId);
+  const selectedEsNoche = isNocheExtra(selectedAddon?.nombre);
+
   const addContracted = async () => {
-    const addon = available.find((a) => a.id === selectedAddonId);
+    const addon = selectedAddon;
     if (!addon) { toast.error("Seleccioná un extra"); return; }
-    const q = parseInt(qty || "1");
+    const esNoche = isNocheExtra(addon.nombre);
+    if (esNoche && !timing) { toast.error("Elegí si la noche es antes, después o ambas"); return; }
+    const q = esNoche ? unidadesPorTiming(timing || null) : parseInt(qty || "1");
     if (isNaN(q) || q <= 0) { toast.error("Cantidad inválida"); return; }
     setAdding(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -79,6 +85,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
       currency: addon.currency,
       notas: notas.trim() || null,
       added_by: user?.id,
+      ...(esNoche ? { noche_timing: timing } : {}),
     });
     setAdding(false);
     if (error) { toast.error("Error: " + error.message); return; }
@@ -86,9 +93,22 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
     setSelectedAddonId("");
     setQty("1");
     setNotas("");
+    setTiming("");
     load();
     onChanged?.();
   };
+
+  const updateTiming = async (c: ContractedAddon, value: NocheTiming) => {
+    const { error } = await supabase.from("reservation_addons" as any)
+      .update({ noche_timing: value, cantidad: unidadesPorTiming(value) })
+      .eq("id", c.id);
+    if (error) { toast.error("Error: " + error.message); return; }
+    toast.success("Actualizado");
+    load();
+    onChanged?.();
+  };
+
+
 
   const remove = async (c: ContractedAddon) => {
     if (!confirm(`¿Quitar "${c.addon?.nombre || "extra"}"?`)) return;
