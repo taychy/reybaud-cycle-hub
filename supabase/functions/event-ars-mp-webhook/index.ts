@@ -171,6 +171,8 @@ Deno.serve(async (req) => {
           event_amount: eventAmount,
           event_currency: eventCurrency,
           fx_rate_ars_per_event: snapshotFx || paidArs / eventAmount,
+          fx_side: String((metadata as any)?.fx_side || "sell"),
+          payment_currency: "ARS",
         },
       });
 
