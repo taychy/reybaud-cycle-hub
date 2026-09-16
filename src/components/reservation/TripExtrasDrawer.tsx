@@ -272,22 +272,46 @@ const TripExtrasDrawer = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor={`addon-${addon.id}`} className="text-xs text-muted-foreground">
-                          Cantidad{max ? ` · máx. ${max}` : ""}
-                        </Label>
-                        <Input
-                          id={`addon-${addon.id}`}
-                          type="number"
-                          min={0}
-                          max={max}
-                          inputMode="numeric"
-                          value={quantity}
-                          onChange={(event) => setAddonQuantity(addon, event.target.value)}
-                          className="h-9 w-24 text-center"
-                        />
-                      </div>
+                      {isNocheExtra(addon.nombre) ? (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">¿Cuándo necesitás la noche extra?</Label>
+                          <Select
+                            value={timings[addon.id] || "ninguna"}
+                            onValueChange={(value) => setAddonTiming(addon, value)}
+                          >
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ninguna">No la necesito</SelectItem>
+                              {NOCHE_TIMING_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {quantity > 0 && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {quantity} noche{quantity > 1 ? "s" : ""} · {formatPrice(quantity * Number(addon.precio || 0), addon.currency as any)}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <Label htmlFor={`addon-${addon.id}`} className="text-xs text-muted-foreground">
+                            Cantidad{max ? ` · máx. ${max}` : ""}
+                          </Label>
+                          <Input
+                            id={`addon-${addon.id}`}
+                            type="number"
+                            min={0}
+                            max={max}
+                            inputMode="numeric"
+                            value={quantity}
+                            onChange={(event) => setAddonQuantity(addon, event.target.value)}
+                            className="h-9 w-24 text-center"
+                          />
+                        </div>
+                      )}
                     </div>
+
                   );
                 })}
               </div>
