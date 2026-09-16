@@ -166,26 +166,9 @@ export default function EventCostSimulator({ eventId }: Props) {
     })();
   }, [currentId]);
 
-  /** Backfill: sólo claves AUSENTES de la simulación actual arrancan en 100% de ocupación (cupo). */
-  useEffect(() => {
-    if (!current || packages.length === 0) return;
-    const existing = (current.cantidades_esperadas || {}) as Record<string, number>;
-    const missing: Record<string, number> = {};
-    packages.forEach((p) => {
-      if (existing[p.id] === undefined || existing[p.id] === null) {
-        const cupo = Number(p.cupo) || 0;
-        if (cupo > 0) missing[p.id] = cupo;
-      }
-    });
-    if (Object.keys(missing).length === 0) return;
-    const merged = { ...existing, ...missing };
-    setSims((old) => old.map((s) => s.id === current.id ? { ...s, cantidades_esperadas: merged } : s));
-    supabase.from("event_cost_simulations")
-      .update({ cantidades_esperadas: merged as any })
-      .eq("id", current.id)
-      .then(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, packages]);
+  // La capacidad de los paquetes NO se convierte en ventas simuladas:
+  // la distribución se asigna manualmente en "Distribución del escenario activo".
+
 
   // Derive modalities from packages + cantidades_esperadas
   useEffect(() => {
