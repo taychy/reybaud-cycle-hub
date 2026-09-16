@@ -1017,13 +1017,13 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <div className="space-y-1">
             {rondas.filter((r) => r.estado === "cerrado").map((r) => (
               <div key={r.id} className="text-xs flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Ronda {r.ronda}</Badge>
-                <span className="text-muted-foreground">{r.tipo === "inicial" ? "Registro inicial" : "Control"}</span>
+                <Badge variant="outline">Chequeo {r.ronda}</Badge>
                 <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
                 {r.resumen && (
                   <span className="text-muted-foreground">
-                    · {r.resumen.entregado_ok || 0} entregados · {r.resumen.faltante_sin_aviso || 0} faltantes
-                    {r.resumen.entregado_pero_presente ? ` · ${r.resumen.entregado_pero_presente} inconsistentes` : ""}
+                    · esperado {r.resumen.esperado ?? 0} · visto {r.resumen.visto ?? 0}
+                    {r.resumen.faltantes ? ` · faltan ${r.resumen.faltantes}` : ""}
+                    {r.resumen.sobrantes ? ` · sobran ${r.resumen.sobrantes}` : ""}
                   </span>
                 )}
                 {r.notas && <span className="text-muted-foreground/80 italic">"{r.notas}"</span>}
