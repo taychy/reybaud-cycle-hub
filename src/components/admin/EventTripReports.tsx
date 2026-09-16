@@ -14,6 +14,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag } from "lucide-react";
 import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
+import { nocheTimingShortLabel } from "@/lib/nocheExtra";
 import { formatPrice } from "@/lib/currency";
 
 
@@ -148,7 +149,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       const { data: addonsData } = resIds.length
         ? await (supabase as any)
             .from("reservation_addons")
-            .select("id, reservation_id, cantidad, precio_unitario, subtotal, currency, notas, addon:event_addons(id, nombre, tipo, sort_order)")
+            .select("id, reservation_id, cantidad, precio_unitario, subtotal, currency, notas, noche_timing, addon:event_addons(id, nombre, tipo, sort_order)")
             .in("reservation_id", resIds)
         : { data: [] as any[] };
       setAddonRows((addonsData as any[]) || []);
@@ -217,7 +218,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
     const grouped: Record<string, {
       nombre: string; tipo: string; sort: number; cantidad: number;
       montos: Record<string, number>;
-      participantes: { nombre: string; cantidad: number; notas: string | null }[];
+      participantes: { nombre: string; cantidad: number; notas: string | null; nocheTiming: string | null }[];
     }> = {};
     addonRows.forEach((a: any) => {
       const r = rowMap.get(a.reservation_id);
@@ -236,7 +237,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       g.cantidad += qty;
       const cur = a.currency || "ARS";
       g.montos[cur] = (g.montos[cur] || 0) + (Number(a.subtotal) || 0);
-      g.participantes.push({ nombre: `${r.nombre} ${r.apellido}`.trim(), cantidad: qty, notas: a.notas || null });
+      g.participantes.push({ nombre: `${r.nombre} ${r.apellido}`.trim(), cantidad: qty, notas: a.notas || null, nocheTiming: a.noche_timing || null });
     });
     return Object.values(grouped).sort((a, b) => a.sort - b.sort || a.nombre.localeCompare(b.nombre));
   }, [addonRows, rows]);
@@ -248,13 +249,13 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   }, {});
 
   const exportExtras = () => {
-    const header = ["Extra", "Tipo", "Participante", "Cantidad", "Notas"];
+    const header = ["Extra", "Tipo", "Participante", "Momento", "Cantidad", "Notas"];
     const body: string[][] = [];
     extrasResumen.forEach(g => {
       g.participantes
         .sort((a, b) => a.nombre.localeCompare(b.nombre))
-        .forEach(p => body.push([g.nombre, g.tipo, p.nombre, String(p.cantidad), p.notas ?? ""]));
-      body.push([`TOTAL ${g.nombre}`, "", "", String(g.cantidad), ""]);
+        .forEach(p => body.push([g.nombre, g.tipo, p.nombre, nocheTimingShortLabel(p.nocheTiming), String(p.cantidad), p.notas ?? ""]));
+      body.push([`TOTAL ${g.nombre}`, "", "", "", String(g.cantidad), ""]);
     });
     downloadCSV([header, ...body], `extras_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
@@ -376,6 +377,11 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                           <div key={i} className="flex items-start justify-between gap-2 text-xs">
                             <span>
                               {p.nombre}
+                              {nocheTimingShortLabel(p.nocheTiming) && (
+                                <span className="ml-1.5 text-[10px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300">
+                                  {nocheTimingShortLabel(p.nocheTiming)}
+                                </span>
+                              )}
                               {p.notas && <span className="ml-1.5 text-[10px] text-muted-foreground italic">({p.notas})</span>}
                             </span>
                             <span className="text-muted-foreground shrink-0">x{p.cantidad}</span>
