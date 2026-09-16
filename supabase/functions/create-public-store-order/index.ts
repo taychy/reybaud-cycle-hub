@@ -82,7 +82,8 @@ Deno.serve(async (req) => {
     const moneda = String(product.currency || "ARS").toUpperCase();
     let fxRate = 1;
     try {
-      fxRate = await getReybaudFxRate(supabase, moneda);
+      // Obligación en moneda extranjera cobrada en ARS => VENTA Reybaud.
+      fxRate = await getReybaudFxRate(supabase, moneda, "sell");
     } catch (e) {
       console.error("[create-public-store-order] FX", e);
       return json({ error: "No pudimos obtener la cotización vigente. Escribinos por WhatsApp para completar la compra." }, 503);
@@ -91,7 +92,7 @@ Deno.serve(async (req) => {
     const unitArs = Math.round(unit * fxRate * 100) / 100;
     const totalArs = Math.round(unitArs * cantidad * 100) / 100;
     const fxNota = moneda !== "ARS"
-      ? `Precio original: ${moneda} ${unit} x ${cantidad} (Cotización Reybaud ${fxRate}).`
+      ? `Precio original: ${moneda} ${unit} x ${cantidad} (Cotización Reybaud venta ${fxRate}).`
       : "";
 
     let alumnoId: string | null = null;

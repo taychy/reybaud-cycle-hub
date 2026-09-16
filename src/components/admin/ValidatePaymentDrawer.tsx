@@ -12,6 +12,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle, XCircle, FileText, Loader2, ExternalLink, AlertTriangle, Receipt } from "lucide-react";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
+import { fetchCurrentFxBook, rateToEvent } from "@/lib/fx";
 
 interface PaymentRow {
   id: string;
@@ -67,6 +68,7 @@ const ValidatePaymentDrawer = ({
   const [submitting, setSubmitting] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [loadingProof, setLoadingProof] = useState(false);
+  const [fxSuggested, setFxSuggested] = useState<string | null>(null);
 
   // Installment state
   const [installments, setInstallments] = useState<Installment[]>([]);
@@ -122,6 +124,27 @@ const ValidatePaymentDrawer = ({
       }
     }
   }, [open, payment?.id]);
+
+  // Sugerencia automática de cotización desde la Cotización Reybaud vigente.
+  useEffect(() => {
+    let cancelled = false;
+    setFxSuggested(null);
+    if (!open || !payment || sameCurrency) return;
+    if (payment.exchange_rate_to_event_currency) return;
+    (async () => {
+      try {
+        const book = await fetchCurrentFxBook();
+        const suggested = rateToEvent(book, origCurr, evCurr);
+        if (cancelled || !suggested || suggested <= 0) return;
+        setRate((prev) => (prev ? prev : String(Number(suggested.toFixed(6)))));
+        setFxSuggested(String(Number(suggested.toFixed(6))));
+      } catch (_) {
+        // Sin cotización disponible: el admin carga la cotización manualmente.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [open, payment?.id, sameCurrency, origCurr, evCurr]);
+
 
   // Auto-calc equivalent when rate changes and admin hasn't manually edited
   useEffect(() => {
@@ -482,6 +505,11 @@ const ValidatePaymentDrawer = ({
                   />
                   {sameCurrency && (
                     <p className="text-[10px] text-muted-foreground">Misma moneda: cotización fija en 1.</p>
+                  )}
+                  {!sameCurrency && fxSuggested && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Sugerida desde la Cotización Reybaud vigente ({fxSuggested}). Podés modificarla.
+                    </p>
                   )}
                 </div>
                 <div className="space-y-2">

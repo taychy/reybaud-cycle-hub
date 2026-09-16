@@ -1,70 +1,84 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { Coins } from "lucide-react";
+import { Coins, RefreshCw } from "lucide-react";
+import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
 
-const CURRENCIES = [
-  { code: "USD", label: "Dólar" },
-  { code: "EUR", label: "Euro" },
-  { code: "BRL", label: "Real" },
-] as const;
-
-const keyFor = (code: string, suffix: string) => `fx_${code.toLowerCase()}_${suffix}`;
+const LABELS: Record<string, string> = { USD: "Dólar", EUR: "Euro", BRL: "Real" };
 const asNumber = (v: unknown) => Number(typeof v === "string" ? v.replace(",", ".") : v) || 0;
+const round4 = (v: number) => Math.round(v * 10000) / 10000;
 
-/** Configuración central de la Cotización Reybaud usada en cobros en ARS. */
+/** Configuración central de la Cotización Reybaud: márgenes de Compra y Venta por moneda. */
 const StoreFxConfig = () => {
   const { toast } = useToast();
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [book, setBook] = useState<FxBook | null>(null);
+  const [margins, setMargins] = useState<Record<string, { buy: string; sell: string }>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const keys = [
-        "fx_source", "fx_bcra_date", "fx_updated_at",
-        ...CURRENCIES.flatMap(({ code }) => [
-          keyFor(code, "ars"), keyFor(code, "reference_ars"), keyFor(code, "margin_pct"),
-        ]),
-      ];
-      const { data } = await supabase.from("app_config").select("key,value").in("key", keys);
-      const map: Record<string, string> = {};
-      for (const row of (data || []) as any[]) map[row.key] = String(row.value ?? "");
-      setValues(map);
+  const load = useCallback(async (force = false) => {
+    try {
+      const data = await fetchCurrentFxBook(force);
+      setBook(data);
+      setMargins(Object.fromEntries(FX_FOREIGN.map((c) => [c, {
+        buy: String(data.currencies[c].buyMarginPct),
+        sell: String(data.currencies[c].sellMarginPct),
+      }])));
+      setError(null);
+    } catch (e: any) {
+      setError(e?.message || "No pudimos obtener la cotización vigente.");
+    } finally {
       setLoading(false);
-    })();
+    }
   }, []);
 
+  useEffect(() => { load(); }, [load]);
+
   const save = async () => {
+    if (!book) return;
     setSaving(true);
     try {
       const rows: any[] = [];
-      for (const { code } of CURRENCIES) {
-        const marginKey = keyFor(code, "margin_pct");
-        const refKey = keyFor(code, "reference_ars");
-        const rateKey = keyFor(code, "ars");
-        const margin = asNumber(values[marginKey]);
-        if (margin < 0) throw new Error(`El margen de ${code} no puede ser negativo`);
-        rows.push({ key: marginKey, value: String(margin), description: `Margen de seguridad Reybaud para ${code}` });
-
-        const reference = asNumber(values[refKey]);
+      for (const code of FX_FOREIGN) {
+        const lc = code.toLowerCase();
+        const buyMargin = asNumber(margins[code]?.buy);
+        const sellMargin = asNumber(margins[code]?.sell);
+        if (buyMargin < 0 || sellMargin < 0) throw new Error(`Los márgenes de ${code} no pueden ser negativos`);
+        const reference = book.currencies[code].reference;
+        const buy = round4(reference * (1 - buyMargin / 100));
+        const sell = round4(reference * (1 + sellMargin / 100));
+        rows.push(
+          { key: `fx_${lc}_buy_margin_pct`, value: String(buyMargin), description: `Margen de compra Reybaud para ${code}` },
+          { key: `fx_${lc}_sell_margin_pct`, value: String(sellMargin), description: `Margen de venta Reybaud para ${code}` },
+        );
         if (reference > 0) {
-          const rate = Math.round(reference * (1 + margin / 100) * 10000) / 10000;
-          rows.push({ key: rateKey, value: String(rate), description: `Cotización Reybaud ${code} → ARS` });
-          setValues((p) => ({ ...p, [rateKey]: String(rate) }));
+          rows.push(
+            { key: `fx_${lc}_buy_ars`, value: String(buy), description: `Compra Reybaud ${code} → ARS` },
+            { key: `fx_${lc}_sell_ars`, value: String(sell), description: `Venta Reybaud ${code} → ARS` },
+            { key: `fx_${lc}_ars`, value: String(sell), description: `Cotización Reybaud ${code} → ARS (alias de venta)` },
+          );
         }
       }
-      const { error } = await supabase.from("app_config").upsert(rows as any, { onConflict: "key" });
-      if (error) throw error;
+      const { error: upErr } = await supabase.from("app_config").upsert(rows as any, { onConflict: "key" });
+      if (upErr) throw upErr;
+      await load();
       toast({ title: "Márgenes de cotización guardados" });
     } catch (e: any) {
       toast({ title: "Error", description: e.message || "No se pudo guardar", variant: "destructive" });
     } finally {
       setSaving(false);
     }
+  };
+
+  const actualizarAhora = async () => {
+    setRefreshing(true);
+    await load(true);
+    setRefreshing(false);
   };
 
   if (loading) return null;
@@ -76,48 +90,68 @@ const StoreFxConfig = () => {
         <p className="text-sm font-heading font-semibold">Cotización Reybaud</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Referencia BCRA + margen de seguridad. Se actualiza automáticamente con la primera conversión/cobro del día y se usa para cobrar en pesos precios en moneda extranjera.
+        El BCRA aporta solo la referencia. Reybaud aplica su propio margen: la Compra es lo que reconocemos
+        cuando recibimos moneda extranjera y la Venta es lo que cobramos cuando la obligación está en moneda
+        extranjera y el cliente paga en pesos.
       </p>
 
-      <div className="space-y-2">
-        {CURRENCIES.map(({ code, label }) => {
-          const ref = asNumber(values[keyFor(code, "reference_ars")]);
-          const rate = asNumber(values[keyFor(code, "ars")]);
-          const marginKey = keyFor(code, "margin_pct");
-          return (
-            <div key={code} className="grid grid-cols-1 sm:grid-cols-4 gap-2 items-end rounded-lg border border-border/50 p-3">
-              <div>
-                <Label className="text-xs">{label} ({code})</Label>
-                <p className="text-sm font-medium mt-1">${rate ? rate.toLocaleString("es-AR", { maximumFractionDigits: 2 }) : "—"}</p>
+      {error && <p className="text-xs text-destructive">{error}</p>}
+
+      {book && (
+        <div className="space-y-2">
+          {FX_FOREIGN.map((code) => {
+            const row = book.currencies[code];
+            const m = margins[code] || { buy: "", sell: "" };
+            const buyPreview = round4(row.reference * (1 - asNumber(m.buy) / 100));
+            const sellPreview = round4(row.reference * (1 + asNumber(m.sell) / 100));
+            return (
+              <div key={code} className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end rounded-lg border border-border/50 p-3">
+                <div>
+                  <Label className="text-xs">{LABELS[code]} ({code})</Label>
+                  <p className="text-xs text-muted-foreground mt-1">Referencia BCRA</p>
+                  <p className="text-sm font-medium">{row.reference ? formatFxArs(row.reference) : "—"}</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Margen Compra %</Label>
+                  <Input
+                    type="number" min={0} step="0.1"
+                    value={m.buy}
+                    onChange={(e) => setMargins((p) => ({ ...p, [code]: { ...p[code], buy: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Compra Reybaud</Label>
+                  <p className="text-sm font-medium mt-1 tabular-nums">{formatFxArs(buyPreview)}</p>
+                </div>
+                <div>
+                  <Label className="text-xs">Margen Venta %</Label>
+                  <Input
+                    type="number" min={0} step="0.1"
+                    value={m.sell}
+                    onChange={(e) => setMargins((p) => ({ ...p, [code]: { ...p[code], sell: e.target.value } }))}
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Venta Reybaud</Label>
+                  <p className="text-sm font-medium mt-1 tabular-nums">{formatFxArs(sellPreview)}</p>
+                </div>
               </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Referencia BCRA</Label>
-                <p className="text-sm mt-1">${ref ? ref.toLocaleString("es-AR", { maximumFractionDigits: 2 }) : "—"}</p>
-              </div>
-              <div>
-                <Label className="text-xs">Margen de seguridad %</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step="0.1"
-                  value={values[marginKey] || ""}
-                  onChange={(e) => setValues((p) => ({ ...p, [marginKey]: e.target.value }))}
-                  placeholder={code === "USD" ? "4" : code === "EUR" ? "5" : "7"}
-                />
-              </div>
-              <div className="text-xs text-muted-foreground">
-                {rate && ref ? `+${(((rate / ref) - 1) * 100).toFixed(1)}% sobre referencia` : "Pendiente de primera actualización"}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-[11px] text-muted-foreground">
-          Fuente: {values.fx_source || "BCRA"} · Referencia: {values.fx_bcra_date || "—"}
+          Fuente: {book?.source || "BCRA"} · Referencia: {book?.bcraDate || "—"} · {book?.fresh ? "🟢" : "🟠"} {fxStatusLabel(book)}
         </p>
-        <Button onClick={save} disabled={saving}>{saving ? "Guardando..." : "Guardar márgenes"}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={actualizarAhora} disabled={refreshing}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? "animate-spin" : ""}`} />
+            Actualizar ahora
+          </Button>
+          <Button onClick={save} disabled={saving || !book}>{saving ? "Guardando..." : "Guardar márgenes"}</Button>
+        </div>
       </div>
     </div>
   );

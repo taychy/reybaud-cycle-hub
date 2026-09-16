@@ -21,6 +21,7 @@ import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
 import { planRoomSync, capacityReductionError } from "@/lib/lodgingCapacity";
 import CostGroupSection from "@/components/admin/CostGroupSection";
+import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
 
 import {
   calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto, toBase,
@@ -83,6 +84,8 @@ interface EventPaymentRow {
 export default function EventCostSimulator({ eventId }: Props) {
   const [loading, setLoading] = useState(true);
   const [sims, setSims] = useState<SimRow[]>([]);
+  const [fxBook, setFxBook] = useState<FxBook | null>(null);
+  const [fxError, setFxError] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
   const [actuals, setActuals] = useState<ActualRow[]>([]);
@@ -97,6 +100,20 @@ export default function EventCostSimulator({ eventId }: Props) {
   const [applyMap, setApplyMap] = useState<Record<string, boolean>>({});
 
   const current = sims.find((s) => s.id === currentId) || null;
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const book = await fetchCurrentFxBook();
+        if (alive) setFxBook(book);
+      } catch (e: any) {
+        if (alive) setFxError(e?.message || "No pudimos obtener la cotización vigente.");
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
 
   const loadSims = useCallback(async () => {
     setLoading(true);
@@ -500,6 +517,17 @@ export default function EventCostSimulator({ eventId }: Props) {
     setSims((old) => old.map((s) => s.id === current.id ? { ...s, ...patch } : s));
   };
 
+  /** Aplica la VENTA Reybaud vigente a los supuestos TC USD/EUR de esta simulación. */
+  const aplicarCotizacionVigente = () => {
+    if (!current || !fxBook) return;
+    patchCurrent({
+      tc_usd: fxBook.currencies.USD.sell,
+      tc_eur: fxBook.currencies.EUR.sell,
+    });
+    setTimeout(guardarCambios, 0);
+  };
+
+
   /* ─── ítems ─── */
   const SUBCAT_DEFAULT: Record<Exclude<GrupoCosto, "alojamiento">, string> = {
     participante: "comida",
@@ -850,6 +878,42 @@ export default function EventCostSimulator({ eventId }: Props) {
 
           {/* ============ ESTIMADO ============ */}
           <TabsContent value="estimado" className="space-y-6 pt-4">
+            {/* Cotización Reybaud vigente (referencia central) */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Cotización Reybaud hoy</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {fxBook ? (
+                  <>
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      {FX_FOREIGN.map((code) => (
+                        <span key={code} className="rounded-md border border-border/60 px-2 py-1">
+                          <b>{code}</b> · Compra {formatFxArs(fxBook.currencies[code].buy)} · Venta {formatFxArs(fxBook.currencies[code].sell)}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fxBook.fresh ? "🟢" : "🟠"} {fxStatusLabel(fxBook)}
+                      {fxBook.bcraDate ? ` · Referencia BCRA ${fxBook.bcraDate}` : ""}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={aplicarCotizacionVigente}>
+                        Usar cotización vigente en este presupuesto
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        Se aplican valores Venta para estimar el costo de adquirir moneda extranjera.
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    {fxError || "Cargando cotización vigente…"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Supuestos */}
             <Card>
               <CardHeader><CardTitle className="text-sm">Supuestos financieros</CardTitle></CardHeader>

@@ -53,7 +53,7 @@ interface ReportPaymentDrawerProps {
   initialMethod?: string;
 }
 
-const ALLOWED_CURRENCIES = ["EUR", "USD", "ARS"];
+const ALLOWED_CURRENCIES = ["EUR", "USD", "BRL", "ARS"];
 
 const fmtDate = (d?: string | null) => {
   if (!d) return "";

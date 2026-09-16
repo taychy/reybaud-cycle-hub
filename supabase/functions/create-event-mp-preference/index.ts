@@ -63,7 +63,8 @@ Deno.serve(async (req) => {
 
     let fxRate = 1;
     try {
-      fxRate = await getReybaudFxRate(supabaseAdmin, eventCurrency);
+      // Obligación en la moneda del evento cobrada en ARS => VENTA Reybaud.
+      fxRate = await getReybaudFxRate(supabaseAdmin, eventCurrency, "sell");
     } catch (e) {
       console.error("[create-event-mp-preference] FX", e);
       return json({ error: "No pudimos obtener la cotización vigente para cobrar en pesos." }, 503);
@@ -161,6 +162,7 @@ Deno.serve(async (req) => {
         event_amount: Number(eventAmount.toFixed(6)),
         payment_currency: "ARS",
         fx_rate_ars_per_event: fxRate,
+        fx_side: "sell",
         installment_number: installment_number ?? null,
       },
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/event-ars-mp-webhook${cuenta.cuenta_id ? `?cuenta_id=${cuenta.cuenta_id}` : ""}`,

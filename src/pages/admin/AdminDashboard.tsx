@@ -7,6 +7,7 @@ import {
   Users, TrendingUp, FileText, ArrowRightLeft, CalendarClock,
   CreditCard, Store, Wallet, ArrowRight,
 } from "lucide-react";
+import FxRatesCard from "@/components/admin/FxRatesCard";
 
 /**
  * Resumen operativo — versión liviana (reducción de carga de base).
@@ -137,6 +138,8 @@ const AdminDashboard = () => {
           </Link>
         ))}
       </div>
+
+      <FxRatesCard />
 
       <Card className="border-border">
         <CardHeader className="pb-3">
