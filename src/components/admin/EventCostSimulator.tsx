@@ -1572,15 +1572,8 @@ export default function EventCostSimulator({ eventId }: Props) {
           nextSortOrder={nextSortOrder}
           nochesDefault={Number(current.noches || 0)}
           onCreated={async (res) => {
-            // Escenario de venta inicial: 100% de ocupación del nuevo alojamiento.
-            if (current && res.cupo > 0) {
-              const existing = (current.cantidades_esperadas || {}) as Record<string, number>;
-              if (existing[res.packageId] === undefined || existing[res.packageId] === null) {
-                await supabase.from("event_cost_simulations")
-                  .update({ cantidades_esperadas: { ...existing, [res.packageId]: res.cupo } as any })
-                  .eq("id", current.id);
-              }
-            }
+            // La capacidad del nuevo alojamiento NO se carga como ventas simuladas.
+
             // Línea principal de costo, para que la ficha quede completa de una.
             await addLodgingItemFor({
               packageId: res.packageId,
