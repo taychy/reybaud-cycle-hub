@@ -5,9 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Loader2, Package, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
+import { isNocheExtra, unidadesPorTiming, NOCHE_TIMING_OPTIONS, type NocheTiming } from "@/lib/nocheExtra";
+
 
 interface Addon {
   id: string;
@@ -31,7 +34,9 @@ interface ContractedAddon {
   precio_unitario: number;
   subtotal: number;
   currency: string;
+  noche_timing: string | null;
 }
+
 
 interface TripExtrasDrawerProps {
   open: boolean;
@@ -57,7 +62,9 @@ const TripExtrasDrawer = ({
   const [addons, setAddons] = useState<Addon[]>([]);
   const [contracted, setContracted] = useState<ContractedAddon[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [timings, setTimings] = useState<Record<string, NocheTiming | null>>({});
   const [checklistRowId, setChecklistRowId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!open) return;
@@ -94,16 +101,22 @@ const TripExtrasDrawer = ({
       const loadedAddons = (addonRows as unknown as Addon[]) || [];
       const loadedContracted = (contractedRows as unknown as ContractedAddon[]) || [];
       const nextQuantities: Record<string, number> = {};
+      const nextTimings: Record<string, NocheTiming | null> = {};
       loadedAddons.forEach((addon) => {
         const current = loadedContracted.find((row) => row.addon_id === addon.id);
         nextQuantities[addon.id] = current?.cantidad || 0;
+        if (isNocheExtra(addon.nombre)) {
+          nextTimings[addon.id] = (current?.noche_timing as NocheTiming | null) || null;
+        }
       });
 
       setAddons(loadedAddons);
       setContracted(loadedContracted);
       setQuantities(nextQuantities);
+      setTimings(nextTimings);
       setChecklistRowId((checklistRow as any)?.id || null);
       setLoading(false);
+
     };
 
     load();
@@ -124,6 +137,13 @@ const TripExtrasDrawer = ({
     const safe = Number.isNaN(parsed) ? 0 : Math.min(Math.max(parsed, 0), max);
     setQuantities((prev) => ({ ...prev, [addon.id]: safe }));
   };
+
+  const setAddonTiming = (addon: Addon, value: string) => {
+    const timing = value === "ninguna" ? null : (value as NocheTiming);
+    setTimings((prev) => ({ ...prev, [addon.id]: timing }));
+    setQuantities((prev) => ({ ...prev, [addon.id]: unidadesPorTiming(timing) }));
+  };
+
 
   const markChecklistComplete = async () => {
     const selected = addons
@@ -164,7 +184,9 @@ const TripExtrasDrawer = ({
       const { data: { user } } = await supabase.auth.getUser();
 
       for (const addon of addons) {
-        const quantity = quantities[addon.id] || 0;
+        const esNoche = isNocheExtra(addon.nombre);
+        const timing = esNoche ? (timings[addon.id] || null) : null;
+        const quantity = esNoche ? unidadesPorTiming(timing) : (quantities[addon.id] || 0);
         const existing = contracted.find((row) => row.addon_id === addon.id);
 
         if (existing && quantity <= 0) {
@@ -175,6 +197,7 @@ const TripExtrasDrawer = ({
             cantidad: quantity,
             precio_unitario: addon.precio,
             currency: addon.currency,
+            ...(esNoche ? { noche_timing: timing } : {}),
           }).eq("id", existing.id);
           if (error) throw error;
         } else if (!existing && quantity > 0) {
@@ -185,10 +208,12 @@ const TripExtrasDrawer = ({
             precio_unitario: addon.precio,
             currency: addon.currency,
             added_by: user?.id,
+            ...(esNoche ? { noche_timing: timing } : {}),
           });
           if (error) throw error;
         }
       }
+
 
       await markChecklistComplete();
       toast.success("Configuración guardada");
@@ -247,22 +272,46 @@ const TripExtrasDrawer = ({
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-between gap-3">
-                        <Label htmlFor={`addon-${addon.id}`} className="text-xs text-muted-foreground">
-                          Cantidad{max ? ` · máx. ${max}` : ""}
-                        </Label>
-                        <Input
-                          id={`addon-${addon.id}`}
-                          type="number"
-                          min={0}
-                          max={max}
-                          inputMode="numeric"
-                          value={quantity}
-                          onChange={(event) => setAddonQuantity(addon, event.target.value)}
-                          className="h-9 w-24 text-center"
-                        />
-                      </div>
+                      {isNocheExtra(addon.nombre) ? (
+                        <div className="space-y-1.5">
+                          <Label className="text-xs text-muted-foreground">¿Cuándo necesitás la noche extra?</Label>
+                          <Select
+                            value={timings[addon.id] || "ninguna"}
+                            onValueChange={(value) => setAddonTiming(addon, value)}
+                          >
+                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="ninguna">No la necesito</SelectItem>
+                              {NOCHE_TIMING_OPTIONS.map((opt) => (
+                                <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          {quantity > 0 && (
+                            <p className="text-[11px] text-muted-foreground">
+                              {quantity} noche{quantity > 1 ? "s" : ""} · {formatPrice(quantity * Number(addon.precio || 0), addon.currency as any)}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-3">
+                          <Label htmlFor={`addon-${addon.id}`} className="text-xs text-muted-foreground">
+                            Cantidad{max ? ` · máx. ${max}` : ""}
+                          </Label>
+                          <Input
+                            id={`addon-${addon.id}`}
+                            type="number"
+                            min={0}
+                            max={max}
+                            inputMode="numeric"
+                            value={quantity}
+                            onChange={(event) => setAddonQuantity(addon, event.target.value)}
+                            className="h-9 w-24 text-center"
+                          />
+                        </div>
+                      )}
                     </div>
+
                   );
                 })}
               </div>
