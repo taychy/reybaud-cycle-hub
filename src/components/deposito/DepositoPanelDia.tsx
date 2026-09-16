@@ -23,6 +23,16 @@ const addDays = (iso: string, n: number) => {
   return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
 };
 
+// Inicio/fin del día local como timestamps ISO (evita falsos positivos por zona horaria)
+const dayStartIso = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0).toISOString();
+};
+const dayEndIso = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d + 1, 0, 0, 0, 0).toISOString();
+};
+
 const fmtDay = (iso: string) => {
   const [y, m, d] = iso.split("-").map(Number);
   const dt = new Date(y, m - 1, d);
@@ -78,13 +88,19 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     const esHoy = dia === todayStr();
     const fin = addDays(hoy, 7);
 
-    const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, stockRes] = await Promise.all([
+    const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, stockRes, chequeosRes] = await Promise.all([
       sb.from("store_orders").select("id, order_number, customer_name, status, created_at").eq("status", "pagado"),
       sb.from("delivery_lists").select("id, titulo, fecha_entrega, estado").eq("estado", "abierta"),
       sb.from("store_cambios").select("id, estado").in("estado", ["aprobado", "en_deposito", "listo_retiro"]),
       sb.from("supplier_orders").select("id, numero, proveedor_nombre, estado, fecha_estimada_entrega").not("estado", "in", "(cerrado,cancelado)"),
       sb.from("vehiculo_cargas").select("id, fecha_salida, estado").order("fecha_salida", { ascending: false }).limit(5),
       sb.from("store_products").select("id, stock, min_stock").eq("status", "active"),
+      sb
+        .from("vehiculo_chequeos")
+        .select("id, closed_at")
+        .eq("estado", "cerrado")
+        .gte("closed_at", dayStartIso(hoy))
+        .lt("closed_at", dayEndIso(hoy)),
     ]);
 
     const orders = ordersRes.data || [];
@@ -99,19 +115,8 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
 
     const entregasHoy = deliveries.filter((d: any) => d.fecha_entrega && (esHoy ? d.fecha_entrega <= hoy : d.fecha_entrega === hoy));
     const vanHoy = vans.find((v: any) => v.fecha_salida === hoy);
-
-    // El chequeo se considera hecho sólo si hay un chequeo CERRADO hoy: crear la carga no alcanza.
-    let chequeoHechoHoy = false;
-    if (vanHoy) {
-      const { data: chequeosHoy } = await (sb as any)
-        .from("vehiculo_chequeos")
-        .select("id, closed_at")
-        .eq("carga_id", vanHoy.id)
-        .eq("estado", "cerrado")
-        .gte("closed_at", `${hoy}T00:00:00`)
-        .limit(1);
-      chequeoHechoHoy = ((chequeosHoy as any[]) || []).length > 0;
-    }
+    // El chequeo cuenta como hecho si hay uno CERRADO dentro del día seleccionado, sin importar la fecha de salida de la carga
+    const chequeoHechoHoy = ((chequeosRes.data || []) as any[]).length > 0;
 
     const cards: AlertCard[] = [];
 
@@ -146,8 +151,8 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         count: 1,
         title: "Chequeo de camioneta pendiente",
         desc: vanHoy
-          ? "Hay carga de hoy pero todavía no se cerró el chequeo físico."
-          : "Todavía no hay carga ni chequeo físico de hoy.",
+          ? "Todavía no cerraste el chequeo de la carga de hoy."
+          : "Todavía no hay un chequeo de camioneta cerrado hoy.",
         cta: "Iniciar chequeo",
         to: "/deposito/camioneta",
         tone: "warn",
