@@ -95,7 +95,7 @@ Deno.serve(async (req) => {
       payment_date: today,
       payment_method: "mercadopago",
       payment_reference: String(payment.id),
-      notes: `Pago Mercado Pago en ARS (${mpStatus}). Cotización Reybaud: ${snapshotFx || (paidArs / eventAmount)}`,
+      notes: `Pago Mercado Pago en ARS (${mpStatus}). Cotización Reybaud venta: ${snapshotFx || (paidArs / eventAmount)}`,
       status: payStatus,
       installment_number: installmentNumber,
     } as any;

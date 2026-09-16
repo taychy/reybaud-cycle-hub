@@ -162,6 +162,7 @@ Deno.serve(async (req) => {
         event_amount: Number(eventAmount.toFixed(6)),
         payment_currency: "ARS",
         fx_rate_ars_per_event: fxRate,
+        fx_side: "sell",
         installment_number: installment_number ?? null,
       },
       notification_url: `${Deno.env.get("SUPABASE_URL")}/functions/v1/event-ars-mp-webhook${cuenta.cuenta_id ? `?cuenta_id=${cuenta.cuenta_id}` : ""}`,
