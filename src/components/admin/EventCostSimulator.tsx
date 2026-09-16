@@ -101,6 +101,20 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   const current = sims.find((s) => s.id === currentId) || null;
 
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const book = await fetchCurrentFxBook();
+        if (alive) setFxBook(book);
+      } catch (e: any) {
+        if (alive) setFxError(e?.message || "No pudimos obtener la cotización vigente.");
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+
   const loadSims = useCallback(async () => {
     setLoading(true);
     const { data: pkgs } = await supabase
