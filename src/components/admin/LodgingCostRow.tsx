@@ -101,13 +101,15 @@ export default function LodgingCostRow({
   const habitaciones = Number(info?.habitaciones ?? det.habitaciones ?? 0) || 0;
   const personas = Number(info?.personas ?? det.personas_por_habitacion ?? 1) || 1;
   const pax = Number(esperados[pkgId] || 0);
+  /** La tarifa del proveedor depende del total de inscriptos del escenario activo. */
+  const escenarioPax = Math.max(0, Number(scenarioParticipants) || 0);
 
   const tarifaPorTramos = det.tarifa_por_tramos === true;
   const tarifas = normalizeTarifas(det.tarifas_tramos);
   const compartirAhorroPct = Math.min(100, Math.max(0, Number(det.compartir_ahorro_pct ?? 50) || 0));
   const tarifaAplicada = tarifaPorTramos && tarifas.length > 0
-    ? tarifas.find((t) => pax >= t.min && (t.max == null || pax <= t.max))
-      || (pax < tarifas[0].min ? tarifas[0] : tarifas[tarifas.length - 1])
+    ? tarifas.find((t) => escenarioPax >= t.min && (t.max == null || escenarioPax <= t.max))
+      || (escenarioPax < tarifas[0].min ? tarifas[0] : tarifas[tarifas.length - 1])
     : null;
   const costoUnitarioAplicado = tarifaAplicada?.precio ?? Number(item.precio_unitario || 0);
   const tarifaBase = tarifas[0] || null;
@@ -117,7 +119,7 @@ export default function LodgingCostRow({
   const beneficioCliente = ahorroProveedor * (compartirAhorroPct / 100);
   const mejoraReybaud = ahorroProveedor - beneficioCliente;
   const siguienteTramo = tarifaPorTramos
-    ? tarifas.find((t) => t.min > pax && (!tarifaAplicada || t.precio < tarifaAplicada.precio)) || null
+    ? tarifas.find((t) => t.min > escenarioPax && (!tarifaAplicada || t.precio < tarifaAplicada.precio)) || null
     : null;
 
   const [nombre, setNombre] = useState(pkg?.nombre || "");
