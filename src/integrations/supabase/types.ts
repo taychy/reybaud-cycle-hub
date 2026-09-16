@@ -13147,6 +13147,7 @@ export type Database = {
       }
       vehiculo_chequeo_scans: {
         Row: {
+          cantidad_vista: number
           chequeo_id: string
           created_at: string
           id: string
@@ -13155,6 +13156,7 @@ export type Database = {
           scanned_by: string | null
         }
         Insert: {
+          cantidad_vista?: number
           chequeo_id: string
           created_at?: string
           id?: string
@@ -13163,6 +13165,7 @@ export type Database = {
           scanned_by?: string | null
         }
         Update: {
+          cantidad_vista?: number
           chequeo_id?: string
           created_at?: string
           id?: string
@@ -15205,6 +15208,10 @@ export type Database = {
         Args: { _chequeo_id: string; _notas?: string }
         Returns: Json
       }
+      close_vehiculo_chequeo_observacional: {
+        Args: { _chequeo_id: string; _notas?: string }
+        Returns: Json
+      }
       completar_seleccion_reingreso: {
         Args: {
           p_id: string
@@ -16048,6 +16055,20 @@ export type Database = {
           resultado: string
           source_table: string
           variante: string
+        }[]
+      }
+      get_vehiculo_chequeo_lineas: {
+        Args: { _chequeo_id: string }
+        Returns: {
+          cliente_nombre: string
+          esperado: number
+          item_id: string
+          producto: string
+          registrado: boolean
+          registrado_at: string
+          registrado_por: string
+          variante: string
+          visto: number
         }[]
       }
       get_waitlist_entries_for_template: {
