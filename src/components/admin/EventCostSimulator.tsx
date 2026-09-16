@@ -456,14 +456,22 @@ export default function EventCostSimulator({ eventId }: Props) {
     setSims((old) => old.map((s) => s.id === current.id ? { ...s, ...patch } : s));
   };
 
-  /** Aplica la VENTA Reybaud vigente a los supuestos TC USD/EUR de esta simulación. */
-  const aplicarCotizacionVigente = () => {
+  /** Aplica y persiste la VENTA Reybaud vigente en los supuestos USD/EUR. */
+  const aplicarCotizacionVigente = async () => {
     if (!current || !fxBook) return;
-    patchCurrent({
+    const patch = {
       tc_usd: fxBook.currencies.USD.sell,
       tc_eur: fxBook.currencies.EUR.sell,
-    });
-    setTimeout(guardarCambios, 0);
+    };
+    patchCurrent(patch);
+    const { error } = await supabase.from("event_cost_simulations")
+      .update(patch)
+      .eq("id", current.id);
+    if (error) {
+      toast({ title: "No se pudo aplicar la cotización", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Cotización vigente aplicada" });
   };
 
 
