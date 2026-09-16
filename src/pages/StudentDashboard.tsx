@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTrainingScope } from "@/lib/weeklyTraining";
+import { puedeVerEntrenamientos } from "@/lib/trainingAccess";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal, AlertTriangle, Lock } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
@@ -198,6 +199,15 @@ const StudentDashboard = () => {
         const d = new Date(monday);
         d.setDate(monday.getDate() + i);
         weekDates.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`);
+      }
+
+      // El grupo no otorga acceso por sí solo: alumno inactivo/bloqueado o sin
+      // mensualidad no cancelada no ve entrenamientos (la base aplica lo mismo).
+      if (!puedeVerEntrenamientos(alumnoData.estado, (allSubs as any) || [])) {
+        setWeekTrainings(Array(7).fill(null));
+        setEntrenamiento(null);
+        setLoading(false);
+        return;
       }
 
       // For "Personalizado" students, fetch personal trainings by alumno_id
