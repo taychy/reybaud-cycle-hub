@@ -1,20 +1,41 @@
 import type { SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 export type FxCurrency = "ARS" | "USD" | "EUR" | "BRL";
+export type FxForeign = Exclude<FxCurrency, "ARS">;
+export type FxSide = "buy" | "sell";
+
+export interface FxCurrencyBook {
+  reference: number;
+  buy: number;
+  sell: number;
+  buyMarginPct: number;
+  sellMarginPct: number;
+}
+
+export interface FxBook {
+  currencies: Record<FxForeign, FxCurrencyBook>;
+  source: string;
+  bcraDate: string;
+  lastCheckedDate: string;
+  updatedAt: string;
+  /** true si la referencia se actualizó hoy desde BCRA. */
+  fresh: boolean;
+  /** true si no se pudo consultar BCRA y se conserva la última cotización válida. */
+  stale: boolean;
+}
 
 const BCRA_URL = "https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones";
-const FOREIGN: Exclude<FxCurrency, "ARS">[] = ["USD", "EUR", "BRL"];
-const DEFAULT_MARGIN: Record<Exclude<FxCurrency, "ARS">, number> = {
-  USD: 4,
-  EUR: 5,
-  BRL: 7,
-};
+const FOREIGN: FxForeign[] = ["USD", "EUR", "BRL"];
+const DEFAULT_MARGIN: Record<FxForeign, number> = { USD: 4, EUR: 5, BRL: 7 };
 
 const num = (value: unknown): number => {
-  if (typeof value === "number") return value;
+  if (typeof value === "number") return Number.isFinite(value) ? value : 0;
   if (typeof value === "string") return Number(value.replace(",", ".")) || 0;
   return 0;
 };
+
+const round4 = (v: number) => Math.round(v * 10000) / 10000;
+const lc = (c: string) => c.toLowerCase();
 
 const arDate = () => {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -29,11 +50,18 @@ const arDate = () => {
 
 async function readConfig(supabase: SupabaseClient) {
   const keys = [
+    "fx_source",
+    "fx_bcra_date",
     "fx_last_checked_date",
+    "fx_updated_at",
     ...FOREIGN.flatMap((c) => [
-      `fx_${c.toLowerCase()}_ars`,
-      `fx_${c.toLowerCase()}_reference_ars`,
-      `fx_${c.toLowerCase()}_margin_pct`,
+      `fx_${lc(c)}_ars`,
+      `fx_${lc(c)}_reference_ars`,
+      `fx_${lc(c)}_margin_pct`,
+      `fx_${lc(c)}_buy_margin_pct`,
+      `fx_${lc(c)}_sell_margin_pct`,
+      `fx_${lc(c)}_buy_ars`,
+      `fx_${lc(c)}_sell_ars`,
     ]),
   ];
   const { data } = await supabase.from("app_config").select("key,value").in("key", keys);
@@ -42,15 +70,83 @@ async function readConfig(supabase: SupabaseClient) {
   return cfg;
 }
 
-export async function ensureCurrentFxRates(supabase: SupabaseClient) {
+const marginsFromConfig = (cfg: Record<string, unknown>, currency: FxForeign) => {
+  const legacyKey = `fx_${lc(currency)}_margin_pct`;
+  const hasLegacy = Object.prototype.hasOwnProperty.call(cfg, legacyKey);
+  const legacy = hasLegacy ? Math.max(0, num(cfg[legacyKey])) : DEFAULT_MARGIN[currency];
+  const buyKey = `fx_${lc(currency)}_buy_margin_pct`;
+  const sellKey = `fx_${lc(currency)}_sell_margin_pct`;
+  const buy = Object.prototype.hasOwnProperty.call(cfg, buyKey)
+    ? Math.max(0, num(cfg[buyKey]))
+    : legacy;
+  const sell = Object.prototype.hasOwnProperty.call(cfg, sellKey)
+    ? Math.max(0, num(cfg[sellKey]))
+    : legacy;
+  return { buy, sell };
+};
+
+const buildCurrencyBook = (reference: number, buyMarginPct: number, sellMarginPct: number): FxCurrencyBook => ({
+  reference: round4(reference),
+  buy: round4(reference * (1 - buyMarginPct / 100)),
+  sell: round4(reference * (1 + sellMarginPct / 100)),
+  buyMarginPct,
+  sellMarginPct,
+});
+
+/** Reconstruye el book desde app_config sin tocar BCRA. Devuelve null si falta algo. */
+function bookFromConfig(cfg: Record<string, unknown>): Record<FxForeign, FxCurrencyBook> | null {
+  const out = {} as Record<FxForeign, FxCurrencyBook>;
+  for (const currency of FOREIGN) {
+    const { buy: buyMarginPct, sell: sellMarginPct } = marginsFromConfig(cfg, currency);
+    const reference = num(cfg[`fx_${lc(currency)}_reference_ars`]);
+    const storedSell = num(cfg[`fx_${lc(currency)}_sell_ars`]) || num(cfg[`fx_${lc(currency)}_ars`]);
+    const storedBuy = num(cfg[`fx_${lc(currency)}_buy_ars`]);
+
+    if (reference > 0) {
+      out[currency] = buildCurrencyBook(reference, buyMarginPct, sellMarginPct);
+      continue;
+    }
+    if (storedSell > 0) {
+      // Sin referencia guardada: derivamos una referencia implícita desde la venta.
+      const implied = storedSell / (1 + sellMarginPct / 100);
+      out[currency] = {
+        reference: round4(implied),
+        buy: storedBuy > 0 ? round4(storedBuy) : round4(implied * (1 - buyMarginPct / 100)),
+        sell: round4(storedSell),
+        buyMarginPct,
+        sellMarginPct,
+      };
+      continue;
+    }
+    return null;
+  }
+  return out;
+}
+
+/**
+ * Devuelve la Cotización Reybaud vigente (Compra/Venta por moneda).
+ * Consulta BCRA como máximo una vez por día salvo `force`.
+ * Nunca escribe 0: ante falla de BCRA conserva la última cotización válida.
+ */
+export async function ensureCurrentFxBook(
+  supabase: SupabaseClient,
+  opts: { force?: boolean } = {},
+): Promise<FxBook> {
   const today = arDate();
   const cfg = await readConfig(supabase);
-  const cached = Object.fromEntries(
-    FOREIGN.map((c) => [c, num(cfg[`fx_${c.toLowerCase()}_ars`])]),
-  ) as Record<Exclude<FxCurrency, "ARS">, number>;
+  const cached = bookFromConfig(cfg);
+  const lastChecked = String(cfg.fx_last_checked_date || "");
 
-  if (String(cfg.fx_last_checked_date || "") === today && FOREIGN.every((c) => cached[c] > 0)) {
-    return cached;
+  if (!opts.force && cached && lastChecked === today) {
+    return {
+      currencies: cached,
+      source: String(cfg.fx_source || "BCRA"),
+      bcraDate: String(cfg.fx_bcra_date || ""),
+      lastCheckedDate: lastChecked,
+      updatedAt: String(cfg.fx_updated_at || ""),
+      fresh: true,
+      stale: false,
+    };
   }
 
   try {
@@ -60,48 +156,111 @@ export async function ensureCurrentFxRates(supabase: SupabaseClient) {
     const details = Array.isArray(body?.results?.detalle) ? body.results.detalle : [];
 
     const updates: Array<{ key: string; value: string; description: string }> = [];
-    const effective = {} as Record<Exclude<FxCurrency, "ARS">, number>;
+    const currencies = {} as Record<FxForeign, FxCurrencyBook>;
 
     for (const currency of FOREIGN) {
       const row = details.find((r: any) => String(r?.codigoMoneda || "").toUpperCase() === currency);
       const reference = num(row?.tipoCotizacion);
       if (reference <= 0) throw new Error(`BCRA no devolvió ${currency}`);
-      const marginKey = `fx_${currency.toLowerCase()}_margin_pct`;
-      const hasConfiguredMargin = Object.prototype.hasOwnProperty.call(cfg, marginKey);
-      const margin = hasConfiguredMargin ? Math.max(0, num(cfg[marginKey])) : DEFAULT_MARGIN[currency];
-      const rate = Math.round(reference * (1 + margin / 100) * 10000) / 10000;
-      effective[currency] = rate;
+      const { buy: buyMarginPct, sell: sellMarginPct } = marginsFromConfig(cfg, currency);
+      const book = buildCurrencyBook(reference, buyMarginPct, sellMarginPct);
+      currencies[currency] = book;
 
       updates.push(
-        { key: `fx_${currency.toLowerCase()}_reference_ars`, value: String(reference), description: `Referencia BCRA ${currency} → ARS` },
-        { key: marginKey, value: String(margin), description: `Margen de seguridad Reybaud para ${currency}` },
-        { key: `fx_${currency.toLowerCase()}_ars`, value: String(rate), description: `Cotización Reybaud ${currency} → ARS` },
+        { key: `fx_${lc(currency)}_reference_ars`, value: String(book.reference), description: `Referencia BCRA ${currency} → ARS` },
+        { key: `fx_${lc(currency)}_buy_margin_pct`, value: String(buyMarginPct), description: `Margen de compra Reybaud para ${currency}` },
+        { key: `fx_${lc(currency)}_sell_margin_pct`, value: String(sellMarginPct), description: `Margen de venta Reybaud para ${currency}` },
+        { key: `fx_${lc(currency)}_buy_ars`, value: String(book.buy), description: `Compra Reybaud ${currency} → ARS` },
+        { key: `fx_${lc(currency)}_sell_ars`, value: String(book.sell), description: `Venta Reybaud ${currency} → ARS` },
+        // Alias legado: siempre igual a la VENTA.
+        { key: `fx_${lc(currency)}_ars`, value: String(book.sell), description: `Cotización Reybaud ${currency} → ARS (alias de venta)` },
       );
     }
 
+    const updatedAt = new Date().toISOString();
+    const bcraDate = String(body?.results?.fecha || "");
     updates.push(
       { key: "fx_source", value: "BCRA", description: "Fuente de cotización de monedas" },
-      { key: "fx_bcra_date", value: String(body?.results?.fecha || ""), description: "Fecha de referencia informada por BCRA" },
+      { key: "fx_bcra_date", value: bcraDate, description: "Fecha de referencia informada por BCRA" },
       { key: "fx_last_checked_date", value: today, description: "Último día local en que se consultó BCRA" },
-      { key: "fx_updated_at", value: new Date().toISOString(), description: "Última actualización de Cotización Reybaud" },
+      { key: "fx_updated_at", value: updatedAt, description: "Última actualización de Cotización Reybaud" },
     );
 
     const { error } = await supabase.from("app_config").upsert(updates as any, { onConflict: "key" });
     if (error) throw error;
-    return effective;
+
+    return {
+      currencies,
+      source: "BCRA",
+      bcraDate,
+      lastCheckedDate: today,
+      updatedAt,
+      fresh: true,
+      stale: false,
+    };
   } catch (error) {
     console.error("[fx-rates] No se pudo actualizar desde BCRA; se conserva la última cotización válida", error);
-    if (FOREIGN.every((c) => cached[c] > 0)) return cached;
+    if (cached) {
+      return {
+        currencies: cached,
+        source: String(cfg.fx_source || "BCRA"),
+        bcraDate: String(cfg.fx_bcra_date || ""),
+        lastCheckedDate: lastChecked,
+        updatedAt: String(cfg.fx_updated_at || ""),
+        fresh: false,
+        stale: true,
+      };
+    }
     throw new Error("No hay una Cotización Reybaud válida disponible");
   }
 }
 
-export async function getReybaudFxRate(supabase: SupabaseClient, currency: string): Promise<number> {
+/** Compatibilidad: mapa de VENTA por moneda extranjera. */
+export async function ensureCurrentFxRates(supabase: SupabaseClient) {
+  const book = await ensureCurrentFxBook(supabase);
+  return Object.fromEntries(
+    FOREIGN.map((c) => [c, book.currencies[c].sell]),
+  ) as Record<FxForeign, number>;
+}
+
+/** ARS por unidad de `currency` según el lado indicado (venta por defecto). */
+export async function getReybaudFxRate(
+  supabase: SupabaseClient,
+  currency: string,
+  side: FxSide = "sell",
+): Promise<number> {
   const code = String(currency || "ARS").toUpperCase() as FxCurrency;
   if (code === "ARS") return 1;
-  if (!FOREIGN.includes(code as Exclude<FxCurrency, "ARS">)) throw new Error(`Moneda no soportada: ${code}`);
-  const rates = await ensureCurrentFxRates(supabase);
-  const rate = rates[code as Exclude<FxCurrency, "ARS">];
-  if (!rate || rate <= 0) throw new Error(`Sin cotización vigente para ${code}`);
+  if (!FOREIGN.includes(code as FxForeign)) throw new Error(`Moneda no soportada: ${code}`);
+  const book = await ensureCurrentFxBook(supabase);
+  const rate = book.currencies[code as FxForeign][side];
+  if (!rate || rate <= 0) throw new Error(`Sin cotización vigente para ${code} (${side})`);
   return rate;
+}
+
+/**
+ * Convierte un monto expresado en `fromCurrency` (obligación) a `toCurrency` (moneda de pago).
+ * Reglas Reybaud: vendemos la moneda de la obligación, compramos la moneda que entrega el cliente.
+ */
+export function convertWithBook(
+  book: FxBook,
+  amount: number,
+  fromCurrency: string,
+  toCurrency: string,
+): { amount: number; rate: number; sideFrom: FxSide | null; sideTo: FxSide | null } {
+  const from = String(fromCurrency || "ARS").toUpperCase();
+  const to = String(toCurrency || "ARS").toUpperCase();
+  if (from === to) return { amount, rate: 1, sideFrom: null, sideTo: null };
+
+  const arsPerFrom = from === "ARS" ? 1 : book.currencies[from as FxForeign]?.sell;
+  const arsPerTo = to === "ARS" ? 1 : book.currencies[to as FxForeign]?.buy;
+  if (!arsPerFrom || !arsPerTo) throw new Error("Sin cotización vigente para la conversión pedida");
+
+  const rate = arsPerFrom / arsPerTo;
+  return {
+    amount: amount * rate,
+    rate,
+    sideFrom: from === "ARS" ? null : "sell",
+    sideTo: to === "ARS" ? null : "buy",
+  };
 }
