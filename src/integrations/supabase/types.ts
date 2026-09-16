@@ -14974,6 +14974,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      alumno_puede_ver_entrenamientos: {
+        Args: { _alumno_id: string }
+        Returns: boolean
+      }
       announce_cash_payment: {
         Args: {
           _fecha_limite: string
