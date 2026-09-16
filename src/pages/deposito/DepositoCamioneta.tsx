@@ -935,7 +935,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             <Metric label="Visto" value={resumenChequeo.visto} tone="ok" />
             <Metric label="Faltantes" value={resumenChequeo.faltantes} tone="danger" />
             <Metric label="Sobrantes" value={resumenChequeo.sobrantes} tone="warning" />
-            <Metric label="Líneas registradas" value={`${resumenChequeo.registradas}/${resumenChequeo.total}`} />
+            <Metric label={`Líneas registradas (de ${resumenChequeo.total})`} value={resumenChequeo.registradas} />
           </div>
 
           {lineasLoading ? (
