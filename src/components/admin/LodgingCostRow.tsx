@@ -285,8 +285,8 @@ export default function LodgingCostRow({
             <Input className="h-9" value={`${capacidad} plazas`} readOnly disabled />
           </div>
           <div className="space-y-1">
-            <Label className="text-xs">Esperados</Label>
-            <Input className="h-9" value={pax} readOnly disabled />
+            <Label className="text-xs">Escenario activo</Label>
+            <Input className="h-9" value={`${escenarioPax} inscriptos`} readOnly disabled />
           </div>
         </div>
       )}
