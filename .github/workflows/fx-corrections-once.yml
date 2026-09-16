@@ -1,0 +1,181 @@
+name: FX corrections once
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fx-corrections-once.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-validate:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - name: Apply targeted corrections
+        shell: bash
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+
+          def replace(path, old, new):
+              p = Path(path)
+              text = p.read_text()
+              if old not in text:
+                  raise SystemExit(f'Expected block not found in {path}')
+              p.write_text(text.replace(old, new, 1))
+
+          # 1) Persist current FX values directly in the cost simulator.
+          replace(
+              'src/components/admin/EventCostSimulator.tsx',
+              '''  /** Aplica la VENTA Reybaud vigente a los supuestos TC USD/EUR de esta simulación. */
+  const aplicarCotizacionVigente = () => {
+    if (!current || !fxBook) return;
+    patchCurrent({
+      tc_usd: fxBook.currencies.USD.sell,
+      tc_eur: fxBook.currencies.EUR.sell,
+    });
+    setTimeout(guardarCambios, 0);
+  };''',
+              '''  /** Aplica y persiste la VENTA Reybaud vigente en los supuestos USD/EUR. */
+  const aplicarCotizacionVigente = async () => {
+    if (!current || !fxBook) return;
+    const patch = {
+      tc_usd: fxBook.currencies.USD.sell,
+      tc_eur: fxBook.currencies.EUR.sell,
+    };
+    patchCurrent(patch);
+    const { error } = await supabase.from("event_cost_simulations")
+      .update(patch)
+      .eq("id", current.id);
+    if (error) {
+      toast({ title: "No se pudo aplicar la cotización", description: error.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: "Cotización vigente aplicada" });
+  };'''
+          )
+
+          # 2) Preserve cents in foreign-currency calculator results.
+          replace(
+              'src/components/admin/FxRatesCard.tsx',
+              'import { formatPrice } from "@/lib/currency";\n',
+              '''const formatPaymentAmount = (amount: number, currency: string) =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: currency === "ARS" ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);\n'''
+          )
+          replace(
+              'src/components/admin/FxRatesCard.tsx',
+              '''                    {formatPrice(Math.round(resultado.amount * 100) / 100, monedaPago)}
+                    <span className="text-sm font-normal text-muted-foreground ml-2">{monedaPago}</span>''',
+              '''                    {formatPaymentAmount(resultado.amount, monedaPago)}'''
+          )
+
+          # 3) Strict margin validation and operational timestamp on save.
+          replace(
+              'src/components/store/StoreFxConfig.tsx',
+              '''const asNumber = (v: unknown) => Number(typeof v === "string" ? v.replace(",", ".") : v) || 0;
+const round4 = (v: number) => Math.round(v * 10000) / 10000;''',
+              '''const asNumber = (v: unknown) => Number(typeof v === "string" ? v.replace(",", ".") : v) || 0;
+const parseMargin = (raw: string | undefined, label: string) => {
+  if (raw == null || raw.trim() === "") throw new Error(`Completá ${label}`);
+  const value = Number(raw.replace(",", "."));
+  if (!Number.isFinite(value)) throw new Error(`${label} debe ser un número válido`);
+  return value;
+};
+const round4 = (v: number) => Math.round(v * 10000) / 10000;'''
+          )
+          replace(
+              'src/components/store/StoreFxConfig.tsx',
+              '''        const buyMargin = asNumber(margins[code]?.buy);
+        const sellMargin = asNumber(margins[code]?.sell);
+        if (buyMargin < 0 || sellMargin < 0) throw new Error(`Los márgenes de ${code} no pueden ser negativos`);''',
+              '''        const buyMargin = parseMargin(margins[code]?.buy, `el margen Compra de ${code}`);
+        const sellMargin = parseMargin(margins[code]?.sell, `el margen Venta de ${code}`);
+        if (buyMargin < 0 || buyMargin >= 100) throw new Error(`El margen Compra de ${code} debe estar entre 0% y 99,99%`);
+        if (sellMargin < 0) throw new Error(`El margen Venta de ${code} no puede ser negativo`);'''
+          )
+          replace(
+              'src/components/store/StoreFxConfig.tsx',
+              '''      const { error: upErr } = await supabase.from("app_config").upsert(rows as any, { onConflict: "key" });''',
+              '''      rows.push({
+        key: "fx_updated_at",
+        value: new Date().toISOString(),
+        description: "Última actualización de Cotización Reybaud",
+      });
+      const { error: upErr } = await supabase.from("app_config").upsert(rows as any, { onConflict: "key" });'''
+          )
+          replace(
+              'src/components/store/StoreFxConfig.tsx',
+              '''                    type="number" min={0} step="0.1"
+                    value={m.buy}''',
+              '''                    type="number" min={0} max={99.99} step="0.1"
+                    value={m.buy}'''
+          )
+
+          # 4) Backend clamp: Compra can never reach/exceed 100%; Venta never negative.
+          replace(
+              'supabase/functions/_shared/fx-rates.ts',
+              '''const round4 = (v: number) => Math.round(v * 10000) / 10000;
+const lc = (c: string) => c.toLowerCase();''',
+              '''const round4 = (v: number) => Math.round(v * 10000) / 10000;
+const clampBuyMargin = (v: number) => Math.min(99.99, Math.max(0, Number.isFinite(v) ? v : 0));
+const clampSellMargin = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
+const lc = (c: string) => c.toLowerCase();'''
+          )
+          replace(
+              'supabase/functions/_shared/fx-rates.ts',
+              '''  const legacy = hasLegacy ? Math.max(0, num(cfg[legacyKey])) : DEFAULT_MARGIN[currency];
+  const buyKey = `fx_${lc(currency)}_buy_margin_pct`;
+  const sellKey = `fx_${lc(currency)}_sell_margin_pct`;
+  const buy = Object.prototype.hasOwnProperty.call(cfg, buyKey)
+    ? Math.max(0, num(cfg[buyKey]))
+    : legacy;
+  const sell = Object.prototype.hasOwnProperty.call(cfg, sellKey)
+    ? Math.max(0, num(cfg[sellKey]))
+    : legacy;
+  return { buy, sell };''',
+              '''  const legacyRaw = hasLegacy ? num(cfg[legacyKey]) : DEFAULT_MARGIN[currency];
+  const buyKey = `fx_${lc(currency)}_buy_margin_pct`;
+  const sellKey = `fx_${lc(currency)}_sell_margin_pct`;
+  const buyRaw = Object.prototype.hasOwnProperty.call(cfg, buyKey) ? num(cfg[buyKey]) : legacyRaw;
+  const sellRaw = Object.prototype.hasOwnProperty.call(cfg, sellKey) ? num(cfg[sellKey]) : legacyRaw;
+  return { buy: clampBuyMargin(buyRaw), sell: clampSellMargin(sellRaw) };'''
+          )
+          PY
+
+          git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npx tsgo --noEmit -p tsconfig.app.json
+      - name: Build
+        run: npm run build
+      - name: Tests
+        run: npx vitest run
+      - name: Commit validated corrections
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/components/admin/EventCostSimulator.tsx src/components/admin/FxRatesCard.tsx src/components/store/StoreFxConfig.tsx supabase/functions/_shared/fx-rates.ts
+          git commit -m "fix: harden FX conversion and persistence"
+          git push origin HEAD:main
