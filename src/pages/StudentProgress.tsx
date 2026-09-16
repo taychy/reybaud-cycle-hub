@@ -19,6 +19,7 @@ export const StudentProgressContent = () => {
   const [loading, setLoading] = useState(true);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [grupo, setGrupo] = useState<string | null>(null);
+  const [estadoAlumno, setEstadoAlumno] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -137,9 +138,9 @@ export const StudentProgressContent = () => {
   // Reload session history when refreshKey changes
   useEffect(() => {
     if (alumnoId && grupo && refreshKey > 0) {
-      loadDetails(alumnoId, grupo);
+      loadDetails(alumnoId, grupo, estadoAlumno);
     }
-  }, [refreshKey, alumnoId, grupo, loadDetails]);
+  }, [refreshKey, alumnoId, grupo, estadoAlumno, loadDetails]);
 
   useEffect(() => {
     let cancelled = false;
@@ -147,14 +148,14 @@ export const StudentProgressContent = () => {
     const resolveAlumno = async (userId: string, userEmail: string) => {
       let alumno = (await supabase
         .from("alumnos")
-        .select("id, grupo")
+        .select("id, grupo, estado")
         .eq("user_id", userId)
         .maybeSingle()).data;
 
       if (!alumno) {
         alumno = (await supabase
           .from("alumnos")
-          .select("id, grupo")
+          .select("id, grupo, estado")
           .eq("email", userEmail)
           .maybeSingle()).data;
       }
@@ -165,7 +166,8 @@ export const StudentProgressContent = () => {
 
       setAlumnoId(alumno.id);
       setGrupo(alumno.grupo);
-      await loadDetails(alumno.id, alumno.grupo);
+      setEstadoAlumno(alumno.estado);
+      await loadDetails(alumno.id, alumno.grupo, alumno.estado);
       if (!cancelled) setLoading(false);
     };
 
