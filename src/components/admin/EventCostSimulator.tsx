@@ -711,14 +711,8 @@ export default function EventCostSimulator({ eventId }: Props) {
   };
   const aplicarPrecios = async () => {
     if (!calculo || !current) return;
-    if (!calculo.distribucion_valida) {
-      toast({
-        title: "Distribución desalineada",
-        description: `El escenario activo tiene ${calculo.escenario_inscriptos} participantes y la distribución suma ${calculo.distribucion_total}. Alineala antes de aplicar precios.`,
-        variant: "destructive",
-      });
-      return;
-    }
+    // La distribución por paquetes no bloquea la aplicación de precios.
+
     const targets = modalidades.filter((m) => applyMap[m.key] && modalidadAplicable(m.key));
 
     if (targets.length === 0) {
