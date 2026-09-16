@@ -139,13 +139,15 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         tone: "warn",
       });
     }
-    if (esHoy && !vanHoy) {
+    if (esHoy && !chequeoHechoHoy) {
       cards.push({
         key: "camioneta",
         icon: Package,
         count: 1,
         title: "Chequeo de camioneta pendiente",
-        desc: "Todavía no cargaste el chequeo de cajas de hoy.",
+        desc: vanHoy
+          ? "Hay carga de hoy pero todavía no se cerró el chequeo físico."
+          : "Todavía no hay carga ni chequeo físico de hoy.",
         cta: "Iniciar chequeo",
         to: "/deposito/camioneta",
         tone: "warn",
