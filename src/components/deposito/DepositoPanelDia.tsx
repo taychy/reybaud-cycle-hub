@@ -88,13 +88,19 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     const esHoy = dia === todayStr();
     const fin = addDays(hoy, 7);
 
-    const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, stockRes] = await Promise.all([
+    const [ordersRes, deliveriesRes, cambiosRes, supplierRes, vanRes, stockRes, chequeosRes] = await Promise.all([
       sb.from("store_orders").select("id, order_number, customer_name, status, created_at").eq("status", "pagado"),
       sb.from("delivery_lists").select("id, titulo, fecha_entrega, estado").eq("estado", "abierta"),
       sb.from("store_cambios").select("id, estado").in("estado", ["aprobado", "en_deposito", "listo_retiro"]),
       sb.from("supplier_orders").select("id, numero, proveedor_nombre, estado, fecha_estimada_entrega").not("estado", "in", "(cerrado,cancelado)"),
       sb.from("vehiculo_cargas").select("id, fecha_salida, estado").order("fecha_salida", { ascending: false }).limit(5),
       sb.from("store_products").select("id, stock, min_stock").eq("status", "active"),
+      sb
+        .from("vehiculo_chequeos")
+        .select("id, closed_at")
+        .eq("estado", "cerrado")
+        .gte("closed_at", dayStartIso(hoy))
+        .lt("closed_at", dayEndIso(hoy)),
     ]);
 
     const orders = ordersRes.data || [];
