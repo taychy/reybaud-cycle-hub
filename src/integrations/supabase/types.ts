@@ -9581,6 +9581,7 @@ export type Database = {
           created_at: string
           currency: string
           id: string
+          noche_timing: string | null
           notas: string | null
           precio_unitario: number
           reservation_id: string
@@ -9594,6 +9595,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          noche_timing?: string | null
           notas?: string | null
           precio_unitario?: number
           reservation_id: string
@@ -9607,6 +9609,7 @@ export type Database = {
           created_at?: string
           currency?: string
           id?: string
+          noche_timing?: string | null
           notas?: string | null
           precio_unitario?: number
           reservation_id?: string
