@@ -850,6 +850,42 @@ export default function EventCostSimulator({ eventId }: Props) {
 
           {/* ============ ESTIMADO ============ */}
           <TabsContent value="estimado" className="space-y-6 pt-4">
+            {/* Cotización Reybaud vigente (referencia central) */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm">Cotización Reybaud hoy</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {fxBook ? (
+                  <>
+                    <div className="flex flex-wrap gap-3 text-xs">
+                      {FX_FOREIGN.map((code) => (
+                        <span key={code} className="rounded-md border border-border/60 px-2 py-1">
+                          <b>{code}</b> · Compra {formatFxArs(fxBook.currencies[code].buy)} · Venta {formatFxArs(fxBook.currencies[code].sell)}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      {fxBook.fresh ? "🟢" : "🟠"} {fxStatusLabel(fxBook)}
+                      {fxBook.bcraDate ? ` · Referencia BCRA ${fxBook.bcraDate}` : ""}
+                    </p>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" variant="outline" onClick={aplicarCotizacionVigente}>
+                        Usar cotización vigente en este presupuesto
+                      </Button>
+                      <span className="text-[11px] text-muted-foreground">
+                        Se aplican valores Venta para estimar el costo de adquirir moneda extranjera.
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    {fxError || "Cargando cotización vigente…"}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+
             {/* Supuestos */}
             <Card>
               <CardHeader><CardTitle className="text-sm">Supuestos financieros</CardTitle></CardHeader>
