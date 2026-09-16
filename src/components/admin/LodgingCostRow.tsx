@@ -331,7 +331,7 @@ export default function LodgingCostRow({
                     </Button>
                   </div>
                   <div className="col-span-12 md:col-span-4 text-[11px] text-muted-foreground pb-1">
-                    {pax >= tramo.min && (tramo.max == null || pax <= tramo.max) ? "Tarifa aplicada ahora" : ""}
+                    {escenarioPax >= tramo.min && (tramo.max == null || escenarioPax <= tramo.max) ? "Tarifa aplicada ahora" : ""}
                   </div>
                 </div>
               ))}
