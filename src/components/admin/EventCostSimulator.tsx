@@ -965,8 +965,8 @@ export default function EventCostSimulator({ eventId }: Props) {
                   </p>
                   {escenarioActivo && sumaDistribucion !== escenarioActivo.inscriptos && (
                     <p className="text-xs text-amber-500">
-                      El escenario activo tiene {escenarioActivo.inscriptos} participantes pero la distribución suma {sumaDistribucion}:
-                      no se muestran ingreso, ganancia ni margen del escenario hasta que coincidan. Los precios base y suplementos sí son válidos.
+                      Asigná las {escenarioActivo.inscriptos} ventas simuladas entre los paquetes para proyectar
+                      ingreso, ganancia y margen. Actualmente hay {sumaDistribucion} asignadas.
                     </p>
                   )}
 
