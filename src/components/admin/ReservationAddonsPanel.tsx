@@ -9,6 +9,8 @@ import {
 } from "@/components/ui/select";
 import { Loader2, Plus, Trash2, ShoppingBag } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { isNocheExtra, unidadesPorTiming, nocheTimingShortLabel, NOCHE_TIMING_OPTIONS, type NocheTiming } from "@/lib/nocheExtra";
+
 
 interface Addon {
   id: string;
