@@ -89,7 +89,7 @@ export function packageRoomsInfo(pkgId: string, rooms: LodgingRoom[], pkg?: Lodg
 }
 
 export default function LodgingCostRow({
-  item, packages, rooms, monedaBase, nochesDefault, esperados, reservasActivas,
+  item, packages, rooms, monedaBase, nochesDefault, esperados, scenarioParticipants, reservasActivas,
   onUpdate, onDelete, onRenamePackage, onSyncStructure,
 }: Props) {
   const det: CostItemDetalle = item.detalle || {};
