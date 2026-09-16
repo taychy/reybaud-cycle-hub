@@ -22,8 +22,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: npm
+          node-version: '24'
 
       - name: Apply targeted patch
         run: python3 .github/scripts/fix-event-fx-persist.py
@@ -31,8 +30,8 @@ jobs:
       - name: Check diff
         run: git diff --check
 
-      - name: Install dependencies
-        run: npm ci
+      - name: Install dependencies without touching lockfile
+        run: npm install --package-lock=false --no-audit --no-fund
 
       - name: Typecheck
         run: npx tsgo --noEmit -p tsconfig.app.json
