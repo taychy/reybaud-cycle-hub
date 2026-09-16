@@ -15,6 +15,7 @@ import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
 import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
+import TripTokenExtrasCard from "@/components/reservation/TripTokenExtrasCard";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 
 interface ReservationData {
@@ -292,6 +293,9 @@ const ExternalTripView = () => {
             )}
           </div>
         )}
+
+        {/* Extras */}
+        <TripTokenExtrasCard eventId={event.id} />
 
         {/* Financial summary */}
         {total > 0 && (
