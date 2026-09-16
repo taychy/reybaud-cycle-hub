@@ -62,7 +62,9 @@ const TripExtrasDrawer = ({
   const [addons, setAddons] = useState<Addon[]>([]);
   const [contracted, setContracted] = useState<ContractedAddon[]>([]);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
+  const [timings, setTimings] = useState<Record<string, NocheTiming | null>>({});
   const [checklistRowId, setChecklistRowId] = useState<string | null>(null);
+
 
   useEffect(() => {
     if (!open) return;
