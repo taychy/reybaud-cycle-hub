@@ -506,6 +506,11 @@ const ValidatePaymentDrawer = ({
                   {sameCurrency && (
                     <p className="text-[10px] text-muted-foreground">Misma moneda: cotización fija en 1.</p>
                   )}
+                  {!sameCurrency && fxSuggested && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Sugerida desde la Cotización Reybaud vigente ({fxSuggested}). Podés modificarla.
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label className="text-xs text-muted-foreground">Equivalente reconocido ({evCurr}) *</Label>
