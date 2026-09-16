@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTrainingScope } from "@/lib/weeklyTraining";
+import { puedeVerEntrenamientos } from "@/lib/trainingAccess";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -25,12 +26,23 @@ export const StudentProgressContent = () => {
   const progress = useMonthlyProgress(alumnoId, grupo, refreshKey);
   const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
-  const loadDetails = useCallback(async (aId: string, grp: string) => {
+  const loadDetails = useCallback(async (aId: string, grp: string, estado?: string | null) => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const fromDate = firstDay.toISOString().split("T")[0];
     const toDate = lastDay.toISOString().split("T")[0];
+
+    // El grupo no otorga acceso por sí solo.
+    const { data: subsAcceso } = await supabase
+      .from("suscripciones")
+      .select("estado, cancelada_at")
+      .eq("alumno_id", aId);
+
+    if (!puedeVerEntrenamientos(estado, subsAcceso || [])) {
+      setSessions([]);
+      return;
+    }
 
     let trainingsQuery = supabase
       .from("entrenamientos")
