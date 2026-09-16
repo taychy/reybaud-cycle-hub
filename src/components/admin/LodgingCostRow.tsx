@@ -46,6 +46,8 @@ interface Props {
   monedaBase: string;
   nochesDefault: number;
   esperados: Record<string, number>;
+  /** Total de inscriptos del escenario activo: define la tarifa por tramos. */
+  scenarioParticipants: number;
   reservasActivas?: Record<string, number>;
   onUpdate: (patch: Record<string, any>) => void;
   onDelete: () => void;
