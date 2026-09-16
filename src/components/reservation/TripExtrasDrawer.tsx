@@ -101,16 +101,22 @@ const TripExtrasDrawer = ({
       const loadedAddons = (addonRows as unknown as Addon[]) || [];
       const loadedContracted = (contractedRows as unknown as ContractedAddon[]) || [];
       const nextQuantities: Record<string, number> = {};
+      const nextTimings: Record<string, NocheTiming | null> = {};
       loadedAddons.forEach((addon) => {
         const current = loadedContracted.find((row) => row.addon_id === addon.id);
         nextQuantities[addon.id] = current?.cantidad || 0;
+        if (isNocheExtra(addon.nombre)) {
+          nextTimings[addon.id] = (current?.noche_timing as NocheTiming | null) || null;
+        }
       });
 
       setAddons(loadedAddons);
       setContracted(loadedContracted);
       setQuantities(nextQuantities);
+      setTimings(nextTimings);
       setChecklistRowId((checklistRow as any)?.id || null);
       setLoading(false);
+
     };
 
     load();
