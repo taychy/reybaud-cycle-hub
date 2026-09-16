@@ -377,7 +377,7 @@ export default function LodgingCostRow({
 
             {siguienteTramo && (
               <div className="text-xs text-amber-500">
-                Faltan {Math.max(0, siguienteTramo.min - pax)} participante(s) para desbloquear la tarifa de {formatPrice(siguienteTramo.precio, item.moneda || monedaBase)} por participante.
+                Faltan {Math.max(0, siguienteTramo.min - escenarioPax)} participante(s) para desbloquear la tarifa de {formatPrice(siguienteTramo.precio, item.moneda || monedaBase)} por participante.
               </div>
             )}
           </div>
