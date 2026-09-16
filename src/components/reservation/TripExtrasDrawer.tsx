@@ -184,7 +184,9 @@ const TripExtrasDrawer = ({
       const { data: { user } } = await supabase.auth.getUser();
 
       for (const addon of addons) {
-        const quantity = quantities[addon.id] || 0;
+        const esNoche = isNocheExtra(addon.nombre);
+        const timing = esNoche ? (timings[addon.id] || null) : null;
+        const quantity = esNoche ? unidadesPorTiming(timing) : (quantities[addon.id] || 0);
         const existing = contracted.find((row) => row.addon_id === addon.id);
 
         if (existing && quantity <= 0) {
@@ -195,6 +197,7 @@ const TripExtrasDrawer = ({
             cantidad: quantity,
             precio_unitario: addon.precio,
             currency: addon.currency,
+            ...(esNoche ? { noche_timing: timing } : {}),
           }).eq("id", existing.id);
           if (error) throw error;
         } else if (!existing && quantity > 0) {
@@ -205,10 +208,12 @@ const TripExtrasDrawer = ({
             precio_unitario: addon.precio,
             currency: addon.currency,
             added_by: user?.id,
+            ...(esNoche ? { noche_timing: timing } : {}),
           });
           if (error) throw error;
         }
       }
+
 
       await markChecklistComplete();
       toast.success("Configuración guardada");
