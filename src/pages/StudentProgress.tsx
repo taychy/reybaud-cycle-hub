@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTrainingScope } from "@/lib/weeklyTraining";
+import { puedeVerEntrenamientos } from "@/lib/trainingAccess";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -18,6 +19,7 @@ export const StudentProgressContent = () => {
   const [loading, setLoading] = useState(true);
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
   const [grupo, setGrupo] = useState<string | null>(null);
+  const [estadoAlumno, setEstadoAlumno] = useState<string | null>(null);
   const [sessions, setSessions] = useState<SessionRecord[]>([]);
   const [feedback, setFeedback] = useState<FeedbackRecord[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -25,12 +27,23 @@ export const StudentProgressContent = () => {
   const progress = useMonthlyProgress(alumnoId, grupo, refreshKey);
   const handleProgressUpdate = useCallback(() => setRefreshKey(k => k + 1), []);
 
-  const loadDetails = useCallback(async (aId: string, grp: string) => {
+  const loadDetails = useCallback(async (aId: string, grp: string, estado?: string | null) => {
     const now = new Date();
     const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
     const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     const fromDate = firstDay.toISOString().split("T")[0];
     const toDate = lastDay.toISOString().split("T")[0];
+
+    // El grupo no otorga acceso por sí solo.
+    const { data: subsAcceso } = await supabase
+      .from("suscripciones")
+      .select("estado, cancelada_at")
+      .eq("alumno_id", aId);
+
+    if (!puedeVerEntrenamientos(estado, subsAcceso || [])) {
+      setSessions([]);
+      return;
+    }
 
     let trainingsQuery = supabase
       .from("entrenamientos")
@@ -125,9 +138,9 @@ export const StudentProgressContent = () => {
   // Reload session history when refreshKey changes
   useEffect(() => {
     if (alumnoId && grupo && refreshKey > 0) {
-      loadDetails(alumnoId, grupo);
+      loadDetails(alumnoId, grupo, estadoAlumno);
     }
-  }, [refreshKey, alumnoId, grupo, loadDetails]);
+  }, [refreshKey, alumnoId, grupo, estadoAlumno, loadDetails]);
 
   useEffect(() => {
     let cancelled = false;
@@ -135,14 +148,14 @@ export const StudentProgressContent = () => {
     const resolveAlumno = async (userId: string, userEmail: string) => {
       let alumno = (await supabase
         .from("alumnos")
-        .select("id, grupo")
+        .select("id, grupo, estado")
         .eq("user_id", userId)
         .maybeSingle()).data;
 
       if (!alumno) {
         alumno = (await supabase
           .from("alumnos")
-          .select("id, grupo")
+          .select("id, grupo, estado")
           .eq("email", userEmail)
           .maybeSingle()).data;
       }
@@ -153,7 +166,8 @@ export const StudentProgressContent = () => {
 
       setAlumnoId(alumno.id);
       setGrupo(alumno.grupo);
-      await loadDetails(alumno.id, alumno.grupo);
+      setEstadoAlumno(alumno.estado);
+      await loadDetails(alumno.id, alumno.grupo, alumno.estado);
       if (!cancelled) setLoading(false);
     };
 
