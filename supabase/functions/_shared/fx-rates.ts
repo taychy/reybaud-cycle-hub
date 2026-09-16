@@ -35,6 +35,8 @@ const num = (value: unknown): number => {
 };
 
 const round4 = (v: number) => Math.round(v * 10000) / 10000;
+const clampBuyMargin = (v: number) => Math.min(99.99, Math.max(0, Number.isFinite(v) ? v : 0));
+const clampSellMargin = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
 const lc = (c: string) => c.toLowerCase();
 
 const arDate = () => {
@@ -73,16 +75,12 @@ async function readConfig(supabase: SupabaseClient) {
 const marginsFromConfig = (cfg: Record<string, unknown>, currency: FxForeign) => {
   const legacyKey = `fx_${lc(currency)}_margin_pct`;
   const hasLegacy = Object.prototype.hasOwnProperty.call(cfg, legacyKey);
-  const legacy = hasLegacy ? Math.max(0, num(cfg[legacyKey])) : DEFAULT_MARGIN[currency];
+  const legacyRaw = hasLegacy ? num(cfg[legacyKey]) : DEFAULT_MARGIN[currency];
   const buyKey = `fx_${lc(currency)}_buy_margin_pct`;
   const sellKey = `fx_${lc(currency)}_sell_margin_pct`;
-  const buy = Object.prototype.hasOwnProperty.call(cfg, buyKey)
-    ? Math.max(0, num(cfg[buyKey]))
-    : legacy;
-  const sell = Object.prototype.hasOwnProperty.call(cfg, sellKey)
-    ? Math.max(0, num(cfg[sellKey]))
-    : legacy;
-  return { buy, sell };
+  const buyRaw = Object.prototype.hasOwnProperty.call(cfg, buyKey) ? num(cfg[buyKey]) : legacyRaw;
+  const sellRaw = Object.prototype.hasOwnProperty.call(cfg, sellKey) ? num(cfg[sellKey]) : legacyRaw;
+  return { buy: clampBuyMargin(buyRaw), sell: clampSellMargin(sellRaw) };
 };
 
 const buildCurrencyBook = (reference: number, buyMarginPct: number, sellMarginPct: number): FxCurrencyBook => ({
