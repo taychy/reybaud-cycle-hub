@@ -500,17 +500,54 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       setScannedIds(new Set(((scans as any[]) || []).map((s) => s.item_id)));
     } else {
       setScannedIds(new Set());
-      setDiff([]);
+      setLineas([]);
+      setVistoDraft({});
     }
     return abierta;
   };
 
-  const loadDiff = async (chequeoId: string) => {
-    setDiffLoading(true);
-    const { data, error } = await (supabase as any).rpc("get_vehiculo_chequeo_diff", { _chequeo_id: chequeoId });
-    setDiffLoading(false);
+  /** Lista lo que el sistema dice que está cargado, con lo observado hasta ahora. */
+  const loadLineas = async (chequeoId: string) => {
+    setLineasLoading(true);
+    const { data, error } = await (supabase as any).rpc("get_vehiculo_chequeo_lineas", { _chequeo_id: chequeoId });
+    setLineasLoading(false);
     if (error) { toast.error(error.message); return; }
-    setDiff(((data as any[]) || []) as DiffRow[]);
+    const rows = ((data as any[]) || []) as LineaChequeo[];
+    setLineas(rows);
+    setVistoDraft((prev) => {
+      const next = { ...prev };
+      rows.forEach((l) => {
+        if (l.registrado) next[l.item_id] = String(l.visto ?? 0);
+        else if (next[l.item_id] === undefined) next[l.item_id] = "";
+      });
+      return next;
+    });
+  };
+
+  /** Guarda por línea la cantidad observada, quién la registró y cuándo. */
+  const registrarLineas = async (rows: { item_id: string; cantidad: number }[]) => {
+    if (!chequeo || rows.length === 0) return;
+    const { data: userRes } = await supabase.auth.getUser();
+    const now = new Date().toISOString();
+    const { error } = await (supabase as any).from("vehiculo_chequeo_scans").upsert(
+      rows.map((r) => ({
+        chequeo_id: chequeo.id,
+        item_id: r.item_id,
+        cantidad_vista: Math.max(0, Math.floor(r.cantidad) || 0),
+        scanned_by: userRes.user?.id ?? null,
+        scanned_at: now,
+      })),
+      { onConflict: "chequeo_id,item_id" },
+    );
+    if (error) { toast.error("No se pudo guardar lo observado"); return; }
+    setScannedIds((prev) => new Set([...prev, ...rows.map((r) => r.item_id)]));
+    await loadLineas(chequeo.id);
+  };
+
+  const estaTodo = async () => {
+    if (!chequeo) return;
+    await registrarLineas(lineas.map((l) => ({ item_id: l.item_id, cantidad: Number(l.esperado) || 0 })));
+    toast.success("Registrado: veo todo lo esperado");
   };
 
   const iniciarRonda = async () => {
@@ -519,21 +556,24 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     const row = (Array.isArray(data) ? data[0] : data) as Chequeo;
     setChequeo(row);
     await loadRondas();
+    await loadLineas(row.id);
     setScanCount(0);
-    setScannerOpen(true);
-    toast.success(row.tipo === "inicial" ? `Ronda 1 · Registro inicial` : `Ronda ${row.ronda} · Control`);
+    toast.success(row.tipo === "inicial" ? `Chequeo iniciado` : `Chequeo ${row.ronda} iniciado`);
   };
 
   const cerrarRonda = async () => {
     if (!chequeo) return;
-    if (!confirm("¿Cerrar la ronda? Se aplicarán entregas y faltantes según el cruce.")) return;
+    if (!confirm("¿Cerrar el chequeo? Solo se guarda lo observado: no cambia stock, pedidos ni entregas.")) return;
     setClosingRonda(true);
-    const { error } = await (supabase as any).rpc("close_vehiculo_chequeo", { _chequeo_id: chequeo.id, _notas: rondaNotas || null });
+    const { error } = await (supabase as any).rpc("close_vehiculo_chequeo_observacional", {
+      _chequeo_id: chequeo.id, _notas: rondaNotas || null,
+    });
     setClosingRonda(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Ronda cerrada y cruzada con lo informado por el entregador");
+    toast.success("Chequeo cerrado: quedó guardada la foto de lo observado");
     setRondaNotas("");
-    setDiff([]);
+    setLineas([]);
+    setVistoDraft({});
     await Promise.all([load(), loadRondas()]);
   };
 
