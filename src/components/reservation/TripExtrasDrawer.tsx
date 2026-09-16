@@ -138,6 +138,13 @@ const TripExtrasDrawer = ({
     setQuantities((prev) => ({ ...prev, [addon.id]: safe }));
   };
 
+  const setAddonTiming = (addon: Addon, value: string) => {
+    const timing = value === "ninguna" ? null : (value as NocheTiming);
+    setTimings((prev) => ({ ...prev, [addon.id]: timing }));
+    setQuantities((prev) => ({ ...prev, [addon.id]: unidadesPorTiming(timing) }));
+  };
+
+
   const markChecklistComplete = async () => {
     const selected = addons
       .filter((addon) => (quantities[addon.id] || 0) > 0)
