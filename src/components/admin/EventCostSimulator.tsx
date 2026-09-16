@@ -195,22 +195,8 @@ export default function EventCostSimulator({ eventId }: Props) {
     [current?.cantidades_esperadas],
   );
 
-  /** Umbrales de cantidad definidos en las tarifas por tramos de los alojamientos.
-   *  Se toman los tramos posteriores al primero: son los que "desbloquean" mejor tarifa. */
-  const umbralesTramos = useMemo(() => {
-    const set = new Set<number>();
-    items.forEach((i) => {
-      if (inferGrupoCosto(i) !== "alojamiento") return;
-      const det: any = (i as any).detalle;
-      const tramos = Array.isArray(det?.tarifas_tramos) ? det.tarifas_tramos : [];
-      const mins = tramos
-        .map((t: any) => Math.max(0, Number(t?.min) || 0))
-        .filter((n: number) => n > 0)
-        .sort((a: number, b: number) => a - b);
-      mins.slice(1).forEach((m: number) => set.add(m));
-    });
-    return Array.from(set).sort((a, b) => a - b);
-  }, [items]);
+  // Los umbrales de tarifa por tramos pertenecen al proveedor: NO generan escenarios.
+
 
   const normalizarEscenario = useCallback(
     (e: EscenarioInscripcion): EscenarioInscripcion => {
