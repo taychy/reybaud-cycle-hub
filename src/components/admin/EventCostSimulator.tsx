@@ -1209,24 +1209,16 @@ export default function EventCostSimulator({ eventId }: Props) {
                 <CardHeader className="flex flex-row items-center justify-between">
                   <CardTitle className="text-sm">Resultados</CardTitle>
                   <Button size="sm" variant="gold" onClick={abrirAplicar}
-                    disabled={modalidades.length === 0 || !calculo.distribucion_valida || !calculo.paquete_base_id}>
+                    disabled={modalidades.length === 0 || !calculo.paquete_base_id}>
                     Aplicar precios a paquetes
                   </Button>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {!calculo.distribucion_valida && (
-                    <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-xs text-destructive space-y-1">
-                      <div className="font-semibold">
-                        Distribución desalineada: el escenario activo tiene {calculo.escenario_inscriptos} participantes
-                        y la distribución por paquetes suma {calculo.distribucion_total}
-                        {" "}({calculo.distribucion_total > calculo.escenario_inscriptos
-                          ? `sobran ${calculo.distribucion_total - calculo.escenario_inscriptos}`
-                          : `faltan ${calculo.escenario_inscriptos - calculo.distribucion_total}`} plazas).
-                      </div>
-                      <div>
-                        La proyección de ingreso, ganancia y margen no es válida y no se pueden aplicar precios a los paquetes
-                        hasta alinear la distribución. Los costos y precios unitarios base sí siguen siendo una simulación válida.
-                      </div>
+                    <div className="rounded-md border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-600 dark:text-amber-400">
+                      Asigná las {calculo.escenario_inscriptos} ventas simuladas entre los paquetes para proyectar
+                      ingreso, ganancia y margen. Actualmente hay {calculo.distribucion_total} asignadas.
+                      Los costos unitarios, el precio base sugerido y los suplementos siguen siendo válidos.
                     </div>
                   )}
 
