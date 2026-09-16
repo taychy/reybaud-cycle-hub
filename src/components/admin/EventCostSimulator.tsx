@@ -1036,6 +1036,7 @@ export default function EventCostSimulator({ eventId }: Props) {
                     monedaBase={current.moneda_base}
                     nochesDefault={Number(current.noches || 0)}
                     esperados={(current.cantidades_esperadas || {}) as Record<string, number>}
+                    scenarioParticipants={Number(escenarioActivo?.inscriptos) || 0}
                     reservasActivas={reservasActivas}
                     onUpdate={(patch) => updateItem(it.id, patch as any)}
                     onDelete={() => delItem(it.id)}
