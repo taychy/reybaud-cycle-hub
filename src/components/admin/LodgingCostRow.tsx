@@ -296,7 +296,7 @@ export default function LodgingCostRow({
           <div className="flex-1 min-w-[220px]">
             <div className="text-xs font-medium">Tarifa del proveedor por cantidad</div>
             <div className="text-[11px] text-muted-foreground">
-              Se aplica según los esperados de este alojamiento y se cruza con el escenario activo.
+              Se aplica según la cantidad total de inscriptos del escenario activo.
             </div>
           </div>
           <Button type="button" size="sm" variant={tarifaPorTramos ? "secondary" : "outline"} onClick={toggleTarifaPorTramos}>
