@@ -84,6 +84,8 @@ interface EventPaymentRow {
 export default function EventCostSimulator({ eventId }: Props) {
   const [loading, setLoading] = useState(true);
   const [sims, setSims] = useState<SimRow[]>([]);
+  const [fxBook, setFxBook] = useState<FxBook | null>(null);
+  const [fxError, setFxError] = useState<string | null>(null);
   const [currentId, setCurrentId] = useState<string | null>(null);
   const [items, setItems] = useState<ItemRow[]>([]);
   const [actuals, setActuals] = useState<ActualRow[]>([]);
