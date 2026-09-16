@@ -12,6 +12,7 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle, XCircle, FileText, Loader2, ExternalLink, AlertTriangle, Receipt } from "lucide-react";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
+import { fetchCurrentFxBook, rateToEvent } from "@/lib/fx";
 
 interface PaymentRow {
   id: string;
@@ -67,6 +68,7 @@ const ValidatePaymentDrawer = ({
   const [submitting, setSubmitting] = useState(false);
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [loadingProof, setLoadingProof] = useState(false);
+  const [fxSuggested, setFxSuggested] = useState<string | null>(null);
 
   // Installment state
   const [installments, setInstallments] = useState<Installment[]>([]);
