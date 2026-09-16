@@ -115,6 +115,8 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
 
     const entregasHoy = deliveries.filter((d: any) => d.fecha_entrega && (esHoy ? d.fecha_entrega <= hoy : d.fecha_entrega === hoy));
     const vanHoy = vans.find((v: any) => v.fecha_salida === hoy);
+    // El chequeo cuenta como hecho si hay uno CERRADO dentro del día seleccionado, sin importar la fecha de salida de la carga
+    const chequeoHechoHoy = ((chequeosRes.data || []) as any[]).length > 0;
 
     const cards: AlertCard[] = [];
 
