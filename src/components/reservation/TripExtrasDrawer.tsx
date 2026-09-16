@@ -34,7 +34,9 @@ interface ContractedAddon {
   precio_unitario: number;
   subtotal: number;
   currency: string;
+  noche_timing: string | null;
 }
+
 
 interface TripExtrasDrawerProps {
   open: boolean;
