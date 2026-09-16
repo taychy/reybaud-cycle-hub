@@ -1139,8 +1139,11 @@ export default function EventCostSimulator({ eventId }: Props) {
                           {escenarios.length > 1 && (
                             <Button variant="ghost" size="icon" className="h-8 w-7" title="Eliminar escenario"
                               onClick={() => {
-                                const next = escenarios.filter((_, i) => i !== idx);
-                                persistEscenarios(next, activo ? next[0]?.id ?? null : undefined);
+                                if (activo) {
+                                  toast({ title: "Activá otro escenario antes de eliminar este." });
+                                  return;
+                                }
+                                persistEscenarios(escenarios.filter((_, i) => i !== idx));
                               }}>
                               <Trash2 className="w-4 h-4 text-destructive" />
                             </Button>
