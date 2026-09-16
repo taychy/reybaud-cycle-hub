@@ -500,6 +500,17 @@ export default function EventCostSimulator({ eventId }: Props) {
     setSims((old) => old.map((s) => s.id === current.id ? { ...s, ...patch } : s));
   };
 
+  /** Aplica la VENTA Reybaud vigente a los supuestos TC USD/EUR de esta simulación. */
+  const aplicarCotizacionVigente = () => {
+    if (!current || !fxBook) return;
+    patchCurrent({
+      tc_usd: fxBook.currencies.USD.sell,
+      tc_eur: fxBook.currencies.EUR.sell,
+    });
+    setTimeout(guardarCambios, 0);
+  };
+
+
   /* ─── ítems ─── */
   const SUBCAT_DEFAULT: Record<Exclude<GrupoCosto, "alojamiento">, string> = {
     participante: "comida",
