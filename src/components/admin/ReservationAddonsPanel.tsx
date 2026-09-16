@@ -186,9 +186,27 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
                 ))}
               </SelectContent>
             </Select>
-            <Input className="h-8" type="number" min={1} value={qty} onChange={(e) => setQty(e.target.value)} />
+            <Input
+              className="h-8"
+              type="number"
+              min={1}
+              value={selectedEsNoche ? String(unidadesPorTiming(timing || null) || 1) : qty}
+              disabled={selectedEsNoche}
+              onChange={(e) => setQty(e.target.value)}
+            />
           </div>
+          {selectedEsNoche && (
+            <Select value={timing} onValueChange={(v) => setTiming(v as NocheTiming)}>
+              <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="¿Antes, después o ambas?" /></SelectTrigger>
+              <SelectContent>
+                {NOCHE_TIMING_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           <Input className="h-8" placeholder="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
+
           <Button size="sm" onClick={addContracted} disabled={adding || !selectedAddonId} className="w-full gap-1 h-8">
             {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             Agregar
