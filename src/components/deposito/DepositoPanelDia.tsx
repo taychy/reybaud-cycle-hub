@@ -100,6 +100,19 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
     const entregasHoy = deliveries.filter((d: any) => d.fecha_entrega && (esHoy ? d.fecha_entrega <= hoy : d.fecha_entrega === hoy));
     const vanHoy = vans.find((v: any) => v.fecha_salida === hoy);
 
+    // El chequeo se considera hecho sólo si hay un chequeo CERRADO hoy: crear la carga no alcanza.
+    let chequeoHechoHoy = false;
+    if (vanHoy) {
+      const { data: chequeosHoy } = await (sb as any)
+        .from("vehiculo_chequeos")
+        .select("id, closed_at")
+        .eq("carga_id", vanHoy.id)
+        .eq("estado", "cerrado")
+        .gte("closed_at", `${hoy}T00:00:00`)
+        .limit(1);
+      chequeoHechoHoy = ((chequeosHoy as any[]) || []).length > 0;
+    }
+
     const cards: AlertCard[] = [];
 
     if (esHoy && orders.length > 0) {
