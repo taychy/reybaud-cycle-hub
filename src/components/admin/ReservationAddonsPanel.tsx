@@ -145,9 +145,25 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
                   <span className="text-sm font-medium">{c.addon?.nombre || "—"}</span>
                   <span className="text-xs text-muted-foreground">×{c.cantidad}</span>
                   <span className="text-xs font-medium">{formatPrice(c.subtotal, c.currency as any)}</span>
+                  {isNocheExtra(c.addon?.nombre) && (
+                    <span className="text-[11px] px-1.5 py-0.5 rounded bg-violet-500/10 text-violet-300">
+                      {nocheTimingShortLabel(c.noche_timing) || "Sin definir"}
+                    </span>
+                  )}
                 </div>
+                {isNocheExtra(c.addon?.nombre) && (
+                  <Select value={c.noche_timing || ""} onValueChange={(v) => updateTiming(c, v as NocheTiming)}>
+                    <SelectTrigger className="h-7 mt-1 text-xs"><SelectValue placeholder="Antes / Después / Ambas" /></SelectTrigger>
+                    <SelectContent>
+                      {NOCHE_TIMING_OPTIONS.map((opt) => (
+                        <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
                 {c.notas && <p className="text-[11px] text-muted-foreground">{c.notas}</p>}
               </div>
+
               <Button size="icon" variant="ghost" onClick={() => remove(c)} className="h-7 w-7">
                 <Trash2 className="w-3.5 h-3.5 text-destructive" />
               </Button>
