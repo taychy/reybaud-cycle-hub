@@ -174,7 +174,7 @@ export default function LodgingCostRow({
     const currentUnit = Math.max(0, Number(item.precio_unitario) || 0);
     const initial = tarifas.length > 0
       ? tarifas
-      : [{ min: Math.max(1, pax || 1), max: null, precio: currentUnit }];
+      : [{ min: Math.max(1, escenarioPax || 1), max: null, precio: currentUnit }];
     onUpdate({
       detalle: {
         ...det,
