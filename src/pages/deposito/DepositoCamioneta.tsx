@@ -525,8 +525,8 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   };
 
   /** Guarda por línea la cantidad observada, quién la registró y cuándo. */
-  const registrarLineas = async (rows: { item_id: string; cantidad: number }[]) => {
-    if (!chequeo || rows.length === 0) return;
+  const registrarLineas = async (rows: { item_id: string; cantidad: number }[]): Promise<boolean> => {
+    if (!chequeo || rows.length === 0) return false;
     const { data: userRes } = await supabase.auth.getUser();
     const now = new Date().toISOString();
     const { error } = await (supabase as any).from("vehiculo_chequeo_scans").upsert(
@@ -539,15 +539,16 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       })),
       { onConflict: "chequeo_id,item_id" },
     );
-    if (error) { toast.error("No se pudo guardar lo observado"); return; }
+    if (error) { toast.error("No se pudo guardar lo observado"); return false; }
     setScannedIds((prev) => new Set([...prev, ...rows.map((r) => r.item_id)]));
     await loadLineas(chequeo.id);
+    return true;
   };
 
   const estaTodo = async () => {
     if (!chequeo) return;
-    await registrarLineas(lineas.map((l) => ({ item_id: l.item_id, cantidad: Number(l.esperado) || 0 })));
-    toast.success("Registrado: veo todo lo esperado");
+    const ok = await registrarLineas(lineas.map((l) => ({ item_id: l.item_id, cantidad: Number(l.esperado) || 0 })));
+    if (ok) toast.success("Registrado: veo todo lo esperado");
   };
 
   const iniciarRonda = async () => {
