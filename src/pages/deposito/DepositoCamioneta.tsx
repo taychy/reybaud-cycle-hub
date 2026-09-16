@@ -457,11 +457,19 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       .update({ chequeado_at: now, chequeado_by: userRes.user?.id ?? null })
       .in("id", targetIds);
     if (!error && chequeo) {
+      // El escáner es un atajo: registra la línea con la cantidad esperada.
       await (supabase as any).from("vehiculo_chequeo_scans").upsert(
-        targetIds.map((itemId) => ({ chequeo_id: chequeo.id, item_id: itemId, scanned_by: userRes.user?.id ?? null })),
+        targets.map((t) => ({
+          chequeo_id: chequeo.id,
+          item_id: t.id,
+          cantidad_vista: Math.max(0, Number((t as any).cantidad) || 0),
+          scanned_by: userRes.user?.id ?? null,
+          scanned_at: now,
+        })),
         { onConflict: "chequeo_id,item_id" },
       );
       setScannedIds((prev) => new Set([...prev, ...targetIds]));
+      await loadLineas(chequeo.id);
     }
     scanBusyRef.current = false;
     if (error) {
