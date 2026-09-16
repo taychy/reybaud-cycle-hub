@@ -231,15 +231,8 @@ export default function EventCostSimulator({ eventId }: Props) {
         { id: "esperado", nombre: "Esperado", inscriptos: sumaDistribucion > 0 ? sumaDistribucion : Math.round(capacidadTotal * 0.75) },
         { id: "completo", nombre: "Completo", inscriptos: capacidadTotal },
       ];
-    const lista = basicos.map(normalizarEscenario);
-    const cantidades = new Set(lista.map((e) => e.inscriptos));
-    umbralesTramos.forEach((m) => {
-      if (cantidades.has(m)) return;
-      cantidades.add(m);
-      lista.push(normalizarEscenario({ id: `umbral_${m}`, nombre: `Desbloqueo ${m}`, inscriptos: m }));
-    });
-    return lista;
-  }, [current?.escenarios_inscripcion, capacidadTotal, sumaDistribucion, umbralesTramos, normalizarEscenario]);
+    return basicos.map(normalizarEscenario);
+  }, [current?.escenarios_inscripcion, capacidadTotal, sumaDistribucion, normalizarEscenario]);
 
   const escenarioActivo = useMemo(() => {
     return escenarios.find((e) => e.id === current?.escenario_activo_id)
@@ -248,40 +241,17 @@ export default function EventCostSimulator({ eventId }: Props) {
       || null;
   }, [escenarios, current?.escenario_activo_id]);
 
+  /** Persiste la lista de escenarios y cuál está activo. No toca la distribución. */
   const persistEscenarios = async (next: EscenarioInscripcion[], activoId?: string | null) => {
     if (!current) return;
     const activo = activoId !== undefined ? activoId : (current.escenario_activo_id || escenarioActivo?.id || null);
-    const target = next.find((e) => e.id === activo);
     const payload: Partial<SimRow> = { escenarios_inscripcion: next, escenario_activo_id: activo };
-    // Al activar un escenario se aplican juntos sus inscriptos y su distribución.
-    if (activoId !== undefined && target?.distribucion) {
-      payload.cantidades_esperadas = {
-        ...(current.cantidades_esperadas || {}),
-        ...target.distribucion,
-      };
-    }
     patchCurrent(payload);
     await supabase.from("event_cost_simulations")
       .update(payload as any)
       .eq("id", current.id);
   };
 
-  /** Escenario activo legacy con un único paquete: alineamos la distribución al cargar. */
-  useEffect(() => {
-    if (!current || packages.length !== 1) return;
-    const dist = escenarioActivo?.distribucion;
-    if (!dist) return;
-    const pid = packages[0].id;
-    const target = Number(dist[pid] ?? 0);
-    if (Number(current.cantidades_esperadas?.[pid] ?? 0) === target) return;
-    const merged = { ...(current.cantidades_esperadas || {}), [pid]: target };
-    patchCurrent({ cantidades_esperadas: merged });
-    supabase.from("event_cost_simulations")
-      .update({ cantidades_esperadas: merged as any })
-      .eq("id", current.id)
-      .then(() => undefined);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [current?.id, escenarioActivo?.id, escenarioActivo?.distribucion, packages]);
 
   const supuestos: Supuestos | null = current ? {
     tc_usd: Number(current.tc_usd),
