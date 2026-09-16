@@ -31,8 +31,10 @@ interface ContractedAddon {
   subtotal: number;
   currency: string;
   notas: string | null;
+  noche_timing: string | null;
   addon?: Addon;
 }
+
 
 interface Props {
   reservationId: string;
