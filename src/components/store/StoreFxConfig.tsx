@@ -9,6 +9,12 @@ import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook
 
 const LABELS: Record<string, string> = { USD: "Dólar", EUR: "Euro", BRL: "Real" };
 const asNumber = (v: unknown) => Number(typeof v === "string" ? v.replace(",", ".") : v) || 0;
+const parseMargin = (raw: string | undefined, label: string) => {
+  if (raw == null || raw.trim() === "") throw new Error(`Completá ${label}`);
+  const value = Number(raw.replace(",", "."));
+  if (!Number.isFinite(value)) throw new Error(`${label} debe ser un número válido`);
+  return value;
+};
 const round4 = (v: number) => Math.round(v * 10000) / 10000;
 
 /** Configuración central de la Cotización Reybaud: márgenes de Compra y Venta por moneda. */
@@ -46,9 +52,10 @@ const StoreFxConfig = () => {
       const rows: any[] = [];
       for (const code of FX_FOREIGN) {
         const lc = code.toLowerCase();
-        const buyMargin = asNumber(margins[code]?.buy);
-        const sellMargin = asNumber(margins[code]?.sell);
-        if (buyMargin < 0 || sellMargin < 0) throw new Error(`Los márgenes de ${code} no pueden ser negativos`);
+        const buyMargin = parseMargin(margins[code]?.buy, `el margen Compra de ${code}`);
+        const sellMargin = parseMargin(margins[code]?.sell, `el margen Venta de ${code}`);
+        if (buyMargin < 0 || buyMargin >= 100) throw new Error(`El margen Compra de ${code} debe estar entre 0% y 99,99%`);
+        if (sellMargin < 0) throw new Error(`El margen Venta de ${code} no puede ser negativo`);
         const reference = book.currencies[code].reference;
         const buy = round4(reference * (1 - buyMargin / 100));
         const sell = round4(reference * (1 + sellMargin / 100));
@@ -64,6 +71,11 @@ const StoreFxConfig = () => {
           );
         }
       }
+      rows.push({
+        key: "fx_updated_at",
+        value: new Date().toISOString(),
+        description: "Última actualización de Cotización Reybaud",
+      });
       const { error: upErr } = await supabase.from("app_config").upsert(rows as any, { onConflict: "key" });
       if (upErr) throw upErr;
       await load();
@@ -114,7 +126,7 @@ const StoreFxConfig = () => {
                 <div>
                   <Label className="text-xs">Margen Compra %</Label>
                   <Input
-                    type="number" min={0} step="0.1"
+                    type="number" min={0} max={99.99} step="0.1"
                     value={m.buy}
                     onChange={(e) => setMargins((p) => ({ ...p, [code]: { ...p[code], buy: e.target.value } }))}
                   />
