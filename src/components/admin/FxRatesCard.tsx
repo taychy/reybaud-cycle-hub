@@ -11,7 +11,14 @@ import {
   FX_CURRENCIES, FX_FOREIGN, convertObligation, fetchCurrentFxBook, formatFxArs,
   fxStatusLabel, type FxBook, type FxConversion,
 } from "@/lib/fx";
-import { formatPrice } from "@/lib/currency";
+
+const formatPaymentAmount = (amount: number, currency: string) =>
+  new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: currency === "ARS" ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(amount);
 
 /** Cotizaciones Reybaud (solo lectura) + calculadora de cobro para el Resumen. */
 const FxRatesCard = () => {
@@ -156,8 +163,7 @@ const FxRatesCard = () => {
                 <div className="rounded-lg bg-muted/40 border border-border/60 p-3">
                   <p className="text-[11px] uppercase tracking-wider text-muted-foreground">El cliente debe pagar</p>
                   <p className="text-2xl font-heading font-bold tabular-nums">
-                    {formatPrice(Math.round(resultado.amount * 100) / 100, monedaPago)}
-                    <span className="text-sm font-normal text-muted-foreground ml-2">{monedaPago}</span>
+                    {formatPaymentAmount(resultado.amount, monedaPago)}
                   </p>
                   <p className="text-[11px] text-muted-foreground mt-1">{resultado.explanation}</p>
                 </div>
