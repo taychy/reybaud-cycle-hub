@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CheckCircle, ChevronRight, Loader2, ShoppingBag } from "lucide-react";
+import { AlertTriangle, CheckCircle, ChevronRight, Loader2, ShoppingBag } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 import { isNocheExtra, NOCHE_TIMING_OPTIONS, unidadesPorTiming, type NocheTiming } from "@/lib/nocheExtra";
@@ -30,6 +30,7 @@ interface ContractedAddon {
   subtotal: number;
   currency: string;
   noche_timing: string | null;
+  notas?: string | null;
 }
 
 interface ExtrasResponse {
@@ -47,7 +48,9 @@ interface Props {
 
 const TripTokenExtrasCard = ({ eventId }: Props) => {
   const isTripTokenPage = typeof window !== "undefined" && window.location.pathname.startsWith("/viaje");
-  const token = isTripTokenPage ? new URLSearchParams(window.location.search).get("token") : null;
+  const params = isTripTokenPage ? new URLSearchParams(window.location.search) : null;
+  const token = params?.get("token") ?? null;
+  const focusNightTiming = params?.get("extras") === "night-timing";
 
   const [loading, setLoading] = useState(!!token);
   const [saving, setSaving] = useState(false);
@@ -67,9 +70,12 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
-      const { data, error } = await supabase.functions.invoke<ExtrasResponse>("manage-trip-extras-by-token", {
-        body: { action: "get", token },
+      const { data: rawData, error } = await (supabase as any).rpc("manage_trip_extras_by_token", {
+        p_token: token,
+        p_action: "get",
+        p_selections: [],
       });
+      const data = rawData as ExtrasResponse | null;
       if (cancelled) return;
       if (error || !data?.ok || data.event_id !== eventId) {
         setAddons([]);
@@ -90,17 +96,24 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
         }
       });
 
+      const hasPendingNight = loadedAddons.some((addon) => {
+        if (!isNocheExtra(addon.nombre)) return false;
+        const current = loadedContracted.find((row) => row.addon_id === addon.id);
+        return Number(current?.cantidad || 0) > 0 && !current?.noche_timing;
+      });
+
       setAddons(loadedAddons);
       setContracted(loadedContracted);
       setQuantities(nextQuantities);
       setTimings(nextTimings);
       setEditable(!["cancelada", "rechazada"].includes(data.reservation_status || ""));
+      if (focusNightTiming && hasPendingNight) setOpen(true);
       setLoading(false);
     };
 
     load();
     return () => { cancelled = true; };
-  }, [token, eventId]);
+  }, [token, eventId, focusNightTiming]);
 
   const selectedCount = useMemo(
     () => addons.reduce((sum, addon) => sum + Number(quantities[addon.id] || 0), 0),
@@ -110,6 +123,15 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
   const selectedTotal = useMemo(
     () => addons.reduce((sum, addon) => sum + Number(quantities[addon.id] || 0) * Number(addon.precio || 0), 0),
     [addons, quantities],
+  );
+
+  const pendingNightCount = useMemo(
+    () => addons.filter((addon) => {
+      if (!isNocheExtra(addon.nombre)) return false;
+      const current = contracted.find((row) => row.addon_id === addon.id);
+      return Number(current?.cantidad || 0) > 0 && !current?.noche_timing;
+    }).length,
+    [addons, contracted],
   );
 
   const displayCurrency = addons[0]?.currency || contracted[0]?.currency || "ARS";
@@ -130,14 +152,6 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
   const save = async () => {
     if (!token) return;
 
-    const undefinedNight = addons.find(
-      (addon) => isNocheExtra(addon.nombre) && (quantities[addon.id] || 0) > 0 && !timings[addon.id],
-    );
-    if (undefinedNight) {
-      toast.error(`Elegí si ${undefinedNight.nombre} es antes, después o ambas.`);
-      return;
-    }
-
     const selections = addons.map((addon) => ({
       addon_id: addon.id,
       cantidad: Number(quantities[addon.id] || 0),
@@ -145,9 +159,12 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
     }));
 
     setSaving(true);
-    const { data, error } = await supabase.functions.invoke<ExtrasResponse>("manage-trip-extras-by-token", {
-      body: { action: "save", token, selections },
+    const { data: rawData, error } = await (supabase as any).rpc("manage_trip_extras_by_token", {
+      p_token: token,
+      p_action: "save",
+      p_selections: selections,
     });
+    const data = rawData as ExtrasResponse | null;
     setSaving(false);
 
     if (error || !data?.ok) {
@@ -164,17 +181,21 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
 
   return (
     <>
-      <div className="rounded-xl border border-border p-4 space-y-3">
+      <div className={`rounded-xl border p-4 space-y-3 ${pendingNightCount > 0 ? "border-amber-500/40 bg-amber-500/5" : "border-border"}`}>
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-            <ShoppingBag className="w-4 h-4 text-primary" />
+          <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${pendingNightCount > 0 ? "bg-amber-500/15" : "bg-primary/10"}`}>
+            {pendingNightCount > 0
+              ? <AlertTriangle className="w-4 h-4 text-amber-400" />
+              : <ShoppingBag className="w-4 h-4 text-primary" />}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground">Extras de tu reserva</p>
-            <p className="text-xs text-muted-foreground">
-              {selectedCount > 0
-                ? `${selectedCount} adicional${selectedCount > 1 ? "es" : ""} seleccionado${selectedCount > 1 ? "s" : ""}`
-                : "Agregá noches extra y otros adicionales disponibles."}
+            <p className={`text-xs ${pendingNightCount > 0 ? "text-amber-400" : "text-muted-foreground"}`}>
+              {pendingNightCount > 0
+                ? "Tenés una noche extra pendiente de confirmar."
+                : selectedCount > 0
+                  ? `${selectedCount} adicional${selectedCount > 1 ? "es" : ""} seleccionado${selectedCount > 1 ? "s" : ""}`
+                  : "Agregá noches extra y otros adicionales disponibles."}
             </p>
           </div>
           {selectedCount > 0 && (
@@ -187,7 +208,7 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
           onClick={() => setOpen(true)}
           disabled={!editable}
         >
-          <span>{selectedCount > 0 ? "Gestionar extras" : "Elegir extras"}</span>
+          <span>{pendingNightCount > 0 ? "Completar datos" : selectedCount > 0 ? "Gestionar extras" : "Elegir extras"}</span>
           <ChevronRight className="w-4 h-4" />
         </Button>
       </div>
@@ -211,17 +232,21 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
               const quantity = Number(quantities[addon.id] || 0);
               const max = addon.max_por_participante && addon.max_por_participante > 0 ? addon.max_por_participante : undefined;
               const night = isNocheExtra(addon.nombre);
-              const nightValue = timings[addon.id] || (quantity > 0 ? "sin_definir" : "ninguna");
+              const current = contracted.find((row) => row.addon_id === addon.id);
+              const legacyPending = night && Number(current?.cantidad || 0) > 0 && !current?.noche_timing;
+              const nightValue = timings[addon.id] || (legacyPending ? "sin_definir" : "ninguna");
 
               return (
-                <div key={addon.id} className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-3">
+                <div key={addon.id} className={`rounded-lg border p-3 space-y-3 ${legacyPending ? "border-amber-500/40 bg-amber-500/5" : "border-border/50 bg-muted/20"}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <p className="text-sm font-semibold text-foreground">{addon.nombre}</p>
+                        {legacyPending && <Badge variant="outline" className="text-[10px] h-5 border-amber-500/40 text-amber-400">Pendiente</Badge>}
                         {addon.tipo !== "opcional" && <Badge variant="outline" className="text-[10px] h-5">{addon.tipo}</Badge>}
                       </div>
                       {addon.descripcion && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{addon.descripcion}</p>}
+                      {current?.notas && <p className="text-[11px] text-muted-foreground mt-1">Nota cargada: {current.notas}</p>}
                       {addon.stock_total != null && <p className="text-[11px] text-muted-foreground mt-1">Cupos limitados</p>}
                     </div>
                     <p className="text-sm font-bold text-primary shrink-0">
@@ -235,15 +260,18 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
                       <Select value={nightValue} onValueChange={(value) => setTiming(addon, value)}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                         <SelectContent>
-                          {quantity > 0 && !timings[addon.id] && (
-                            <SelectItem value="sin_definir" disabled>Elegí antes, después o ambas</SelectItem>
+                          {legacyPending && (
+                            <SelectItem value="sin_definir" disabled>Momento pendiente de confirmar</SelectItem>
                           )}
-                          <SelectItem value="ninguna">No la necesito</SelectItem>
+                          {!legacyPending && <SelectItem value="ninguna">No la necesito</SelectItem>}
                           {NOCHE_TIMING_OPTIONS.map((option) => (
                             <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
                           ))}
                         </SelectContent>
                       </Select>
+                      {legacyPending && !timings[addon.id] && (
+                        <p className="text-[11px] text-amber-400">Tu noche ya está contratada. Solo necesitamos saber si es antes, después o ambas.</p>
+                      )}
                       {quantity > 0 && timings[addon.id] && (
                         <p className="text-[11px] text-muted-foreground">
                           {quantity} noche{quantity > 1 ? "s" : ""} · {formatPrice(quantity * Number(addon.precio || 0), addon.currency as any)}
