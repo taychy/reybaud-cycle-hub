@@ -34,3 +34,5 @@ jobs:
           git add src/components/admin/EventCostSimulator.tsx
           git commit -m "fix: aplicar impuesto solo a pagos reales bancarizados"
           git push origin HEAD:fix/impuesto-solo-pagos-reales
+
+# Ejecutar sobre main actualizado
