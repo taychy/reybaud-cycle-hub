@@ -2843,7 +2843,26 @@ const AdminEventReservations = ({
         eventTitle={eventTitle}
       />
 
+      {/* Cancelación con alojamiento compartido: resolver a quienes quedan */}
+      {sharedCancel && (
+        <ResolveSharedLodgingDialog
+          open={!!sharedCancel}
+          onOpenChange={(o) => { if (!o) setSharedCancel(null); }}
+          eventId={eventId}
+          eventTitle={eventTitle}
+          cancelName={sharedCancel.name}
+          roomName={sharedCancel.room}
+          occupants={sharedCancel.occupants}
+          onConfirm={async (liberar) => {
+            const p = sharedCancel;
+            if (p) await applyReservationStatus(p.resId, "reservation_status", "cancelada", liberar);
+            setSharedCancel(null);
+          }}
+        />
+      )}
+
       {/* Cancelar reserva con habitación asignada */}
+
       <Dialog open={!!pendingCancel} onOpenChange={(o) => { if (!o) setPendingCancel(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
