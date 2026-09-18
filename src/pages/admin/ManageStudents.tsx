@@ -38,6 +38,8 @@ import { toast } from "sonner";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { ImportStudentsContent } from "./ImportStudents";
 import { StudentActivityLog } from "@/components/admin/StudentActivityLog";
+import { StudentCommunicationsSection } from "@/components/admin/StudentCommunicationsSection";
+import { StudentEventsSection } from "@/components/admin/StudentEventsSection";
 import { StudentPlanSection } from "@/components/admin/StudentPlanSection";
 
 
@@ -172,7 +174,7 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", fecha_nacimiento: "", notas: "", nombres_bancarios: "" });
+  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", fecha_nacimiento: "", fecha_ingreso_escuela: "", notas: "", nombres_bancarios: "" });
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
@@ -700,6 +702,7 @@ const ManageStudents = () => {
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
       fecha_nacimiento: (alumno as any).fecha_nacimiento || "",
+      fecha_ingreso_escuela: (alumno as any).fecha_ingreso_escuela || "",
       notas: alumno.notas || "",
       nombres_bancarios: ((alumno as any).nombres_bancarios || []).join(", "),
     });
@@ -729,6 +732,7 @@ const ManageStudents = () => {
       telefono: detailForm.telefono.trim() || null,
       documento: detailForm.documento.trim() || null,
       fecha_nacimiento: detailForm.fecha_nacimiento || null,
+      fecha_ingreso_escuela: detailForm.fecha_ingreso_escuela || null,
       notas: detailForm.notas.trim() || null,
       nombres_bancarios: nombresBancariosArr,
     } as any;
@@ -760,6 +764,7 @@ const ManageStudents = () => {
       telefono: updatedAlumno.telefono || "",
       documento: updatedAlumno.documento || "",
       fecha_nacimiento: (updatedAlumno as any).fecha_nacimiento || "",
+      fecha_ingreso_escuela: (updatedAlumno as any).fecha_ingreso_escuela || "",
       notas: updatedAlumno.notas || "",
       nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
@@ -1701,6 +1706,18 @@ const ManageStudents = () => {
                             />
                           </div>
                           <div className="space-y-1">
+                            <Label className="text-xs">Ingreso a la escuela</Label>
+                            <Input
+                              type="date"
+                              value={detailForm.fecha_ingreso_escuela}
+                              onChange={(e) => setDetailForm({ ...detailForm, fecha_ingreso_escuela: e.target.value })}
+                              className="bg-secondary border-border text-sm h-8"
+                            />
+                            <p className="text-[10px] text-muted-foreground">
+                              Fecha real de ingreso. No es la fecha de alta en el sistema.
+                            </p>
+                          </div>
+                          <div className="space-y-1">
                             <Label className="text-xs">Nombres bancarios / titulares</Label>
                             <Input
                               value={detailForm.nombres_bancarios}
@@ -1833,7 +1850,13 @@ const ManageStudents = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        <DetailRow label="Fecha de alta" value={formatDate(drawerAlumno.created_at)} />
+                        <DetailRow
+                          label="Ingreso a la escuela"
+                          value={(drawerAlumno as any).fecha_ingreso_escuela
+                            ? (drawerAlumno as any).fecha_ingreso_escuela.split("-").reverse().join("/")
+                            : "Sin cargar"}
+                        />
+                        <DetailRow label="Alta en el sistema" value={formatDate(drawerAlumno.created_at)} />
                         <DetailRow label="Último acceso" value={formatDate(drawerAlumno.updated_at)} />
                       </div>
                     </div>
@@ -1893,6 +1916,20 @@ const ManageStudents = () => {
                     />
                     <Separator />
 
+
+                    {/* Eventos */}
+                    <StudentEventsSection alumnoId={drawerAlumno.id} />
+                    <Separator />
+
+                    {/* Comunicaciones */}
+                    <StudentCommunicationsSection
+                      alumno={{
+                        id: drawerAlumno.id,
+                        email: drawerAlumno.email,
+                        emails_adicionales: ((drawerAlumno as any).emails_adicionales as string[]) || [],
+                      }}
+                    />
+                    <Separator />
 
                     {/* Activity Log */}
                     <StudentActivityLog alumnoId={drawerAlumno.id} />
