@@ -416,13 +416,18 @@ export default function LodgingCostRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        {info && (
+        {pkgId && (
           <Badge variant="outline" className="text-[10px]">
-            {habitaciones > 0 ? `${habitaciones} habitaciones · ` : ""}
-            {capacidad || info.plazas} plazas · {personas} personas/hab.
+            Presupuesto: {habitaciones} hab. · {capacidad} plazas · {personas} personas/hab.
+          </Badge>
+        )}
+        {info && (
+          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+            Real: {info.habitaciones} hab. · {info.plazas} plazas
             {reservasActivas?.[pkgId] ? ` · ${reservasActivas[pkgId]} reservas activas` : ""}
           </Badge>
         )}
+
         {(basis === "persona_estadia" || basis === "persona_noche") && pax === 0 && (
           <span className="text-muted-foreground">
             Cargá participantes esperados de este paquete para calcular esta forma de costo.
