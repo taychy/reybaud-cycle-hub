@@ -39,6 +39,7 @@ import EventLodgingManager from "@/components/admin/EventLodgingManager";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
+import ResolveSharedLodgingDialog, { type SharedLodgingOccupant } from "@/components/admin/ResolveSharedLodgingDialog";
 import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
@@ -393,6 +394,8 @@ const AdminEventReservations = ({
 
   /* ─── Habitaciones asignadas (badge por reserva) ─── */
   const [roomByRes, setRoomByRes] = useState<Record<string, string>>({});
+  const [roomIdByRes, setRoomIdByRes] = useState<Record<string, string>>({});
+  const [resIdsByRoom, setResIdsByRoom] = useState<Record<string, string[]>>({});
 
   const loadRoomAssignments = async () => {
     const { data: rooms } = await supabase
@@ -400,7 +403,7 @@ const AdminEventReservations = ({
       .select("id, nombre")
       .eq("event_id", eventId);
     const roomIds = ((rooms as any[]) || []).map((r) => r.id);
-    if (!roomIds.length) { setRoomByRes({}); return; }
+    if (!roomIds.length) { setRoomByRes({}); setRoomIdByRes({}); setResIdsByRoom({}); return; }
     const { data: asigs } = await supabase
       .from("event_room_assignments" as any)
       .select("room_id, reservation_id")
@@ -408,11 +411,19 @@ const AdminEventReservations = ({
     const nameById: Record<string, string> = {};
     ((rooms as any[]) || []).forEach((r) => { nameById[r.id] = r.nombre; });
     const map: Record<string, string> = {};
+    const idMap: Record<string, string> = {};
+    const byRoom: Record<string, string[]> = {};
     ((asigs as any[]) || []).forEach((a) => {
-      if (a.reservation_id) map[a.reservation_id] = nameById[a.room_id] || "Habitación";
+      if (!a.reservation_id) return;
+      map[a.reservation_id] = nameById[a.room_id] || "Habitación";
+      idMap[a.reservation_id] = a.room_id;
+      (byRoom[a.room_id] ||= []).push(a.reservation_id);
     });
     setRoomByRes(map);
+    setRoomIdByRes(idMap);
+    setResIdsByRoom(byRoom);
   };
+
 
   /* ─── Cuotas vencidas por reserva ─── */
   const [overdueByRes, setOverdueByRes] = useState<Record<string, OverdueInfo>>({});
@@ -906,14 +917,46 @@ const AdminEventReservations = ({
 
   // Cancelación con habitación asignada → preguntar si liberar la cama
   const [pendingCancel, setPendingCancel] = useState<{ resId: string; room: string } | null>(null);
+  // Cancelación con alojamiento compartido → resolver a quienes quedan
+  const [sharedCancel, setSharedCancel] = useState<
+    { resId: string; room: string; name: string; occupants: SharedLodgingOccupant[] } | null
+  >(null);
+
+  const buildOccupants = (resId: string): SharedLodgingOccupant[] => {
+    const roomId = roomIdByRes[resId];
+    if (!roomId) return [];
+    const mates = (resIdsByRoom[roomId] || []).filter((id) => id !== resId);
+    return mates
+      .map((id) => reservations.find((r) => r.id === id))
+      .filter((r): r is EventReservation =>
+        !!r && r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
+      .map((r) => ({
+        id: r.id,
+        nombre: participantName(r),
+        email: getParticipant(r).email || null,
+        package_id: r.package_id || null,
+        package_nombre: eventPackages.find((p) => p.id === r.package_id)?.nombre || "Sin paquete",
+        amount_total: Number(r.amount_total || 0),
+        amount_paid: Number(r.amount_paid || 0),
+        currency: r.currency_snapshot || (r as any).moneda || eventCurrency,
+        purchase_date: (r as any).created_at,
+      }));
+  };
 
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
     if (field === "reservation_status" && value === "cancelada" && roomByRes[resId]) {
+      const occupants = buildOccupants(resId);
+      const res = reservations.find((r) => r.id === resId);
+      if (occupants.length > 0) {
+        setSharedCancel({ resId, room: roomByRes[resId], name: res ? participantName(res) : "El participante", occupants });
+        return;
+      }
       setPendingCancel({ resId, room: roomByRes[resId] });
       return;
     }
     return applyReservationStatus(resId, field, value);
   };
+
 
   const applyReservationStatus = async (resId: string, field: string, value: string, liberar?: boolean) => {
     setUpdatingId(resId);
@@ -2800,7 +2843,26 @@ const AdminEventReservations = ({
         eventTitle={eventTitle}
       />
 
+      {/* Cancelación con alojamiento compartido: resolver a quienes quedan */}
+      {sharedCancel && (
+        <ResolveSharedLodgingDialog
+          open={!!sharedCancel}
+          onOpenChange={(o) => { if (!o) setSharedCancel(null); }}
+          eventId={eventId}
+          eventTitle={eventTitle}
+          cancelName={sharedCancel.name}
+          roomName={sharedCancel.room}
+          occupants={sharedCancel.occupants}
+          onConfirm={async (liberar) => {
+            const p = sharedCancel;
+            if (p) await applyReservationStatus(p.resId, "reservation_status", "cancelada", liberar);
+            setSharedCancel(null);
+          }}
+        />
+      )}
+
       {/* Cancelar reserva con habitación asignada */}
+
       <Dialog open={!!pendingCancel} onOpenChange={(o) => { if (!o) setPendingCancel(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>

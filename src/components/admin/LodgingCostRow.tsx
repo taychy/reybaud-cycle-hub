@@ -52,11 +52,7 @@ interface Props {
   onUpdate: (patch: Record<string, any>) => void;
   onDelete: () => void;
   onRenamePackage?: (packageId: string, nombre: string) => void | Promise<void>;
-  onSyncStructure?: (
-    packageId: string,
-    habitaciones: number,
-    personas: number,
-  ) => void | Promise<void>;
+
 }
 
 const BASIS_LABELS: Record<CostBasis, string> = {
@@ -90,16 +86,18 @@ export function packageRoomsInfo(pkgId: string, rooms: LodgingRoom[], pkg?: Lodg
 
 export default function LodgingCostRow({
   item, packages, rooms, monedaBase, nochesDefault, esperados, scenarioParticipants, reservasActivas,
-  onUpdate, onDelete, onRenamePackage, onSyncStructure,
+  onUpdate, onDelete, onRenamePackage,
 }: Props) {
   const det: CostItemDetalle = item.detalle || {};
   const basis: CostBasis = (det.cost_basis as CostBasis) || "habitacion_noche";
   const pkgId = det.package_id || "";
   const pkg = packages.find((p) => p.id === pkgId);
+  /** Referencia del inventario real (solo informativa: el presupuesto no lo toca). */
   const info = pkgId ? packageRoomsInfo(pkgId, rooms, pkg) : null;
   const noches = Number(det.noches ?? nochesDefault) || 0;
-  const habitaciones = Number(info?.habitaciones ?? det.habitaciones ?? 0) || 0;
-  const personas = Number(info?.personas ?? det.personas_por_habitacion ?? 1) || 1;
+  /** Supuestos del presupuesto: viven en el detalle del ítem, no en event_rooms. */
+  const habitaciones = Math.max(0, Number(det.habitaciones ?? 0) || 0);
+  const personas = Math.max(1, Number(det.personas_por_habitacion ?? info?.personas ?? 1) || 1);
   const pax = Number(esperados[pkgId] || 0);
   /** La tarifa del proveedor depende del total de inscriptos del escenario activo. */
   const escenarioPax = Math.max(0, Number(scenarioParticipants) || 0);
@@ -141,6 +139,7 @@ export default function LodgingCostRow({
           ? pax * costoUnitarioAplicado
           : costoUnitarioAplicado * (Number(item.cantidad) > 0 ? Number(item.cantidad) : 1);
 
+  /** Capacidad presupuestada = habitaciones presupuestadas × personas por habitación (supuesto). */
   const capacidad = pkgId ? capacidadFisica(habitaciones, personas) : 0;
   const excedido = capacidad > 0 && pax > capacidad;
 
@@ -155,19 +154,15 @@ export default function LodgingCostRow({
         ...det,
         package_id: id,
         cost_basis: basis,
-        habitaciones: nfo.habitaciones || Number(det.habitaciones || 0),
+        // Sugerencia inicial tomada del inventario real; después es un supuesto editable.
+        habitaciones: Number(det.habitaciones ?? nfo.habitaciones ?? 0) || 0,
         noches: Number(det.noches ?? nochesDefault) || 0,
-        personas_por_habitacion: nfo.personas,
-        tipo_habitacion: nfo.tipo,
+        personas_por_habitacion: Number(det.personas_por_habitacion ?? nfo.personas) || 1,
+        tipo_habitacion: det.tipo_habitacion ?? nfo.tipo,
       },
     });
   };
 
-  const syncStructure = async (nextHab: number, nextPers: number) => {
-    if (!pkgId || !onSyncStructure) return;
-    await onSyncStructure(pkgId, nextHab, nextPers);
-    patchDetalle({ habitaciones: nextHab, personas_por_habitacion: nextPers });
-  };
 
   const toggleTarifaPorTramos = () => {
     const next = !tarifaPorTramos;
@@ -269,27 +264,34 @@ export default function LodgingCostRow({
       )}
 
       {pkgId && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Habitaciones</Label>
-            <Input type="number" className="h-9" value={habitaciones} disabled={!onSyncStructure}
-              onChange={(e) => syncStructure(Math.max(0, Number(e.target.value) || 0), personas)} />
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Habitaciones presupuestadas</Label>
+              <Input type="number" min={0} className="h-9" value={habitaciones}
+                onChange={(e) => patchDetalle({ habitaciones: Math.max(0, Number(e.target.value) || 0) })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Personas por habitación</Label>
+              <Input type="number" min={1} className="h-9" value={personas}
+                onChange={(e) => patchDetalle({ personas_por_habitacion: Math.max(1, Number(e.target.value) || 1) })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Capacidad presupuestada</Label>
+              <Input className="h-9" value={`${capacidad} plazas`} readOnly disabled />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Escenario activo</Label>
+              <Input className="h-9" value={`${escenarioPax} inscriptos`} readOnly disabled />
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Personas por habitación</Label>
-            <Input type="number" className="h-9" value={personas} disabled={!onSyncStructure}
-              onChange={(e) => syncStructure(habitaciones, Math.max(1, Number(e.target.value) || 1))} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Capacidad física</Label>
-            <Input className="h-9" value={`${capacidad} plazas`} readOnly disabled />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Escenario activo</Label>
-            <Input className="h-9" value={`${escenarioPax} inscriptos`} readOnly disabled />
-          </div>
-        </div>
+          <p className="text-[11px] text-muted-foreground">
+            Son supuestos de cálculo del presupuesto. No modifican las habitaciones reales ni el cupo de la modalidad
+            {info ? ` (hoy en Alojamiento: ${info.habitaciones} habitaciones · ${info.plazas} plazas).` : "."}
+          </p>
+        </>
       )}
+
 
       <div className="rounded-md border border-dashed p-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
@@ -414,13 +416,18 @@ export default function LodgingCostRow({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 text-xs">
-        {info && (
+        {pkgId && (
           <Badge variant="outline" className="text-[10px]">
-            {habitaciones > 0 ? `${habitaciones} habitaciones · ` : ""}
-            {capacidad || info.plazas} plazas · {personas} personas/hab.
+            Presupuesto: {habitaciones} hab. · {capacidad} plazas · {personas} personas/hab.
+          </Badge>
+        )}
+        {info && (
+          <Badge variant="outline" className="text-[10px] text-muted-foreground">
+            Real: {info.habitaciones} hab. · {info.plazas} plazas
             {reservasActivas?.[pkgId] ? ` · ${reservasActivas[pkgId]} reservas activas` : ""}
           </Badge>
         )}
+
         {(basis === "persona_estadia" || basis === "persona_noche") && pax === 0 && (
           <span className="text-muted-foreground">
             Cargá participantes esperados de este paquete para calcular esta forma de costo.
@@ -428,7 +435,7 @@ export default function LodgingCostRow({
         )}
         {excedido && (
           <span className="flex items-center gap-1 text-amber-500">
-            <AlertTriangle className="w-3 h-3" /> {pax} esperados supera las {capacidad} plazas del alojamiento
+            <AlertTriangle className="w-3 h-3" /> {pax} ventas simuladas superan las {capacidad} plazas presupuestadas
           </span>
         )}
         <span className="ml-auto text-sm">

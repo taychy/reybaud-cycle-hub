@@ -19,7 +19,6 @@ import { formatPrice, MONEDAS } from "@/lib/currency";
 import { normalizePaymentMethod } from "@/lib/paymentMethods";
 import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
-import { planRoomSync, capacityReductionError } from "@/lib/lodgingCapacity";
 import CostGroupSection from "@/components/admin/CostGroupSection";
 import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
 
@@ -532,50 +531,10 @@ export default function EventCostSimulator({ eventId }: Props) {
     setPackages((old) => old.map((p) => p.id === packageId ? { ...p, nombre } : p));
   };
 
-  /** Sincroniza habitaciones/personas → event_rooms + cupo del paquete. */
-  const syncLodgingStructure = async (packageId: string, habitaciones: number, personas: number) => {
-    const pkg = packages.find((p) => p.id === packageId);
-    const existing = rooms.filter((r) => r.package_id === packageId);
-    const plan = planRoomSync({
-      existing: existing as any,
-      habitaciones,
-      personas,
-      tipo: (existing[0]?.tipo as string) || null,
-      label: pkg?.nombre || "Habitación",
-    });
+  /* El presupuesto no sincroniza inventario real: habitaciones y personas por
+     habitación son supuestos guardados en event_cost_items.detalle. La estructura
+     real (event_rooms / cupo) se gestiona desde Alojamiento. */
 
-    const guard = capacityReductionError(plan.capacidad, reservasActivas[packageId] || 0);
-    if (guard) { toast({ title: "No se puede reducir la capacidad", description: guard, variant: "destructive" }); return; }
-
-    if (plan.toDeleteIds.length > 0) {
-      await supabase.from("event_rooms").delete().in("id", plan.toDeleteIds);
-    }
-    for (const u of plan.toUpdate) {
-      await supabase.from("event_rooms").update({ capacidad: u.capacidad }).eq("id", u.id);
-    }
-    let inserted: any[] = [];
-    if (plan.toInsert.length > 0) {
-      const { data } = await supabase.from("event_rooms").insert(
-        plan.toInsert.map((r) => ({ ...r, event_id: eventId, package_id: packageId })) as any,
-      ).select("id, package_id, nombre, capacidad, tipo, sort_order");
-      inserted = (data as any) || [];
-    }
-    await supabase.from("event_packages")
-      .update({ cupo: plan.capacidad, personas_por_habitacion: personas })
-      .eq("id", packageId);
-
-    setRooms((old) => [
-      ...old
-        .filter((r) => !plan.toDeleteIds.includes(r.id))
-        .map((r) => {
-          const upd = plan.toUpdate.find((u) => u.id === r.id);
-          return upd ? { ...r, capacidad: upd.capacidad } : r;
-        }),
-      ...inserted,
-    ]);
-    setPackages((old) => old.map((p) =>
-      p.id === packageId ? { ...p, cupo: plan.capacidad, personas_por_habitacion: personas } : p));
-  };
 
   const patchItem = async (id: string, patch: Partial<ItemRow>) => {
     setItems((old) => old.map((i) => i.id === id ? { ...i, ...patch } : i));
@@ -1017,7 +976,6 @@ export default function EventCostSimulator({ eventId }: Props) {
                     onUpdate={(patch) => updateItem(it.id, patch as any)}
                     onDelete={() => delItem(it.id)}
                     onRenamePackage={renamePackage}
-                    onSyncStructure={syncLodgingStructure}
                   />
                 ))}
 
