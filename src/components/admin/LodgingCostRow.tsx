@@ -52,11 +52,7 @@ interface Props {
   onUpdate: (patch: Record<string, any>) => void;
   onDelete: () => void;
   onRenamePackage?: (packageId: string, nombre: string) => void | Promise<void>;
-  onSyncStructure?: (
-    packageId: string,
-    habitaciones: number,
-    personas: number,
-  ) => void | Promise<void>;
+
 }
 
 const BASIS_LABELS: Record<CostBasis, string> = {
