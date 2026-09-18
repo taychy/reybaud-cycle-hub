@@ -608,11 +608,13 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     loadAll();
   };
 
-  const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = packages.map((p) => ({
-    id: p.id,
-    label: p.nombre,
-    pkg: p,
-  }));
+  const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = packages
+    .filter((p) => !isNoLodgingPkg(p))
+    .map((p) => ({
+      id: p.id,
+      label: p.nombre,
+      pkg: p,
+    }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -690,8 +692,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           </SelectTrigger>
                           <SelectContent>
                             {(() => {
+                              const reservationGroupKey = lodgingGroupKey(r.package_id);
                               const avail = realRooms.filter(
-                                (room) => (occupantsByRoom[room.id] || []).length < room.capacidad,
+                                (room) =>
+                                  lodgingGroupKey(room.package_id) === reservationGroupKey &&
+                                  (occupantsByRoom[room.id] || []).length < room.capacidad,
                               );
                               if (avail.length === 0)
                                 return (
@@ -779,30 +784,6 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                 const freeDetail = Object.entries(freeByGenero)
                   .map(([g, n]) => `${n} ${g}`)
                   .join(" · ");
-
-                const sinAlojamiento = groupLabels.every((n) => /sin alojamiento|sin aloj/i.test(n)) && /sin alojamiento|sin aloj/i.test(label);
-                // Los paquetes que no requieren habitación (ej. "camp de un día") no
-                // necesitan tarjeta de alojamiento si aún no tienen ni reservas ni habitaciones.
-                if (sinAlojamiento && pkgReservations.length === 0 && pkgRooms.length === 0) return null;
-                if (sinAlojamiento && pkgRooms.length === 0) {
-                  return (
-                    <div key={pkgKey} className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3">
-                      <div className="flex items-center justify-between flex-wrap gap-2">
-                        <div>
-                          <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
-                            {displayLabel}
-                          </h3>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            {pkgReservations.length} reserva(s) · sin alojamiento a asignar
-                          </p>
-                        </div>
-                        <Badge variant="outline" className="text-[10px] text-muted-foreground">
-                          No requiere habitación
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                }
 
                 return (
                   <div key={pkgKey} className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
@@ -1204,7 +1185,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                                 <SelectContent>
                                   {(() => {
                                     const availableRooms = rooms.filter(
-                                      (room) => (occupantsByRoom[room.id] || []).length < room.capacidad,
+                                      (room) =>
+                                        lodgingGroupKey(room.package_id) === pkgKey &&
+                                        (occupantsByRoom[room.id] || []).length < room.capacidad,
                                     );
                                     if (availableRooms.length === 0) {
                                       return (
