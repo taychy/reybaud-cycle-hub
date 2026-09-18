@@ -393,6 +393,8 @@ const AdminEventReservations = ({
 
   /* ─── Habitaciones asignadas (badge por reserva) ─── */
   const [roomByRes, setRoomByRes] = useState<Record<string, string>>({});
+  const [roomIdByRes, setRoomIdByRes] = useState<Record<string, string>>({});
+  const [resIdsByRoom, setResIdsByRoom] = useState<Record<string, string[]>>({});
 
   const loadRoomAssignments = async () => {
     const { data: rooms } = await supabase
@@ -400,7 +402,7 @@ const AdminEventReservations = ({
       .select("id, nombre")
       .eq("event_id", eventId);
     const roomIds = ((rooms as any[]) || []).map((r) => r.id);
-    if (!roomIds.length) { setRoomByRes({}); return; }
+    if (!roomIds.length) { setRoomByRes({}); setRoomIdByRes({}); setResIdsByRoom({}); return; }
     const { data: asigs } = await supabase
       .from("event_room_assignments" as any)
       .select("room_id, reservation_id")
@@ -408,11 +410,19 @@ const AdminEventReservations = ({
     const nameById: Record<string, string> = {};
     ((rooms as any[]) || []).forEach((r) => { nameById[r.id] = r.nombre; });
     const map: Record<string, string> = {};
+    const idMap: Record<string, string> = {};
+    const byRoom: Record<string, string[]> = {};
     ((asigs as any[]) || []).forEach((a) => {
-      if (a.reservation_id) map[a.reservation_id] = nameById[a.room_id] || "Habitación";
+      if (!a.reservation_id) return;
+      map[a.reservation_id] = nameById[a.room_id] || "Habitación";
+      idMap[a.reservation_id] = a.room_id;
+      (byRoom[a.room_id] ||= []).push(a.reservation_id);
     });
     setRoomByRes(map);
+    setRoomIdByRes(idMap);
+    setResIdsByRoom(byRoom);
   };
+
 
   /* ─── Cuotas vencidas por reserva ─── */
   const [overdueByRes, setOverdueByRes] = useState<Record<string, OverdueInfo>>({});
