@@ -16190,6 +16190,10 @@ export type Database = {
           nombre_parcial: string
         }[]
       }
+      manage_trip_extras_by_token: {
+        Args: { p_action?: string; p_selections?: Json; p_token: string }
+        Returns: Json
+      }
       marcar_baja_evitada: {
         Args: { p_motivo: string; p_solicitud_id: string }
         Returns: undefined
