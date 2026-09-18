@@ -47,7 +47,7 @@ const SAMPLE_DATA: Record<string, object> = {
   },
   magiclink: {
     siteName: SITE_NAME,
-    confirmationUrl: SAMPLE_PROJECT_URL,
+    token: '12345678',
   },
   recovery: {
     siteName: SITE_NAME,
@@ -152,7 +152,7 @@ const handler = createAuthEmailHandler({
       render: (data) =>
         React.createElement(MagicLinkEmail, {
           siteName: SITE_NAME,
-          confirmationUrl: data.url,
+          token: data.token ?? '',
         }),
     },
     recovery: {
