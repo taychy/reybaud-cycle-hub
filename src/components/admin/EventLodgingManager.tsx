@@ -567,18 +567,52 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     toast.success(`${toCreate.length} habitación(es) creada(s)`);
     loadAll();
   };
-  const noLodgingPkgIds = new Set(packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id));
-  const lodgingReservations = reservations.filter((r) => !r.package_id || !noLodgingPkgIds.has(r.package_id));
-  const totalPlazas = rooms.reduce((s, r) => s + r.capacidad, 0);
-  const totalOcupadas = assignments.length;
-  const totalLibres = totalPlazas - totalOcupadas;
-  const totalReservas = lodgingReservations.length;
-  const sinAsignar = lodgingReservations.filter((r) => !assignedReservationIds.has(r.id)).length;
+  // Un paquete es "sin alojamiento" por flag explícito (fallback legacy por nombre).
+  const isNoLodgingPkg = (p?: Pkg | null) =>
+    !!p && (p.sin_alojamiento === true || /sin alojamiento|sin aloj/i.test(p.nombre));
+  const noLodgingPkgIds = new Set(packages.filter(isNoLodgingPkg).map((p) => p.id));
 
-  const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = [
-    ...packages.map((p) => ({ id: p.id, label: p.nombre, pkg: p })),
-    { id: null, label: "Sin paquete", pkg: null },
-  ];
+  const activeReservations = reservations.filter(
+    (r) => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada",
+  );
+  // B) paquete sin alojamiento = ubicado conceptualmente
+  const sinAlojamientoReservations = activeReservations.filter(
+    (r) => r.package_id && noLodgingPkgIds.has(r.package_id),
+  );
+  // A) paquete con alojamiento + habitación asignada = ubicado
+  const ubicadosConHabitacion = activeReservations.filter(
+    (r) => r.package_id && !noLodgingPkgIds.has(r.package_id) && assignedReservationIds.has(r.id),
+  );
+  // C) el resto = pendiente / error
+  const pendientes = activeReservations.filter(
+    (r) => !sinAlojamientoReservations.includes(r) && !ubicadosConHabitacion.includes(r),
+  );
+  const totalUbicados = ubicadosConHabitacion.length + sinAlojamientoReservations.length;
+
+  // Habitaciones huérfanas: no pertenecen a ningún paquete → no son alojamiento válido
+  const orphanRooms = rooms.filter((r) => !r.package_id);
+  // Plazas físicas: solo alojamiento real (paquete con alojamiento)
+  const realRooms = rooms.filter((r) => r.package_id && !noLodgingPkgIds.has(r.package_id));
+  const realRoomIds = new Set(realRooms.map((r) => r.id));
+  const totalPlazas = realRooms.reduce((s, r) => s + r.capacidad, 0);
+  const totalOcupadas = assignments.filter((a) => realRoomIds.has(a.room_id)).length;
+  const totalLibres = Math.max(0, totalPlazas - totalOcupadas);
+
+  const assignPackage = async (reservationId: string, packageId: string) => {
+    const { error } = await supabase
+      .from("event_reservations")
+      .update({ package_id: packageId })
+      .eq("id", reservationId);
+    if (error) return toast.error(error.message);
+    toast.success("Paquete asignado");
+    loadAll();
+  };
+
+  const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = packages.map((p) => ({
+    id: p.id,
+    label: p.nombre,
+    pkg: p,
+  }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
