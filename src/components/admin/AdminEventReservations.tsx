@@ -916,14 +916,46 @@ const AdminEventReservations = ({
 
   // Cancelación con habitación asignada → preguntar si liberar la cama
   const [pendingCancel, setPendingCancel] = useState<{ resId: string; room: string } | null>(null);
+  // Cancelación con alojamiento compartido → resolver a quienes quedan
+  const [sharedCancel, setSharedCancel] = useState<
+    { resId: string; room: string; name: string; occupants: SharedLodgingOccupant[] } | null
+  >(null);
+
+  const buildOccupants = (resId: string): SharedLodgingOccupant[] => {
+    const roomId = roomIdByRes[resId];
+    if (!roomId) return [];
+    const mates = (resIdsByRoom[roomId] || []).filter((id) => id !== resId);
+    return mates
+      .map((id) => reservations.find((r) => r.id === id))
+      .filter((r): r is EventReservation =>
+        !!r && r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
+      .map((r) => ({
+        id: r.id,
+        nombre: participantName(r),
+        email: getParticipant(r).email || null,
+        package_id: r.package_id || null,
+        package_nombre: eventPackages.find((p) => p.id === r.package_id)?.nombre || "Sin paquete",
+        amount_total: Number(r.amount_total || 0),
+        amount_paid: Number(r.amount_paid || 0),
+        currency: r.currency_snapshot || (r as any).moneda || eventCurrency,
+        purchase_date: (r as any).created_at,
+      }));
+  };
 
   const updateReservationStatus = async (resId: string, field: string, value: string) => {
     if (field === "reservation_status" && value === "cancelada" && roomByRes[resId]) {
+      const occupants = buildOccupants(resId);
+      const res = reservations.find((r) => r.id === resId);
+      if (occupants.length > 0) {
+        setSharedCancel({ resId, room: roomByRes[resId], name: res ? participantName(res) : "El participante", occupants });
+        return;
+      }
       setPendingCancel({ resId, room: roomByRes[resId] });
       return;
     }
     return applyReservationStatus(resId, field, value);
   };
+
 
   const applyReservationStatus = async (resId: string, field: string, value: string, liberar?: boolean) => {
     setUpdatingId(resId);
