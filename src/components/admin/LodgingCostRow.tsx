@@ -264,27 +264,34 @@ export default function LodgingCostRow({
       )}
 
       {pkgId && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <div className="space-y-1">
-            <Label className="text-xs">Habitaciones</Label>
-            <Input type="number" className="h-9" value={habitaciones} disabled={!onSyncStructure}
-              onChange={(e) => syncStructure(Math.max(0, Number(e.target.value) || 0), personas)} />
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="space-y-1">
+              <Label className="text-xs">Habitaciones presupuestadas</Label>
+              <Input type="number" min={0} className="h-9" value={habitaciones}
+                onChange={(e) => patchDetalle({ habitaciones: Math.max(0, Number(e.target.value) || 0) })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Personas por habitación</Label>
+              <Input type="number" min={1} className="h-9" value={personas}
+                onChange={(e) => patchDetalle({ personas_por_habitacion: Math.max(1, Number(e.target.value) || 1) })} />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Capacidad presupuestada</Label>
+              <Input className="h-9" value={`${capacidad} plazas`} readOnly disabled />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Escenario activo</Label>
+              <Input className="h-9" value={`${escenarioPax} inscriptos`} readOnly disabled />
+            </div>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Personas por habitación</Label>
-            <Input type="number" className="h-9" value={personas} disabled={!onSyncStructure}
-              onChange={(e) => syncStructure(habitaciones, Math.max(1, Number(e.target.value) || 1))} />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Capacidad física</Label>
-            <Input className="h-9" value={`${capacidad} plazas`} readOnly disabled />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Escenario activo</Label>
-            <Input className="h-9" value={`${escenarioPax} inscriptos`} readOnly disabled />
-          </div>
-        </div>
+          <p className="text-[11px] text-muted-foreground">
+            Son supuestos de cálculo del presupuesto. No modifican las habitaciones reales ni el cupo de la modalidad
+            {info ? ` (hoy en Alojamiento: ${info.habitaciones} habitaciones · ${info.plazas} plazas).` : "."}
+          </p>
+        </>
       )}
+
 
       <div className="rounded-md border border-dashed p-3 space-y-3">
         <div className="flex flex-wrap items-center gap-2">
