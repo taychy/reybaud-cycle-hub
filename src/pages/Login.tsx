@@ -102,7 +102,10 @@ const Login = () => {
         .rpc("lookup_alumno_by_email", { p_email: userEmail })
         .maybeSingle();
 
-      if (!alumno) { setCheckingSession(false); return; }
+      if (!alumno) {
+        await redirectByRole(userId, navigate, targetReturnTo);
+        return;
+      }
 
       await supabase
         .from("alumnos")
