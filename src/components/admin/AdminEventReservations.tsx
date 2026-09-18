@@ -39,6 +39,7 @@ import EventLodgingManager from "@/components/admin/EventLodgingManager";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
+import ResolveSharedLodgingDialog, { type SharedLodgingOccupant } from "@/components/admin/ResolveSharedLodgingDialog";
 import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
