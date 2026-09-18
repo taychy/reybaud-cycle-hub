@@ -54,6 +54,7 @@ interface Pkg {
   cupo_varones: number | null;
   cupo_mixto: number | null;
   lodging_group_key?: string | null;
+  sin_alojamiento?: boolean | null;
 }
 
 interface Reservation {
