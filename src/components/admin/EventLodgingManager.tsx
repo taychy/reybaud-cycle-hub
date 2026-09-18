@@ -54,6 +54,7 @@ interface Pkg {
   cupo_varones: number | null;
   cupo_mixto: number | null;
   lodging_group_key?: string | null;
+  sin_alojamiento?: boolean | null;
 }
 
 interface Reservation {
@@ -170,7 +171,9 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     const [pkgR, resR, roomR, alumnosPreR] = await Promise.all([
       supabase
         .from("event_packages")
-        .select("id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto, lodging_group_key")
+        .select(
+          "id, nombre, cupo, personas_por_habitacion, cupo_mujeres, cupo_varones, cupo_mixto, lodging_group_key, sin_alojamiento",
+        )
         .eq("event_id", eventId)
         .order("sort_order"),
       supabase
@@ -564,18 +567,52 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     toast.success(`${toCreate.length} habitación(es) creada(s)`);
     loadAll();
   };
-  const noLodgingPkgIds = new Set(packages.filter((p) => /sin alojamiento|sin aloj/i.test(p.nombre)).map((p) => p.id));
-  const lodgingReservations = reservations.filter((r) => !r.package_id || !noLodgingPkgIds.has(r.package_id));
-  const totalPlazas = rooms.reduce((s, r) => s + r.capacidad, 0);
-  const totalOcupadas = assignments.length;
-  const totalLibres = totalPlazas - totalOcupadas;
-  const totalReservas = lodgingReservations.length;
-  const sinAsignar = lodgingReservations.filter((r) => !assignedReservationIds.has(r.id)).length;
+  // Un paquete es "sin alojamiento" por flag explícito (fallback legacy por nombre).
+  const isNoLodgingPkg = (p?: Pkg | null) =>
+    !!p && (p.sin_alojamiento === true || /sin alojamiento|sin aloj/i.test(p.nombre));
+  const noLodgingPkgIds = new Set(packages.filter(isNoLodgingPkg).map((p) => p.id));
 
-  const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = [
-    ...packages.map((p) => ({ id: p.id, label: p.nombre, pkg: p })),
-    { id: null, label: "Sin paquete", pkg: null },
-  ];
+  const activeReservations = reservations.filter(
+    (r) => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada",
+  );
+  // B) paquete sin alojamiento = ubicado conceptualmente
+  const sinAlojamientoReservations = activeReservations.filter(
+    (r) => r.package_id && noLodgingPkgIds.has(r.package_id),
+  );
+  // A) paquete con alojamiento + habitación asignada = ubicado
+  const ubicadosConHabitacion = activeReservations.filter(
+    (r) => r.package_id && !noLodgingPkgIds.has(r.package_id) && assignedReservationIds.has(r.id),
+  );
+  // C) el resto = pendiente / error
+  const pendientes = activeReservations.filter(
+    (r) => !sinAlojamientoReservations.includes(r) && !ubicadosConHabitacion.includes(r),
+  );
+  const totalUbicados = ubicadosConHabitacion.length + sinAlojamientoReservations.length;
+
+  // Habitaciones huérfanas: no pertenecen a ningún paquete → no son alojamiento válido
+  const orphanRooms = rooms.filter((r) => !r.package_id);
+  // Plazas físicas: solo alojamiento real (paquete con alojamiento)
+  const realRooms = rooms.filter((r) => r.package_id && !noLodgingPkgIds.has(r.package_id));
+  const realRoomIds = new Set(realRooms.map((r) => r.id));
+  const totalPlazas = realRooms.reduce((s, r) => s + r.capacidad, 0);
+  const totalOcupadas = assignments.filter((a) => realRoomIds.has(a.room_id)).length;
+  const totalLibres = Math.max(0, totalPlazas - totalOcupadas);
+
+  const assignPackage = async (reservationId: string, packageId: string) => {
+    const { error } = await supabase
+      .from("event_reservations")
+      .update({ package_id: packageId })
+      .eq("id", reservationId);
+    if (error) return toast.error(error.message);
+    toast.success("Paquete asignado");
+    loadAll();
+  };
+
+  const packageBuckets: { id: string | null; label: string; pkg: Pkg | null }[] = packages.map((p) => ({
+    id: p.id,
+    label: p.nombre,
+    pkg: p,
+  }));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -596,29 +633,115 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         ) : (
           <div className="space-y-4">
             {/* Totales */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-2">
-              <MetricCard label="Reservas" value={totalReservas} icon={<Users className="w-4 h-4" />} />
-              <MetricCard label="Plazas totales" value={totalPlazas} icon={<Home className="w-4 h-4" />} />
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
+              <MetricCard label="Reservas activas" value={activeReservations.length} icon={<Users className="w-4 h-4" />} />
+              <MetricCard label="Ubicados" value={totalUbicados} color="text-emerald-500" />
+              <MetricCard
+                label="Pendientes"
+                value={pendientes.length}
+                color={pendientes.length > 0 ? "text-destructive" : "text-emerald-500"}
+              />
+              <MetricCard label="Plazas físicas" value={totalPlazas} icon={<Home className="w-4 h-4" />} />
               <MetricCard label="Ocupadas" value={totalOcupadas} color="text-emerald-500" />
               <MetricCard
                 label="Libres"
                 value={totalLibres}
                 color={totalLibres > 0 ? "text-primary" : "text-muted-foreground"}
               />
-              <MetricCard
-                label="Sin asignar"
-                value={sinAsignar}
-                color={sinAsignar > 0 ? "text-amber-500" : "text-emerald-500"}
-              />
             </div>
 
-            {sinAsignar > 0 && totalLibres < sinAsignar && (
+            {/* Participantes sin ubicar */}
+            {pendientes.length > 0 && (
+              <div className="rounded-lg border border-destructive/50 bg-destructive/5 p-3 space-y-2">
+                <div className="flex items-center gap-2 text-destructive font-semibold text-sm">
+                  <AlertCircle className="w-4 h-4" />
+                  Participantes sin ubicar ({pendientes.length})
+                </div>
+                {pendientes.map((r) => {
+                  const pkg = r.package_id ? packageById[r.package_id] : null;
+                  return (
+                    <div
+                      key={r.id}
+                      className="rounded border border-destructive/30 bg-background p-2 flex flex-wrap items-center gap-2 justify-between"
+                    >
+                      <div className="text-xs">
+                        <span className="font-medium">
+                          {r.nombre} {r.apellido}
+                        </span>
+                        <span className="text-muted-foreground"> · {pkg ? pkg.nombre : "Sin paquete asignado"}</span>
+                      </div>
+                      {!r.package_id ? (
+                        <Select value="" onValueChange={(v) => assignPackage(r.id, v)}>
+                          <SelectTrigger className="h-7 text-xs w-56">
+                            <SelectValue placeholder="Asignar paquete..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {packages.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {p.nombre}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : (
+                        <Select value="" onValueChange={(v) => assignReservation(r.id, v)}>
+                          <SelectTrigger className="h-7 text-xs w-64">
+                            <SelectValue placeholder="Asignar habitación / Cambiar alojamiento..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {(() => {
+                              const avail = realRooms.filter(
+                                (room) => (occupantsByRoom[room.id] || []).length < room.capacidad,
+                              );
+                              if (avail.length === 0)
+                                return (
+                                  <SelectItem value="_none" disabled>
+                                    No hay habitaciones disponibles
+                                  </SelectItem>
+                                );
+                              return avail.map((room) => (
+                                <SelectItem key={room.id} value={room.id}>
+                                  {room.nombre} ({(occupantsByRoom[room.id] || []).length}/{room.capacidad})
+                                </SelectItem>
+                              ));
+                            })()}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Habitaciones huérfanas */}
+            {orphanRooms.length > 0 && (
               <div className="rounded-lg border border-amber-500/40 bg-amber-500/5 p-3 text-xs flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
                 <span>
-                  Hay {sinAsignar} reserva(s) sin asignar y solo {totalLibres} plaza(s) libre(s). Considerá crear
-                  habitaciones/cabañas adicionales.
+                  <strong>Habitaciones huérfanas ({orphanRooms.length})</strong> — no están vinculadas a ninguna
+                  modalidad y no cuentan como alojamiento válido: {orphanRooms.map((r) => r.nombre).join(", ")}.
+                  Corregilas asignándoles la modalidad correcta.
                 </span>
+              </div>
+            )}
+
+            {/* Camp sin alojamiento */}
+            {sinAlojamientoReservations.length > 0 && (
+              <div className="rounded-xl border border-border bg-muted/20 p-3 space-y-2">
+                <h3 className="font-heading font-bold text-sm uppercase tracking-wide text-muted-foreground">
+                  Camp sin alojamiento ({sinAlojamientoReservations.length})
+                </h3>
+                <p className="text-[11px] text-muted-foreground">
+                  Alojamiento por cuenta propia — no incluir en rooming del proveedor.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {sinAlojamientoReservations.map((r) => (
+                    <Badge key={r.id} variant="outline" className="text-[10px]">
+                      {r.nombre} {r.apellido}
+                    </Badge>
+                  ))}
+                </div>
               </div>
             )}
 
