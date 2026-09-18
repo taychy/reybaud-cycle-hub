@@ -71,8 +71,9 @@ export default function ResolveSharedLodgingDialog({
         const { data: st } = await supabase
           .from("event_package_price_stages" as any)
           .select("id, package_id, nombre, precio, currency, vigente_desde, vigente_hasta")
-          .in("package_id", all)
-          .eq("activo", true);
+          .in("package_id", all);
+        // Sin filtro por `activo`: una etapa histórica puede estar inactiva y aun así
+        // ser la etapa en la que el cliente compró.
         const map: Record<string, StageLike[]> = {};
         ((st as any[]) || []).forEach((s) => {
           (map[s.package_id] ||= []).push({
