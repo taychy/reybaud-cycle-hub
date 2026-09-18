@@ -756,6 +756,7 @@ export type Database = {
           es_staff: boolean
           estado: string
           fecha_baja: string | null
+          fecha_ingreso_escuela: string | null
           fecha_nacimiento: string | null
           fusionada_at: string | null
           fusionada_en: string | null
@@ -828,6 +829,7 @@ export type Database = {
           es_staff?: boolean
           estado?: string
           fecha_baja?: string | null
+          fecha_ingreso_escuela?: string | null
           fecha_nacimiento?: string | null
           fusionada_at?: string | null
           fusionada_en?: string | null
@@ -900,6 +902,7 @@ export type Database = {
           es_staff?: boolean
           estado?: string
           fecha_baja?: string | null
+          fecha_ingreso_escuela?: string | null
           fecha_nacimiento?: string | null
           fusionada_at?: string | null
           fusionada_en?: string | null
