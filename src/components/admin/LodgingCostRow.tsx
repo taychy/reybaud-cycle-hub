@@ -86,16 +86,18 @@ export function packageRoomsInfo(pkgId: string, rooms: LodgingRoom[], pkg?: Lodg
 
 export default function LodgingCostRow({
   item, packages, rooms, monedaBase, nochesDefault, esperados, scenarioParticipants, reservasActivas,
-  onUpdate, onDelete, onRenamePackage, onSyncStructure,
+  onUpdate, onDelete, onRenamePackage,
 }: Props) {
   const det: CostItemDetalle = item.detalle || {};
   const basis: CostBasis = (det.cost_basis as CostBasis) || "habitacion_noche";
   const pkgId = det.package_id || "";
   const pkg = packages.find((p) => p.id === pkgId);
+  /** Referencia del inventario real (solo informativa: el presupuesto no lo toca). */
   const info = pkgId ? packageRoomsInfo(pkgId, rooms, pkg) : null;
   const noches = Number(det.noches ?? nochesDefault) || 0;
-  const habitaciones = Number(info?.habitaciones ?? det.habitaciones ?? 0) || 0;
-  const personas = Number(info?.personas ?? det.personas_por_habitacion ?? 1) || 1;
+  /** Supuestos del presupuesto: viven en el detalle del ítem, no en event_rooms. */
+  const habitaciones = Math.max(0, Number(det.habitaciones ?? 0) || 0);
+  const personas = Math.max(1, Number(det.personas_por_habitacion ?? info?.personas ?? 1) || 1);
   const pax = Number(esperados[pkgId] || 0);
   /** La tarifa del proveedor depende del total de inscriptos del escenario activo. */
   const escenarioPax = Math.max(0, Number(scenarioParticipants) || 0);
