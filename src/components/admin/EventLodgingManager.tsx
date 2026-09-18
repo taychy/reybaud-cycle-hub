@@ -262,7 +262,6 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     if (open) loadAll();
   }, [open, eventId]);
 
-  const assignedReservationIds = useMemo(() => new Set(assignments.map((a) => a.reservation_id)), [assignments]);
   const packageById = useMemo(() => {
     const m: Record<string, Pkg> = {};
     packages.forEach((p) => {
@@ -276,6 +275,29 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     const g = packageById[pkgId]?.lodging_group_key?.trim().toLowerCase();
     return g ? `grupo:${g}` : pkgId;
   };
+
+  // Una reserva solo cuenta como "ubicada" si la habitación asignada pertenece
+  // al mismo paquete (o al mismo lodging_group_key) que su reserva.
+  const roomById = useMemo(() => {
+    const m: Record<string, Room> = {};
+    rooms.forEach((r) => { m[r.id] = r; });
+    return m;
+  }, [rooms]);
+  const roomIdByReservation = useMemo(() => {
+    const m: Record<string, string> = {};
+    assignments.forEach((a) => { m[a.reservation_id] = a.room_id; });
+    return m;
+  }, [assignments]);
+  const compatibleAssignedReservationIds = useMemo(() => {
+    const ok = new Set<string>();
+    reservations.forEach((r) => {
+      if (!r.package_id) return;
+      const roomId = roomIdByReservation[r.id];
+      const room = roomId ? roomById[roomId] : null;
+      if (room && lodgingGroupKey(room.package_id) === lodgingGroupKey(r.package_id)) ok.add(r.id);
+    });
+    return ok;
+  }, [reservations, roomIdByReservation, roomById, packageById]);
   const roomsByPackage = useMemo(() => {
     const m: Record<string, Room[]> = {};
     rooms.forEach((r) => {
@@ -426,7 +448,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   };
 
   const autoGenerateIndividual = async (pkgId: string | null, pkgReservations: Reservation[]) => {
-    const unassigned = pkgReservations.filter((r) => !assignedReservationIds.has(r.id));
+    const unassigned = pkgReservations.filter((r) => !compatibleAssignedReservationIds.has(r.id));
     if (unassigned.length === 0) {
       toast.info("No hay reservas sin asignar en este paquete");
       return;
@@ -581,7 +603,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   );
   // A) paquete con alojamiento + habitación asignada = ubicado
   const ubicadosConHabitacion = activeReservations.filter(
-    (r) => r.package_id && !noLodgingPkgIds.has(r.package_id) && assignedReservationIds.has(r.id),
+    (r) => r.package_id && !noLodgingPkgIds.has(r.package_id) && compatibleAssignedReservationIds.has(r.id),
   );
   // C) el resto = pendiente / error
   const pendientes = activeReservations.filter(
@@ -661,6 +683,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                 </div>
                 {pendientes.map((r) => {
                   const pkg = r.package_id ? packageById[r.package_id] : null;
+                  const currentRoom = roomIdByReservation[r.id] ? roomById[roomIdByReservation[r.id]] : null;
+                  const incompatibleRoom =
+                    !!currentRoom &&
+                    !!r.package_id &&
+                    lodgingGroupKey(currentRoom.package_id) !== lodgingGroupKey(r.package_id);
                   return (
                     <div
                       key={r.id}
@@ -671,6 +698,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                           {r.nombre} {r.apellido}
                         </span>
                         <span className="text-muted-foreground"> · {pkg ? pkg.nombre : "Sin paquete asignado"}</span>
+                        {incompatibleRoom && currentRoom && (
+                          <span className="block text-destructive mt-0.5">
+                            Ubicación incompatible: {currentRoom.nombre}
+                          </span>
+                        )}
                       </div>
                       {!r.package_id ? (
                         <Select value="" onValueChange={(v) => assignPackage(r.id, v)}>
@@ -762,7 +794,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
 
                 const pkgRooms = roomsByPackage[pkgKey] || [];
                 const pkgReservations = reservationsByPackage[pkgKey] || [];
-                const pkgUnassigned = pkgReservations.filter((r) => !assignedReservationIds.has(r.id));
+                const pkgUnassigned = pkgReservations.filter((r) => !compatibleAssignedReservationIds.has(r.id));
                 const pkgCapacity = pkgRooms.reduce((s, r) => s + r.capacidad, 0);
                 // Ocupación real de camas (incluye ocupantes con reserva cancelada, que siguen bloqueando la plaza)
                 let pkgBedsUsed = 0;
