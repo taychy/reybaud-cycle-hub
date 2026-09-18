@@ -435,7 +435,7 @@ export default function LodgingCostRow({
         )}
         {excedido && (
           <span className="flex items-center gap-1 text-amber-500">
-            <AlertTriangle className="w-3 h-3" /> {pax} esperados supera las {capacidad} plazas del alojamiento
+            <AlertTriangle className="w-3 h-3" /> {pax} ventas simuladas superan las {capacidad} plazas presupuestadas
           </span>
         )}
         <span className="ml-auto text-sm">
