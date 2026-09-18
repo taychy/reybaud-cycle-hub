@@ -19,7 +19,6 @@ import { formatPrice, MONEDAS } from "@/lib/currency";
 import { normalizePaymentMethod } from "@/lib/paymentMethods";
 import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
-import { planRoomSync, capacityReductionError } from "@/lib/lodgingCapacity";
 import CostGroupSection from "@/components/admin/CostGroupSection";
 import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
 
@@ -977,7 +976,6 @@ export default function EventCostSimulator({ eventId }: Props) {
                     onUpdate={(patch) => updateItem(it.id, patch as any)}
                     onDelete={() => delItem(it.id)}
                     onRenamePackage={renamePackage}
-                    onSyncStructure={syncLodgingStructure}
                   />
                 ))}
 

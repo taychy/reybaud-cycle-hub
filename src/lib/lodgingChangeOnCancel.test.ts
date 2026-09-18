@@ -49,7 +49,7 @@ describe("resolveHistoricalPrice", () => {
   it("bloquea si el destino no tiene etapas", () => {
     const r = resolveHistoricalPrice({ purchaseDate: "2026-02-05T00:00:00Z", originStages: [early], targetStages: [] });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe("sin_etapas_destino");
+    if (r.ok === false) expect(r.reason).toBe("sin_etapas_destino");
   });
 
   it("bloquea si no hay equivalencia de etapa en el destino", () => {
@@ -59,13 +59,13 @@ describe("resolveHistoricalPrice", () => {
       targetStages: [stage({ id: "x", nombre: "Última llamada", vigente_desde: "2026-09-01T00:00:00Z" })],
     });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe("sin_equivalencia");
+    if (r.ok === false) expect(r.reason).toBe("sin_equivalencia");
   });
 
   it("bloquea si no se identifica la etapa de compra", () => {
     const r = resolveHistoricalPrice({ purchaseDate: "2020-01-01T00:00:00Z", originStages: [early], targetStages });
     expect(r.ok).toBe(false);
-    if (!r.ok) expect(r.reason).toBe("sin_etapa_origen");
+    if (r.ok === false) expect(r.reason).toBe("sin_etapa_origen");
   });
 });
 
