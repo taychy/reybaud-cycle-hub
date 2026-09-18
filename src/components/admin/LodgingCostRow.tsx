@@ -139,6 +139,7 @@ export default function LodgingCostRow({
           ? pax * costoUnitarioAplicado
           : costoUnitarioAplicado * (Number(item.cantidad) > 0 ? Number(item.cantidad) : 1);
 
+  /** Capacidad presupuestada = habitaciones presupuestadas × personas por habitación (supuesto). */
   const capacidad = pkgId ? capacidadFisica(habitaciones, personas) : 0;
   const excedido = capacidad > 0 && pax > capacidad;
 
@@ -153,19 +154,15 @@ export default function LodgingCostRow({
         ...det,
         package_id: id,
         cost_basis: basis,
-        habitaciones: nfo.habitaciones || Number(det.habitaciones || 0),
+        // Sugerencia inicial tomada del inventario real; después es un supuesto editable.
+        habitaciones: Number(det.habitaciones ?? nfo.habitaciones ?? 0) || 0,
         noches: Number(det.noches ?? nochesDefault) || 0,
-        personas_por_habitacion: nfo.personas,
-        tipo_habitacion: nfo.tipo,
+        personas_por_habitacion: Number(det.personas_por_habitacion ?? nfo.personas) || 1,
+        tipo_habitacion: det.tipo_habitacion ?? nfo.tipo,
       },
     });
   };
 
-  const syncStructure = async (nextHab: number, nextPers: number) => {
-    if (!pkgId || !onSyncStructure) return;
-    await onSyncStructure(pkgId, nextHab, nextPers);
-    patchDetalle({ habitaciones: nextHab, personas_por_habitacion: nextPers });
-  };
 
   const toggleTarifaPorTramos = () => {
     const next = !tarifaPorTramos;
