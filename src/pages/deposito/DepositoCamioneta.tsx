@@ -337,6 +337,8 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [vistoDraft, setVistoDraft] = useState<Record<string, string>>({});
   const [closingRonda, setClosingRonda] = useState(false);
   const [rondaNotas, setRondaNotas] = useState("");
+  // Pedidos marcados "en camioneta" sin caja asignada (sin vehiculo_carga_items).
+  const [sinCargar, setSinCargar] = useState<OrdenSinCargar[]>([]);
 
 
   const parseClientCode = (code: string): { listId: string; cliente: string } | null => {
