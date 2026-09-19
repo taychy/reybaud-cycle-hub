@@ -13,6 +13,8 @@ import { Truck, Plus, ChevronRight, ArrowLeft, Package, CheckCircle2, AlertTrian
 import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
+import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
+
 
 interface Sede { id: string; nombre: string; }
 interface Carga {
