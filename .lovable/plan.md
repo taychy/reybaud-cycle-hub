@@ -1,85 +1,60 @@
-# Caso Marcelo Hamui: diagnóstico y corrección segura
+# Auditoría Camioneta — mercadería marcada "en camioneta" que no aparece
 
-Análisis de solo lectura. No se modificó ningún dato ni código.
+Solo auditoría: no se modificó código, datos ni estados.
 
-## Qué pasó, punto por punto
+## 1. De dónde saca los datos la pantalla Camioneta
 
-### 1. Por qué existe la ficha de alumno de Marcelo
-No es un "participante externo" del sistema: la ficha se creó por el registro normal de la app
-(alumno creado 30/06/2026 22:11, usuario de acceso confirmado 01/07/2026 00:57, y su reserva del
-Training Camp el 01/07 14:30). Es decir, se registró como alumno para poder reservar el viaje.
-Su ficha quedó con grupo "Sin grupo", perfil incompleto y, hasta agosto, en estado inactivo.
+La vista Camioneta NO mira el estado del pedido. Lista únicamente las filas de la tabla de ítems de carga (`vehiculo_carga_items`) de la carga abierta, filtradas por carga. El estado "En camioneta" del pedido de tienda (`store_orders.status = 'en_camioneta'`) es un campo totalmente independiente que se puede poner a mano desde Depósito > Pedidos o Admin > Tienda > Pedidos.
 
-### 2. De dónde salió la mensualidad de $65.500
-La creó el checkout de planes de la propia app (pantalla de elección de plan), no un proceso
-automático: se insertó la suscripción en estado pendiente el 30/08/2026 11:58:20 y 38 segundos
-después llegó el pago aprobado. El período 01/08–31/08 es el que calcula esa pantalla para el mes
-en curso.
+Resultado: un pedido puede decir "En camioneta" y no existir para la pantalla Camioneta.
 
-Punto crítico confirmado en el código: esa pantalla identifica al alumno **leyendo un id guardado
-en el navegador** (`registro_alumno_id` en localStorage), sin contrastarlo con la sesión que está
-realmente iniciada. Ese id lo escriben registro, login, reingreso y varias pantallas, y queda
-guardado indefinidamente. En un dispositivo compartido, el último id escrito manda.
+## 2. Casos concretos
 
-### 3. Por qué el pago de Eugenia quedó en la ficha de Marcelo
-Porque la preferencia de pago se generó con la suscripción de Marcelo como referencia externa. El
-webhook no mira el email de quien paga: vincula por esa referencia. La cuenta pagadora (Eugenia)
-sólo aparece como dato informativo. O sea: el pago se ató a Marcelo desde antes de pagarse, en el
-momento en que se creó la suscripción con su id.
+| Cliente | Venta | Producto | Cant. | Estado del pedido | En alguna carga | Pagado |
+|---|---|---|---|---|---|---|
+| Maria Eugenia Louys | #81 (18/09) | Jersey Manga Corta Classique, Blanco XS | 1 | en camioneta | No | Sí (18/09) |
+| Rodrigo Alonso | #82 (19/09) | Jersey Manga Corta Classique, Blanco L | 1 | en camioneta | No | No |
 
-Contexto que refuerza la hipótesis del id viejo en el navegador: Eugenia ya había pagado su propio
-plan de agosto el 04/08, y ese mismo 30/08 la familia estaba pagando la cuota 3 del Training Camp
-de Marcelo. La mensualidad de $65.500 no corresponde a ninguna cuota del viaje.
+Ninguno de los dos tiene fila en los ítems de carga, por eso no se ven. Además hoy no se pueden agregar: las dos cargas vivas (KDT y Villa Nueva) están en estado "En ruta", y el botón de agregar ítems sólo aparece con la carga "Abierta".
 
-Lo que **no** está probado documentalmente: qué persona/dispositivo abrió la pantalla, porque no
-hay registro de auditoría de ese checkout. Es la primera cosa a instrumentar.
+(Rodrigo tiene además dos ítems viejos en la lista de entrega "Santini de invierno 26", ya marcados como preparados, sin relación con estas ventas.)
 
-### 4. Por qué "no se lo ve" desde administración
-Dos causas verificadas:
-- El buscador de alumnos y el de Cuenta corriente exigen coincidencia de texto contigua. Su ficha
-  dice "Marcelo Fabian Hamui": buscar "Marcelo Hamui" no encuentra nada.
-- Estuvo inactivo hasta que el pago del 30/08 lo reactivó automáticamente ("reingreso" registrado
-  11:59:01), por lo que antes no aparecía en las vistas de alumnos activos.
-Su cuenta corriente sí existe y tiene saldo deudor de ARS 355.250 (saldo del viaje).
+## 3. Inconsistencia global — pedidos "en camioneta" sin representación
 
-### 5. Otros casos con el mismo patrón
-Se revisaron todos los pagos de mensualidad donde el email pagador no coincide con el del alumno.
-Casi todos son parejas/empresas pagando el plan de otra persona real: comportamiento legítimo.
-El único caso donde el pagador es otro alumno y el titular no tiene historia de alumno regular es
-el de Marcelo. No hay contagio masivo.
+6 de 6 pedidos marcados "en camioneta" no tienen ningún ítem cargado. Total de faltantes: **6**.
 
-## Propuesta de corrección
+| Venta | Cliente | Producto | Fecha |
+|---|---|---|---|
+| #82 | Rodrigo Alonso | Jersey Manga Corta Classique L | 19/09 |
+| #81 | Maria Eugenia Louys | Jersey Manga Corta Classique XS | 18/09 |
+| #80 | Hernan Martinero Saez | Chaleco Rompeviento M | 16/09 |
+| #78 | Victoria Davison | Chaleco Rompeviento Santini M | 11/09 |
+| #75 | Victoria Davison | Chaleco Rompeviento Santini M | 09/09 |
+| #48 | Accame Patricia | GU Energy Gel Lemon | 12/08 |
 
-### A. Reparación del caso histórico (aparte, con aprobación explícita)
-1. Decidir con Natalia si esa mensualidad se anula y el dinero se acredita a la cuota del viaje de
-   Marcelo, o si se acredita como saldo a favor de Eugenia.
-2. Ejecutarla con las herramientas ya existentes (reasignación / saldo a favor / imputación),
-   dejando registro en auditoría. Sin borrar el pago ni la suscripción.
-3. Revisar el estado de Marcelo: si no es alumno regular, volverlo al estado correcto y evitar que
-   una futura reactivación automática lo vuelva a listar como activo.
+## 4. Caso inverso — visibles en Camioneta pero ya no corresponden
 
-### B. Prevención del bug (lo importante)
-1. La pantalla de elección de plan debe validar que el alumno guardado en el navegador coincide
-   con la persona con sesión iniciada. Si no coincide, descartar el id viejo y usar el de la
-   sesión.
-2. Limpiar ese id al cerrar sesión y al iniciar sesión con otra persona.
-3. Mostrar el nombre del titular en el paso de confirmación del pago ("Vas a pagar el plan de
-   X"), para que un error de identidad sea visible antes de pagar.
-4. Registrar en auditoría quién inicia cada checkout de plan (usuario de sesión + alumno destino).
+3 ítems figuran como "Cargado" en la caja KDT (carga en ruta desde julio) aunque sus ventas ya están **entregadas** desde el 18/08:
 
-### C. Mejoras menores de búsqueda
-Hacer que el buscador de alumnos y el de Cuenta corriente acepten palabras sueltas en cualquier
-orden, para que "Marcelo Hamui" encuentre a "Marcelo Fabian Hamui".
+- Venta #55 — Gastón Fernández — Jersey Negro Manga Larga Classique
+- Venta #56 — Gaston Fernandez — Campera Térmica y Chaleco Rompeviento Classique
+- Venta #47 — Aldo Chaves — GU Energy Gel Triberry
 
-## Detalle técnico
-- `src/pages/PlanSelection.tsx:63` toma `localStorage.getItem("registro_alumno_id")` y lo usa en
-  el insert de `suscripciones` (líneas 664-672) y en el payload a `create-mp-preference` (742).
-- `supabase/functions/create-mp-preference/index.ts` valida plan/alumno/suscripción y fija
-  `external_reference = suscripcion_id`.
-- `supabase/functions/mp-webhook/index.ts` resuelve titularidad por `external_reference`; nunca por
-  `payer_email`.
-- Filtros de búsqueda: `src/pages/admin/ManageStudents.tsx:498-506` y
-  `src/pages/admin/AdminCuentaCorriente.tsx:146-150`.
-- Datos: suscripción `8aae29fc…` (creada 30/08 11:58:20), movimiento MP `4db19cde…`
-  (pago 175392747499, `assigned_manually=false`), reserva del camp con seña + cuotas 2 y 3 pagas y
-  cuota 4 pendiente por ARS 189.750.
+También quedan 8 ítems de pedidos externos en estado "Faltante" arrastrados en esa misma carga.
+
+## 5. Causa raíz
+
+Dos fuentes de verdad desconectadas:
+
+1. Marcar un pedido como "En camioneta" desde Pedidos cambia sólo el estado del pedido; no crea el ítem de carga. La incorporación real a la camioneta sólo ocurre al usar "Agregar ítems" dentro de una carga **abierta**.
+2. Entregar un pedido desde Pedidos marca el pedido como entregado pero no actualiza el ítem de carga, que queda "Cargado" indefinidamente.
+3. Las dos cajas activas (KDT y Villa Nueva) están "En ruta" desde julio/agosto, así que hoy no hay ninguna carga abierta donde sumar lo nuevo — la operación quedó bloqueada de hecho.
+
+## 6. Corrección mínima recomendada (no implementada)
+
+1. **Operativa inmediata:** abrir una carga nueva (o permitir agregar ítems también en cargas "En ruta") y cargar ahí los 6 pedidos pendientes. Sin esto, cualquier arreglo de UI no alcanza.
+2. **Vista:** en Camioneta mostrar una alerta "Pedidos marcados en camioneta sin cargar (N)" con acción para incorporarlos a la caja elegida — usa datos ya disponibles, sin backend nuevo.
+3. **Sincronía de estados:** al entregar o cancelar un pedido de tienda, marcar su ítem de carga como entregado/retornado; y al cargar un ítem, dejar que eso sea lo que marca el pedido "en camioneta" (ya lo hace hoy), desalentando el cambio manual de estado desde Pedidos.
+4. **Limpieza puntual:** cerrar los 3 ítems de ventas ya entregadas y resolver los 8 externos "Faltante" de la caja KDT.
+
+Confirmame cuál de estos pasos querés que implemente y en qué orden.
