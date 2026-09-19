@@ -27,6 +27,8 @@ import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
+import { ensureOrderInCamioneta, markOrderItemsEntregados } from "@/lib/camionetaSync";
+
 import {
   distributeOrderTotal,
   isLegacyInitialStatus,
