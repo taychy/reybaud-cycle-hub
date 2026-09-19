@@ -102,18 +102,22 @@ const DepositoCamioneta = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ sede_id: "", fecha_salida: new Date().toISOString().slice(0, 10), entregador: "", notas: "" });
+  const [sinCargar, setSinCargar] = useState<OrdenSinCargar[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [sRes, cRes] = await Promise.all([
+      const [sRes, cRes, pend] = await Promise.all([
         supabase.from("sedes").select("id,nombre").eq("activa", true).order("nombre"),
         supabase.from("vehiculo_cargas" as any).select("*").order("fecha_salida", { ascending: false }).order("created_at", { ascending: false }),
+        findOrdersEnCamionetaSinCargar(),
       ]);
       setSedes((sRes.data as any[]) || []);
       setCargas((cRes.data as any[]) || []);
+      setSinCargar(pend);
       setLoading(false);
     })();
   }, []);
+
 
   const refresh = async () => {
     const { data } = await supabase.from("vehiculo_cargas" as any).select("*").order("fecha_salida", { ascending: false }).order("created_at", { ascending: false });
