@@ -187,6 +187,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [notifying, setNotifying] = useState(false);
   const [payOrder, setPayOrder] = useState<Order | null>(null);
   const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [cajaPicker, setCajaPicker] = useState<{ orderId: string; patch: Partial<Order>; cargas: CargaActiva[] } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
   const [refundsByOrder, setRefundsByOrder] = useState<Record<string, number>>({});
