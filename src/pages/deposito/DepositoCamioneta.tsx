@@ -443,7 +443,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     }
     const { label, targets } = res;
     if (targets.length === 0) {
-      toast.info(`${label} ya estaba chequeado o entregado`);
+      toast.info(`${label} ya estaba controlado o entregado`);
       return;
     }
     scanBusyRef.current = true;
@@ -473,12 +473,12 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     }
     scanBusyRef.current = false;
     if (error) {
-      toast.error("No se pudo registrar el chequeo");
+      toast.error("No se pudo registrar el control");
       load();
       return;
     }
     setScanCount((n) => n + 1);
-    toast.success(`✓ ${label} en camioneta`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} chequeado${targets.length !== 1 ? "s" : ""}` });
+    toast.success(`✓ ${label} en camioneta`, { description: `${targets.length} ítem${targets.length !== 1 ? "s" : ""} controlado${targets.length !== 1 ? "s" : ""}` });
 
   };
 
@@ -559,19 +559,19 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     await loadRondas();
     await loadLineas(row.id);
     setScanCount(0);
-    toast.success(row.tipo === "inicial" ? `Chequeo iniciado` : `Chequeo ${row.ronda} iniciado`);
+    toast.success(row.tipo === "inicial" ? `Control físico iniciado` : `Control ${row.ronda} iniciado`);
   };
 
   const cerrarRonda = async () => {
     if (!chequeo) return;
-    if (!confirm("¿Cerrar el chequeo? Solo se guarda lo observado: no cambia stock, pedidos ni entregas.")) return;
+    if (!confirm("¿Cerrar el control? Solo se guarda lo observado: no cambia stock, pedidos ni entregas.")) return;
     setClosingRonda(true);
     const { error } = await (supabase as any).rpc("close_vehiculo_chequeo_observacional", {
       _chequeo_id: chequeo.id, _notas: rondaNotas || null,
     });
     setClosingRonda(false);
     if (error) { toast.error(error.message); return; }
-    toast.success("Chequeo cerrado: quedó guardada la foto de lo observado");
+    toast.success("Control cerrado: quedó guardada la foto de lo observado");
     setRondaNotas("");
     setLineas([]);
     setVistoDraft({});
@@ -885,11 +885,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                 </Button>
                 {chequeo ? (
                   <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-                    <ScanLine className="w-4 h-4 mr-1" /> Seguir chequeo
+                    <ScanLine className="w-4 h-4 mr-1" /> Seguir control
                   </Button>
                 ) : (
                   <Button variant="gold" size="sm" onClick={iniciarRonda}>
-                    <ScanLine className="w-4 h-4 mr-1" /> {rondas.length === 0 ? "Iniciar chequeo físico" : "Nuevo chequeo"}
+                    <ScanLine className="w-4 h-4 mr-1" /> {rondas.length === 0 ? "Control físico" : "Nuevo control"}
                   </Button>
                 )}
                 <Button variant="outline" size="sm" onClick={cerrarCarga}><CheckCircle2 className="w-4 h-4 mr-1" /> Cerrar carga</Button>
@@ -903,7 +903,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <Metric label="En caja" value={enCaja} tone="warning" />
           {aRetornar > 0 && <Metric label="A retornar" value={aRetornar} tone="danger" />}
 
-          <Metric label="Chequeados" value={chequeados} />
+          <Metric label="Controlados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
           <Metric label="Faltantes" value={faltantes} tone="danger" />
         </div>
@@ -914,11 +914,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div>
               <div className="font-heading font-bold uppercase tracking-wider text-sm">
-                Chequeo físico {chequeo.ronda > 1 ? `· control ${chequeo.ronda}` : ""}
+                Control físico {chequeo.ronda > 1 ? `· control ${chequeo.ronda}` : ""}
               </div>
               <p className="text-xs text-muted-foreground">
-                Mirá la camioneta y anotá cuántas unidades ves de cada línea. Cerrar el chequeo solo guarda lo observado:
-                no cambia stock, pedidos, entregas ni devoluciones.
+                Control opcional, disponible cuando lo necesites: mirá la camioneta y anotá cuántas unidades ves de cada línea.
+                Cerrar el control solo guarda lo observado: no cambia stock, pedidos, entregas ni devoluciones.
               </p>
             </div>
             <div className="flex gap-2">
@@ -1006,7 +1006,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             )}
             <Button variant="gold" size="sm" onClick={cerrarRonda}
               disabled={closingRonda || lineas.length === 0 || resumenChequeo.registradas < resumenChequeo.total}>
-              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar chequeo"}
+              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar control"}
             </Button>
           </div>
         </div>
@@ -1014,11 +1014,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
       {rondas.filter((r) => r.estado === "cerrado").length > 0 && (
         <div className="glass-card rounded-lg p-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Historial de chequeos</div>
+          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Historial de controles</div>
           <div className="space-y-1">
             {rondas.filter((r) => r.estado === "cerrado").map((r) => (
               <div key={r.id} className="text-xs flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Chequeo {r.ronda}</Badge>
+                <Badge variant="outline">Control {r.ronda}</Badge>
                 <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
                 {r.resumen && (
                   <span className="text-muted-foreground">
