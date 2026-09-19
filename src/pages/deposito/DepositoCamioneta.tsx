@@ -180,17 +180,14 @@ const DepositoCamioneta = () => {
 
       {loading ? (
         <div className="py-16 text-center text-muted-foreground animate-pulse">Cargando...</div>
-      ) : cargas.length === 0 ? (
-        <div className="py-16 text-center">
-          <Truck className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
-          <p className="text-sm text-muted-foreground mb-4">No hay cargas registradas.</p>
-          <Button variant="gold" size="sm" onClick={() => setShowCreate(true)}>
-            <Plus className="w-4 h-4 mr-1" /> Crear la primera
-          </Button>
-        </div>
       ) : (
-        <div className="grid gap-2 sm:grid-cols-2">
-          {cargas.map((c) => {
+        (() => {
+          // La operación actual: preferimos una carga en ruta; si no, cualquier carga activa (abierta).
+          // El listado ya viene ordenado de más nueva a más vieja, así que la primera coincide es la más reciente.
+          const actual = cargas.find((c) => c.estado === "en_ruta") || cargas.find((c) => c.estado === "abierta") || null;
+          const historial = actual ? cargas.filter((c) => c.id !== actual.id) : cargas;
+          const sedeActual = actual ? sedes.find((s) => s.id === actual.sede_id) : null;
+          const renderCarga = (c: Carga) => {
             const sede = sedes.find((s) => s.id === c.sede_id);
             return (
               <Link key={c.id} to={`/deposito/camioneta/${c.id}`} className="glass-card rounded-lg p-4 hover:border-primary/50 border border-transparent flex items-center gap-3">
@@ -207,8 +204,48 @@ const DepositoCamioneta = () => {
                 <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0" />
               </Link>
             );
-          })}
-        </div>
+          };
+          return (
+            <>
+              {actual ? (
+                <div>
+                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Camioneta ahora</h2>
+                  <Link to={`/deposito/camioneta/${actual.id}`} className="rounded-lg p-5 border border-primary/40 bg-primary/5 hover:border-primary/70 flex items-center gap-3 transition-colors">
+                    <Truck className="w-6 h-6 text-primary shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="font-medium text-foreground truncate">{sedeActual?.nombre || "Sede"}</span>
+                        {estadoBadge(actual.estado)}
+                      </div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-3">
+                        <span>{actual.fecha_salida}</span>
+                        {actual.entregador_nombre && <span>· {actual.entregador_nombre}</span>}
+                      </div>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+                  </Link>
+                </div>
+              ) : (
+                <div className="rounded-lg border border-dashed p-6 text-center">
+                  <Truck className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-sm text-muted-foreground mb-3">No hay ninguna camioneta en operación ahora.</p>
+                  <Button variant="gold" size="sm" onClick={() => setShowCreate(true)}>
+                    <Plus className="w-4 h-4 mr-1" /> Nueva carga
+                  </Button>
+                </div>
+              )}
+
+              {historial.length > 0 && (
+                <div>
+                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Historial de cargas</h2>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {historial.map(renderCarga)}
+                  </div>
+                </div>
+              )}
+            </>
+          );
+        })()
       )}
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
