@@ -27,10 +27,12 @@ type Row = {
   cuenta_mp_id: string | null;
   reservation_id: string | null;
   reservation_payment_id: string | null;
+  store_order_id: string | null;
   alumnos: { id: string; nombre: string; apellido: string | null; email: string } | null;
   cuentas_mp: { nombre: string } | null;
   mp_account_movements: { mp_payment_id: string } | null;
   event_reservations: { id: string; estado: string | null; events: { title: string } | null } | null;
+  store_orders: { id: string; order_number: number | null; status: string | null } | null;
 };
 
 
