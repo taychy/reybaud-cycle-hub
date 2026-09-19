@@ -90,7 +90,7 @@ const itemEstadoBadge = (estado: string) => {
   if (estado === "entregado") return <Badge variant="default" className="bg-green-600 hover:bg-green-600">Entregado</Badge>;
   if (estado === "faltante") return <Badge variant="destructive">Faltante</Badge>;
   if (estado === "retornado") return <Badge variant="secondary">Retornado</Badge>;
-  return <Badge variant="outline">En caja</Badge>;
+  return <Badge variant="outline">Cargado</Badge>;
 };
 
 const DepositoCamioneta = () => {
@@ -663,13 +663,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     return { esperado, visto, faltantes, sobrantes, registradas, total: lineas.length };
   }, [lineas]);
 
-  const grouped = useMemo(() => {
-    const g: Record<string, CargaItem[]> = {};
-    items.forEach((it) => {
-      (g[it.cliente_nombre] ||= []).push(it);
-    });
-    return g;
-  }, [items]);
 
   const variantText = (v: any): string => {
     if (!v) return "";
@@ -856,6 +849,84 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const chequeados = items.filter((i) => !!i.chequeado_at && i.estado !== "entregado").length;
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
+  // Grupos operativos del flujo, derivados SOLO de estados existentes (sin lógica nueva).
+  const itemsEnCamioneta = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !!i.chequeado_at);
+  const itemsParaEntregar = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !i.chequeado_at);
+  const itemsAVolver = items.filter((i) => (i.estado === "cargado" && !!cancelInfo(i)) || i.estado === "retornado" || i.estado === "faltante");
+  const itemsEntregados = items.filter((i) => i.estado === "entregado");
+
+  const porCliente = (list: CargaItem[]) => {
+    const g: Record<string, CargaItem[]> = {};
+    list.forEach((it) => {
+      (g[it.cliente_nombre] ||= []).push(it);
+    });
+    return g;
+  };
+
+  const itemRow = (it: CargaItem) => {
+    const cancelado = cancelInfo(it);
+    return (
+      <div key={it.id} className={`flex items-center gap-2 text-sm flex-wrap ${cancelado ? "rounded-md border border-destructive/40 bg-destructive/10 p-2" : ""}`}>
+        <div className="flex-1 min-w-0">
+          <span className="text-foreground">{it.producto || "—"}</span>
+          {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
+          <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
+          {cancelado && (
+            <span className="block text-[11px] text-destructive">
+              Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
+            </span>
+          )}
+        </div>
+        {cancelado ? (
+          <>
+            <Badge variant="outline" className="border-destructive/60 text-destructive">CANCELADO · RETORNAR</Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-destructive"
+              disabled={retornoBusy === cancelado.orderId}
+              onClick={() => confirmarRetorno(cancelado.orderId)}
+            >
+              Confirmar retorno
+            </Button>
+          </>
+        ) : (
+          <>
+            {itemEstadoBadge(it.estado)}
+            {carga.estado === "abierta" && it.estado === "cargado" && (
+              <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const clienteCards = (list: CargaItem[]) => (
+    <div className="space-y-3">
+      {Object.entries(porCliente(list)).map(([cliente, its]) => (
+        <div key={cliente} className="glass-card rounded-lg p-3">
+          <div className="font-medium text-sm text-foreground mb-2">{cliente}</div>
+          <div className="space-y-1.5">{its.map(itemRow)}</div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const seccionHeader = (titulo: string, cantidad: number, tone?: "danger") => (
+    <div className="flex items-center gap-2">
+      <h3 className={`font-heading font-bold uppercase tracking-wider text-sm ${tone === "danger" ? "text-destructive" : "text-foreground"}`}>{titulo}</h3>
+      <Badge variant="outline">{cantidad}</Badge>
+    </div>
+  );
+
+  const grupoVacio = (texto: string) => (
+    <div className="rounded-lg border border-border p-3 text-xs text-muted-foreground">{texto}</div>
+  );
+
+
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
@@ -900,7 +971,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mt-4">
           <Metric label="Total" value={totalItems} />
-          <Metric label="En caja" value={enCaja} tone="warning" />
+          <Metric label="Cargados" value={enCaja} tone="warning" />
           {aRetornar > 0 && <Metric label="A retornar" value={aRetornar} tone="danger" />}
 
           <Metric label="Controlados" value={chequeados} />
@@ -908,133 +979,6 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <Metric label="Faltantes" value={faltantes} tone="danger" />
         </div>
       </div>
-
-      {chequeo && (
-        <div className="glass-card rounded-lg p-4 border border-primary/30 space-y-3">
-          <div className="flex items-center justify-between gap-2 flex-wrap">
-            <div>
-              <div className="font-heading font-bold uppercase tracking-wider text-sm">
-                Control físico {chequeo.ronda > 1 ? `· control ${chequeo.ronda}` : ""}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Control opcional, disponible cuando lo necesites: mirá la camioneta y anotá cuántas unidades ves de cada línea.
-                Cerrar el control solo guarda lo observado: no cambia stock, pedidos, entregas ni devoluciones.
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={estaTodo} disabled={lineas.length === 0}>
-                <CheckCircle2 className="w-4 h-4 mr-1" /> Está todo
-              </Button>
-              <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
-                <ScanLine className="w-4 h-4 mr-1" /> Escanear
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
-            <Metric label="Esperado" value={resumenChequeo.esperado} />
-            <Metric label="Visto" value={resumenChequeo.visto} tone="ok" />
-            <Metric label="Faltantes" value={resumenChequeo.faltantes} tone="danger" />
-            <Metric label="Sobrantes" value={resumenChequeo.sobrantes} tone="warning" />
-            <Metric label={`Líneas registradas (de ${resumenChequeo.total})`} value={resumenChequeo.registradas} />
-          </div>
-
-          {lineasLoading ? (
-            <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Armando la lista...</div>
-          ) : lineas.length === 0 ? (
-            <div className="py-6 text-center text-muted-foreground text-sm">No hay ítems cargados en la camioneta.</div>
-          ) : (
-            <div className="space-y-1">
-              {lineas.map((l) => {
-                const esperado = Number(l.esperado) || 0;
-                const visto = Number(l.visto) || 0;
-                const dif = visto - esperado;
-                return (
-                  <div key={l.item_id} className="rounded-lg border border-border p-2 flex flex-wrap items-center gap-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-medium truncate">{l.cliente_nombre}</div>
-                      <div className="text-[11px] text-muted-foreground truncate">
-                        {l.producto || "—"}{l.variante ? ` · ${l.variante}` : ""}
-                      </div>
-                    </div>
-                    <div className="text-[11px] text-muted-foreground">Esperado <b className="text-foreground">{esperado}</b></div>
-                    <div className="flex items-center gap-1">
-                      <span className="text-[11px] text-muted-foreground">Veo</span>
-                      <Input
-                        type="number"
-                        min={0}
-                        className="h-8 w-20"
-                        value={vistoDraft[l.item_id] ?? ""}
-                        onChange={(e) => setVistoDraft((p) => ({ ...p, [l.item_id]: e.target.value }))}
-                        onBlur={(e) => {
-                          const raw = e.target.value;
-                          if (raw === "") return;
-                          const n = Math.max(0, Math.floor(Number(raw) || 0));
-                          if (l.registrado && n === visto) return;
-                          registrarLineas([{ item_id: l.item_id, cantidad: n }]);
-                        }}
-                      />
-                    </div>
-                    <div className="text-[11px] w-24 text-right">
-                      {!l.registrado ? (
-                        <span className="text-muted-foreground">Sin registrar</span>
-                      ) : dif === 0 ? (
-                        <span className="text-green-500">Coincide</span>
-                      ) : dif < 0 ? (
-                        <span className="text-red-500">Falta {-dif}</span>
-                      ) : (
-                        <span className="text-amber-500">Sobran {dif}</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          <Textarea
-            rows={2}
-            placeholder="Observaciones (por ejemplo, mercadería que está y no figura en el sistema)"
-            value={rondaNotas}
-            onChange={(e) => setRondaNotas(e.target.value)}
-          />
-          <div className="flex justify-end items-center gap-2">
-            {resumenChequeo.registradas < resumenChequeo.total && (
-              <span className="text-[11px] text-amber-500">
-                Faltan {resumenChequeo.total - resumenChequeo.registradas} línea(s) por registrar
-              </span>
-            )}
-            <Button variant="gold" size="sm" onClick={cerrarRonda}
-              disabled={closingRonda || lineas.length === 0 || resumenChequeo.registradas < resumenChequeo.total}>
-              <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar control"}
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {rondas.filter((r) => r.estado === "cerrado").length > 0 && (
-        <div className="glass-card rounded-lg p-3">
-          <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Historial de controles</div>
-          <div className="space-y-1">
-            {rondas.filter((r) => r.estado === "cerrado").map((r) => (
-              <div key={r.id} className="text-xs flex flex-wrap items-center gap-2">
-                <Badge variant="outline">Control {r.ronda}</Badge>
-                <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
-                {r.resumen && (
-                  <span className="text-muted-foreground">
-                    · esperado {r.resumen.esperado ?? 0} · visto {r.resumen.visto ?? 0}
-                    {r.resumen.faltantes ? ` · faltan ${r.resumen.faltantes}` : ""}
-                    {r.resumen.sobrantes ? ` · sobran ${r.resumen.sobrantes}` : ""}
-                  </span>
-                )}
-                {r.notas && <span className="text-muted-foreground/80 italic">"{r.notas}"</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-
 
       {items.length === 0 ? (
         <div className="py-16 text-center">
@@ -1045,59 +989,178 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           )}
         </div>
       ) : (
-        <div className="space-y-3">
-          {Object.entries(grouped).map(([cliente, its]) => (
-            <div key={cliente} className="glass-card rounded-lg p-3">
-              <div className="font-medium text-sm text-foreground mb-2">{cliente}</div>
-              <div className="space-y-1.5">
-                {its.map((it) => {
-                  const cancelado = cancelInfo(it);
-                  return (
-                  <div key={it.id} className={`flex items-center gap-2 text-sm flex-wrap ${cancelado ? "rounded-md border border-destructive/40 bg-destructive/10 p-2" : ""}`}>
-                    <div className="flex-1 min-w-0">
-                      <span className="text-foreground">{it.producto || "—"}</span>
-                      {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
-                      <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
-                      {cancelado && (
-                        <span className="block text-[11px] text-destructive">
-                          Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
+        <div className="space-y-4">
+          {/* 1 · EN CAMIONETA */}
+          <section className="space-y-2">
+            {seccionHeader("En camioneta", itemsEnCamioneta.length)}
+            <p className="text-xs text-muted-foreground">Lo que está físicamente cargado en la camioneta ahora.</p>
+            {itemsEnCamioneta.length === 0 ? (
+              grupoVacio("Todavía no hay mercadería controlada en la camioneta.")
+            ) : (
+              clienteCards(itemsEnCamioneta)
+            )}
+
+            {chequeo && (
+              <div className="glass-card rounded-lg p-4 border border-primary/30 space-y-3">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <div>
+                    <div className="font-heading font-bold uppercase tracking-wider text-sm">
+                      Control físico {chequeo.ronda > 1 ? `· control ${chequeo.ronda}` : ""}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Control opcional, disponible cuando lo necesites: mirá la camioneta y anotá cuántas unidades ves de cada línea.
+                      Cerrar el control solo guarda lo observado: no cambia stock, pedidos, entregas ni devoluciones.
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" onClick={estaTodo} disabled={lineas.length === 0}>
+                      <CheckCircle2 className="w-4 h-4 mr-1" /> Está todo
+                    </Button>
+                    <Button variant="gold" size="sm" onClick={() => { setScanCount(0); setScannerOpen(true); }}>
+                      <ScanLine className="w-4 h-4 mr-1" /> Escanear
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+                  <Metric label="Esperado" value={resumenChequeo.esperado} />
+                  <Metric label="Visto" value={resumenChequeo.visto} tone="ok" />
+                  <Metric label="Faltantes" value={resumenChequeo.faltantes} tone="danger" />
+                  <Metric label="Sobrantes" value={resumenChequeo.sobrantes} tone="warning" />
+                  <Metric label={`Líneas registradas (de ${resumenChequeo.total})`} value={resumenChequeo.registradas} />
+                </div>
+
+                {lineasLoading ? (
+                  <div className="py-6 text-center text-muted-foreground animate-pulse text-sm">Armando la lista...</div>
+                ) : lineas.length === 0 ? (
+                  <div className="py-6 text-center text-muted-foreground text-sm">No hay ítems cargados en la camioneta.</div>
+                ) : (
+                  <div className="space-y-1">
+                    {lineas.map((l) => {
+                      const esperado = Number(l.esperado) || 0;
+                      const visto = Number(l.visto) || 0;
+                      const dif = visto - esperado;
+                      return (
+                        <div key={l.item_id} className="rounded-lg border border-border p-2 flex flex-wrap items-center gap-2">
+                          <div className="min-w-0 flex-1">
+                            <div className="text-xs font-medium truncate">{l.cliente_nombre}</div>
+                            <div className="text-[11px] text-muted-foreground truncate">
+                              {l.producto || "—"}{l.variante ? ` · ${l.variante}` : ""}
+                            </div>
+                          </div>
+                          <div className="text-[11px] text-muted-foreground">Esperado <b className="text-foreground">{esperado}</b></div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[11px] text-muted-foreground">Veo</span>
+                            <Input
+                              type="number"
+                              min={0}
+                              className="h-8 w-20"
+                              value={vistoDraft[l.item_id] ?? ""}
+                              onChange={(e) => setVistoDraft((p) => ({ ...p, [l.item_id]: e.target.value }))}
+                              onBlur={(e) => {
+                                const raw = e.target.value;
+                                if (raw === "") return;
+                                const n = Math.max(0, Math.floor(Number(raw) || 0));
+                                if (l.registrado && n === visto) return;
+                                registrarLineas([{ item_id: l.item_id, cantidad: n }]);
+                              }}
+                            />
+                          </div>
+                          <div className="text-[11px] w-24 text-right">
+                            {!l.registrado ? (
+                              <span className="text-muted-foreground">Sin registrar</span>
+                            ) : dif === 0 ? (
+                              <span className="text-green-500">Coincide</span>
+                            ) : dif < 0 ? (
+                              <span className="text-red-500">Falta {-dif}</span>
+                            ) : (
+                              <span className="text-amber-500">Sobran {dif}</span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <Textarea
+                  rows={2}
+                  placeholder="Observaciones (por ejemplo, mercadería que está y no figura en el sistema)"
+                  value={rondaNotas}
+                  onChange={(e) => setRondaNotas(e.target.value)}
+                />
+                <div className="flex justify-end items-center gap-2">
+                  {resumenChequeo.registradas < resumenChequeo.total && (
+                    <span className="text-[11px] text-amber-500">
+                      Faltan {resumenChequeo.total - resumenChequeo.registradas} línea(s) por registrar
+                    </span>
+                  )}
+                  <Button variant="gold" size="sm" onClick={cerrarRonda}
+                    disabled={closingRonda || lineas.length === 0 || resumenChequeo.registradas < resumenChequeo.total}>
+                    <CheckCircle2 className="w-4 h-4 mr-1" /> {closingRonda ? "Cerrando..." : "Cerrar control"}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {rondas.filter((r) => r.estado === "cerrado").length > 0 && (
+              <div className="glass-card rounded-lg p-3">
+                <div className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">Historial de controles</div>
+                <div className="space-y-1">
+                  {rondas.filter((r) => r.estado === "cerrado").map((r) => (
+                    <div key={r.id} className="text-xs flex flex-wrap items-center gap-2">
+                      <Badge variant="outline">Control {r.ronda}</Badge>
+                      <span className="text-muted-foreground">{r.closed_at ? new Date(r.closed_at).toLocaleString("es-AR") : ""}</span>
+                      {r.resumen && (
+                        <span className="text-muted-foreground">
+                          · esperado {r.resumen.esperado ?? 0} · visto {r.resumen.visto ?? 0}
+                          {r.resumen.faltantes ? ` · faltan ${r.resumen.faltantes}` : ""}
+                          {r.resumen.sobrantes ? ` · sobran ${r.resumen.sobrantes}` : ""}
                         </span>
                       )}
+                      {r.notas && <span className="text-muted-foreground/80 italic">"{r.notas}"</span>}
                     </div>
-                    {cancelado ? (
-                      <>
-                        <Badge variant="outline" className="border-destructive/60 text-destructive">CANCELADO · RETORNAR</Badge>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="h-7 text-destructive"
-                          disabled={retornoBusy === cancelado.orderId}
-                          onClick={() => confirmarRetorno(cancelado.orderId)}
-                        >
-                          Confirmar retorno
-                        </Button>
-                      </>
-                    ) : (
-                      <>
-                        {it.estado !== "entregado" && it.chequeado_at && (
-                          <Badge variant="outline" className="border-cyan-500/40 text-cyan-400">En camioneta</Badge>
-                        )}
-                        {itemEstadoBadge(it.estado)}
-                        {carga.estado === "abierta" && it.estado === "cargado" && (
-                          <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
-                            <X className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  );
-                })}
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
+            )}
+          </section>
+
+          {/* 2 · PARA ENTREGAR */}
+          <section className="space-y-2">
+            {seccionHeader("Para entregar", itemsParaEntregar.length)}
+            <p className="text-xs text-muted-foreground">Cargado en el sistema que todavía no se controló ni se entregó.</p>
+            {itemsParaEntregar.length === 0 ? (
+              grupoVacio("Nada pendiente: todo lo cargado ya está controlado en la camioneta.")
+            ) : (
+              clienteCards(itemsParaEntregar)
+            )}
+          </section>
+
+          {/* 3 · DEBE VOLVER A DEPÓSITO */}
+          <section className="space-y-2">
+            {seccionHeader("Debe volver a depósito", itemsAVolver.length, "danger")}
+            <p className="text-xs text-muted-foreground">Compras canceladas, faltantes y retornos ya identificados por su estado.</p>
+            {itemsAVolver.length === 0 ? (
+              grupoVacio("Nada pendiente de volver al depósito.")
+            ) : (
+              clienteCards(itemsAVolver)
+            )}
+          </section>
+
+          {/* 4 · ENTREGADO */}
+          <section className="space-y-2">
+            {seccionHeader("Entregado", itemsEntregados.length)}
+            <p className="text-xs text-muted-foreground">Historial de lo que salió de la camioneta y fue entregado.</p>
+            {itemsEntregados.length === 0 ? (
+              grupoVacio("Todavía no se entregó nada de esta carga.")
+            ) : (
+              clienteCards(itemsEntregados)
+            )}
+          </section>
         </div>
       )}
+
 
       <EtiquetaExternaCapture
         open={etiquetaOpen}
