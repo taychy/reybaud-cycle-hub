@@ -182,6 +182,23 @@ const DepositoCamioneta = () => {
         </Button>
       </div>
 
+      {!loading && sinCargar.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm font-medium text-destructive">
+            Pedidos marcados en camioneta sin cargar ({sinCargar.length})
+          </p>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {sinCargar.map((o) => (
+              <li key={o.id}>Pedido #{o.order_number ?? "—"} · {o.customer_name || "Cliente"}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Incorporalos desde la caja correspondiente con "Agregar ítems".
+          </p>
+        </div>
+      )}
+
+
       {loading ? (
         <div className="py-16 text-center text-muted-foreground animate-pulse">Cargando...</div>
       ) : (
