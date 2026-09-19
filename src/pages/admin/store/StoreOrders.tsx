@@ -28,6 +28,7 @@ import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
 import { ensureOrderInCamioneta, markOrderItemsEntregados } from "@/lib/camionetaSync";
+import { normalizePhoneAR } from "@/lib/phoneNormalize";
 
 import {
   distributeOrderTotal,
@@ -86,7 +87,7 @@ interface Alumno {
   apellido?: string | null;
   email?: string | null;
   telefono?: string | null;
-  dni?: string | null;
+  documento?: string | null;
 }
 
 interface Sede {
@@ -353,7 +354,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       const sedeIds = Array.from(new Set(enriched.map((o) => o.sede_retiro_id).filter(Boolean))) as string[];
       const [{ data: alus }, { data: sds }] = await Promise.all([
         alIds.length
-          ? supabase.from("alumnos").select("id, nombre, apellido, email, telefono, dni").in("id", alIds)
+          ? supabase.from("alumnos").select("id, nombre, apellido, email, telefono, documento").in("id", alIds)
           : Promise.resolve({ data: [] as any[] }),
         sedeIds.length
           ? supabase.from("sedes").select("id, nombre, direccion, ciudad").in("id", sedeIds)
@@ -409,9 +410,9 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       const al = r.alumno_id ? alumnosMap[r.alumno_id] : null;
       const nombre = al ? `${al.nombre || ""} ${al.apellido || ""}` : r.customer_name;
       const email = al?.email || r.customer_email || "";
-      const dni = al?.dni || "";
+      const documento = al?.documento || "";
       const productos = (r.items || []).map((i) => i.producto_nombre).join(" ");
-      const haystack = `${nombre} ${email} ${dni} ${productos} #${r.order_number}`.toLowerCase();
+      const haystack = `${nombre} ${email} ${documento} ${productos} #${r.order_number}`.toLowerCase();
       if (!haystack.includes(s)) return false;
     }
     return true;
@@ -542,14 +543,12 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
 
   const enviarWhatsApp = (o: Order) => {
     const al = o.alumno_id ? alumnosMap[o.alumno_id] : null;
-    const tel = (al?.telefono || "").replace(/\D/g, "");
-    if (!tel) {
+    const telRaw = al?.telefono || o.customer_phone || "";
+    const waTel = normalizePhoneAR(telRaw);
+    if (!waTel) {
       toast({ title: "Sin teléfono", description: "El cliente no tiene WhatsApp cargado.", variant: "destructive" });
       return;
     }
-    let waTel = tel;
-    if (!waTel.startsWith("54")) waTel = "549" + waTel.replace(/^0?15?/, "");
-    else if (waTel.startsWith("54") && !waTel.startsWith("549")) waTel = "549" + waTel.slice(2);
 
     const nombre = al?.nombre || o.customer_name.split(" ")[0] || "";
     const total = Number(o.total || 0);
@@ -631,7 +630,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           fecha: idx === 0 ? new Date(r.created_at).toLocaleDateString("es-AR") : "",
           numero: idx === 0 ? r.order_number : "",
           alumno: idx === 0 ? (`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || r.customer_name) : "",
-          dni: idx === 0 ? (al?.dni || "") : "",
+          dni: idx === 0 ? (al?.documento || "") : "",
           telefono: idx === 0 ? (al?.telefono || "") : "",
           producto: it.producto_nombre,
           variante: varianteToKey(it.variante || {}),
@@ -705,7 +704,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     doc.text("Cliente", 14, 36);
     doc.setFontSize(9);
     doc.text(`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || r.customer_name, 14, 42);
-    doc.text(`DNI: ${al?.dni || "—"}   ·   Tel: ${al?.telefono || "—"}`, 14, 47);
+    doc.text(`DNI: ${al?.documento || "—"}   ·   Tel: ${al?.telefono || "—"}`, 14, 47);
     doc.text(`Email: ${al?.email || r.customer_email || "—"}`, 14, 52);
 
     doc.setFontSize(11);
@@ -1073,7 +1072,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                     <h4 className="text-[11px] font-heading uppercase text-muted-foreground flex items-center gap-1"><User className="w-3 h-3" /> Cliente</h4>
                     <div className="font-medium">{`${al?.nombre || ""} ${al?.apellido || ""}`.trim() || detail.customer_name}</div>
                     <div className="text-xs text-muted-foreground">
-                      {al?.dni && <>DNI {al.dni} · </>}
+                      {al?.documento && <>DNI {al.documento} · </>}
                       {al?.telefono && <><Phone className="inline w-3 h-3" /> {al.telefono} · </>}
                       {al?.email || detail.customer_email}
                     </div>
