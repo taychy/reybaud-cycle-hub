@@ -337,6 +337,8 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [vistoDraft, setVistoDraft] = useState<Record<string, string>>({});
   const [closingRonda, setClosingRonda] = useState(false);
   const [rondaNotas, setRondaNotas] = useState("");
+  // Pedidos marcados "en camioneta" sin caja asignada (sin vehiculo_carga_items).
+  const [sinCargar, setSinCargar] = useState<OrdenSinCargar[]>([]);
 
 
   const parseClientCode = (code: string): { listId: string; cliente: string } | null => {
@@ -705,7 +707,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     await load();
   };
 
-  useEffect(() => { load(); loadRondas(); }, [id]);
+  useEffect(() => { load(); loadRondas(); findOrdersEnCamionetaSinCargar().then(setSinCargar); }, [id]);
 
   useEffect(() => {
     if (chequeo && !scannerOpen) loadLineas(chequeo.id);
@@ -1047,7 +1049,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && sinCargar.length === 0 ? (
         <div className="py-16 text-center">
           <Package className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground mb-4">Sin ítems cargados todavía.</p>
@@ -1203,6 +1205,34 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
               clienteCards(itemsParaEntregar)
             )}
           </section>
+
+          {/* 2b · EN CAMIONETA · SIN CAJA ASIGNADA */}
+          {sinCargar.length > 0 && (
+            <section className="space-y-2">
+              {seccionHeader("En camioneta · sin caja asignada", sinCargar.reduce((acc, o) => acc + o.items.length, 0), "danger")}
+              <p className="text-xs text-muted-foreground">
+                Pedidos marcados como "en camioneta" que todavía no están en ninguna caja. Las cajas KDT y Villa Nueva viajan juntas en la misma camioneta; incorporalos con "Agregar ítems" a la caja correspondiente.
+              </p>
+              <div className="space-y-3">
+                {sinCargar.map((o) => (
+                  <div key={o.id} className="glass-card rounded-lg p-3 border border-destructive/40">
+                    <div className="font-medium text-sm text-foreground mb-2">
+                      {o.customer_name || "Cliente"} <span className="text-muted-foreground font-normal">· Pedido #{o.order_number ?? "—"}</span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {o.items.map((it) => (
+                        <div key={it.id} className="text-sm">
+                          <span className="text-foreground">{it.product_name || "—"}</span>
+                          {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
+                          <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* 3 · DEBE VOLVER A DEPÓSITO */}
           <section className="space-y-2">

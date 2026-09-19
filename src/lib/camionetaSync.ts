@@ -98,21 +98,40 @@ export const markOrderItemsEntregados = async (orderId: string): Promise<number>
   return ((data as any[]) || []).length;
 };
 
+export interface OrdenSinCargarItem {
+  id: string;
+  product_name: string | null;
+  variante: string | null;
+  cantidad: number;
+}
+
 export interface OrdenSinCargar {
   id: string;
   order_number: number | null;
   customer_name: string | null;
+  items: OrdenSinCargarItem[];
 }
 
 /** Pedidos marcados "en camioneta" sin representación física. */
 export const findOrdersEnCamionetaSinCargar = async (): Promise<OrdenSinCargar[]> => {
   const { data: orders } = await supabase
     .from("store_orders")
-    .select("id,order_number,customer_name,items:store_order_items(id)")
+    .select("id,order_number,customer_name,items:store_order_items(id,product_name,variant_selection,quantity)")
     .eq("status", "en_camioneta");
   const list = ((orders as any[]) || []);
   const allItemIds = list.flatMap((o) => (o.items || []).map((i: any) => i.id));
-  if (allItemIds.length === 0) return list.map((o) => ({ id: o.id, order_number: o.order_number, customer_name: o.customer_name }));
+  const mapOrden = (o: any): OrdenSinCargar => ({
+    id: o.id,
+    order_number: o.order_number,
+    customer_name: o.customer_name,
+    items: ((o.items || []) as any[]).map((i) => ({
+      id: i.id,
+      product_name: i.product_name,
+      variante: variantLabel(i.variant_selection),
+      cantidad: i.quantity ?? 1,
+    })),
+  });
+  if (allItemIds.length === 0) return list.map(mapOrden);
   const { data: cargados } = await (supabase as any)
     .from("vehiculo_carga_items")
     .select("source_id")
@@ -121,5 +140,5 @@ export const findOrdersEnCamionetaSinCargar = async (): Promise<OrdenSinCargar[]
   const ocupados = new Set(((cargados as any[]) || []).map((r) => r.source_id));
   return list
     .filter((o) => !(o.items || []).some((i: any) => ocupados.has(i.id)))
-    .map((o) => ({ id: o.id, order_number: o.order_number, customer_name: o.customer_name }));
+    .map(mapOrden);
 };
