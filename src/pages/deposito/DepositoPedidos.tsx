@@ -30,6 +30,8 @@ import {
   NUEVO_LABEL,
 } from "@/lib/storeOrderStatus";
 import { formatPrice } from "@/lib/currency";
+import { ensureOrderInCamioneta, markOrderItemsEntregados } from "@/lib/camionetaSync";
+
 
 /** Filtros de la lista: expresan logística, no pago. */
 const FILTER_OPTIONS = [
@@ -139,15 +141,26 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   };
 
   const updateStatus = async (id: string, status: string) => {
+    // La ubicación física manda: no se puede declarar "en camioneta"
+    // sin que el pedido esté realmente cargado en una caja activa.
+    if (status === "en_camioneta") {
+      const res = await ensureOrderInCamioneta(id);
+      if (!res.ok) {
+        toast({ title: "No se puede marcar en camioneta", description: res.reason, variant: "destructive" });
+        return;
+      }
+    }
     const { error } = await supabase.from("store_orders").update({ status } as any).eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
+    if (status === "entregado") await markOrderItemsEntregados(id);
     toast({ title: "Estado actualizado" });
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
     if (selected?.id === id) setSelected((s: any) => ({ ...s, status }));
   };
+
 
   const confirmarEfectivo = async (order: any) => {
     const motivo = cashConfirmBlockReason(order);
