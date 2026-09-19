@@ -707,7 +707,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     await load();
   };
 
-  useEffect(() => { load(); loadRondas(); }, [id]);
+  useEffect(() => { load(); loadRondas(); findOrdersEnCamionetaSinCargar().then(setSinCargar); }, [id]);
 
   useEffect(() => {
     if (chequeo && !scannerOpen) loadLineas(chequeo.id);
@@ -1049,7 +1049,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         </div>
       </div>
 
-      {items.length === 0 ? (
+      {items.length === 0 && sinCargar.length === 0 ? (
         <div className="py-16 text-center">
           <Package className="w-10 h-10 mx-auto text-muted-foreground/50 mb-3" />
           <p className="text-sm text-muted-foreground mb-4">Sin ítems cargados todavía.</p>
