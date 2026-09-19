@@ -13,6 +13,8 @@ import { Truck, Plus, ChevronRight, ArrowLeft, Package, CheckCircle2, AlertTrian
 import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
+import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
+
 
 interface Sede { id: string; nombre: string; }
 interface Carga {
@@ -102,18 +104,22 @@ const DepositoCamioneta = () => {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ sede_id: "", fecha_salida: new Date().toISOString().slice(0, 10), entregador: "", notas: "" });
+  const [sinCargar, setSinCargar] = useState<OrdenSinCargar[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [sRes, cRes] = await Promise.all([
+      const [sRes, cRes, pend] = await Promise.all([
         supabase.from("sedes").select("id,nombre").eq("activa", true).order("nombre"),
         supabase.from("vehiculo_cargas" as any).select("*").order("fecha_salida", { ascending: false }).order("created_at", { ascending: false }),
+        findOrdersEnCamionetaSinCargar(),
       ]);
       setSedes((sRes.data as any[]) || []);
       setCargas((cRes.data as any[]) || []);
+      setSinCargar(pend);
       setLoading(false);
     })();
   }, []);
+
 
   const refresh = async () => {
     const { data } = await supabase.from("vehiculo_cargas" as any).select("*").order("fecha_salida", { ascending: false }).order("created_at", { ascending: false });
@@ -177,6 +183,23 @@ const DepositoCamioneta = () => {
           <Plus className="w-4 h-4 mr-1" /> Nueva carga
         </Button>
       </div>
+
+      {!loading && sinCargar.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
+          <p className="text-sm font-medium text-destructive">
+            Pedidos marcados en camioneta sin cargar ({sinCargar.length})
+          </p>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {sinCargar.map((o) => (
+              <li key={o.id}>Pedido #{o.order_number ?? "—"} · {o.customer_name || "Cliente"}</li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted-foreground">
+            Incorporalos desde la caja correspondiente con "Agregar ítems".
+          </p>
+        </div>
+      )}
+
 
       {loading ? (
         <div className="py-16 text-center text-muted-foreground animate-pulse">Cargando...</div>

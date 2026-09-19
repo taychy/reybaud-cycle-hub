@@ -27,6 +27,8 @@ import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
+import { ensureOrderInCamioneta, markOrderItemsEntregados } from "@/lib/camionetaSync";
+
 import {
   distributeOrderTotal,
   isLegacyInitialStatus,
@@ -432,15 +434,25 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   );
 
   const updateField = async (id: string, patch: Partial<Order>) => {
+    // "En camioneta" exige carga física real (vehiculo_carga_items).
+    if ((patch as any).status === "en_camioneta") {
+      const res = await ensureOrderInCamioneta(id);
+      if (!res.ok) {
+        toast({ title: "No se puede marcar en camioneta", description: res.reason, variant: "destructive" });
+        return;
+      }
+    }
     const { error } = await supabase.from("store_orders").update(patch as any).eq("id", id);
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
       return;
     }
+    if ((patch as any).status === "entregado") await markOrderItemsEntregados(id);
     toast({ title: "Actualizado" });
     load();
     if (detail?.id === id) setDetail({ ...detail, ...patch } as Order);
   };
+
 
   const registrarPago = async (
     o: Order,
