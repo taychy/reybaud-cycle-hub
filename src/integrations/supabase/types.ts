@@ -17103,6 +17103,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      validate_merge_alumnos: { Args: { _principal_id: string }; Returns: Json }
       validate_survey_token: {
         Args: { _token: string }
         Returns: {

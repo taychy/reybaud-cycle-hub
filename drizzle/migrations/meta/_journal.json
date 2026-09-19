@@ -8,6 +8,13 @@
       "when": 1789780687361,
       "tag": "0000_alumno_auth_aliases_and_current_alumno_id",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1789780773096,
+      "tag": "0001_merge_alumnos_aliases_y_validacion",
+      "breakpoints": true
     }
   ]
 }
