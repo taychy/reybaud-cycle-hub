@@ -208,8 +208,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     });
     if (cancelTarget.pagado_at) {
       toast({
-        title: "Pago ya registrado",
-        description: "Cancelar no devuelve el dinero: el reembolso se gestiona aparte.",
+        title: "Queda saldo a favor del cliente",
+        description: "Cancelar no devuelve el dinero: el reintegro se gestiona desde Administración.",
       });
     }
     setCancelTarget(null);

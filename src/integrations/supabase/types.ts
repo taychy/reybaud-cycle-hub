@@ -3120,6 +3120,7 @@ export type Database = {
           referencia: string | null
           reservation_id: string | null
           reservation_payment_id: string | null
+          store_order_id: string | null
           suscripcion_id: string | null
           updated_at: string
         }
@@ -3141,6 +3142,7 @@ export type Database = {
           referencia?: string | null
           reservation_id?: string | null
           reservation_payment_id?: string | null
+          store_order_id?: string | null
           suscripcion_id?: string | null
           updated_at?: string
         }
@@ -3162,6 +3164,7 @@ export type Database = {
           referencia?: string | null
           reservation_id?: string | null
           reservation_payment_id?: string | null
+          store_order_id?: string | null
           suscripcion_id?: string | null
           updated_at?: string
         }
@@ -3255,6 +3258,13 @@ export type Database = {
             columns: ["reservation_payment_id"]
             isOneToOne: false
             referencedRelation: "reservation_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_store_order_id_fkey"
+            columns: ["store_order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
             referencedColumns: ["id"]
           },
           {
@@ -16658,6 +16668,7 @@ export type Database = {
           p_referencia?: string
           p_reservation_id?: string
           p_reservation_payment_id?: string
+          p_store_order_id?: string
           p_suscripcion_id?: string
         }
         Returns: string

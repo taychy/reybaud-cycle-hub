@@ -55,12 +55,23 @@ interface ReservaOrigen {
   pagado: number;
 }
 
+export interface DevolucionStoreOrder {
+  id: string;
+  order_number: number | string;
+  alumno_id: string;
+  total: number;
+  currency: string;
+  /** Monto ya devuelto de ese pedido (para prellenar el saldo pendiente) */
+  ya_devuelto?: number;
+}
+
 interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialAlumnoId?: string;
   bajaSolicitudId?: string;
   mpMovement?: DevolucionMpMovement | null;
+  storeOrder?: DevolucionStoreOrder | null;
   onDone?: () => void;
 }
 
@@ -75,7 +86,7 @@ const METODOS = [
 const ESTADOS_CANCELADOS = ["cancelada", "cancelado", "desistida", "desistido", "baja"];
 
 export default function RegistrarDevolucionDialog({
-  open, onOpenChange, initialAlumnoId, bajaSolicitudId, mpMovement, onDone,
+  open, onOpenChange, initialAlumnoId, bajaSolicitudId, mpMovement, storeOrder, onDone,
 }: Props) {
   const today = new Date().toISOString().substring(0, 10);
   const [query, setQuery] = useState("");
@@ -96,6 +107,9 @@ export default function RegistrarDevolucionDialog({
   const [pagoId, setPagoId] = useState<string>("ninguno");
 
   const bloqueado = !!mpMovement;
+  const pendienteTienda = storeOrder
+    ? Math.max(Number(storeOrder.total || 0) - Number(storeOrder.ya_devuelto || 0), 0)
+    : 0;
 
   useEffect(() => {
     if (!open) {
@@ -112,7 +126,13 @@ export default function RegistrarDevolucionDialog({
       setReferencia(mpMovement.mp_payment_id);
       setMetodo("transferencia");
     }
-  }, [open, today, mpMovement]);
+    if (storeOrder) {
+      const pend = Math.max(Number(storeOrder.total || 0) - Number(storeOrder.ya_devuelto || 0), 0);
+      setMonto(String(pend));
+      setMoneda(storeOrder.currency || "ARS");
+      setMotivo(`Devolución pedido #${storeOrder.order_number}`);
+    }
+  }, [open, today, mpMovement, storeOrder]);
 
   useEffect(() => {
     if (!open || !initialAlumnoId) return;
@@ -216,6 +236,7 @@ export default function RegistrarDevolucionDialog({
       p_cuenta_mp_id: mpMovement?.cuenta_mp_id ?? null,
       p_reservation_id: origen !== "ninguno" ? origen : null,
       p_reservation_payment_id: pagoId !== "ninguno" ? pagoId : null,
+      p_store_order_id: storeOrder?.id ?? null,
     } as any);
     setLoading(false);
     if (error) { toast.error(error.message); return; }
@@ -254,6 +275,26 @@ export default function RegistrarDevolucionDialog({
               )}
             </div>
           )}
+
+          {storeOrder && (
+            <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Pedido de tienda</span>
+                <span className="font-medium">#{storeOrder.order_number}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Total cobrado</span>
+                <span>{formatPrice(Number(storeOrder.total || 0), storeOrder.currency)}</span></div>
+              {Number(storeOrder.ya_devuelto || 0) > 0 && (
+                <div className="flex justify-between"><span className="text-muted-foreground">Ya devuelto</span>
+                  <span>{formatPrice(Number(storeOrder.ya_devuelto), storeOrder.currency)}</span></div>
+              )}
+              <div className="flex justify-between"><span className="text-muted-foreground">Pendiente de reintegro</span>
+                <span className="font-bold">{formatPrice(pendienteTienda, storeOrder.currency)}</span></div>
+              <p className="text-[10px] text-muted-foreground pt-1">
+                Confirmá medio, fecha y referencia del reintegro antes de registrar.
+              </p>
+            </div>
+          )}
+
+
 
           {!alumno ? (
             <div className="space-y-2">
