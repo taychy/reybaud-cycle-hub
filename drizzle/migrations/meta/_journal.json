@@ -22,6 +22,13 @@
       "when": 1789780822544,
       "tag": "0002_alias_registro_separado_user_email",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1789781976411,
+      "tag": "0003_store_order_cancel_devolucion",
+      "breakpoints": true
     }
   ]
 }

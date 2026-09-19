@@ -8,8 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import {
   Search, FileSpreadsheet, FileText, Eye, Truck, Store, Package, MapPin,
-  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban, PackageCheck, AlertTriangle,
+  Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban, PackageCheck, AlertTriangle, RotateCcw,
 } from "lucide-react";
+import RegistrarDevolucionDialog from "@/components/admin/RegistrarDevolucionDialog";
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -184,7 +185,17 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
+  const [refundsByOrder, setRefundsByOrder] = useState<Record<string, number>>({});
+  const [devolucionOrder, setDevolucionOrder] = useState<Order | null>(null);
   const { toast } = useToast();
+
+  // Reembolso de un pedido cancelado que sí tuvo pago (pagado_at manda).
+  const refundInfo = (o: Order) => {
+    const devuelto = refundsByOrder[o.id] || 0;
+    const total = Number(o.total || 0);
+    const aplica = o.status === "cancelado" && !!o.pagado_at && !!o.alumno_id && total > 0;
+    return { aplica, devuelto, pendiente: Math.max(total - devuelto, 0) };
+  };
 
   const anularPedido = async () => {
     if (!cancelOrder) return;
@@ -209,16 +220,18 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
         ? "La mercadería está fuera del depósito: el stock queda pendiente de retorno físico."
         : "Stock devuelto y movimiento registrado.",
     });
+    const paidOrder = cancelOrder.pagado_at && cancelOrder.alumno_id ? cancelOrder : null;
     if (cancelOrder.pagado_at) {
       toast({
-        title: "Pago registrado · reembolso a gestionar",
-        description: "Anular no devuelve el dinero automáticamente.",
+        title: "Pago registrado · reembolso pendiente",
+        description: "Anular no devuelve el dinero: registrá la devolución cuando hagas el reintegro.",
       });
     }
     setCancelOrder(null);
     setCancelReason("");
     if (detail?.id === cancelOrder.id) setDetail(null);
-    load();
+    await load();
+    if (paidOrder) setDevolucionOrder({ ...paidOrder, status: "cancelado" });
   };
 
   const [returnBusy, setReturnBusy] = useState<string | null>(null);
@@ -350,6 +363,22 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       const sm: Record<string, Sede> = {};
       (sds || []).forEach((s: any) => { sm[s.id] = s; });
       setSedesMap(sm);
+    }
+
+    // Devoluciones ya registradas por pedido (para el estado de reembolso)
+    const cancelIds = enriched.filter((o) => o.status === "cancelado").map((o) => o.id);
+    if (cancelIds.length) {
+      const { data: devs } = await (supabase.from("devoluciones") as any)
+        .select("store_order_id, monto")
+        .in("store_order_id", cancelIds);
+      const acc: Record<string, number> = {};
+      (devs || []).forEach((d: any) => {
+        if (!d.store_order_id) return;
+        acc[d.store_order_id] = (acc[d.store_order_id] || 0) + Number(d.monto || 0);
+      });
+      setRefundsByOrder(acc);
+    } else {
+      setRefundsByOrder({});
     }
     setLoading(false);
   };
@@ -913,6 +942,15 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                         <AlertTriangle className="w-3 h-3" /> Retorno pendiente
                       </div>
                     )}
+                    {refundInfo(r).aplica && (
+                      refundInfo(r).pendiente > 0 ? (
+                        <div className="text-[10px] text-amber-500 mt-1 flex items-center justify-center gap-1">
+                          <RotateCcw className="w-3 h-3" /> Reembolso pendiente
+                        </div>
+                      ) : (
+                        <div className="text-[10px] text-emerald-500 mt-1">Devuelto</div>
+                      )
+                    )}
                   </td>
 
                   <td className="px-3 py-2 text-right" onClick={(e) => e.stopPropagation()}>
@@ -941,6 +979,12 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                           <Ban className="w-4 h-4" />
                         </Button>
                       )}
+                      {refundInfo(r).aplica && refundInfo(r).pendiente > 0 && (
+                        <Button size="sm" variant="ghost" title="Registrar devolución" className="text-amber-500 hover:text-amber-400" onClick={() => setDevolucionOrder(r)}>
+                          <RotateCcw className="w-4 h-4" />
+                        </Button>
+                      )}
+
 
                     </div>
                   </td>
@@ -987,8 +1031,27 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                           </Button>
                         </>
                       )}
-                      {detail.pagado_at && (
+                      {detail.pagado_at && !refundInfo(detail).aplica && (
                         <p className="text-xs text-muted-foreground">Pago registrado · reembolso a gestionar</p>
+                      )}
+                      {refundInfo(detail).aplica && (
+                        refundInfo(detail).pendiente > 0 ? (
+                          <div className="space-y-2">
+                            <p className="text-xs text-amber-500">
+                              Reembolso pendiente: {formatPrice(refundInfo(detail).pendiente, detail.currency)}
+                              {refundInfo(detail).devuelto > 0
+                                ? ` (ya devuelto ${formatPrice(refundInfo(detail).devuelto, detail.currency)})`
+                                : ""}
+                            </p>
+                            <Button size="sm" variant="outline" onClick={() => setDevolucionOrder(detail)}>
+                              <RotateCcw className="w-4 h-4 mr-1" /> Registrar devolución
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-xs text-emerald-500">
+                            Devuelto · {formatPrice(refundInfo(detail).devuelto, detail.currency)}
+                          </p>
+                        )
                       )}
                     </section>
                   )}
@@ -1269,6 +1332,22 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
           }}
         />
       )}
+
+      {/* Devolución de un pedido cancelado que estaba pagado */}
+      <RegistrarDevolucionDialog
+        open={!!devolucionOrder}
+        onOpenChange={(v) => { if (!v) setDevolucionOrder(null); }}
+        initialAlumnoId={devolucionOrder?.alumno_id || undefined}
+        storeOrder={devolucionOrder && devolucionOrder.alumno_id ? {
+          id: devolucionOrder.id,
+          order_number: devolucionOrder.order_number,
+          alumno_id: devolucionOrder.alumno_id,
+          total: Number(devolucionOrder.total || 0),
+          currency: devolucionOrder.currency || "ARS",
+          ya_devuelto: refundsByOrder[devolucionOrder.id] || 0,
+        } : null}
+        onDone={() => { setDevolucionOrder(null); load(); }}
+      />
 
       {/* Anular pedido */}
       <AlertDialog open={!!cancelOrder} onOpenChange={(v) => { if (!v) { setCancelOrder(null); setCancelReason(""); } }}>

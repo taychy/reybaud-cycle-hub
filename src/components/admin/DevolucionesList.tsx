@@ -27,10 +27,12 @@ type Row = {
   cuenta_mp_id: string | null;
   reservation_id: string | null;
   reservation_payment_id: string | null;
+  store_order_id: string | null;
   alumnos: { id: string; nombre: string; apellido: string | null; email: string } | null;
   cuentas_mp: { nombre: string } | null;
   mp_account_movements: { mp_payment_id: string } | null;
   event_reservations: { id: string; estado: string | null; events: { title: string } | null } | null;
+  store_orders: { id: string; order_number: number | null; status: string | null } | null;
 };
 
 
@@ -57,11 +59,13 @@ export default function DevolucionesList() {
     const { data, error } = await supabase
       .from("devoluciones")
       .select(`id, alumno_id, monto, moneda, fecha, metodo, referencia, motivo, notas, created_at,
-        mp_movement_id, cuenta_mp_id, reservation_id, reservation_payment_id,
+        mp_movement_id, cuenta_mp_id, reservation_id, reservation_payment_id, store_order_id,
         alumnos(id, nombre, apellido, email),
         cuentas_mp(nombre),
         mp_account_movements(mp_payment_id),
-        event_reservations(id, estado, events(title))`)
+        event_reservations(id, estado, events(title)),
+        store_orders(id, order_number, status)`)
+
 
       .gte("fecha", start)
       .lt("fecha", end)
@@ -151,7 +155,14 @@ export default function DevolucionesList() {
                   <TableCell className="text-xs"><Badge variant="outline" className="text-[10px]">{r.metodo}</Badge></TableCell>
                   <TableCell className="text-[11px] text-muted-foreground">{r.cuentas_mp?.nombre || "—"}</TableCell>
                   <TableCell className="text-[11px]">
-                    {r.event_reservations ? (
+                    {r.store_orders ? (
+                      <div>
+                        <div className="text-foreground">Tienda #{r.store_orders.order_number ?? "—"}</div>
+                        {r.store_orders.status && (
+                          <div className="text-muted-foreground">{r.store_orders.status}</div>
+                        )}
+                      </div>
+                    ) : r.event_reservations ? (
                       <div>
                         <div className="text-foreground">{r.event_reservations.events?.title || "Evento"}</div>
                         {r.event_reservations.estado && (
