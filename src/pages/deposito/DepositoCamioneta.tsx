@@ -185,9 +185,9 @@ const DepositoCamioneta = () => {
       </div>
 
       {!loading && sinCargar.length > 0 && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3">
-          <p className="text-sm font-medium text-destructive">
-            Pedidos marcados en camioneta sin cargar ({sinCargar.length})
+        <div className="rounded-lg border border-border bg-muted/30 p-3">
+          <p className="text-sm font-medium text-foreground">
+            En camioneta · caja sin identificar ({sinCargar.length})
           </p>
           <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
             {sinCargar.map((o) => (
@@ -195,7 +195,7 @@ const DepositoCamioneta = () => {
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
-            Incorporalos desde la caja correspondiente con "Agregar ítems".
+            Están físicamente en la camioneta; el sistema no registró en qué caja.
           </p>
         </div>
       )}
@@ -337,7 +337,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [vistoDraft, setVistoDraft] = useState<Record<string, string>>({});
   const [closingRonda, setClosingRonda] = useState(false);
   const [rondaNotas, setRondaNotas] = useState("");
-  // Pedidos marcados "en camioneta" sin caja asignada (sin vehiculo_carga_items).
+  // Mercadería en camioneta cuya caja no quedó registrada (sin vehiculo_carga_items).
   const [sinCargar, setSinCargar] = useState<OrdenSinCargar[]>([]);
 
 
@@ -1209,13 +1209,13 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           {/* 2b · EN CAMIONETA · SIN CAJA ASIGNADA */}
           {sinCargar.length > 0 && (
             <section className="space-y-2">
-              {seccionHeader("En camioneta · sin caja asignada", sinCargar.reduce((acc, o) => acc + o.items.length, 0), "danger")}
+              {seccionHeader("En camioneta · caja sin identificar", sinCargar.reduce((acc, o) => acc + o.items.length, 0))}
               <p className="text-xs text-muted-foreground">
-                Pedidos marcados como "en camioneta" que todavía no están en ninguna caja. Las cajas KDT y Villa Nueva viajan juntas en la misma camioneta; incorporalos con "Agregar ítems" a la caja correspondiente.
+                Mercadería que ya está físicamente en la camioneta, pero cuya caja no quedó registrada en el sistema. Las cajas viajan juntas en la misma camioneta.
               </p>
               <div className="space-y-3">
                 {sinCargar.map((o) => (
-                  <div key={o.id} className="glass-card rounded-lg p-3 border border-destructive/40">
+                  <div key={o.id} className="glass-card rounded-lg p-3 border border-border">
                     <div className="font-medium text-sm text-foreground mb-2">
                       {o.customer_name || "Cliente"} <span className="text-muted-foreground font-normal">· Pedido #{o.order_number ?? "—"}</span>
                     </div>

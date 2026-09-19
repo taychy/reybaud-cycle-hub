@@ -30,7 +30,8 @@ import {
   NUEVO_LABEL,
 } from "@/lib/storeOrderStatus";
 import { formatPrice } from "@/lib/currency";
-import { ensureOrderInCamioneta, markOrderItemsEntregados } from "@/lib/camionetaSync";
+import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
+import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
 
 
 /** Filtros de la lista: expresan logística, no pago. */
@@ -83,6 +84,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [cancelReason, setCancelReason] = useState("");
   const [cancelBusy, setCancelBusy] = useState(false);
   const [returnBusy, setReturnBusy] = useState<string | null>(null);
+  const [cajaPicker, setCajaPicker] = useState<{ orderId: string; cargas: CargaActiva[] } | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -140,12 +142,16 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     setOrderItems(data || []);
   };
 
-  const updateStatus = async (id: string, status: string) => {
-    // La ubicación física manda: no se puede declarar "en camioneta"
-    // sin que el pedido esté realmente cargado en una caja activa.
+  const updateStatus = async (id: string, status: string, cargaId?: string) => {
+    // Marcar "en camioneta" = ya se cargó físicamente: registramos en qué caja.
     if (status === "en_camioneta") {
-      const res = await ensureOrderInCamioneta(id);
+      const res = await ensureOrderInCamioneta(id, cargaId);
       if (!res.ok) {
+        if (res.reason === "NEEDS_BOX") {
+          const activas = await listCargasActivas();
+          setCajaPicker({ orderId: id, cargas: activas });
+          return;
+        }
         toast({ title: "No se puede marcar en camioneta", description: res.reason, variant: "destructive" });
         return;
       }
@@ -651,6 +657,17 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
           )}
         </SheetContent>
       </Sheet>
+
+      <ElegirCajaDialog
+        open={!!cajaPicker}
+        cargas={cajaPicker?.cargas || []}
+        onClose={() => setCajaPicker(null)}
+        onSelect={(cargaId) => {
+          const orderId = cajaPicker?.orderId;
+          setCajaPicker(null);
+          if (orderId) updateStatus(orderId, "en_camioneta", cargaId);
+        }}
+      />
 
       <Dialog open={!!cancelTarget} onOpenChange={(v) => { if (!v) { setCancelTarget(null); setCancelReason(""); } }}>
         <DialogContent className="max-w-md">

@@ -28,7 +28,23 @@ export interface CamionetaSyncResult {
  * No inventa sede ni carga: si no hay una única carga activa compatible,
  * devuelve ok=false y no escribe nada.
  */
-export const ensureOrderInCamioneta = async (orderId: string): Promise<CamionetaSyncResult> => {
+export interface CargaActiva { id: string; sede_id: string | null; estado: string; sede_nombre?: string | null }
+
+/** Cajas activas (abierta/en_ruta) de la camioneta. */
+export const listCargasActivas = async (): Promise<CargaActiva[]> => {
+  const { data } = await (supabase as any)
+    .from("vehiculo_cargas")
+    .select("id,sede_id,estado,sede:sedes(nombre)")
+    .in("estado", ESTADOS_CARGA_ACTIVA);
+  return (((data as any[]) || []).map((c) => ({
+    id: c.id,
+    sede_id: c.sede_id,
+    estado: c.estado,
+    sede_nombre: c.sede?.nombre ?? null,
+  })));
+};
+
+export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: string): Promise<CamionetaSyncResult> => {
   const { data: order, error: oErr } = await supabase
     .from("store_orders")
     .select("id,customer_name,alumno_id,sede_retiro_id,items:store_order_items(id,product_name,variant_selection,quantity)")
@@ -48,12 +64,13 @@ export const ensureOrderInCamioneta = async (orderId: string): Promise<Camioneta
   const compatibles = sedeId ? activas.filter((c) => c.sede_id === sedeId) : activas;
 
   if (compatibles.length === 0) {
-    return { ok: false, inserted: 0, reason: "No hay una caja activa compatible. Incorporá el pedido desde Camioneta." };
+    return { ok: false, inserted: 0, reason: "No hay una caja activa compatible. Abrí o activá una caja desde Camioneta." };
   }
-  if (compatibles.length > 1) {
-    return { ok: false, inserted: 0, reason: "Hay más de una caja activa posible. Elegí la caja desde Camioneta." };
+  const elegida = cargaIdElegida ? compatibles.find((c) => c.id === cargaIdElegida) : null;
+  if (compatibles.length > 1 && !elegida) {
+    return { ok: false, inserted: 0, reason: "NEEDS_BOX" };
   }
-  const carga = compatibles[0];
+  const carga = elegida || compatibles[0];
 
   const { data: yaCargados } = await (supabase as any)
     .from("vehiculo_carga_items")
@@ -112,7 +129,7 @@ export interface OrdenSinCargar {
   items: OrdenSinCargarItem[];
 }
 
-/** Pedidos marcados "en camioneta" sin representación física. */
+/** Pedidos en camioneta cuya caja no quedó registrada en el sistema (legacy). */
 export const findOrdersEnCamionetaSinCargar = async (): Promise<OrdenSinCargar[]> => {
   const { data: orders } = await supabase
     .from("store_orders")

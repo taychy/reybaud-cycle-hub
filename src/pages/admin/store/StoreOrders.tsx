@@ -27,7 +27,8 @@ import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
-import { ensureOrderInCamioneta, markOrderItemsEntregados } from "@/lib/camionetaSync";
+import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
+import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
 import { normalizePhoneAR } from "@/lib/phoneNormalize";
 
 import {
@@ -186,6 +187,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [notifying, setNotifying] = useState(false);
   const [payOrder, setPayOrder] = useState<Order | null>(null);
   const [cancelOrder, setCancelOrder] = useState<Order | null>(null);
+  const [cajaPicker, setCajaPicker] = useState<{ orderId: string; patch: Partial<Order>; cargas: CargaActiva[] } | null>(null);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
   const [refundsByOrder, setRefundsByOrder] = useState<Record<string, number>>({});
@@ -434,11 +436,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     [rows],
   );
 
-  const updateField = async (id: string, patch: Partial<Order>) => {
-    // "En camioneta" exige carga física real (vehiculo_carga_items).
+  const updateField = async (id: string, patch: Partial<Order>, cargaId?: string) => {
+    // Marcar "en camioneta" = ya se cargó físicamente: registramos en qué caja.
     if ((patch as any).status === "en_camioneta") {
-      const res = await ensureOrderInCamioneta(id);
+      const res = await ensureOrderInCamioneta(id, cargaId);
       if (!res.ok) {
+        if (res.reason === "NEEDS_BOX") {
+          const activas = await listCargasActivas();
+          setCajaPicker({ orderId: id, patch, cargas: activas });
+          return;
+        }
         toast({ title: "No se puede marcar en camioneta", description: res.reason, variant: "destructive" });
         return;
       }
@@ -1366,6 +1373,17 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       />
 
       {/* Anular pedido */}
+      <ElegirCajaDialog
+        open={!!cajaPicker}
+        cargas={cajaPicker?.cargas || []}
+        onClose={() => setCajaPicker(null)}
+        onSelect={(cargaId) => {
+          const p = cajaPicker;
+          setCajaPicker(null);
+          if (p) updateField(p.orderId, p.patch, cargaId);
+        }}
+      />
+
       <AlertDialog open={!!cancelOrder} onOpenChange={(v) => { if (!v) { setCancelOrder(null); setCancelReason(""); } }}>
         <AlertDialogContent>
           <AlertDialogHeader>
