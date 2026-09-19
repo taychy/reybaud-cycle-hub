@@ -182,11 +182,10 @@ const DepositoCamioneta = () => {
         <div className="py-16 text-center text-muted-foreground animate-pulse">Cargando...</div>
       ) : (
         (() => {
-          // La operación actual: preferimos una carga en ruta; si no, cualquier carga activa (abierta).
-          // El listado ya viene ordenado de más nueva a más vieja, así que la primera coincide es la más reciente.
-          const actual = cargas.find((c) => c.estado === "en_ruta") || cargas.find((c) => c.estado === "abierta") || null;
-          const historial = actual ? cargas.filter((c) => c.id !== actual.id) : cargas;
-          const sedeActual = actual ? sedes.find((s) => s.id === actual.sede_id) : null;
+          // Una sola camioneta con varias cajas (una por sede) que viajan juntas.
+          // Todas las cargas activas se muestran juntas en "Camioneta ahora".
+          const activas = cargas.filter((c) => c.estado === "en_ruta" || c.estado === "abierta");
+          const historial = cargas.filter((c) => c.estado !== "en_ruta" && c.estado !== "abierta");
           const renderCarga = (c: Carga) => {
             const sede = sedes.find((s) => s.id === c.sede_id);
             return (
@@ -207,23 +206,31 @@ const DepositoCamioneta = () => {
           };
           return (
             <>
-              {actual ? (
+              {activas.length > 0 ? (
                 <div>
-                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Camioneta ahora</h2>
-                  <Link to={`/deposito/camioneta/${actual.id}`} className="rounded-lg p-5 border border-primary/40 bg-primary/5 hover:border-primary/70 flex items-center gap-3 transition-colors">
-                    <Truck className="w-6 h-6 text-primary shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-medium text-foreground truncate">{sedeActual?.nombre || "Sede"}</span>
-                        {estadoBadge(actual.estado)}
-                      </div>
-                      <div className="text-xs text-muted-foreground flex items-center gap-3">
-                        <span>{actual.fecha_salida}</span>
-                        {actual.entregador_nombre && <span>· {actual.entregador_nombre}</span>}
-                      </div>
-                    </div>
-                    <ChevronRight className="w-5 h-5 text-primary shrink-0" />
-                  </Link>
+                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Camioneta ahora</h2>
+                  <p className="text-xs text-muted-foreground mb-3">Las cajas viajan juntas; la entrega se realiza en la sede con clase del día.</p>
+                  <div className="space-y-2">
+                    {activas.map((c) => {
+                      const sede = sedes.find((s) => s.id === c.sede_id);
+                      return (
+                        <Link key={c.id} to={`/deposito/camioneta/${c.id}`} className="rounded-lg p-5 border border-primary/40 bg-primary/5 hover:border-primary/70 flex items-center gap-3 transition-colors">
+                          <Truck className="w-6 h-6 text-primary shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-foreground truncate">Caja {sede?.nombre || "Sede"}</span>
+                              {estadoBadge(c.estado)}
+                            </div>
+                            <div className="text-xs text-muted-foreground flex items-center gap-3">
+                              <span>{c.fecha_salida}</span>
+                              {c.entregador_nombre && <span>· {c.entregador_nombre}</span>}
+                            </div>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-primary shrink-0" />
+                        </Link>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed p-6 text-center">
