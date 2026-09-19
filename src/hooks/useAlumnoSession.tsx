@@ -34,12 +34,14 @@ export function useAlumnoSession() {
       return;
     }
 
-    // Look up alumno by email
-    const { data: alumnoData, error: fetchError } = await supabase
-      .from("alumnos")
-      .select("*")
-      .eq("email", email)
-      .maybeSingle();
+    // Resolución canónica: cualquiera de los emails/identidades del alumno
+    // (incluyendo fichas fusionadas) resuelve siempre a la ficha principal.
+    const { data: canonicalId } = await supabase.rpc("register_current_auth_alias" as any);
+
+    let query = supabase.from("alumnos").select("*");
+    query = canonicalId ? query.eq("id", canonicalId as string) : query.eq("email", email);
+
+    const { data: alumnoData, error: fetchError } = await query.maybeSingle();
 
     if (fetchError) {
       setState({ alumno: null, loading: false, error: "Error al buscar el usuario.", needsSubscription: false });
@@ -51,17 +53,6 @@ export function useAlumnoSession() {
       return;
     }
 
-    // Self-heal: link user_id if missing OR if it differs from current session
-    // (happens when a user re-activates their account and gets a new auth.users id)
-    if (!alumnoData.user_id || alumnoData.user_id !== session.user.id) {
-      const { error: healError } = await supabase
-        .from("alumnos")
-        .update({ user_id: session.user.id })
-        .eq("id", alumnoData.id);
-      if (!healError) {
-        alumnoData.user_id = session.user.id;
-      }
-    }
 
     // Bloqueado
     if (alumnoData.estado === "bloqueado") {
