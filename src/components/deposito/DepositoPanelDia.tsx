@@ -115,30 +115,19 @@ const DepositoPanelDia = ({ procesosEnCurso = [] }: Props) => {
         tone: "info",
       });
     }
-    if (entregasHoy.length > 0) {
+    if (entregasHoy.length > 0 || (esHoy && vanHoy)) {
       cards.push({
-        key: "entregas",
+        key: "camioneta_entregas",
         icon: Truck,
         count: entregasHoy.length,
-        title: esHoy ? "Entregas para hoy" : "Entregas de ese día",
-        desc: entregasHoy.map((d: any) => d.titulo).slice(0, 2).join(" · "),
-        cta: "Abrir listas",
-        to: "/deposito/entregas",
-        tone: "warn",
-      });
-    }
-    if (esHoy && !chequeoHechoHoy) {
-      cards.push({
-        key: "camioneta",
-        icon: Package,
-        count: 1,
-        title: "Chequeo de camioneta pendiente",
-        desc: vanHoy
-          ? "Hay carga de hoy pero todavía no se cerró el chequeo físico."
-          : "Todavía no hay carga ni chequeo físico de hoy.",
-        cta: "Iniciar chequeo",
+        title: "Camioneta y entregas",
+        desc: [
+          entregasHoy.length > 0 ? `${entregasHoy.length} entrega(s) para ${esHoy ? "hoy" : "ese día"}` : "",
+          vanHoy ? "Hay carga de camioneta activa." : "",
+        ].filter(Boolean).join(" · ") || "Controlá qué sale, qué va arriba y qué vuelve.",
+        cta: "Abrir camioneta",
         to: "/deposito/camioneta",
-        tone: "warn",
+        tone: entregasHoy.length > 0 ? "warn" : "info",
       });
     }
     if (esHoy && cambios.length > 0) {
