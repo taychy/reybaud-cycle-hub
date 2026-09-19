@@ -564,7 +564,16 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
     const lines: string[] = [];
     lines.push(`Hola ${nombre}! 👋`);
     lines.push("");
-    if (pagado) {
+    if (o.status === "en_camioneta") {
+      if (pagado) {
+        lines.push(`Te confirmo tu pedido *#${o.order_number}* (${formatPrice(total, o.currency)}) ya está en la camioneta.`);
+      } else {
+        lines.push(`Tu pedido *#${o.order_number}* ya está en la camioneta.`);
+        lines.push(`Queda pendiente el pago de *${formatPrice(total, o.currency)}*.`);
+        lines.push("");
+        lines.push("¡Gracias!");
+      }
+    } else if (pagado) {
       lines.push(`Te confirmo tu pedido *#${o.order_number}* (${formatPrice(total, o.currency)}).`);
       if (o.entrega_metodo === "retiro_sede") {
         const sede = o.sede_retiro_id ? sedesMap[o.sede_retiro_id] : null;
@@ -572,11 +581,6 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       } else if (o.entrega_metodo === "envio_moto") {
         lines.push(`Te lo enviamos a: ${o.envio_direccion || "la dirección registrada"}.`);
       }
-    } else if (o.status === "en_camioneta") {
-      lines.push(`Tu pedido *#${o.order_number}* ya está en la camioneta.`);
-      lines.push(`Queda pendiente el pago de *${formatPrice(total, o.currency)}*.`);
-      lines.push("");
-      lines.push("¡Gracias!");
     } else {
       lines.push(`Te paso el recordatorio del pedido *#${o.order_number}*:`);
       lines.push(`Total: *${formatPrice(total, o.currency)}*`);
