@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import DayNavigatorBar from "@/components/admin/DayNavigatorBar";
 import {
-  AlertTriangle, Package, Truck, RefreshCw, ShoppingBag, CalendarDays,
+  AlertTriangle, Truck, RefreshCw, ShoppingBag, CalendarDays,
   CheckCircle2, ClipboardList, ChevronRight,
 } from "lucide-react";
 
