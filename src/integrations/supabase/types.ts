@@ -334,6 +334,58 @@ export type Database = {
           },
         ]
       }
+      alumno_auth_aliases: {
+        Row: {
+          active: boolean
+          alumno_id: string
+          created_at: string
+          email: string | null
+          id: string
+          is_primary: boolean
+          user_id: string | null
+        }
+        Insert: {
+          active?: boolean
+          alumno_id: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          user_id?: string | null
+        }
+        Update: {
+          active?: boolean
+          alumno_id?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          is_primary?: boolean
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_auth_aliases_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_auth_aliases_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_auth_aliases_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
+      }
       alumno_email_links: {
         Row: {
           alumno_id: string
@@ -15398,6 +15450,7 @@ export type Database = {
         Args: { p_fuente_id: string; p_fuente_tabla: string; p_token: string }
         Returns: Json
       }
+      current_alumno_id: { Args: never; Returns: string }
       dar_baja_directa: {
         Args: {
           p_alumno_id: string
@@ -16508,6 +16561,7 @@ export type Database = {
         Args: { _email: string; _nombre: string; _user_id: string }
         Returns: undefined
       }
+      register_current_auth_alias: { Args: never; Returns: string }
       register_gasto_deuda_cargo: {
         Args: {
           p_concepto?: string
