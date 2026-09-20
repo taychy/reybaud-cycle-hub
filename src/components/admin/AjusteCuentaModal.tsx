@@ -245,6 +245,11 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
         <DialogHeader>
           <DialogTitle>{initialValue?.id ? "Editar ajuste" : "Nuevo ajuste manual"}</DialogTitle>
         </DialogHeader>
+        {!initialValue?.id && (
+          <p className="text-xs text-muted-foreground">
+            Usá ajustes únicamente para correcciones que no provienen de una venta o un cobro.
+          </p>
+        )}
         <div className="space-y-3 py-2">
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
