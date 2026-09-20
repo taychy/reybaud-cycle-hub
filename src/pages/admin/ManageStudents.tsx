@@ -49,7 +49,7 @@ import { MedicalCertificateSection } from "@/components/admin/MedicalCertificate
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
 import { StudentNotesSection } from "@/components/admin/StudentNotesSection";
-import { StudentWeeklyEmailSection } from "@/components/admin/StudentWeeklyEmailSection";
+import { StudentWeeklyEmailSection } from "@/components/admin/StudentWeeklyEmailSection";\nimport StudentTrainingSitesSelector from "@/components/admin/StudentTrainingSitesSelector";
 
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
@@ -1829,26 +1829,17 @@ const ManageStudents = () => {
                             </SelectContent>
                           </Select>
                         </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-muted-foreground">Sede</span>
-                          <Select
-                            value={drawerAlumno.sede_id || "sin_sede"}
-                            onValueChange={async (val) => {
-                              const newVal = val === "sin_sede" ? null : val;
-                              await supabase.from("alumnos").update({ sede_id: newVal } as any).eq("id", drawerAlumno.id);
-                              toast.success("Sede actualizada");
-                              setDrawerAlumno({ ...drawerAlumno, sede_id: newVal });
+                        <div className="flex justify-between items-start gap-4">
+                          <span className="text-muted-foreground pt-1">Sedes donde entrena</span>
+                          <StudentTrainingSitesSelector
+                            alumnoId={drawerAlumno.id}
+                            sedes={sedes}
+                            primarySedeId={drawerAlumno.sede_id}
+                            onPrimaryChange={(newId) => {
+                              setDrawerAlumno({ ...drawerAlumno, sede_id: newId });
                               fetchAlumnos();
                             }}
-                          >
-                            <SelectTrigger className="w-32 h-7 bg-secondary border-border text-xs">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="z-[100]">
-                              <SelectItem value="sin_sede">Sin sede</SelectItem>
-                              {sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}
-                            </SelectContent>
-                          </Select>
+                          />
                         </div>
                         <DetailRow
                           label="Ingreso a la escuela"
