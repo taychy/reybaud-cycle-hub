@@ -26,6 +26,7 @@ import { formatPrice } from "@/lib/currency";
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
+import { RegistrarCobranzaDialog } from "./RegistrarCobranzaDialog";
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
@@ -172,6 +173,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const [monedaFilter, setMonedaFilter] = useState<string>("all");
   const [tipoFilter, setTipoFilter] = useState<string>("all");
   const [modalOpen, setModalOpen] = useState(false);
+  const [cobranzaOpen, setCobranzaOpen] = useState(false);
   const [editing, setEditing] = useState<AjusteCuentaValue | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
@@ -545,8 +547,12 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           <Button variant="outline" size="sm" onClick={fetchData} disabled={loading}>
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
+          <Button size="sm" onClick={() => setCobranzaOpen(true)}>
+            <Banknote className="h-4 w-4 mr-1" /> Registrar cobranza
+          </Button>
           <Button
             size="sm"
+            variant="outline"
             onClick={() => {
               setEditing(null);
               setModalOpen(true);
@@ -984,6 +990,17 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         </DialogContent>
       </Dialog>
 
+
+      <RegistrarCobranzaDialog
+        open={cobranzaOpen}
+        onOpenChange={setCobranzaOpen}
+        alumnoId={alumnoId}
+        onSaved={() => {
+          setCobranzaOpen(false);
+          fetchData();
+          onSubscriptionsChanged?.();
+        }}
+      />
 
       <AjusteCuentaModal
         open={modalOpen}
