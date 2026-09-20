@@ -782,6 +782,56 @@ export type Database = {
           },
         ]
       }
+      alumno_sedes: {
+        Row: {
+          alumno_id: string
+          created_at: string
+          es_principal: boolean
+          sede_id: string
+        }
+        Insert: {
+          alumno_id: string
+          created_at?: string
+          es_principal?: boolean
+          sede_id: string
+        }
+        Update: {
+          alumno_id?: string
+          created_at?: string
+          es_principal?: boolean
+          sede_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alumno_sedes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alumno_sedes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "alumno_sedes_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "alumno_sedes_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alumnos: {
         Row: {
           afip_padron_snapshot: Json | null
@@ -13654,6 +13704,251 @@ export type Database = {
         }
         Relationships: []
       }
+      whatsapp_conversations: {
+        Row: {
+          alumno_id: string | null
+          contact_name: string | null
+          created_at: string
+          id: string
+          labels: string[]
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_direction: string | null
+          last_message_preview: string | null
+          last_outbound_at: string | null
+          metadata: Json
+          needs_reply: boolean
+          phone_display: string | null
+          status: string
+          unread_count: number
+          updated_at: string
+          wa_id: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          labels?: string[]
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_preview?: string | null
+          last_outbound_at?: string | null
+          metadata?: Json
+          needs_reply?: boolean
+          phone_display?: string | null
+          status?: string
+          unread_count?: number
+          updated_at?: string
+          wa_id: string
+        }
+        Update: {
+          alumno_id?: string | null
+          contact_name?: string | null
+          created_at?: string
+          id?: string
+          labels?: string[]
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_direction?: string | null
+          last_message_preview?: string | null
+          last_outbound_at?: string | null
+          metadata?: Json
+          needs_reply?: boolean
+          phone_display?: string | null
+          status?: string
+          unread_count?: number
+          updated_at?: string
+          wa_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          body: string | null
+          conversation_id: string
+          created_at: string
+          direction: string
+          error_code: string | null
+          error_message: string | null
+          id: string
+          media: Json
+          message_type: string
+          meta_message_id: string | null
+          meta_timestamp: string | null
+          raw_payload: Json
+          reply_to_meta_message_id: string | null
+          status: string
+        }
+        Insert: {
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          direction: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          media?: Json
+          message_type?: string
+          meta_message_id?: string | null
+          meta_timestamp?: string | null
+          raw_payload?: Json
+          reply_to_meta_message_id?: string | null
+          status?: string
+        }
+        Update: {
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          error_code?: string | null
+          error_message?: string | null
+          id?: string
+          media?: Json
+          message_type?: string
+          meta_message_id?: string | null
+          meta_timestamp?: string | null
+          raw_payload?: Json
+          reply_to_meta_message_id?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "vw_whatsapp_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_pending_tasks: {
+        Row: {
+          alumno_id: string | null
+          assigned_to: string | null
+          completed_at: string | null
+          conversation_id: string
+          created_at: string
+          details: string | null
+          due_at: string | null
+          id: string
+          metadata: Json
+          priority: string
+          source_message_id: string | null
+          status: string
+          summary: string
+          task_type: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          conversation_id: string
+          created_at?: string
+          details?: string | null
+          due_at?: string | null
+          id?: string
+          metadata?: Json
+          priority?: string
+          source_message_id?: string | null
+          status?: string
+          summary: string
+          task_type?: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          assigned_to?: string | null
+          completed_at?: string | null
+          conversation_id?: string
+          created_at?: string
+          details?: string | null
+          due_at?: string | null
+          id?: string
+          metadata?: Json
+          priority?: string
+          source_message_id?: string | null
+          status?: string
+          summary?: string
+          task_type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_pending_tasks_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pending_tasks_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pending_tasks_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pending_tasks_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "vw_whatsapp_inbox"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pending_tasks_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_pending_tasks_source_message_id_fkey"
+            columns: ["source_message_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_messages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       coaches_public: {
@@ -14699,13 +14994,6 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_1_id"]
-            isOneToOne: false
-            referencedRelation: "alumnos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "alumnos"
@@ -14715,8 +15003,8 @@ export type Database = {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
             isOneToOne: false
-            referencedRelation: "vw_backfill_identidad_sugerida"
-            referencedColumns: ["alumno_sugerido_id"]
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
@@ -14728,13 +15016,20 @@ export type Database = {
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
             columns: ["alumno_1_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "suscripciones_alumno_id_fkey"
+            columns: ["alumno_2_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
           },
           {
             foreignKeyName: "suscripciones_alumno_id_fkey"
-            columns: ["alumno_2_id"]
+            columns: ["alumno_1_id"]
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
@@ -14844,6 +15139,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "servicios_turnera"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      vw_whatsapp_inbox: {
+        Row: {
+          alumno_apellido: string | null
+          alumno_email: string | null
+          alumno_estado: string | null
+          alumno_id: string | null
+          alumno_nombre: string | null
+          alumno_telefono: string | null
+          contact_name: string | null
+          created_at: string | null
+          id: string | null
+          labels: string[] | null
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_direction: string | null
+          last_message_preview: string | null
+          last_outbound_at: string | null
+          metadata: Json | null
+          needs_reply: boolean | null
+          phone_display: string | null
+          status: string | null
+          unread_count: number | null
+          updated_at: string | null
+          wa_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
           },
         ]
       }
@@ -15747,6 +16091,10 @@ export type Database = {
           moneda: string
           por_pagar: number
         }[]
+      }
+      get_cuenta_publica_legacy: {
+        Args: { p_ip?: string; p_token: string; p_user_agent?: string }
+        Returns: Json
       }
       get_deudores_cobranzas: {
         Args: never
@@ -16969,6 +17317,17 @@ export type Database = {
           estado: string
           nombre: string
           test: number
+        }[]
+      }
+      set_alumno_sedes: {
+        Args: {
+          _alumno_id: string
+          _principal_id?: string
+          _sede_ids: string[]
+        }
+        Returns: {
+          es_principal: boolean
+          sede_id: string
         }[]
       }
       set_gasto_categoria: {
