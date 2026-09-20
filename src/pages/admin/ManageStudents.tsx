@@ -49,7 +49,8 @@ import { MedicalCertificateSection } from "@/components/admin/MedicalCertificate
 import { StudentDiscountSection } from "@/components/admin/StudentDiscountSection";
 import { StudentEmergencyFamilySection } from "@/components/admin/StudentEmergencyFamilySection";
 import { StudentNotesSection } from "@/components/admin/StudentNotesSection";
-import { StudentWeeklyEmailSection } from "@/components/admin/StudentWeeklyEmailSection";\nimport StudentTrainingSitesSelector from "@/components/admin/StudentTrainingSitesSelector";
+import { StudentWeeklyEmailSection } from "@/components/admin/StudentWeeklyEmailSection";
+import StudentTrainingSitesSelector from "@/components/admin/StudentTrainingSitesSelector";
 
 import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
