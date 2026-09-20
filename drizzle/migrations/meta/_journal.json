@@ -29,6 +29,20 @@
       "when": 1789781976411,
       "tag": "0003_store_order_cancel_devolucion",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1789912470831,
+      "tag": "0004_cobranza_store_orders",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1789912501097,
+      "tag": "0005_store_order_payment_targets",
+      "breakpoints": true
     }
   ]
 }

@@ -15685,6 +15685,10 @@ export type Database = {
         Args: { _alumno_id: string }
         Returns: Json
       }
+      get_alumno_store_order_targets: {
+        Args: { _alumno_id: string }
+        Returns: Json
+      }
       get_billing_dashboard: { Args: never; Returns: Json }
       get_coaches_public: {
         Args: never
