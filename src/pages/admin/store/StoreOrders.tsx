@@ -11,6 +11,7 @@ import {
   Phone, User, QrCode, MessageCircle, Mail, DollarSign, Ban, PackageCheck, AlertTriangle, RotateCcw,
 } from "lucide-react";
 import RegistrarDevolucionDialog from "@/components/admin/RegistrarDevolucionDialog";
+import { RegistrarCobranzaDialog } from "@/components/admin/RegistrarCobranzaDialog";
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -1342,13 +1343,24 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
         </SheetContent>
       </Sheet>
 
-      {/* Confirmar pago */}
-      {payOrder && (
+      {/* Registrar cobranza: mismo flujo que en cuenta corriente */}
+      {payOrder?.alumno_id ? (
+        <RegistrarCobranzaDialog
+          open={!!payOrder}
+          onOpenChange={(v) => !v && setPayOrder(null)}
+          alumnoId={payOrder.alumno_id}
+          preselect={{ type: "store_order", id: payOrder.id }}
+          onSaved={() => {
+            setPayOrder(null);
+            load();
+          }}
+        />
+      ) : payOrder ? (
         <ConfirmFullPaymentDialog
           open={!!payOrder}
           onOpenChange={(v) => !v && setPayOrder(null)}
           title={`Registrar pago — Pedido #${payOrder.order_number}`}
-          description={`Total: ${formatPrice(Number(payOrder.total), payOrder.currency)}`}
+          description="Pedido sin alumno vinculado: se registra el pago directo sobre la orden."
           monto={Number(payOrder.total || 0)}
           moneda={payOrder.currency}
           defaultMethod={payOrder.metodo_pago || "efectivo"}
@@ -1358,7 +1370,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
             setPayOrder(null);
           }}
         />
-      )}
+      ) : null}
 
       {/* Devolución de un pedido cancelado que estaba pagado */}
       <RegistrarDevolucionDialog
