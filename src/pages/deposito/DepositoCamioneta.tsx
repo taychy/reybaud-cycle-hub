@@ -13,7 +13,7 @@ import { Truck, Plus, ChevronRight, ArrowLeft, Package, CheckCircle2, AlertTrian
 import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
-import { findOrdersEnCamionetaSinCargar, repairOrdersEnCamionetaFromStudentSede, type OrdenSinCargar } from "@/lib/camionetaSync";
+import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
 
 
 interface Sede { id: string; nombre: string; }
@@ -108,9 +108,6 @@ const DepositoCamioneta = () => {
 
   useEffect(() => {
     (async () => {
-      // Repara legacy de forma segura: la sede de la ficha del alumno es el
-      // respaldo cuando falta retiro; nunca toca envíos por moto ni sedes desconocidas.
-      await repairOrdersEnCamionetaFromStudentSede();
       const [sRes, cRes, pend] = await Promise.all([
         supabase.from("sedes").select("id,nombre").eq("activa", true).order("nombre"),
         supabase.from("vehiculo_cargas" as any).select("*").order("fecha_salida", { ascending: false }).order("created_at", { ascending: false }),
@@ -710,13 +707,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     await load();
   };
 
-  useEffect(() => {
-    load();
-    loadRondas();
-    repairOrdersEnCamionetaFromStudentSede()
-      .then(() => findOrdersEnCamionetaSinCargar())
-      .then(setSinCargar);
-  }, [id]);
+  useEffect(() => { load(); loadRondas(); findOrdersEnCamionetaSinCargar().then(setSinCargar); }, [id]);
 
   useEffect(() => {
     if (chequeo && !scannerOpen) loadLineas(chequeo.id);
