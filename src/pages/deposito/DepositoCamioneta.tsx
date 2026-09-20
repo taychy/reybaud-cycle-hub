@@ -108,8 +108,8 @@ const DepositoCamioneta = () => {
 
   useEffect(() => {
     (async () => {
-      // Repara legacy de forma segura: si falta retiro, usa la sede de la ficha
-      // del alumno; nunca toca envíos por moto ni pedidos sin sede conocida.
+      // Repara legacy de forma segura: la sede de la ficha del alumno es el
+      // respaldo cuando falta retiro; nunca toca envíos por moto ni sedes desconocidas.
       await repairOrdersEnCamionetaFromStudentSede();
       const [sRes, cRes, pend] = await Promise.all([
         supabase.from("sedes").select("id,nombre").eq("activa", true).order("nombre"),
