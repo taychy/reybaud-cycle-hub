@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Wallet, Loader2, ShieldAlert, ExternalLink, CheckCircle2, CircleDot } from "lucide-react";
+import { Wallet, Loader2, ShieldAlert, ExternalLink, CircleDot } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { toast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
@@ -25,14 +25,31 @@ interface Deuda {
   payment_payload: Record<string, unknown>;
 }
 interface Credito { moneda: string; monto: number; }
-interface PagoRow { fecha: string; concepto: string; monto: number; moneda: string; tipo: string; }
+interface SaldoRow {
+  moneda: string;
+  total_cargos: number;
+  total_pagos: number;
+  saldo: number;
+}
+interface MovimientoRow {
+  fecha: string;
+  tipo: string;
+  concepto: string;
+  origen: string;
+  debe: number;
+  haber: number;
+  moneda: string;
+  estado: string | null;
+  medio: string | null;
+}
 interface Resp {
   valid: boolean;
   reason?: string;
   saludo?: string;
   deudas?: Deuda[];
   creditos?: Credito[];
-  pagos?: PagoRow[];
+  saldos?: SaldoRow[];
+  movimientos?: MovimientoRow[];
 }
 
 const TIPO_FN: Record<Exclude<Deuda["tipo"], "suscripcion">, string> = {
@@ -46,6 +63,22 @@ function fmtDate(d: string | null): string {
   const p = d.substring(0, 10).split("-");
   if (p.length !== 3) return d;
   return `${p[2]}/${p[1]}/${p[0]}`;
+}
+
+const ORIGEN_LABEL: Record<string, string> = {
+  suscripciones: "Suscripción",
+  mp_account_movements: "Pago plan",
+  event_reservations: "Evento / Viaje",
+  reservation_payments: "Pago evento",
+  store_orders: "Tienda",
+  store_preorders: "Preventa",
+  delivery_list_items: "Entrega",
+  delivery_list_payments: "Pago entrega",
+  cuenta_ajustes: "Ajuste",
+};
+
+function origenLabel(origen: string): string {
+  return ORIGEN_LABEL[origen] || "Movimiento";
 }
 
 export default function PublicCuentaCorriente() {
@@ -170,15 +203,8 @@ export default function PublicCuentaCorriente() {
 
   const deudas = data.deudas || [];
   const creditos = data.creditos || [];
-  const pagos = data.pagos || [];
-
-  // Totales netos por moneda (a pagar después de aplicar crédito)
-  const totalsNeto: Record<string, number> = {};
-  const totalCreditoAplicado: Record<string, number> = {};
-  deudas.forEach((d) => {
-    totalsNeto[d.moneda] = (totalsNeto[d.moneda] || 0) + Number(d.por_pagar_neto || 0);
-    totalCreditoAplicado[d.moneda] = (totalCreditoAplicado[d.moneda] || 0) + Number(d.credito_aplicado || 0);
-  });
+  const saldos = data.saldos || [];
+  const movimientos = data.movimientos || [];
 
   return (
     <div className="min-h-screen bg-background pb-20" style={{ paddingTop: "env(safe-area-inset-top)" }}>
@@ -195,28 +221,42 @@ export default function PublicCuentaCorriente() {
       </div>
 
       <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-        {/* Totales */}
-        {Object.keys(totalsNeto).length > 0 ? (
+        {/* Saldo: misma fuente que Administración */}
+        {saldos.length > 0 ? (
           <Card className="p-4">
-            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Total a pagar</p>
-            <div className="flex flex-wrap gap-4">
-              {Object.entries(totalsNeto).map(([m, v]) => (
-                <div key={m}>
-                  <span className="text-2xl font-bold text-destructive font-mono">{formatPrice(v, m)}</span>
-                  <span className="text-xs text-muted-foreground ml-1">{m}</span>
-                  {totalCreditoAplicado[m] > 0.01 && (
-                    <p className="text-[11px] text-emerald-400 mt-0.5">
-                      Se descuenta {formatPrice(totalCreditoAplicado[m], m)} de saldo a favor
-                    </p>
-                  )}
-                </div>
-              ))}
+            <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3">Saldo de cuenta corriente</p>
+            <div className="space-y-3">
+              {saldos.map((s) => {
+                const saldo = Number(s.saldo) || 0;
+                const deuda = saldo > 0.01;
+                const aFavor = saldo < -0.01;
+                return (
+                  <div key={s.moneda} className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+                    <div>
+                      <div className="flex items-baseline gap-2">
+                        <span className={`text-2xl font-bold font-mono ${deuda ? "text-destructive" : aFavor ? "text-emerald-500" : "text-muted-foreground"}`}>
+                          {formatPrice(Math.abs(saldo), s.moneda)}
+                        </span>
+                        <span className="text-xs text-muted-foreground">{s.moneda}</span>
+                        <Badge variant="outline" className="text-[10px]">
+                          {deuda ? "DEBE" : aFavor ? "A FAVOR" : "SIN SALDO"}
+                        </Badge>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground sm:text-right">
+                      <span>Cargos: {formatPrice(Number(s.total_cargos) || 0, s.moneda)}</span>
+                      <span className="mx-2">·</span>
+                      <span>Pagos: {formatPrice(Number(s.total_pagos) || 0, s.moneda)}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </Card>
         ) : (
           <Card className="p-6 text-center">
             <p className="text-emerald-400 font-semibold">¡Estás al día!</p>
-            <p className="text-xs text-muted-foreground mt-1">No tenés deudas pendientes.</p>
+            <p className="text-xs text-muted-foreground mt-1">No hay movimientos con saldo.</p>
           </Card>
         )}
 
@@ -237,9 +277,13 @@ export default function PublicCuentaCorriente() {
           </Card>
         )}
 
-        {/* Tabla de deudas */}
+        {/* Deudas pagables */}
         {deudas.length > 0 && (
           <Card className="overflow-hidden">
+            <div className="p-4 border-b border-border">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Pendientes de pago</p>
+              <p className="text-[11px] text-muted-foreground mt-1">Conceptos que podés abonar desde este link.</p>
+            </div>
             <div className="divide-y divide-border">
               {deudas.map((d) => {
                 const neto = Number(d.por_pagar_neto || 0);
@@ -302,28 +346,61 @@ export default function PublicCuentaCorriente() {
           </Card>
         )}
 
-        {/* Últimos pagos */}
-        {pagos.length > 0 && (
+        {/* Mismos movimientos de cuenta corriente que ve Administración, sin datos internos */}
+        {movimientos.length > 0 && (
           <Card className="overflow-hidden">
-            <div className="p-4 border-b border-border bg-emerald-500/5">
-              <p className="text-xs uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                Tus últimos {pagos.length} pagos
+            <div className="p-4 border-b border-border">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">Movimientos de cuenta</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Cargos y pagos registrados en tu cuenta corriente.
               </p>
             </div>
+            <div className="hidden md:grid grid-cols-[90px_120px_1fr_110px_110px_100px] gap-3 px-4 py-2 border-b border-border bg-secondary/20 text-[10px] uppercase tracking-wider text-muted-foreground">
+              <span>Fecha</span>
+              <span>Origen</span>
+              <span>Concepto</span>
+              <span className="text-right">Debe</span>
+              <span className="text-right">Haber</span>
+              <span>Estado</span>
+            </div>
             <div className="divide-y divide-border">
-              {pagos.map((p, i) => (
-                <div key={i} className="px-4 py-3 flex items-center gap-3">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm text-foreground truncate">{p.concepto}</p>
-                    <p className="text-[11px] text-muted-foreground">{fmtDate(p.fecha)}</p>
+              {movimientos.map((m, i) => {
+                const debe = Number(m.debe) || 0;
+                const haber = Number(m.haber) || 0;
+                return (
+                  <div key={`${m.fecha}-${m.tipo}-${i}`} className="px-4 py-3">
+                    <div className="md:grid md:grid-cols-[90px_120px_1fr_110px_110px_100px] md:gap-3 md:items-center">
+                      <div className="text-xs text-muted-foreground">{fmtDate(m.fecha)}</div>
+                      <div className="mt-1 md:mt-0">
+                        <Badge variant="outline" className="text-[10px]">
+                          {origenLabel(m.origen)}
+                        </Badge>
+                      </div>
+                      <div className="mt-2 md:mt-0 min-w-0">
+                        <p className="text-sm text-foreground break-words">{m.concepto}</p>
+                        {(m.medio || m.moneda) && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            {[m.medio, m.moneda].filter(Boolean).join(" · ")}
+                          </p>
+                        )}
+                      </div>
+                      <div className="mt-2 md:mt-0 md:text-right">
+                        {debe > 0 ? (
+                          <span className="font-mono font-semibold text-destructive">{formatPrice(debe, m.moneda)}</span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </div>
+                      <div className="mt-1 md:mt-0 md:text-right">
+                        {haber > 0 ? (
+                          <span className="font-mono font-semibold text-emerald-500">{formatPrice(haber, m.moneda)}</span>
+                        ) : <span className="text-muted-foreground">—</span>}
+                      </div>
+                      <div className="mt-1 md:mt-0 text-[11px] text-muted-foreground capitalize">
+                        {m.estado || "—"}
+                      </div>
+                    </div>
                   </div>
-                  <p className="font-mono font-semibold text-emerald-500 shrink-0">
-                    {formatPrice(Number(p.monto) || 0, p.moneda)}
-                  </p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </Card>
         )}
