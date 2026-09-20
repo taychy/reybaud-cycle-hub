@@ -252,8 +252,8 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
               <Select value={tipo} onValueChange={(v: any) => setTipo(v)}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cargo">Cargo (debe)</SelectItem>
-                  <SelectItem value="credito">Crédito (a favor)</SelectItem>
+                  <SelectItem value="cargo">Aumentar deuda del cliente</SelectItem>
+                  <SelectItem value="credito">Reducir deuda / generar saldo a favor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
