@@ -20,7 +20,7 @@ import {
 const heroImg = heroAsset.url;
 
 const DEFAULT_COHORT = "formacion_inicial_2026_2";
-const WAITLIST_URL = "/preinscripcion/programa-iniciacion-octubre-2026";
+const WAITLIST_URL = "https://reybaud-app.com/preinscripcion/programa-iniciacion-octubre-2026";
 
 
 interface Stage {
@@ -277,7 +277,7 @@ export default function FormacionInicial() {
             <div className="flex flex-wrap gap-3">
               {waitlistMode ? (
                 <Button size="lg" asChild>
-                  <Link to={WAITLIST_URL}>Quiero preinscribirme</Link>
+                  <a href={WAITLIST_URL}>Quiero preinscribirme</a>
                 </Button>
               ) : (
                 <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado}>
@@ -396,7 +396,7 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <MapPin className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cuándo y dónde</p>
-              <p className="text-xl font-heading">Horario a definir según sede elegida</p>
+              <p className="text-xl font-heading">Horario: A definir según sede elegida</p>
               <div className="mt-3 space-y-3">
                 <div>
                   <p className="font-semibold">Parque Manuel Belgrano</p>
@@ -471,11 +471,10 @@ export default function FormacionInicial() {
             <div className="p-6 sm:p-8 rounded-2xl border border-primary/30 bg-primary/5 text-center mb-8">
               <h3 className="font-heading text-2xl mb-2">Preinscripción abierta</h3>
               <p className="text-sm text-muted-foreground mb-5 max-w-2xl mx-auto">
-                La sede y el horario se definirán según las preferencias de las personas preinscriptas.
-                Completar la preinscripción no confirma la vacante; te contactaremos para confirmar tu lugar y luego realizar el pago.
+                La preinscripción no confirma la vacante. Una vez definida la sede y el horario, contactaremos a las personas preinscriptas para confirmar su lugar.
               </p>
               <Button size="lg" asChild>
-                <Link to={WAITLIST_URL}>Quiero preinscribirme</Link>
+                <a href={WAITLIST_URL}>Quiero preinscribirme</a>
               </Button>
             </div>
           ) : stageVigente ? (
