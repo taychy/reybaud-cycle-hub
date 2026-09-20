@@ -20,6 +20,7 @@ import {
 const heroImg = heroAsset.url;
 
 const DEFAULT_COHORT = "formacion_inicial_2026_2";
+const WAITLIST_URL = "/preinscripcion/programa-iniciacion-octubre-2026";
 
 
 interface Stage {
@@ -240,6 +241,7 @@ export default function FormacionInicial() {
   }
 
   const cerrado = !inscripcionesAbiertas;
+  const waitlistMode = program.fecha_inicio_programa?.startsWith("2026-10") || /2026[_-]3$/.test(program.cohort_slug || "");
 
   // Todo derivado de la configuración del programa (nada hardcodeado)
   const semanas = semanasEntre(program.fecha_inicio_programa, program.fecha_fin_programa);
@@ -273,14 +275,20 @@ export default function FormacionInicial() {
                 `Un programa de ${duracionTxt} para adultos que ya pedalean y quieren evolucionar con método y seguridad.`}
             </p>
             <div className="flex flex-wrap gap-3">
-              <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado}>
-                {cerrado ? "Inscripciones cerradas" : "Quiero anotarme"}
-              </Button>
+              {waitlistMode ? (
+                <Button size="lg" asChild>
+                  <Link to={WAITLIST_URL}>Quiero preinscribirme</Link>
+                </Button>
+              ) : (
+                <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado}>
+                  {cerrado ? "Inscripciones cerradas" : "Quiero anotarme"}
+                </Button>
+              )}
               <Button size="lg" variant="outline" onClick={() => scrollTo("que-es")}>
                 Ver más
               </Button>
             </div>
-            {inscripcionesAbiertas && (
+            {!waitlistMode && inscripcionesAbiertas && (
               <p className="mt-4 text-sm text-cyan font-medium">
                 {program.cupos_libres === 1
                   ? "¡Solo queda 1 lugar!"
@@ -388,7 +396,7 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <MapPin className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cuándo y dónde</p>
-              <p className="text-xl font-heading">Sábados 12:00 a 13:30 hs</p>
+              <p className="text-xl font-heading">Horario a definir según sede elegida</p>
               <div className="mt-3 space-y-3">
                 <div>
                   <p className="font-semibold">Parque Manuel Belgrano</p>
@@ -455,9 +463,22 @@ export default function FormacionInicial() {
       {/* PRECIO + INSCRIPCIÓN */}
       <section id="inscripcion" className="py-16">
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
-          <h2 className="font-heading text-3xl sm:text-4xl text-primary mb-8">Precio</h2>
+          <h2 className="font-heading text-3xl sm:text-4xl text-primary mb-8">
+            {waitlistMode ? "Preinscripción" : "Precio"}
+          </h2>
 
-          {stageVigente ? (
+          {waitlistMode ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-primary/30 bg-primary/5 text-center mb-8">
+              <h3 className="font-heading text-2xl mb-2">Preinscripción abierta</h3>
+              <p className="text-sm text-muted-foreground mb-5 max-w-2xl mx-auto">
+                La sede y el horario se definirán según las preferencias de las personas preinscriptas.
+                Completar la preinscripción no confirma la vacante; te contactaremos para confirmar tu lugar y luego realizar el pago.
+              </p>
+              <Button size="lg" asChild>
+                <Link to={WAITLIST_URL}>Quiero preinscribirme</Link>
+              </Button>
+            </div>
+          ) : stageVigente ? (
             <div className="grid sm:grid-cols-3 gap-3 mb-8">
               {program.stages.map((s) => (
                 <div
@@ -493,7 +514,7 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {inscripcionesAbiertas && !transferSent && (
+          {!waitlistMode && inscripcionesAbiertas && !transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-border bg-card">
               <h3 className="font-heading text-2xl mb-2">Completá el formulario y confirmá tu inscripción</h3>
               <p className="text-sm text-muted-foreground mb-6">
@@ -685,7 +706,7 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {transferSent && (
+          {!waitlistMode && transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-cyan/40 bg-cyan/5 text-center">
               <CheckCircle2 className="w-12 h-12 text-cyan mx-auto mb-3" />
               <h3 className="font-heading text-2xl mb-2">¡Recibimos tu comprobante!</h3>
