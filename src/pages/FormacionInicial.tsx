@@ -389,7 +389,16 @@ export default function FormacionInicial() {
               <MapPin className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cuándo y dónde</p>
               <p className="text-xl font-heading">Sábados 12:00 a 13:30 hs</p>
-              <p className="text-sm text-muted-foreground mt-2">Circuito KDT, CABA</p>
+              <div className="mt-3 space-y-3">
+                <div>
+                  <p className="font-semibold">Parque Manuel Belgrano</p>
+                  <p className="text-sm text-muted-foreground">Capital Federal</p>
+                </div>
+                <div>
+                  <p className="font-semibold">Parque Sarmiento</p>
+                  <p className="text-sm text-muted-foreground">Saavedra, Buenos Aires</p>
+                </div>
+              </div>
             </div>
             <div className="p-5 rounded-xl border border-border bg-card">
               <Users className="w-6 h-6 text-primary mb-3" />
