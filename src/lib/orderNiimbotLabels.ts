@@ -170,12 +170,10 @@ const renderOrderLabel = async (
   fitText(ctx, (p.alumno_nombre || "—").toUpperCase(), pad, y, innerW, cliPx, "bold");
   y += cliPx + Math.round(0.6 * PX_PER_MM);
 
-  // ── Sede (si hay una resuelta; si no, "A definir")
+  // ── Sede (resuelta o "A definir")
   const metaPxSede = Math.round(cfg.meta * PX_PER_MM);
-  if (y + metaPxSede <= bottomTop) {
-    fitText(ctx, `SEDE: ${(p.sede_nombre || "A definir").toUpperCase()}`, pad, y, innerW, metaPxSede, "bold");
-    y += metaPxSede + Math.round(0.3 * PX_PER_MM);
-  }
+  fitText(ctx, `SEDE: ${(p.sede_nombre || "A definir").toUpperCase()}`, pad, y, innerW, metaPxSede, "bold");
+  y += metaPxSede + Math.round(0.3 * PX_PER_MM);
 
   // ── Zona de pago / QR reservada abajo
   const qrSize = Math.round(mm.h * cfg.qrRatio * PX_PER_MM);
