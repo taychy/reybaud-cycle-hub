@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Truck, QrCode, Printer, Banknote, Ban, PackageCheck, AlertTriangle } from "lucide-react";
+import { Search, Eye, Truck, QrCode, Printer, Banknote, Ban, PackageCheck, AlertTriangle, MessageCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -32,6 +32,11 @@ import {
 import { formatPrice } from "@/lib/currency";
 import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
 import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
+import {
+  buildAvisoCamionetaMessage,
+  avisoWaLink,
+  formatAvisoFecha,
+} from "@/lib/camionetaAviso";
 
 
 /** Filtros de la lista: expresan logística, no pago. */
@@ -117,7 +122,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (alIds.length) {
       const { data: als } = await supabase
         .from("alumnos")
-        .select("id, nombre, apellido, email, telefono, dni")
+        .select("id, nombre, apellido, email, telefono, documento")
         .in("id", alIds);
       const m: Record<string, any> = {};
       (als || []).forEach((a: any) => { m[a.id] = a; });
