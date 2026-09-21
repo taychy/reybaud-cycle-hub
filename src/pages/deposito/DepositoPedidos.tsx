@@ -363,9 +363,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     return "—";
   };
 
-  const toLabelData = (r: any): PreorderLabelData => {
+  const toLabelData = async (r: any): Promise<PreorderLabelData> => {
     const al = r.alumno_id ? alumnosMap[r.alumno_id] : null;
-    const sede = r.sede_retiro_id ? sedesMap[r.sede_retiro_id] : null;
+    // Sede: la del pedido o, si falta, la resuelta desde la ficha del alumno.
+    const sedeNombre = await resolveSedeNombreEtiqueta(r, sedesMap);
     const its = itemsByOrder[r.id] || [];
     const first = its[0];
     const productoNombre = its.length > 1
