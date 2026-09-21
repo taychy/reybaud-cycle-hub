@@ -30,7 +30,7 @@ import {
   NUEVO_LABEL,
 } from "@/lib/storeOrderStatus";
 import { formatPrice } from "@/lib/currency";
-import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
+import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, resolveSedeNombreEtiqueta, type CargaActiva } from "@/lib/camionetaSync";
 import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
 import {
   buildAvisoCamionetaMessage,
@@ -423,7 +423,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     return true;
   }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
 
-  const printBulk = () => {
+  const printBulk = async () => {
     const list = await Promise.all(filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData));
     if (list.length) setLabelTargets(list);
   };
