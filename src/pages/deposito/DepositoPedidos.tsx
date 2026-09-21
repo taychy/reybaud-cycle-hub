@@ -820,6 +820,31 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
         </DialogContent>
       </Dialog>
 
+      <Dialog open={!!avisoPendiente} onOpenChange={(v) => { if (!v) setAvisoPendiente(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">¿Enviaste el aviso?</DialogTitle>
+            <DialogDescription>
+              Se abrió WhatsApp para {avisoPendiente?.length} pedido(s). El registro se guarda sólo si confirmás
+              que el mensaje fue enviado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAvisoPendiente(null)}>Todavía no</Button>
+            <Button
+              onClick={async () => {
+                const ids = (avisoPendiente || []).map((r: any) => r.id);
+                setAvisoPendiente(null);
+                await registrarAviso(ids);
+                toast({ title: `Aviso registrado en ${ids.length} pedido(s)` });
+              }}
+            >
+              Ya lo envié
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <OrderLabelPrintDialog
         open={labelTargets.length > 0}
         onOpenChange={(o) => !o && setLabelTargets([])}
