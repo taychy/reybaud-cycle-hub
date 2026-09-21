@@ -60,15 +60,15 @@ const StoreFxConfig = () => {
       const rows: any[] = [];
       for (const code of FX_FOREIGN) {
         const lc = code.toLowerCase();
-        const buyMargin = parseMargin(margins[code]?.buy, `el margen Compra de ${code}`);
+        const buyMargin = parseMargin(margins[code]?.buy, `el ajuste Compra de ${code}`);
         const sellMargin = parseMargin(margins[code]?.sell, `el margen Venta de ${code}`);
-        if (buyMargin < 0 || buyMargin >= 100) throw new Error(`El margen Compra de ${code} debe estar entre 0% y 99,99%`);
+        if (buyMargin <= -100) throw new Error(`El ajuste Compra de ${code} debe ser mayor que -100%`);
         if (sellMargin < 0) throw new Error(`El margen Venta de ${code} no puede ser negativo`);
         const reference = book.currencies[code].reference;
-        const buy = round4(reference * (1 - buyMargin / 100));
-        const sell = round4(reference * (1 + sellMargin / 100));
+        const buy = fxBuyFromReference(reference, buyMargin);
+        const sell = fxSellFromReference(reference, sellMargin);
         rows.push(
-          { key: `fx_${lc}_buy_margin_pct`, value: String(buyMargin), description: `Margen de compra Reybaud para ${code}` },
+          { key: `fx_${lc}_buy_margin_pct`, value: String(buyMargin), description: `Ajuste de compra Reybaud para ${code} (con signo)` },
           { key: `fx_${lc}_sell_margin_pct`, value: String(sellMargin), description: `Margen de venta Reybaud para ${code}` },
         );
         if (reference > 0) {
