@@ -44,6 +44,29 @@ export const listCargasActivas = async (): Promise<CargaActiva[]> => {
   })));
 };
 
+/**
+ * Sede de destino de un alumno, según su ficha.
+ * - sede principal de la ficha (`alumnos.sede_id`) si existe;
+ * - si no, la marcada como principal en `alumno_sedes`;
+ * - si no, la única sede del alumno;
+ * - si tiene varias sin principal o ninguna: null (no se inventa sede).
+ */
+export const resolveSedeAlumno = async (alumnoId: string | null | undefined): Promise<string | null> => {
+  if (!alumnoId) return null;
+  const { data: alumno } = await supabase.from("alumnos").select("sede_id").eq("id", alumnoId).maybeSingle();
+  const principal = (alumno as any)?.sede_id as string | null | undefined;
+  if (principal) return principal;
+  const { data: rel } = await (supabase as any)
+    .from("alumno_sedes")
+    .select("sede_id,es_principal")
+    .eq("alumno_id", alumnoId);
+  const list = ((rel as any[]) || []);
+  const marcada = list.find((r) => r.es_principal);
+  if (marcada) return marcada.sede_id as string;
+  if (list.length === 1) return list[0].sede_id as string;
+  return null;
+};
+
 export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: string): Promise<CamionetaSyncResult> => {
   const { data: order, error: oErr } = await supabase
     .from("store_orders")
