@@ -16454,6 +16454,16 @@ export type Database = {
           plan_id: string
         }[]
       }
+      get_store_orders_saldo: {
+        Args: { _ids: string[] }
+        Returns: {
+          currency: string
+          order_id: string
+          pagado: number
+          saldo: number
+          total: number
+        }[]
+      }
       get_survey_by_token: {
         Args: { _token: string }
         Returns: {
