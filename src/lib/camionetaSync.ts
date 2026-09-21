@@ -88,7 +88,7 @@ export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: s
     ((order as any).sede_retiro_id as string | null) ||
     (await resolveSedeAlumno((order as any).alumno_id as string | null));
   const porSede = sedeId ? activas.filter((c) => c.sede_id === sedeId) : [];
-  const compatibles = porSede.length > 0 ? porSede : sedeId ? [] : activas;
+  const compatibles = porSede.length > 0 ? porSede : activas;
 
   if (compatibles.length === 0) {
     return { ok: false, inserted: 0, reason: "No hay una caja activa compatible. Abrí o activá una caja desde Camioneta." };
