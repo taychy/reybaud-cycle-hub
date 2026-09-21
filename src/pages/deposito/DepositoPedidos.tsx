@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
-import { Search, Eye, Truck, QrCode, Printer, Banknote, Ban, PackageCheck, AlertTriangle } from "lucide-react";
+import { Search, Eye, Truck, QrCode, Printer, Banknote, Ban, PackageCheck, AlertTriangle, MessageCircle } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -32,6 +32,11 @@ import {
 import { formatPrice } from "@/lib/currency";
 import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
 import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
+import {
+  buildAvisoCamionetaMessage,
+  avisoWaLink,
+  formatAvisoFecha,
+} from "@/lib/camionetaAviso";
 
 
 /** Filtros de la lista: expresan logística, no pago. */
@@ -85,6 +90,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [cancelBusy, setCancelBusy] = useState(false);
   const [returnBusy, setReturnBusy] = useState<string | null>(null);
   const [cajaPicker, setCajaPicker] = useState<{ orderId: string; cargas: CargaActiva[] } | null>(null);
+  const [avisoConfirm, setAvisoConfirm] = useState<{ orders: any[]; yaAvisados: number } | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -117,7 +123,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (alIds.length) {
       const { data: als } = await supabase
         .from("alumnos")
-        .select("id, nombre, apellido, email, telefono, dni")
+        .select("id, nombre, apellido, email, telefono, documento")
         .in("id", alIds);
       const m: Record<string, any> = {};
       (als || []).forEach((a: any) => { m[a.id] = a; });
@@ -166,6 +172,63 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, status } : r)));
     if (selected?.id === id) setSelected((s: any) => ({ ...s, status }));
   };
+
+  // ─── Aviso por WhatsApp: "tu pedido ya está en la camioneta" ───
+  const telefonoDe = (r: any): string =>
+    (r.alumno_id ? alumnosMap[r.alumno_id]?.telefono : null) || r.customer_phone || "";
+
+  const primerNombre = (r: any): string => {
+    const a = r.alumno_id ? alumnosMap[r.alumno_id] : null;
+    if (a?.nombre) return String(a.nombre).split(" ")[0];
+    return String(nombreCliente(r) || "").split(" ")[0] || "";
+  };
+
+  const registrarAviso = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { data: auth } = await supabase.auth.getUser();
+    const patch = {
+      aviso_camioneta_enviado_at: new Date().toISOString(),
+      aviso_camioneta_enviado_por: auth?.user?.id || null,
+      aviso_camioneta_enviado_por_email: auth?.user?.email || null,
+    };
+    await supabase.from("store_orders").update(patch as any).in("id", ids);
+    setRows((prev) => prev.map((r) => (ids.includes(r.id) ? { ...r, ...patch } : r)));
+    if (selected && ids.includes(selected.id)) setSelected((s: any) => ({ ...s, ...patch }));
+  };
+
+  /** Abre el WhatsApp de cada pedido y registra el aviso. No cambia el estado del pedido. */
+  const ejecutarAvisos = async (orders: any[]) => {
+    const enviados: string[] = [];
+    let omitidos = 0;
+    for (const r of orders) {
+      if (r.status !== "en_camioneta") { omitidos++; continue; }
+      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r));
+      if (!link) { omitidos++; continue; }
+      window.open(link, "_blank");
+      enviados.push(r.id);
+    }
+    if (enviados.length) await registrarAviso(enviados);
+    toast({
+      title: `Avisos abiertos: ${enviados.length}`,
+      description: omitidos ? `${omitidos} omitido(s) por falta de teléfono o cambio de estado.` : undefined,
+      variant: enviados.length ? "default" : "destructive",
+    });
+  };
+
+  const avisarCamioneta = (orders: any[]) => {
+    const validos = orders.filter((r) => r.status === "en_camioneta");
+    if (!validos.length) {
+      toast({ title: "Sin pedidos en camioneta", variant: "destructive" });
+      return;
+    }
+    const yaAvisados = validos.filter((r) => r.aviso_camioneta_enviado_at).length;
+    if (yaAvisados > 0) {
+      setAvisoConfirm({ orders: validos, yaAvisados });
+      return;
+    }
+    ejecutarAvisos(validos);
+  };
+
 
 
   const confirmarEfectivo = async (order: any) => {
@@ -370,6 +433,11 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     [filtered, selectedIds],
   );
 
+  const selectedEnCamioneta = useMemo(
+    () => filtered.filter((r) => selectedIds.has(r.id) && r.status === "en_camioneta"),
+    [filtered, selectedIds],
+  );
+
   const PagoBadge = ({ o }: { o: any }) => {
     const st = getPaymentState(o);
     return (
@@ -399,11 +467,18 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-heading font-bold">{title}</h1>
-        {selectedCount > 0 && (
-          <Button onClick={printBulk} disabled={printing} className="gap-2">
-            <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedEnCamioneta.length > 0 && (
+            <Button variant="outline" className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10" onClick={() => avisarCamioneta(selectedEnCamioneta)}>
+              <MessageCircle className="w-4 h-4" /> Avisar en camioneta ({selectedEnCamioneta.length})
+            </Button>
+          )}
+          {selectedCount > 0 && (
+            <Button onClick={printBulk} disabled={printing} className="gap-2">
+              <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -449,6 +524,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   <div className="font-heading font-bold text-sm">${Number(r.total || 0).toLocaleString("es-AR")}</div>
                   <div><PagoBadge o={r} /></div>
                   <div><EstadoBadge o={r} /></div>
+                  {r.status === "en_camioneta" && r.aviso_camioneta_enviado_at && (
+                    <div className="text-[10px] text-muted-foreground">Avisado {formatAvisoFecha(r.aviso_camioneta_enviado_at)}</div>
+                  )}
                 </div>
               </div>
               {needsPhysicalReturn(r) && (
@@ -480,6 +558,11 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <Button variant="outline" size="sm" className="h-9" onClick={() => printOne(r)} disabled={printing}>
                   <QrCode className="w-4 h-4" />
                 </Button>
+                {r.status === "en_camioneta" && (
+                  <Button variant="outline" size="sm" className="h-9 text-green-500" onClick={() => avisarCamioneta([r])} title="Avisar por WhatsApp">
+                    <MessageCircle className="w-4 h-4" />
+                  </Button>
+                )}
                 {puedeCancelar(r) && (
                   <Button variant="outline" size="sm" className="h-9 text-destructive" onClick={() => { setCancelTarget(r); setCancelReason(""); }}>
                     <Ban className="w-4 h-4" />
@@ -532,6 +615,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                     {needsPhysicalReturn(r) && (
                       <div className="text-[10px] text-destructive mt-1">Retorno pendiente</div>
                     )}
+                    {r.status === "en_camioneta" && r.aviso_camioneta_enviado_at && (
+                      <div className="text-[10px] text-muted-foreground mt-1">Avisado {formatAvisoFecha(r.aviso_camioneta_enviado_at)}</div>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-4 py-2">
@@ -545,6 +631,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                       )}
                       {puedeCancelar(r) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setCancelTarget(r); setCancelReason(""); }} title="Cancelar compra"><Ban className="w-4 h-4" /></Button>
+                      )}
+                      {r.status === "en_camioneta" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500 hover:text-green-400" onClick={() => avisarCamioneta([r])} title="Avisar por WhatsApp que está en la camioneta"><MessageCircle className="w-4 h-4" /></Button>
                       )}
                       <Button variant="ghost" size="icon" className="h-8 w-8 bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => printOne(r)} disabled={printing} title="Etiqueta con QR"><QrCode className="w-4 h-4" /></Button>
                       <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
@@ -693,6 +782,23 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 {cancelBusy ? "Cancelando..." : "Cancelar compra"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!avisoConfirm} onOpenChange={(v) => { if (!v) setAvisoConfirm(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Ya se avisó antes</DialogTitle>
+            <DialogDescription>
+              {avisoConfirm?.yaAvisados} de {avisoConfirm?.orders.length} pedido(s) ya tienen aviso enviado. ¿Querés mandarlo igual?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAvisoConfirm(null)}>Volver</Button>
+            <Button onClick={() => { const os = avisoConfirm?.orders || []; setAvisoConfirm(null); ejecutarAvisos(os); }}>
+              Enviar igual
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
