@@ -23,7 +23,6 @@ const parseMargin = (raw: string | undefined, label: string) => {
   if (!Number.isFinite(value)) throw new Error(`${label} debe ser un número válido`);
   return value;
 };
-const round4 = (v: number) => Math.round(v * 10000) / 10000;
 
 /** Configuración central de la Cotización Reybaud: márgenes de Compra y Venta por moneda. */
 const StoreFxConfig = () => {
