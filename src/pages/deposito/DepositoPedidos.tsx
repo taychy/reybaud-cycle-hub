@@ -173,6 +173,63 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (selected?.id === id) setSelected((s: any) => ({ ...s, status }));
   };
 
+  // ─── Aviso por WhatsApp: "tu pedido ya está en la camioneta" ───
+  const telefonoDe = (r: any): string =>
+    (r.alumno_id ? alumnosMap[r.alumno_id]?.telefono : null) || r.customer_phone || "";
+
+  const primerNombre = (r: any): string => {
+    const a = r.alumno_id ? alumnosMap[r.alumno_id] : null;
+    if (a?.nombre) return String(a.nombre).split(" ")[0];
+    return String(nombreCliente(r) || "").split(" ")[0] || "";
+  };
+
+  const registrarAviso = async (ids: string[]) => {
+    if (!ids.length) return;
+    const { data: auth } = await supabase.auth.getUser();
+    const patch = {
+      aviso_camioneta_enviado_at: new Date().toISOString(),
+      aviso_camioneta_enviado_por: auth?.user?.id || null,
+      aviso_camioneta_enviado_por_email: auth?.user?.email || null,
+    };
+    await supabase.from("store_orders").update(patch as any).in("id", ids);
+    setRows((prev) => prev.map((r) => (ids.includes(r.id) ? { ...r, ...patch } : r)));
+    if (selected && ids.includes(selected.id)) setSelected((s: any) => ({ ...s, ...patch }));
+  };
+
+  /** Abre el WhatsApp de cada pedido y registra el aviso. No cambia el estado del pedido. */
+  const ejecutarAvisos = async (orders: any[]) => {
+    const enviados: string[] = [];
+    let omitidos = 0;
+    for (const r of orders) {
+      if (r.status !== "en_camioneta") { omitidos++; continue; }
+      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r));
+      if (!link) { omitidos++; continue; }
+      window.open(link, "_blank");
+      enviados.push(r.id);
+    }
+    if (enviados.length) await registrarAviso(enviados);
+    toast({
+      title: `Avisos abiertos: ${enviados.length}`,
+      description: omitidos ? `${omitidos} omitido(s) por falta de teléfono o cambio de estado.` : undefined,
+      variant: enviados.length ? "default" : "destructive",
+    });
+  };
+
+  const avisarCamioneta = (orders: any[]) => {
+    const validos = orders.filter((r) => r.status === "en_camioneta");
+    if (!validos.length) {
+      toast({ title: "Sin pedidos en camioneta", variant: "destructive" });
+      return;
+    }
+    const yaAvisados = validos.filter((r) => r.aviso_camioneta_enviado_at).length;
+    if (yaAvisados > 0) {
+      setAvisoConfirm({ orders: validos, yaAvisados });
+      return;
+    }
+    ejecutarAvisos(validos);
+  };
+
+
 
   const confirmarEfectivo = async (order: any) => {
     const motivo = cashConfirmBlockReason(order);
