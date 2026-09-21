@@ -26,7 +26,9 @@ export interface FxBook {
 
 const BCRA_URL = "https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones";
 const FOREIGN: FxForeign[] = ["USD", "EUR", "BRL"];
-const DEFAULT_MARGIN: Record<FxForeign, number> = { USD: 4, EUR: 5, BRL: 7 };
+/** Ajuste de COMPRA con signo (puede ser negativo) y recargo de VENTA (positivo). */
+const DEFAULT_BUY_ADJUST: Record<FxForeign, number> = { USD: 0.5, EUR: 4, BRL: -0.5 };
+const DEFAULT_SELL_MARGIN: Record<FxForeign, number> = { USD: 3.5, EUR: 11, BRL: 11 };
 
 const num = (value: unknown): number => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
