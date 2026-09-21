@@ -196,23 +196,39 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (selected && ids.includes(selected.id)) setSelected((s: any) => ({ ...s, ...patch }));
   };
 
-  /** Abre el WhatsApp de cada pedido y registra el aviso. No cambia el estado del pedido. */
+  /**
+   * Abre el WhatsApp (wa.me) de cada pedido. NO registra el aviso:
+   * no hay envío outbound real, así que el log se persiste sólo cuando
+   * la persona confirma "Ya lo envié".
+   */
   const ejecutarAvisos = async (orders: any[]) => {
-    const enviados: string[] = [];
-    let omitidos = 0;
-    for (const r of orders) {
-      if (r.status !== "en_camioneta") { omitidos++; continue; }
-      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r));
+    const vigentes = orders.filter((r) => r.status === "en_camioneta");
+    const ids = vigentes.map((r) => r.id);
+    // Saldo pendiente real (contempla imputaciones de cuenta corriente).
+    const saldoMap: Record<string, number> = {};
+    if (ids.length) {
+      const { data: saldos } = await (supabase.rpc as any)("get_store_orders_saldo", { _ids: ids });
+      (saldos || []).forEach((s: any) => { saldoMap[s.order_id] = Number(s.saldo || 0); });
+    }
+
+    const abiertos: any[] = [];
+    let omitidos = orders.length - vigentes.length;
+    for (const r of vigentes) {
+      const saldo = saldoMap[r.id] ?? Math.max(Number(r.total || 0), 0);
+      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r, saldo));
       if (!link) { omitidos++; continue; }
       window.open(link, "_blank");
-      enviados.push(r.id);
+      abiertos.push(r);
     }
-    if (enviados.length) await registrarAviso(enviados);
-    toast({
-      title: `Avisos abiertos: ${enviados.length}`,
-      description: omitidos ? `${omitidos} omitido(s) por falta de teléfono o cambio de estado.` : undefined,
-      variant: enviados.length ? "default" : "destructive",
-    });
+
+    if (!abiertos.length) {
+      toast({ title: "No se abrió ningún WhatsApp", description: "Sin teléfono válido o el pedido ya no está en camioneta.", variant: "destructive" });
+      return;
+    }
+    if (omitidos) {
+      toast({ title: `${omitidos} pedido(s) omitido(s)`, description: "Sin teléfono válido o cambio de estado." });
+    }
+    setAvisoPendiente(abiertos);
   };
 
   const avisarCamioneta = (orders: any[]) => {
