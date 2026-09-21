@@ -11892,6 +11892,9 @@ export type Database = {
       store_orders: {
         Row: {
           alumno_id: string | null
+          aviso_camioneta_enviado_at: string | null
+          aviso_camioneta_enviado_por: string | null
+          aviso_camioneta_enviado_por_email: string | null
           cancel_reason: string | null
           cancelled_at: string | null
           comision_mp: number | null
@@ -11940,6 +11943,9 @@ export type Database = {
         }
         Insert: {
           alumno_id?: string | null
+          aviso_camioneta_enviado_at?: string | null
+          aviso_camioneta_enviado_por?: string | null
+          aviso_camioneta_enviado_por_email?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           comision_mp?: number | null
@@ -11988,6 +11994,9 @@ export type Database = {
         }
         Update: {
           alumno_id?: string | null
+          aviso_camioneta_enviado_at?: string | null
+          aviso_camioneta_enviado_por?: string | null
+          aviso_camioneta_enviado_por_email?: string | null
           cancel_reason?: string | null
           cancelled_at?: string | null
           comision_mp?: number | null

@@ -43,6 +43,13 @@
       "when": 1789912501097,
       "tag": "0005_store_order_payment_targets",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1790022634831,
+      "tag": "0006_store_orders_aviso_camioneta",
+      "breakpoints": true
     }
   ]
 }
