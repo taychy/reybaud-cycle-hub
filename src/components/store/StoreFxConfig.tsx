@@ -5,7 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Coins, RefreshCw } from "lucide-react";
-import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
+import {
+  fetchCurrentFxBook,
+  formatFxArs,
+  fxStatusLabel,
+  fxBuyFromReference,
+  fxSellFromReference,
+  FX_FOREIGN,
+  type FxBook,
+} from "@/lib/fx";
 
 const LABELS: Record<string, string> = { USD: "Dólar", EUR: "Euro", BRL: "Real" };
 const asNumber = (v: unknown) => Number(typeof v === "string" ? v.replace(",", ".") : v) || 0;
