@@ -37,7 +37,11 @@ const num = (value: unknown): number => {
 };
 
 const round4 = (v: number) => Math.round(v * 10000) / 10000;
-const clampBuyMargin = (v: number) => Math.min(99.99, Math.max(0, Number.isFinite(v) ? v : 0));
+/** El ajuste de compra admite signo; solo se exige que sea mayor que -100%. */
+const clampBuyMargin = (v: number) => {
+  const n = Number.isFinite(v) ? v : 0;
+  return n <= -100 ? 0 : n;
+};
 const clampSellMargin = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
 const lc = (c: string) => c.toLowerCase();
 
