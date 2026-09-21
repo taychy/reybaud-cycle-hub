@@ -44,6 +44,29 @@ export const listCargasActivas = async (): Promise<CargaActiva[]> => {
   })));
 };
 
+/**
+ * Sede de destino de un alumno, según su ficha.
+ * - sede principal de la ficha (`alumnos.sede_id`) si existe;
+ * - si no, la marcada como principal en `alumno_sedes`;
+ * - si no, la única sede del alumno;
+ * - si tiene varias sin principal o ninguna: null (no se inventa sede).
+ */
+export const resolveSedeAlumno = async (alumnoId: string | null | undefined): Promise<string | null> => {
+  if (!alumnoId) return null;
+  const { data: alumno } = await supabase.from("alumnos").select("sede_id").eq("id", alumnoId).maybeSingle();
+  const principal = (alumno as any)?.sede_id as string | null | undefined;
+  if (principal) return principal;
+  const { data: rel } = await (supabase as any)
+    .from("alumno_sedes")
+    .select("sede_id,es_principal")
+    .eq("alumno_id", alumnoId);
+  const list = ((rel as any[]) || []);
+  const marcada = list.find((r) => r.es_principal);
+  if (marcada) return marcada.sede_id as string;
+  if (list.length === 1) return list[0].sede_id as string;
+  return null;
+};
+
 export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: string): Promise<CamionetaSyncResult> => {
   const { data: order, error: oErr } = await supabase
     .from("store_orders")
@@ -60,8 +83,12 @@ export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: s
     .select("id,sede_id,estado")
     .in("estado", ESTADOS_CARGA_ACTIVA);
   const activas = ((cargas as any[]) || []);
-  const sedeId = (order as any).sede_retiro_id as string | null;
-  const compatibles = sedeId ? activas.filter((c) => c.sede_id === sedeId) : activas;
+  // Sede de destino: la del pedido y, si no tiene, la de la ficha del alumno.
+  const sedeId =
+    ((order as any).sede_retiro_id as string | null) ||
+    (await resolveSedeAlumno((order as any).alumno_id as string | null));
+  const porSede = sedeId ? activas.filter((c) => c.sede_id === sedeId) : [];
+  const compatibles = porSede.length > 0 ? porSede : activas;
 
   if (compatibles.length === 0) {
     return { ok: false, inserted: 0, reason: "No hay una caja activa compatible. Abrí o activá una caja desde Camioneta." };
