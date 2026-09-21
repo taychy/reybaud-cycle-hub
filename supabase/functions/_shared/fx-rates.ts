@@ -119,7 +119,7 @@ function bookFromConfig(cfg: Record<string, unknown>): Record<FxForeign, FxCurre
       const implied = storedSell / (1 + sellMarginPct / 100);
       out[currency] = {
         reference: round4(implied),
-        buy: storedBuy > 0 ? round4(storedBuy) : round4(implied * (1 - buyMarginPct / 100)),
+        buy: storedBuy > 0 ? round4(storedBuy) : round4(implied * (1 + buyMarginPct / 100)),
         sell: round4(storedSell),
         buyMarginPct,
         sellMarginPct,
