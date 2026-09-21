@@ -50,6 +50,13 @@
       "when": 1790022634831,
       "tag": "0006_store_orders_aviso_camioneta",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790022892833,
+      "tag": "0007_store_orders_saldo_pendiente_fn",
+      "breakpoints": true
     }
   ]
 }

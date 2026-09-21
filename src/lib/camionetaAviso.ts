@@ -2,38 +2,58 @@
  * Aviso por WhatsApp "tu pedido ya está en la camioneta".
  *
  * Reutiliza el canal existente del proyecto (link wa.me + normalizePhoneAR).
+ * El proyecto NO tiene envío outbound real de WhatsApp: el webhook existente es
+ * sólo de entrada y la plantilla Twilio de Turnera es específica de turnos.
+ * Por eso el aviso se registra únicamente cuando la persona confirma que lo envió.
+ *
  * No cambia estados, cobros, entregas, cancelaciones ni devoluciones.
  */
 
 import { formatPrice } from "@/lib/currency";
 import { normalizePhoneAR } from "@/lib/phoneNormalize";
+import { getPaymentState } from "@/lib/storeOrderStatus";
 
 export interface AvisoOrderLike {
   total?: number | string | null;
   currency?: string | null;
   pagado_at?: string | null;
   metodo_pago?: string | null;
+  status?: string | null;
 }
 
-/** Importe realmente pendiente del pedido (pagado_at es la fuente de verdad). */
-export const pendienteAviso = (o: AvisoOrderLike): number =>
-  o.pagado_at ? 0 : Math.max(Number(o.total || 0), 0);
-
+/**
+ * Mensaje del aviso.
+ * - `saldo` es el saldo pendiente REAL del pedido (viene de get_store_orders_saldo).
+ * - El texto de sobre + buzón es exclusivo de "Efectivo pendiente".
+ */
 export const buildAvisoCamionetaMessage = (
   nombre: string,
   o: AvisoOrderLike,
+  saldo: number,
 ): string => {
   const n = (nombre || "").trim() || "cliente";
-  const pendiente = pendienteAviso(o);
-  if (pendiente <= 0) {
+  const estado = getPaymentState(o);
+  const pendiente = Math.max(Number(saldo || 0), 0);
+
+  if (estado === "pagado" || pendiente <= 0) {
     return `Hola, ${n}. Tu pedido ya está en la camioneta para que puedas retirarlo.`;
   }
+
   const importe = formatPrice(pendiente, (o.currency || "ARS") as any);
+
+  if (estado === "efectivo_pendiente") {
+    return (
+      `Hola, ${n}. Tu pedido ya está en la camioneta. ` +
+      `Queda pendiente el pago de ${importe}. ` +
+      `Tenés un sobre identificado para colocar el dinero; luego depositalo en el buzón ` +
+      `ubicado entre los asientos delanteros de la camioneta. ¡Gracias!`
+    );
+  }
+
+  // Pendiente por otro medio: no corresponde el sobre/buzón.
   return (
-    `Hola, ${n}. Tu pedido ya está en la camioneta. ` +
-    `Queda pendiente el pago de ${importe}. ` +
-    `Tenés un sobre identificado para colocar el dinero; luego depositalo en el buzón ` +
-    `ubicado entre los asientos delanteros de la camioneta. ¡Gracias!`
+    `Hola, ${n}. Tu pedido ya está en la camioneta para que puedas retirarlo. ` +
+    `Queda pendiente el pago de ${importe}. ¡Gracias!`
   );
 };
 

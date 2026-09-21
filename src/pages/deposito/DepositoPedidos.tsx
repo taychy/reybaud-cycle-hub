@@ -91,6 +91,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [returnBusy, setReturnBusy] = useState<string | null>(null);
   const [cajaPicker, setCajaPicker] = useState<{ orderId: string; cargas: CargaActiva[] } | null>(null);
   const [avisoConfirm, setAvisoConfirm] = useState<{ orders: any[]; yaAvisados: number } | null>(null);
+  const [avisoPendiente, setAvisoPendiente] = useState<any[] | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
@@ -196,23 +197,39 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     if (selected && ids.includes(selected.id)) setSelected((s: any) => ({ ...s, ...patch }));
   };
 
-  /** Abre el WhatsApp de cada pedido y registra el aviso. No cambia el estado del pedido. */
+  /**
+   * Abre el WhatsApp (wa.me) de cada pedido. NO registra el aviso:
+   * no hay envío outbound real, así que el log se persiste sólo cuando
+   * la persona confirma "Ya lo envié".
+   */
   const ejecutarAvisos = async (orders: any[]) => {
-    const enviados: string[] = [];
-    let omitidos = 0;
-    for (const r of orders) {
-      if (r.status !== "en_camioneta") { omitidos++; continue; }
-      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r));
+    const vigentes = orders.filter((r) => r.status === "en_camioneta");
+    const ids = vigentes.map((r) => r.id);
+    // Saldo pendiente real (contempla imputaciones de cuenta corriente).
+    const saldoMap: Record<string, number> = {};
+    if (ids.length) {
+      const { data: saldos } = await (supabase.rpc as any)("get_store_orders_saldo", { _ids: ids });
+      (saldos || []).forEach((s: any) => { saldoMap[s.order_id] = Number(s.saldo || 0); });
+    }
+
+    const abiertos: any[] = [];
+    let omitidos = orders.length - vigentes.length;
+    for (const r of vigentes) {
+      const saldo = saldoMap[r.id] ?? Math.max(Number(r.total || 0), 0);
+      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r, saldo));
       if (!link) { omitidos++; continue; }
       window.open(link, "_blank");
-      enviados.push(r.id);
+      abiertos.push(r);
     }
-    if (enviados.length) await registrarAviso(enviados);
-    toast({
-      title: `Avisos abiertos: ${enviados.length}`,
-      description: omitidos ? `${omitidos} omitido(s) por falta de teléfono o cambio de estado.` : undefined,
-      variant: enviados.length ? "default" : "destructive",
-    });
+
+    if (!abiertos.length) {
+      toast({ title: "No se abrió ningún WhatsApp", description: "Sin teléfono válido o el pedido ya no está en camioneta.", variant: "destructive" });
+      return;
+    }
+    if (omitidos) {
+      toast({ title: `${omitidos} pedido(s) omitido(s)`, description: "Sin teléfono válido o cambio de estado." });
+    }
+    setAvisoPendiente(abiertos);
   };
 
   const avisarCamioneta = (orders: any[]) => {
@@ -798,6 +815,31 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
             <Button variant="outline" onClick={() => setAvisoConfirm(null)}>Volver</Button>
             <Button onClick={() => { const os = avisoConfirm?.orders || []; setAvisoConfirm(null); ejecutarAvisos(os); }}>
               Enviar igual
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!avisoPendiente} onOpenChange={(v) => { if (!v) setAvisoPendiente(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">¿Enviaste el aviso?</DialogTitle>
+            <DialogDescription>
+              Se abrió WhatsApp para {avisoPendiente?.length} pedido(s). El registro se guarda sólo si confirmás
+              que el mensaje fue enviado.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAvisoPendiente(null)}>Todavía no</Button>
+            <Button
+              onClick={async () => {
+                const ids = (avisoPendiente || []).map((r: any) => r.id);
+                setAvisoPendiente(null);
+                await registrarAviso(ids);
+                toast({ title: `Aviso registrado en ${ids.length} pedido(s)` });
+              }}
+            >
+              Ya lo envié
             </Button>
           </div>
         </DialogContent>
