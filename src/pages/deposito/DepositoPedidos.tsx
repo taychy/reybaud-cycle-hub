@@ -612,6 +612,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                     {needsPhysicalReturn(r) && (
                       <div className="text-[10px] text-destructive mt-1">Retorno pendiente</div>
                     )}
+                    {r.status === "en_camioneta" && r.aviso_camioneta_enviado_at && (
+                      <div className="text-[10px] text-muted-foreground mt-1">Avisado {formatAvisoFecha(r.aviso_camioneta_enviado_at)}</div>
+                    )}
                   </td>
                   <td className="px-4 py-2 text-muted-foreground hidden md:table-cell">{new Date(r.created_at).toLocaleDateString("es-AR")}</td>
                   <td className="px-4 py-2">
