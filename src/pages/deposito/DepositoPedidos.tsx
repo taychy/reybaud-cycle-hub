@@ -90,6 +90,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [cancelBusy, setCancelBusy] = useState(false);
   const [returnBusy, setReturnBusy] = useState<string | null>(null);
   const [cajaPicker, setCajaPicker] = useState<{ orderId: string; cargas: CargaActiva[] } | null>(null);
+  const [avisoConfirm, setAvisoConfirm] = useState<{ orders: any[]; yaAvisados: number } | null>(null);
   const { toast } = useToast();
 
   const load = async () => {
