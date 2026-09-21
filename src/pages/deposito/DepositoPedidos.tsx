@@ -433,6 +433,11 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     [filtered, selectedIds],
   );
 
+  const selectedEnCamioneta = useMemo(
+    () => filtered.filter((r) => selectedIds.has(r.id) && r.status === "en_camioneta"),
+    [filtered, selectedIds],
+  );
+
   const PagoBadge = ({ o }: { o: any }) => {
     const st = getPaymentState(o);
     return (
@@ -462,11 +467,18 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <h1 className="text-2xl font-heading font-bold">{title}</h1>
-        {selectedCount > 0 && (
-          <Button onClick={printBulk} disabled={printing} className="gap-2">
-            <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-wrap">
+          {selectedEnCamioneta.length > 0 && (
+            <Button variant="outline" className="gap-2 text-green-500 border-green-500/30 hover:bg-green-500/10" onClick={() => avisarCamioneta(selectedEnCamioneta)}>
+              <MessageCircle className="w-4 h-4" /> Avisar en camioneta ({selectedEnCamioneta.length})
+            </Button>
+          )}
+          {selectedCount > 0 && (
+            <Button onClick={printBulk} disabled={printing} className="gap-2">
+              <Printer className="w-4 h-4" /> Imprimir etiquetas ({selectedCount})
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
