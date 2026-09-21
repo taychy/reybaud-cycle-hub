@@ -555,6 +555,11 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <Button variant="outline" size="sm" className="h-9" onClick={() => printOne(r)} disabled={printing}>
                   <QrCode className="w-4 h-4" />
                 </Button>
+                {r.status === "en_camioneta" && (
+                  <Button variant="outline" size="sm" className="h-9 text-green-500" onClick={() => avisarCamioneta([r])} title="Avisar por WhatsApp">
+                    <MessageCircle className="w-4 h-4" />
+                  </Button>
+                )}
                 {puedeCancelar(r) && (
                   <Button variant="outline" size="sm" className="h-9 text-destructive" onClick={() => { setCancelTarget(r); setCancelReason(""); }}>
                     <Ban className="w-4 h-4" />
@@ -620,6 +625,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                       )}
                       {puedeCancelar(r) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => { setCancelTarget(r); setCancelReason(""); }} title="Cancelar compra"><Ban className="w-4 h-4" /></Button>
+                      )}
+                      {r.status === "en_camioneta" && (
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-green-500 hover:text-green-400" onClick={() => avisarCamioneta([r])} title="Avisar por WhatsApp que está en la camioneta"><MessageCircle className="w-4 h-4" /></Button>
                       )}
                       <Button variant="ghost" size="icon" className="h-8 w-8 bg-cyan/10 hover:bg-cyan/20 text-cyan" onClick={() => printOne(r)} disabled={printing} title="Etiqueta con QR"><QrCode className="w-4 h-4" /></Button>
                       <Select value={r.status} onValueChange={(v) => updateStatus(r.id, v)}>
