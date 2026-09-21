@@ -83,8 +83,12 @@ export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: s
     .select("id,sede_id,estado")
     .in("estado", ESTADOS_CARGA_ACTIVA);
   const activas = ((cargas as any[]) || []);
-  const sedeId = (order as any).sede_retiro_id as string | null;
-  const compatibles = sedeId ? activas.filter((c) => c.sede_id === sedeId) : activas;
+  // Sede de destino: la del pedido y, si no tiene, la de la ficha del alumno.
+  const sedeId =
+    ((order as any).sede_retiro_id as string | null) ||
+    (await resolveSedeAlumno((order as any).alumno_id as string | null));
+  const porSede = sedeId ? activas.filter((c) => c.sede_id === sedeId) : [];
+  const compatibles = porSede.length > 0 ? porSede : sedeId ? [] : activas;
 
   if (compatibles.length === 0) {
     return { ok: false, inserted: 0, reason: "No hay una caja activa compatible. Abrí o activá una caja desde Camioneta." };
