@@ -28,7 +28,7 @@ import { getPaymentMethodLabel } from "@/lib/paymentMethods";
 import { NewSinceDot } from "@/components/admin/NoveltyDot";
 import PruebasSection from "@/components/store/PruebasSection";
 import { CASH_BLOCK_MESSAGE, isOrderPaid } from "@/lib/storeCashPayment";
-import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
+import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, resolveSedeNombreEtiqueta, type CargaActiva } from "@/lib/camionetaSync";
 import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
 import { normalizePhoneAR } from "@/lib/phoneNormalize";
 
@@ -510,7 +510,8 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
 
   const imprimirEtiqueta = async (o: Order) => {
     const al = o.alumno_id ? alumnosMap[o.alumno_id] : null;
-    const sede = o.sede_retiro_id ? sedesMap[o.sede_retiro_id] : null;
+    // Sede: la del pedido o, si falta, la resuelta desde la ficha del alumno.
+    const sedeNombre = await resolveSedeNombreEtiqueta(o, sedesMap);
     const firstItem = (o.items || [])[0];
     const productoNombre = (o.items || []).length > 1
       ? `${(o.items || []).length} productos`
@@ -538,7 +539,7 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
       moneda: o.currency,
       estado_pago_sena: pagado ? "confirmada" : "pendiente",
       entrega_metodo: o.entrega_metodo,
-      sede_nombre: sede?.nombre || null,
+      sede_nombre: sedeNombre,
       envio_direccion: o.envio_direccion,
       envio_contacto: o.envio_contacto,
       envio_notas: o.envio_notas,

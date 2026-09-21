@@ -30,7 +30,7 @@ import {
   NUEVO_LABEL,
 } from "@/lib/storeOrderStatus";
 import { formatPrice } from "@/lib/currency";
-import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, type CargaActiva } from "@/lib/camionetaSync";
+import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, resolveSedeNombreEtiqueta, type CargaActiva } from "@/lib/camionetaSync";
 import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
 import {
   buildAvisoCamionetaMessage,
@@ -363,9 +363,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     return "—";
   };
 
-  const toLabelData = (r: any): PreorderLabelData => {
+  const toLabelData = async (r: any): Promise<PreorderLabelData> => {
     const al = r.alumno_id ? alumnosMap[r.alumno_id] : null;
-    const sede = r.sede_retiro_id ? sedesMap[r.sede_retiro_id] : null;
+    // Sede: la del pedido o, si falta, la resuelta desde la ficha del alumno.
+    const sedeNombre = await resolveSedeNombreEtiqueta(r, sedesMap);
     const its = itemsByOrder[r.id] || [];
     const first = its[0];
     const productoNombre = its.length > 1
@@ -394,7 +395,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       moneda: r.currency || "ARS",
       estado_pago_sena: pagado ? "confirmada" : "pendiente",
       entrega_metodo: r.entrega_metodo,
-      sede_nombre: sede?.nombre || null,
+      sede_nombre: sedeNombre,
       envio_direccion: r.envio_direccion,
       envio_contacto: r.envio_contacto,
       envio_notas: r.envio_notas,
@@ -405,7 +406,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     };
   };
 
-  const printOne = (r: any) => setLabelTargets([toLabelData(r)]);
+  const printOne = async (r: any) => setLabelTargets([await toLabelData(r)]);
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
@@ -422,8 +423,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     return true;
   }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
 
-  const printBulk = () => {
-    const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
+  const printBulk = async () => {
+    const list = await Promise.all(filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData));
     if (list.length) setLabelTargets(list);
   };
 

@@ -115,7 +115,7 @@ const drawLabel = async (
       cursorY += 3;
     }
   } else {
-    doc.text(`RETIRO: ${truncate(p.sede_nombre || "Sede", 30)}`, leftX, cursorY);
+    doc.text(`SEDE: ${truncate(p.sede_nombre || "A definir", 30)}`, leftX, cursorY);
     cursorY += 4;
   }
 

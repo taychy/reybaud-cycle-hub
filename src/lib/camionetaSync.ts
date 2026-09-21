@@ -67,6 +67,26 @@ export const resolveSedeAlumno = async (alumnoId: string | null | undefined): Pr
   return null;
 };
 
+/**
+ * Nombre de la sede para la etiqueta del pedido:
+ * 1) store_orders.sede_retiro_id si existe;
+ * 2) si falta, la sede resuelta desde la ficha del alumno (resolveSedeAlumno);
+ * 3) si no hay sede inequívoca, null (la etiqueta muestra "A definir").
+ */
+export const resolveSedeNombreEtiqueta = async (
+  order: { sede_retiro_id?: string | null; alumno_id?: string | null },
+  sedesMap?: Record<string, { nombre?: string | null } | undefined>,
+): Promise<string | null> => {
+  const sedeId =
+    (order.sede_retiro_id as string | null | undefined) ||
+    (await resolveSedeAlumno(order.alumno_id as string | null | undefined));
+  if (!sedeId) return null;
+  const nombre = sedesMap?.[sedeId]?.nombre;
+  if (nombre) return nombre;
+  const { data } = await supabase.from("sedes").select("nombre").eq("id", sedeId).maybeSingle();
+  return ((data as any)?.nombre as string | undefined) || null;
+};
+
 export const ensureOrderInCamioneta = async (orderId: string, cargaIdElegida?: string): Promise<CamionetaSyncResult> => {
   const { data: order, error: oErr } = await supabase
     .from("store_orders")
