@@ -395,7 +395,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       moneda: r.currency || "ARS",
       estado_pago_sena: pagado ? "confirmada" : "pendiente",
       entrega_metodo: r.entrega_metodo,
-      sede_nombre: sede?.nombre || null,
+      sede_nombre: sedeNombre,
       envio_direccion: r.envio_direccion,
       envio_contacto: r.envio_contacto,
       envio_notas: r.envio_notas,
@@ -406,7 +406,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     };
   };
 
-  const printOne = (r: any) => setLabelTargets([toLabelData(r)]);
+  const printOne = async (r: any) => setLabelTargets([await toLabelData(r)]);
 
   const filtered = useMemo(() => rows.filter((r) => {
     if (restrictStatuses && !restrictStatuses.includes(r.status)) return false;
@@ -424,7 +424,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   }), [rows, itemsByOrder, alumnosMap, search, filterStatus, restrictStatuses, showFinalizados]);
 
   const printBulk = () => {
-    const list = filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData);
+    const list = await Promise.all(filtered.filter((r) => selectedIds.has(r.id)).map(toLabelData));
     if (list.length) setLabelTargets(list);
   };
 
