@@ -81,17 +81,21 @@ async function readConfig(supabase: SupabaseClient) {
 const marginsFromConfig = (cfg: Record<string, unknown>, currency: FxForeign) => {
   const legacyKey = `fx_${lc(currency)}_margin_pct`;
   const hasLegacy = Object.prototype.hasOwnProperty.call(cfg, legacyKey);
-  const legacyRaw = hasLegacy ? num(cfg[legacyKey]) : DEFAULT_MARGIN[currency];
   const buyKey = `fx_${lc(currency)}_buy_margin_pct`;
   const sellKey = `fx_${lc(currency)}_sell_margin_pct`;
-  const buyRaw = Object.prototype.hasOwnProperty.call(cfg, buyKey) ? num(cfg[buyKey]) : legacyRaw;
-  const sellRaw = Object.prototype.hasOwnProperty.call(cfg, sellKey) ? num(cfg[sellKey]) : legacyRaw;
+  const buyRaw = Object.prototype.hasOwnProperty.call(cfg, buyKey)
+    ? num(cfg[buyKey])
+    : DEFAULT_BUY_ADJUST[currency];
+  const sellRaw = Object.prototype.hasOwnProperty.call(cfg, sellKey)
+    ? num(cfg[sellKey])
+    : (hasLegacy ? num(cfg[legacyKey]) : DEFAULT_SELL_MARGIN[currency]);
   return { buy: clampBuyMargin(buyRaw), sell: clampSellMargin(sellRaw) };
 };
 
+/** compra = referencia * (1 + ajusteCompra/100); venta = referencia * (1 + margenVenta/100). */
 const buildCurrencyBook = (reference: number, buyMarginPct: number, sellMarginPct: number): FxCurrencyBook => ({
   reference: round4(reference),
-  buy: round4(reference * (1 - buyMarginPct / 100)),
+  buy: round4(reference * (1 + buyMarginPct / 100)),
   sell: round4(reference * (1 + sellMarginPct / 100)),
   buyMarginPct,
   sellMarginPct,
