@@ -26,7 +26,9 @@ export interface FxBook {
 
 const BCRA_URL = "https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones";
 const FOREIGN: FxForeign[] = ["USD", "EUR", "BRL"];
-const DEFAULT_MARGIN: Record<FxForeign, number> = { USD: 4, EUR: 5, BRL: 7 };
+/** Ajuste de COMPRA con signo (puede ser negativo) y recargo de VENTA (positivo). */
+const DEFAULT_BUY_ADJUST: Record<FxForeign, number> = { USD: 0.5, EUR: 4, BRL: -0.5 };
+const DEFAULT_SELL_MARGIN: Record<FxForeign, number> = { USD: 3.5, EUR: 11, BRL: 11 };
 
 const num = (value: unknown): number => {
   if (typeof value === "number") return Number.isFinite(value) ? value : 0;
@@ -35,7 +37,11 @@ const num = (value: unknown): number => {
 };
 
 const round4 = (v: number) => Math.round(v * 10000) / 10000;
-const clampBuyMargin = (v: number) => Math.min(99.99, Math.max(0, Number.isFinite(v) ? v : 0));
+/** El ajuste de compra admite signo; solo se exige que sea mayor que -100%. */
+const clampBuyMargin = (v: number) => {
+  const n = Number.isFinite(v) ? v : 0;
+  return n <= -100 ? 0 : n;
+};
 const clampSellMargin = (v: number) => Math.max(0, Number.isFinite(v) ? v : 0);
 const lc = (c: string) => c.toLowerCase();
 
@@ -75,17 +81,21 @@ async function readConfig(supabase: SupabaseClient) {
 const marginsFromConfig = (cfg: Record<string, unknown>, currency: FxForeign) => {
   const legacyKey = `fx_${lc(currency)}_margin_pct`;
   const hasLegacy = Object.prototype.hasOwnProperty.call(cfg, legacyKey);
-  const legacyRaw = hasLegacy ? num(cfg[legacyKey]) : DEFAULT_MARGIN[currency];
   const buyKey = `fx_${lc(currency)}_buy_margin_pct`;
   const sellKey = `fx_${lc(currency)}_sell_margin_pct`;
-  const buyRaw = Object.prototype.hasOwnProperty.call(cfg, buyKey) ? num(cfg[buyKey]) : legacyRaw;
-  const sellRaw = Object.prototype.hasOwnProperty.call(cfg, sellKey) ? num(cfg[sellKey]) : legacyRaw;
+  const buyRaw = Object.prototype.hasOwnProperty.call(cfg, buyKey)
+    ? num(cfg[buyKey])
+    : DEFAULT_BUY_ADJUST[currency];
+  const sellRaw = Object.prototype.hasOwnProperty.call(cfg, sellKey)
+    ? num(cfg[sellKey])
+    : (hasLegacy ? num(cfg[legacyKey]) : DEFAULT_SELL_MARGIN[currency]);
   return { buy: clampBuyMargin(buyRaw), sell: clampSellMargin(sellRaw) };
 };
 
+/** compra = referencia * (1 + ajusteCompra/100); venta = referencia * (1 + margenVenta/100). */
 const buildCurrencyBook = (reference: number, buyMarginPct: number, sellMarginPct: number): FxCurrencyBook => ({
   reference: round4(reference),
-  buy: round4(reference * (1 - buyMarginPct / 100)),
+  buy: round4(reference * (1 + buyMarginPct / 100)),
   sell: round4(reference * (1 + sellMarginPct / 100)),
   buyMarginPct,
   sellMarginPct,
@@ -109,7 +119,7 @@ function bookFromConfig(cfg: Record<string, unknown>): Record<FxForeign, FxCurre
       const implied = storedSell / (1 + sellMarginPct / 100);
       out[currency] = {
         reference: round4(implied),
-        buy: storedBuy > 0 ? round4(storedBuy) : round4(implied * (1 - buyMarginPct / 100)),
+        buy: storedBuy > 0 ? round4(storedBuy) : round4(implied * (1 + buyMarginPct / 100)),
         sell: round4(storedSell),
         buyMarginPct,
         sellMarginPct,
@@ -166,7 +176,7 @@ export async function ensureCurrentFxBook(
 
       updates.push(
         { key: `fx_${lc(currency)}_reference_ars`, value: String(book.reference), description: `Referencia BCRA ${currency} → ARS` },
-        { key: `fx_${lc(currency)}_buy_margin_pct`, value: String(buyMarginPct), description: `Margen de compra Reybaud para ${currency}` },
+        { key: `fx_${lc(currency)}_buy_margin_pct`, value: String(buyMarginPct), description: `Ajuste de compra Reybaud para ${currency} (con signo)` },
         { key: `fx_${lc(currency)}_sell_margin_pct`, value: String(sellMarginPct), description: `Margen de venta Reybaud para ${currency}` },
         { key: `fx_${lc(currency)}_buy_ars`, value: String(book.buy), description: `Compra Reybaud ${currency} → ARS` },
         { key: `fx_${lc(currency)}_sell_ars`, value: String(book.sell), description: `Venta Reybaud ${currency} → ARS` },

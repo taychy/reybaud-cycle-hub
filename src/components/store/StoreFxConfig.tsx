@@ -5,7 +5,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Coins, RefreshCw } from "lucide-react";
-import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
+import {
+  fetchCurrentFxBook,
+  formatFxArs,
+  fxStatusLabel,
+  fxBuyFromReference,
+  fxSellFromReference,
+  FX_FOREIGN,
+  type FxBook,
+} from "@/lib/fx";
 
 const LABELS: Record<string, string> = { USD: "Dólar", EUR: "Euro", BRL: "Real" };
 const asNumber = (v: unknown) => Number(typeof v === "string" ? v.replace(",", ".") : v) || 0;
@@ -15,7 +23,6 @@ const parseMargin = (raw: string | undefined, label: string) => {
   if (!Number.isFinite(value)) throw new Error(`${label} debe ser un número válido`);
   return value;
 };
-const round4 = (v: number) => Math.round(v * 10000) / 10000;
 
 /** Configuración central de la Cotización Reybaud: márgenes de Compra y Venta por moneda. */
 const StoreFxConfig = () => {
@@ -52,15 +59,15 @@ const StoreFxConfig = () => {
       const rows: any[] = [];
       for (const code of FX_FOREIGN) {
         const lc = code.toLowerCase();
-        const buyMargin = parseMargin(margins[code]?.buy, `el margen Compra de ${code}`);
+        const buyMargin = parseMargin(margins[code]?.buy, `el ajuste Compra de ${code}`);
         const sellMargin = parseMargin(margins[code]?.sell, `el margen Venta de ${code}`);
-        if (buyMargin < 0 || buyMargin >= 100) throw new Error(`El margen Compra de ${code} debe estar entre 0% y 99,99%`);
+        if (buyMargin <= -100) throw new Error(`El ajuste Compra de ${code} debe ser mayor que -100%`);
         if (sellMargin < 0) throw new Error(`El margen Venta de ${code} no puede ser negativo`);
         const reference = book.currencies[code].reference;
-        const buy = round4(reference * (1 - buyMargin / 100));
-        const sell = round4(reference * (1 + sellMargin / 100));
+        const buy = fxBuyFromReference(reference, buyMargin);
+        const sell = fxSellFromReference(reference, sellMargin);
         rows.push(
-          { key: `fx_${lc}_buy_margin_pct`, value: String(buyMargin), description: `Margen de compra Reybaud para ${code}` },
+          { key: `fx_${lc}_buy_margin_pct`, value: String(buyMargin), description: `Ajuste de compra Reybaud para ${code} (con signo)` },
           { key: `fx_${lc}_sell_margin_pct`, value: String(sellMargin), description: `Margen de venta Reybaud para ${code}` },
         );
         if (reference > 0) {
@@ -102,9 +109,9 @@ const StoreFxConfig = () => {
         <p className="text-sm font-heading font-semibold">Cotización Reybaud</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        El BCRA aporta solo la referencia. Reybaud aplica su propio margen: la Compra es lo que reconocemos
-        cuando recibimos moneda extranjera y la Venta es lo que cobramos cuando la obligación está en moneda
-        extranjera y el cliente paga en pesos.
+        El BCRA aporta solo la referencia. Reybaud aplica su propio ajuste: la Compra es lo que reconocemos
+        cuando recibimos moneda extranjera (el ajuste puede ser positivo o negativo) y la Venta es lo que
+        cobramos cuando la obligación está en moneda extranjera y el cliente paga en pesos.
       </p>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
@@ -114,8 +121,8 @@ const StoreFxConfig = () => {
           {FX_FOREIGN.map((code) => {
             const row = book.currencies[code];
             const m = margins[code] || { buy: "", sell: "" };
-            const buyPreview = round4(row.reference * (1 - asNumber(m.buy) / 100));
-            const sellPreview = round4(row.reference * (1 + asNumber(m.sell) / 100));
+            const buyPreview = fxBuyFromReference(row.reference, asNumber(m.buy));
+            const sellPreview = fxSellFromReference(row.reference, asNumber(m.sell));
             return (
               <div key={code} className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end rounded-lg border border-border/50 p-3">
                 <div>
@@ -124,9 +131,9 @@ const StoreFxConfig = () => {
                   <p className="text-sm font-medium">{row.reference ? formatFxArs(row.reference) : "—"}</p>
                 </div>
                 <div>
-                  <Label className="text-xs">Margen Compra %</Label>
+                  <Label className="text-xs">Ajuste Compra % (+/−)</Label>
                   <Input
-                    type="number" min={0} max={99.99} step="0.1"
+                    type="number" min={-99.99} step="0.1"
                     value={m.buy}
                     onChange={(e) => setMargins((p) => ({ ...p, [code]: { ...p[code], buy: e.target.value } }))}
                   />

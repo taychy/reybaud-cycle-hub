@@ -5,6 +5,20 @@ export type FxCurrency = "ARS" | FxForeign;
 export type FxSide = "buy" | "sell";
 
 export const FX_FOREIGN: FxForeign[] = ["USD", "EUR", "BRL"];
+
+/** Ajuste de COMPRA con signo (puede ser negativo) y recargo de VENTA (positivo). */
+export const FX_DEFAULT_BUY_ADJUST: Record<FxForeign, number> = { USD: 0.5, EUR: 4, BRL: -0.5 };
+export const FX_DEFAULT_SELL_MARGIN: Record<FxForeign, number> = { USD: 3.5, EUR: 11, BRL: 11 };
+
+export const fxRound4 = (v: number) => Math.round(v * 10000) / 10000;
+
+/** compra = referencia * (1 + ajusteCompraPct / 100). El ajuste puede ser negativo. */
+export const fxBuyFromReference = (reference: number, buyAdjustPct: number) =>
+  fxRound4(reference * (1 + buyAdjustPct / 100));
+
+/** venta = referencia * (1 + margenVentaPct / 100). El margen no puede ser negativo. */
+export const fxSellFromReference = (reference: number, sellMarginPct: number) =>
+  fxRound4(reference * (1 + sellMarginPct / 100));
 export const FX_CURRENCIES: FxCurrency[] = ["ARS", "USD", "EUR", "BRL"];
 
 export interface FxCurrencyBook {
