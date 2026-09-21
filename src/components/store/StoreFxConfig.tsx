@@ -110,9 +110,9 @@ const StoreFxConfig = () => {
         <p className="text-sm font-heading font-semibold">Cotización Reybaud</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        El BCRA aporta solo la referencia. Reybaud aplica su propio margen: la Compra es lo que reconocemos
-        cuando recibimos moneda extranjera y la Venta es lo que cobramos cuando la obligación está en moneda
-        extranjera y el cliente paga en pesos.
+        El BCRA aporta solo la referencia. Reybaud aplica su propio ajuste: la Compra es lo que reconocemos
+        cuando recibimos moneda extranjera (el ajuste puede ser positivo o negativo) y la Venta es lo que
+        cobramos cuando la obligación está en moneda extranjera y el cliente paga en pesos.
       </p>
 
       {error && <p className="text-xs text-destructive">{error}</p>}
