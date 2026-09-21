@@ -524,6 +524,9 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                   <div className="font-heading font-bold text-sm">${Number(r.total || 0).toLocaleString("es-AR")}</div>
                   <div><PagoBadge o={r} /></div>
                   <div><EstadoBadge o={r} /></div>
+                  {r.status === "en_camioneta" && r.aviso_camioneta_enviado_at && (
+                    <div className="text-[10px] text-muted-foreground">Avisado {formatAvisoFecha(r.aviso_camioneta_enviado_at)}</div>
+                  )}
                 </div>
               </div>
               {needsPhysicalReturn(r) && (
@@ -779,6 +782,23 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 {cancelBusy ? "Cancelando..." : "Cancelar compra"}
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!avisoConfirm} onOpenChange={(v) => { if (!v) setAvisoConfirm(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Ya se avisó antes</DialogTitle>
+            <DialogDescription>
+              {avisoConfirm?.yaAvisados} de {avisoConfirm?.orders.length} pedido(s) ya tienen aviso enviado. ¿Querés mandarlo igual?
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setAvisoConfirm(null)}>Volver</Button>
+            <Button onClick={() => { const os = avisoConfirm?.orders || []; setAvisoConfirm(null); ejecutarAvisos(os); }}>
+              Enviar igual
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
