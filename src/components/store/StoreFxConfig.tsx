@@ -132,9 +132,9 @@ const StoreFxConfig = () => {
                   <p className="text-sm font-medium">{row.reference ? formatFxArs(row.reference) : "—"}</p>
                 </div>
                 <div>
-                  <Label className="text-xs">Margen Compra %</Label>
+                  <Label className="text-xs">Ajuste Compra % (+/−)</Label>
                   <Input
-                    type="number" min={0} max={99.99} step="0.1"
+                    type="number" min={-99.99} step="0.1"
                     value={m.buy}
                     onChange={(e) => setMargins((p) => ({ ...p, [code]: { ...p[code], buy: e.target.value } }))}
                   />
