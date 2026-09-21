@@ -122,8 +122,8 @@ const StoreFxConfig = () => {
           {FX_FOREIGN.map((code) => {
             const row = book.currencies[code];
             const m = margins[code] || { buy: "", sell: "" };
-            const buyPreview = round4(row.reference * (1 - asNumber(m.buy) / 100));
-            const sellPreview = round4(row.reference * (1 + asNumber(m.sell) / 100));
+            const buyPreview = fxBuyFromReference(row.reference, asNumber(m.buy));
+            const sellPreview = fxSellFromReference(row.reference, asNumber(m.sell));
             return (
               <div key={code} className="grid grid-cols-1 sm:grid-cols-5 gap-2 items-end rounded-lg border border-border/50 p-3">
                 <div>
