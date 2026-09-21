@@ -176,7 +176,7 @@ export async function ensureCurrentFxBook(
 
       updates.push(
         { key: `fx_${lc(currency)}_reference_ars`, value: String(book.reference), description: `Referencia BCRA ${currency} → ARS` },
-        { key: `fx_${lc(currency)}_buy_margin_pct`, value: String(buyMarginPct), description: `Margen de compra Reybaud para ${currency}` },
+        { key: `fx_${lc(currency)}_buy_margin_pct`, value: String(buyMarginPct), description: `Ajuste de compra Reybaud para ${currency} (con signo)` },
         { key: `fx_${lc(currency)}_sell_margin_pct`, value: String(sellMarginPct), description: `Margen de venta Reybaud para ${currency}` },
         { key: `fx_${lc(currency)}_buy_ars`, value: String(book.buy), description: `Compra Reybaud ${currency} → ARS` },
         { key: `fx_${lc(currency)}_sell_ars`, value: String(book.sell), description: `Venta Reybaud ${currency} → ARS` },
