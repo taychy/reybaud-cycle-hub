@@ -41,6 +41,7 @@ import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallm
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
 import ResolveSharedLodgingDialog, { type SharedLodgingOccupant } from "@/components/admin/ResolveSharedLodgingDialog";
 import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
+import ReservationDevolucionesCard from "@/components/admin/ReservationDevolucionesCard";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
 
@@ -2143,6 +2144,9 @@ const AdminEventReservations = ({
                   }}
                 />
               )}
+
+              {/* Devoluciones reales (proyección de gastos vinculados) */}
+              <ReservationDevolucionesCard reservationId={selectedRes.id} />
 
               {/* Installments — solo en modo cuotas y con pago requerido (colapsable) */}
               {!isPaymentFree && !isSimplePayment && (
