@@ -487,14 +487,14 @@ Deno.serve(async (req) => {
     !!expectedCronKey &&
     now.getUTCMinutes() < 15 &&
     now.getUTCHours() % 4 === 0;
-  const shouldManualEnrich = !isCron && !!cuentaId;
+  const shouldFocusedEnrich = !!cuentaId;
 
-  if (shouldCronEnrich || shouldManualEnrich) {
+  if (shouldCronEnrich || shouldFocusedEnrich) {
     try {
       const enrichHeaders: Record<string, string> = {
         "Content-Type": "application/json",
       };
-      if (shouldCronEnrich && expectedCronKey) {
+      if (isCron && expectedCronKey) {
         enrichHeaders["x-cron-key"] = expectedCronKey;
       } else {
         const authHeader = req.headers.get("Authorization");
