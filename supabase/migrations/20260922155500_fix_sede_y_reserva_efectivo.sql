@@ -53,7 +53,7 @@ BEGIN
   INSERT INTO public.alumno_sedes (alumno_id, sede_id, es_principal)
   SELECT _alumno_id, u.x, false
   FROM unnest(v_ids) AS u(x)
-  ON CONFLICT (alumno_id, sede_id) DO NOTHING;
+  ON CONFLICT ON CONSTRAINT alumno_sedes_pkey DO NOTHING;
 
   UPDATE public.alumno_sedes AS als
   SET es_principal = false
