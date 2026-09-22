@@ -244,18 +244,37 @@ async function persistMpAccountMovement(
 
   const { data: existing } = await supabaseAdmin
     .from("mp_account_movements")
-    .select("id, alumno_id, reservation_payment_id, suscripcion_id, assigned_manually")
+    .select("id, alumno_id, reservation_payment_id, suscripcion_id, assigned_manually, payer_name, payer_email, payer_document, raw")
     .eq("cuenta_mp_id", cuenta.id)
     .eq("mp_payment_id", mpId)
     .maybeSingle();
 
   if (existing) {
+    const existingRaw = existing.raw && typeof existing.raw === "object"
+      ? existing.raw as Record<string, unknown>
+      : {};
+    const settlementReport = (existingRaw as any)?.settlement_report ?? null;
+
+    if (settlementReport) {
+      row.raw = { ...payment, settlement_report: settlementReport };
+      const isTransfer = ["account_money", "cvu", "bank_transfer", "bank_transfer_in"].includes(
+        String(payment?.payment_method_id ?? payment?.payment_type_id ?? "").toLowerCase(),
+      );
+      if (isTransfer) {
+        // No degradar la identidad que ya llegó del reporte de conciliación.
+        delete row.payer_name;
+        delete row.payer_email;
+        delete row.payer_document;
+        if (!reservationPaymentId && !suscripcionId) delete row.alumno_id;
+      }
+    }
+
     if (existing.assigned_manually) {
       delete row.alumno_id;
       delete row.reservation_payment_id;
       delete row.suscripcion_id;
     } else {
-      row.alumno_id = alumnoId ?? existing.alumno_id ?? null;
+      if ("alumno_id" in row) row.alumno_id = alumnoId ?? existing.alumno_id ?? null;
       row.reservation_payment_id = reservationPaymentId ?? existing.reservation_payment_id ?? null;
       row.suscripcion_id = suscripcionId ?? existing.suscripcion_id ?? null;
     }
