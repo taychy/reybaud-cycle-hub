@@ -13,6 +13,8 @@ import {
   alertaAntiguedad, diasAfuera, esPrueba, esPruebaActiva,
   resultadoClass, resultadoLabel, tipoRegistro,
 } from "@/lib/pruebas";
+import { esSustitucionFaltaStock } from "@/lib/faltaStock";
+
 
 const DepositoCambios = () => {
   const [items, setItems] = useState<any[]>([]);
