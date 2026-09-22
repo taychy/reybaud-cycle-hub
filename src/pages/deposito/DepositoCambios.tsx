@@ -41,9 +41,13 @@ const DepositoCambios = () => {
   const buckets = useMemo(() => {
     const cambios = items.filter((c) => tipoRegistro(c) !== "prueba");
     return {
-      pendientes: cambios.filter((c) => c.estado === "aprobado"),
+      // Las sustituciones por falta de stock no vuelven físicamente: no se escanean.
+      pendientes: cambios.filter((c) => c.estado === "aprobado" && !esSustitucionFaltaStock(c)),
+      sustituciones: cambios.filter(
+        (c) => esSustitucionFaltaStock(c) && ["aprobado", "en_deposito"].includes(c.estado),
+      ),
       esperando: cambios.filter(
-        (c) => c.estado === "en_deposito" && c.reemplazo_estado !== "enviado" && c.reemplazo_estado !== "entregado",
+        (c) => c.estado === "en_deposito" && !esSustitucionFaltaStock(c) && c.reemplazo_estado !== "enviado" && c.reemplazo_estado !== "entregado",
       ),
       listoRetiro: cambios.filter((c) => c.estado === "listo_retiro"),
       cerrados: cambios.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
@@ -51,6 +55,16 @@ const DepositoCambios = () => {
       pruebasCerradas: items.filter((c) => esPrueba(c) && !esPruebaActiva(c)),
     };
   }, [items]);
+
+  const marcarListo = async (id: string) => {
+    const { error } = await supabase.rpc("transition_cambio_estado" as any, {
+      p_id: id, p_nuevo_estado: "listo_retiro", p_nota: "Reemplazo preparado en depósito",
+    });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Reemplazo listo para entregar" });
+    load();
+  };
+
 
   const procesarConScan = async (cambio: any, devuelto: any, recibido: any | null) => {
     const { error } = await supabase.rpc("deposito_recibir_cambio" as any, {
