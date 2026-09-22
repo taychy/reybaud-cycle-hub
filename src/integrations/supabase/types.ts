@@ -11215,6 +11215,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "stock_count_items_movement_id_fkey"
+            columns: ["movement_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
+          },
+          {
             foreignKeyName: "stock_count_items_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
@@ -11361,6 +11368,13 @@ export type Database = {
             referencedRelation: "stock_movements"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "stock_movements_reversa_fk"
+            columns: ["reversa_de_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
+          },
         ]
       }
       store_banners: {
@@ -11417,7 +11431,10 @@ export type Database = {
           comentario: string | null
           compra_id: string | null
           created_at: string
+          cuenta_ajuste_id: string | null
+          devolucion_id: string | null
           diferencia_precio: number
+          egreso_reemplazo_movimiento_id: string | null
           en_deposito_at: string | null
           entregado_at: string | null
           estado: Database["public"]["Enums"]["cambio_estado"]
@@ -11432,13 +11449,17 @@ export type Database = {
             | null
           metodo_recepcion: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda: string
+          monto_absorbido: number | null
           motivo: Database["public"]["Enums"]["cambio_motivo"]
           motivo_admin: string | null
           mp_payment_id: string | null
           notificar_alumno: boolean
           order_id: string | null
+          order_item_id: string | null
           origen_solicitud: Database["public"]["Enums"]["cambio_origen"]
           origen_tipo: string
+          precio_cobrado_original: number | null
+          precio_reemplazo: number | null
           preorder_id: string | null
           producto_id: string
           producto_reemplazo_id: string | null
@@ -11451,8 +11472,10 @@ export type Database = {
           recibido_en: string | null
           recibido_por: string | null
           reemplazo_estado: Database["public"]["Enums"]["cambio_reemplazo_estado"]
+          resolucion_economica: string | null
           responsable_admin_id: string | null
           responsable_deposito_id: string | null
+          reversa_movimiento_id: string | null
           stock_descontado_at: string | null
           stock_devuelto_at: string | null
           tipo: string
@@ -11468,7 +11491,10 @@ export type Database = {
           comentario?: string | null
           compra_id?: string | null
           created_at?: string
+          cuenta_ajuste_id?: string | null
+          devolucion_id?: string | null
           diferencia_precio?: number
+          egreso_reemplazo_movimiento_id?: string | null
           en_deposito_at?: string | null
           entregado_at?: string | null
           estado?: Database["public"]["Enums"]["cambio_estado"]
@@ -11483,13 +11509,17 @@ export type Database = {
             | null
           metodo_recepcion?: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda?: string
+          monto_absorbido?: number | null
           motivo: Database["public"]["Enums"]["cambio_motivo"]
           motivo_admin?: string | null
           mp_payment_id?: string | null
           notificar_alumno?: boolean
           order_id?: string | null
+          order_item_id?: string | null
           origen_solicitud?: Database["public"]["Enums"]["cambio_origen"]
           origen_tipo: string
+          precio_cobrado_original?: number | null
+          precio_reemplazo?: number | null
           preorder_id?: string | null
           producto_id: string
           producto_reemplazo_id?: string | null
@@ -11502,8 +11532,10 @@ export type Database = {
           recibido_en?: string | null
           recibido_por?: string | null
           reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
+          resolucion_economica?: string | null
           responsable_admin_id?: string | null
           responsable_deposito_id?: string | null
+          reversa_movimiento_id?: string | null
           stock_descontado_at?: string | null
           stock_devuelto_at?: string | null
           tipo?: string
@@ -11519,7 +11551,10 @@ export type Database = {
           comentario?: string | null
           compra_id?: string | null
           created_at?: string
+          cuenta_ajuste_id?: string | null
+          devolucion_id?: string | null
           diferencia_precio?: number
+          egreso_reemplazo_movimiento_id?: string | null
           en_deposito_at?: string | null
           entregado_at?: string | null
           estado?: Database["public"]["Enums"]["cambio_estado"]
@@ -11534,13 +11569,17 @@ export type Database = {
             | null
           metodo_recepcion?: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda?: string
+          monto_absorbido?: number | null
           motivo?: Database["public"]["Enums"]["cambio_motivo"]
           motivo_admin?: string | null
           mp_payment_id?: string | null
           notificar_alumno?: boolean
           order_id?: string | null
+          order_item_id?: string | null
           origen_solicitud?: Database["public"]["Enums"]["cambio_origen"]
           origen_tipo?: string
+          precio_cobrado_original?: number | null
+          precio_reemplazo?: number | null
           preorder_id?: string | null
           producto_id?: string
           producto_reemplazo_id?: string | null
@@ -11553,8 +11592,10 @@ export type Database = {
           recibido_en?: string | null
           recibido_por?: string | null
           reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
+          resolucion_economica?: string | null
           responsable_admin_id?: string | null
           responsable_deposito_id?: string | null
+          reversa_movimiento_id?: string | null
           stock_descontado_at?: string | null
           stock_devuelto_at?: string | null
           tipo?: string
@@ -11585,10 +11626,45 @@ export type Database = {
             referencedColumns: ["alumno_id"]
           },
           {
+            foreignKeyName: "store_cambios_cuenta_ajuste_id_fkey"
+            columns: ["cuenta_ajuste_id"]
+            isOneToOne: false
+            referencedRelation: "cuenta_ajustes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_devolucion_id_fkey"
+            columns: ["devolucion_id"]
+            isOneToOne: false
+            referencedRelation: "devoluciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_egreso_reemplazo_movimiento_id_fkey"
+            columns: ["egreso_reemplazo_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_egreso_reemplazo_movimiento_id_fkey"
+            columns: ["egreso_reemplazo_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
+          },
+          {
             foreignKeyName: "store_cambios_order_id_fkey"
             columns: ["order_id"]
             isOneToOne: false
             referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_order_item_id_fkey"
+            columns: ["order_item_id"]
+            isOneToOne: false
+            referencedRelation: "store_order_items"
             referencedColumns: ["id"]
           },
           {
@@ -11611,6 +11687,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "store_cambios"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_reversa_movimiento_id_fkey"
+            columns: ["reversa_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_reversa_movimiento_id_fkey"
+            columns: ["reversa_movimiento_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
           },
         ]
       }
@@ -15106,6 +15196,53 @@ export type Database = {
         }
         Relationships: []
       }
+      vw_stock_negativo: {
+        Row: {
+          accion_sugerida: string | null
+          alumno_id: string | null
+          fecha: string | null
+          motivo: string | null
+          movimiento_id: string | null
+          order_id: string | null
+          order_item_id: string | null
+          order_number: number | null
+          order_status: string | null
+          product_id: string | null
+          producto: string | null
+          stock: number | null
+          variante: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "store_orders"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_orders_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "store_orders_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
+      }
       vw_turnera_sede_backfill: {
         Row: {
           apellido: string | null
@@ -15236,6 +15373,10 @@ export type Database = {
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
       _programa_admin_ok: { Args: never; Returns: boolean }
+      _stock_disponible: {
+        Args: { p_key: string; p_product_id: string }
+        Returns: number
+      }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
       accept_roommate_invitation: {
         Args: { _roommate_id: string }
@@ -15587,6 +15728,10 @@ export type Database = {
           _suscripcion_id: string
           _usar_precio_del_nuevo_plan?: boolean
         }
+        Returns: Json
+      }
+      cambiar_sede_retiro_store_order: {
+        Args: { _order_id: string; _sede_id: string }
         Returns: Json
       }
       cancel_store_order:
@@ -17205,6 +17350,16 @@ export type Database = {
       }
       resolve_variant_key: {
         Args: { p_product_id: string; p_variante: string }
+        Returns: string
+      }
+      resolver_falta_stock: {
+        Args: {
+          p_comentario?: string
+          p_order_item_id: string
+          p_producto_reemplazo_id: string
+          p_resolucion?: string
+          p_variante_destino?: Json
+        }
         Returns: string
       }
       resolver_item_chequeo: {

@@ -12,6 +12,9 @@ import {
 } from "lucide-react";
 import RegistrarDevolucionDialog from "@/components/admin/RegistrarDevolucionDialog";
 import { RegistrarCobranzaDialog } from "@/components/admin/RegistrarCobranzaDialog";
+import ResolverFaltaStockDialog from "@/components/admin/ResolverFaltaStockDialog";
+import { RESOLUCION_LABEL, type ResolucionEconomica } from "@/lib/faltaStock";
+
 
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -193,7 +196,46 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
   const [cancelling, setCancelling] = useState(false);
   const [refundsByOrder, setRefundsByOrder] = useState<Record<string, number>>({});
   const [devolucionOrder, setDevolucionOrder] = useState<Order | null>(null);
+  const [faltaStockOrder, setFaltaStockOrder] = useState<Order | null>(null);
+  /** Claves "productId|Talle:L" con stock negativo (mercadería vendida que no existe). */
+  const [stockNegativo, setStockNegativo] = useState<Set<string>>(new Set());
+  /** Sustituciones por falta de stock ya resueltas, por order_item_id. */
+  const [sustituciones, setSustituciones] = useState<Record<string, any>>({});
   const { toast } = useToast();
+
+  useEffect(() => {
+    void (async () => {
+      const [{ data: neg }, { data: sus }] = await Promise.all([
+        supabase.from("vw_stock_negativo" as any).select("product_id, variante").limit(500),
+        supabase
+          .from("store_cambios" as any)
+          .select("id, order_id, order_item_id, producto_reemplazo_id, variante_destino, resolucion_economica, diferencia_precio, monto_absorbido, estado, reemplazo_estado, moneda")
+          .eq("tipo", "sustitucion_falta_stock"),
+      ]);
+      setStockNegativo(new Set(((neg as any[]) || []).map((r) => `${r.product_id}|${r.variante || ""}`)));
+      const map: Record<string, any> = {};
+      ((sus as any[]) || []).forEach((s) => { if (s.order_item_id) map[s.order_item_id] = s; });
+      setSustituciones(map);
+    })();
+  }, []);
+
+  /** true si esa línea del pedido apunta a stock negativo (no hay mercadería real). */
+  const itemSinStock = (it: OrderItem) => {
+    if (!it.product_id) return false;
+    const entries = Object.entries(it.variante || {}).filter(([, v]) => !!v);
+    const keySorted = entries.sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}:${v}`).join("|");
+    const keyPlain = entries.map(([k, v]) => `${k}:${v}`).join("|");
+    return (
+      stockNegativo.has(`${it.product_id}|${keySorted}`) ||
+      stockNegativo.has(`${it.product_id}|${keyPlain}`) ||
+      stockNegativo.has(`${it.product_id}|`)
+    );
+  };
+
+  const puedeResolverFaltaStock = (o: Order) =>
+    !["cancelado", "cancelada", "entregado"].includes(o.status) &&
+    (o.items || []).some((it) => !!it.product_id && !sustituciones[it.id]);
+
 
   // Reembolso de un pedido cancelado que sí tuvo pago (pagado_at manda).
   const refundInfo = (o: Order) => {
@@ -1042,6 +1084,20 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                 </SheetHeader>
 
                 <div className="mt-4 space-y-4 text-sm">
+                  {/* Falta de stock: el original no se puede entregar */}
+                  {items.some(itemSinStock) && !["cancelado", "cancelada", "entregado"].includes(detail.status) && (
+                    <section className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 space-y-2">
+                      <div className="font-medium text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-4 h-4" /> Falta de stock detectada · original no entregado
+                      </div>
+                      <p className="text-xs text-muted-foreground">Resolver sustitución.</p>
+                      <Button size="sm" variant="outline" onClick={() => setFaltaStockOrder(detail)}>
+                        Resolver falta de stock
+                      </Button>
+                    </section>
+                  )}
+
+
                   {detail.status === "cancelado" && (
                     <section className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 space-y-2">
                       <div className="font-medium text-destructive">Compra cancelada</div>
@@ -1109,7 +1165,9 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                             items.map((it) => ({ unit_price: it.precio_unitario, quantity: it.cantidad })),
                             Number(detail.total || 0),
                           );
-                          return items.map((it, i) => (
+                          return items.map((it, i) => {
+                            const sus = sustituciones[it.id];
+                            return (
                             <li key={i} className="py-2 space-y-1">
                               <div className="flex justify-between gap-2">
                                 <div className="font-medium">{it.producto_nombre} <span className="text-muted-foreground">x{it.cantidad}</span></div>
@@ -1118,12 +1176,34 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
                               {Object.keys(it.variante || {}).length > 0 && (
                                 <div className="text-[11px] text-muted-foreground">{varianteToKey(it.variante)}</div>
                               )}
+                              {itemSinStock(it) && !sus && (
+                                <div className="text-[11px] text-amber-400 flex items-center gap-1">
+                                  <AlertTriangle className="w-3 h-3" /> Sin stock real · original no entregado
+                                </div>
+                              )}
+                              {sus && (
+                                <div className="text-[11px] text-cyan">
+                                  Sustitución por falta de stock ·{" "}
+                                  {RESOLUCION_LABEL[sus.resolucion_economica as ResolucionEconomica] || "sin ajuste"}
+                                  {Number(sus.diferencia_precio)
+                                    ? ` · ${formatPrice(Math.abs(Number(sus.diferencia_precio)), sus.moneda || detail.currency)}`
+                                    : ""}
+                                  {" · "}reemplazo: {sus.reemplazo_estado}
+                                </div>
+                              )}
                             </li>
-                          ));
+                            );
+                          });
                         })()}
                       </ul>
                     )}
+                    {puedeResolverFaltaStock(detail) && (
+                      <Button size="sm" variant="ghost" className="text-amber-400 px-0" onClick={() => setFaltaStockOrder(detail)}>
+                        Resolver falta de stock
+                      </Button>
+                    )}
                   </section>
+
 
 
                   {/* Entrega */}
@@ -1373,7 +1453,29 @@ const StoreOrders = ({ restrictStatuses, title = "Pedidos", subtitle }: StoreOrd
         />
       ) : null}
 
+      {/* Sustitución por falta de stock */}
+      {faltaStockOrder && (
+        <ResolverFaltaStockDialog
+          open={!!faltaStockOrder}
+          onOpenChange={(v) => { if (!v) setFaltaStockOrder(null); }}
+          orderNumber={faltaStockOrder.order_number}
+          currency={faltaStockOrder.currency || "ARS"}
+          items={(faltaStockOrder.items || [])
+            .filter((it) => !!it.product_id && !sustituciones[it.id])
+            .map((it) => ({
+              id: it.id,
+              product_id: it.product_id,
+              producto_nombre: it.producto_nombre,
+              variante: it.variante || {},
+              cantidad: Number(it.cantidad) || 1,
+              precio_unitario: Number(it.precio_unitario) || 0,
+            }))}
+          onDone={() => { setFaltaStockOrder(null); setDetail(null); load(); }}
+        />
+      )}
+
       {/* Devolución de un pedido cancelado que estaba pagado */}
+
       <RegistrarDevolucionDialog
         open={!!devolucionOrder}
         onOpenChange={(v) => { if (!v) setDevolucionOrder(null); }}
