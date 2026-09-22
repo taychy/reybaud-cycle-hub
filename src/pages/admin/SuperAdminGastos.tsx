@@ -23,6 +23,7 @@ import {
 import { toast } from "@/hooks/use-toast";
 import AgendaMes from "@/components/admin/gastos/AgendaMes";
 import MpEgresosTab from "@/components/admin/MpEgresosTab";
+import VincularGastoDevolucionDialog, { type GastoParaDevolucion } from "@/components/admin/VincularGastoDevolucionDialog";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
@@ -97,6 +98,18 @@ interface GastoRow {
   origen_registro?: string | null;
   estado_conciliacion?: string | null;
   unidad_negocio?: UnidadNegocio | null;
+  event_id?: string | null;
+  alumno_id?: string | null;
+  reservation_id?: string | null;
+  tipo_egreso?: string | null;
+}
+
+interface DevolucionVinculada {
+  gasto_id: string;
+  devolucion_id: string;
+  alumno_nombre: string;
+  evento_nombre: string | null;
+  reservation_id: string | null;
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Personal","Otros"];
