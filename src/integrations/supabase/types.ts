@@ -1790,6 +1790,57 @@ export type Database = {
           },
         ]
       }
+      cash_box_manual_movements: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          description: string
+          direction: string
+          id: string
+          notes: string | null
+          occurred_at: string
+          unit: string
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description: string
+          direction: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          unit?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          description?: string
+          direction?: string
+          id?: string
+          notes?: string | null
+          occurred_at?: string
+          unit?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: []
+      }
       cierres_caja_diarios: {
         Row: {
           cerrado_at: string | null
@@ -16188,6 +16239,37 @@ export type Database = {
         Returns: Json
       }
       get_billing_dashboard: { Args: never; Returns: Json }
+      get_cash_box_balance: {
+        Args: { p_hasta?: string }
+        Returns: {
+          baseline_amount: number
+          baseline_date: string
+          egresos: number
+          expected_amount: number
+          ingresos: number
+          movements_count: number
+          other_currencies: Json
+          review_amount: number
+          review_count: number
+        }[]
+      }
+      get_cash_box_movements: {
+        Args: { p_hasta?: string }
+        Returns: {
+          amount: number
+          currency: string
+          description: string
+          direction: string
+          movement_date: string
+          needs_review: boolean
+          note: string
+          occurred_at: string
+          origin: string
+          person: string
+          ref_id: string
+          unit: string
+        }[]
+      }
       get_coaches_public: {
         Args: never
         Returns: {
@@ -16317,6 +16399,23 @@ export type Database = {
           tecnica: string
           tipo: Database["public"]["Enums"]["tipo_entrenamiento"]
           titulo: string
+        }[]
+      }
+      get_event_mp_viajes_outflows: {
+        Args: { p_event_id: string }
+        Returns: {
+          amount: number
+          cuenta_mp_id: string
+          cuenta_nombre: string
+          currency: string
+          description: string
+          estado_asociacion: string
+          external_reference: string
+          fecha_movimiento: string
+          gasto_event_id: string
+          gasto_id: string
+          movement_id: string
+          mp_payment_id: string
         }[]
       }
       get_event_pnl: {
@@ -16660,6 +16759,7 @@ export type Database = {
           visto: number
         }[]
       }
+      get_viajes_mp_account_id: { Args: never; Returns: string }
       get_waitlist_entries_for_template: {
         Args: { p_template_id: string }
         Returns: {
@@ -16745,6 +16845,17 @@ export type Database = {
             Returns: boolean
           }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      link_mp_viajes_outflow_to_event: {
+        Args: {
+          p_categoria?: string
+          p_descripcion?: string
+          p_event_id: string
+          p_movement_id: string
+          p_notas?: string
+          p_proveedor?: string
+        }
+        Returns: string
+      }
       list_event_participants_for_roommate: {
         Args: { _event_id: string }
         Returns: {
@@ -17083,6 +17194,30 @@ export type Database = {
       }
       refresh_backfill_preview: { Args: never; Returns: string }
       refresh_combo_stock: { Args: { p_combo_id: string }; Returns: undefined }
+      register_cash_box_manual_movement:
+        | {
+            Args: {
+              p_amount: number
+              p_description: string
+              p_direction: string
+              p_notes?: string
+              p_occurred_at?: string
+              p_unit: string
+            }
+            Returns: string
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_currency?: string
+              p_description: string
+              p_direction: string
+              p_notes?: string
+              p_occurred_at?: string
+              p_unit: string
+            }
+            Returns: string
+          }
       register_coach: {
         Args: { _email: string; _nombre: string; _user_id: string }
         Returns: undefined
