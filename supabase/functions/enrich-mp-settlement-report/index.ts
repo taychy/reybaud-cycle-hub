@@ -34,6 +34,33 @@ const normalizeEmail = (value: unknown) =>
 const normalizeDigits = (value: unknown) =>
   String(value ?? "").replace(/\D/g, "");
 
+const documentKeys = (value: unknown): string[] => {
+  const digits = normalizeDigits(value);
+  if (!digits) return [];
+  const keys = new Set<string>([digits]);
+  if (digits.length === 11) {
+    const dni8 = digits.slice(2, 10);
+    keys.add(dni8);
+    keys.add(dni8.replace(/^0+/, ""));
+  } else if (digits.length <= 8) {
+    keys.add(digits.padStart(8, "0"));
+    keys.add(digits.replace(/^0+/, ""));
+  }
+  return [...keys].filter(Boolean);
+};
+
+const lookupUniqueByDocument = (
+  map: Map<string, string | null>,
+  value: unknown,
+): string | null => {
+  const ids = new Set<string>();
+  for (const key of documentKeys(value)) {
+    const id = map.get(key);
+    if (id) ids.add(id);
+  }
+  return ids.size === 1 ? [...ids][0] : null;
+};
+
 const normalizeName = (value: unknown) =>
   String(value ?? "")
     .normalize("NFD")
@@ -116,7 +143,9 @@ Deno.serve(async (req) => {
     for (const e of ((a as any).emails_adicionales ?? [])) {
       addUnique(alumnosByEmail, normalizeEmail(e), (a as any).id);
     }
-    addUnique(alumnosByDocument, normalizeDigits((a as any).documento), (a as any).id);
+    for (const key of documentKeys((a as any).documento)) {
+      addUnique(alumnosByDocument, key, (a as any).id);
+    }
     for (const n of ((a as any).nombres_bancarios ?? [])) {
       addUnique(alumnosByBankName, normalizeName(n), (a as any).id);
     }
@@ -250,7 +279,7 @@ Deno.serve(async (req) => {
 
         if (!existing.assigned_manually && !existing.alumno_id) {
           let alumnoId: string | null = null;
-          if (doc) alumnoId = alumnosByDocument.get(normalizeDigits(doc)) ?? null;
+          if (doc) alumnoId = lookupUniqueByDocument(alumnosByDocument, doc);
           if (!alumnoId && email) alumnoId = alumnosByEmail.get(normalizeEmail(email)) ?? null;
           if (!alumnoId && name) alumnoId = alumnosByBankName.get(normalizeName(name)) ?? null;
           if (alumnoId) {
