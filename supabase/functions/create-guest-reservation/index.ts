@@ -96,28 +96,20 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!pkg || !pkg.activo) return jsonResp({ error: "Paquete no disponible" }, 400);
 
-    // Resolver precio del stage vigente (nunca confiar en cliente).
-    const { data: stages } = await admin
-      .from("event_package_price_stages")
-      .select("precio, currency, vigente_desde, vigente_hasta, activo")
-      .eq("package_id", pkg.id)
-      .eq("activo", true);
-    let activePrecio = Number(pkg.precio || 0);
-    let activeCurrency = pkg.currency || "ARS";
-    const nowMs = Date.now();
-    let bestDesdeMs = -Infinity;
-    for (const s of (stages || []) as any[]) {
-      const desdeMs = new Date(s.vigente_desde).getTime();
-      const hastaMs = s.vigente_hasta ? new Date(s.vigente_hasta).getTime() : null;
-      if (desdeMs <= nowMs && (hastaMs == null || hastaMs > nowMs) && desdeMs > bestDesdeMs) {
-        bestDesdeMs = desdeMs;
-        activePrecio = Number(s.precio || 0);
-        activeCurrency = s.currency || activeCurrency;
-      }
+    // Resolver el precio efectivo exclusivamente en backend.
+    // get_package_active_price aplica carry-forward de la última etapa iniciada
+    // si la ventana vigente terminó o existe un hueco entre etapas.
+    const { data: priceRows, error: priceErr } = await admin.rpc(
+      "get_package_active_price",
+      { p_package_id: pkg.id },
+    );
+    if (priceErr) {
+      console.error("[create-guest-reservation] price resolution", priceErr);
+      return jsonResp({ error: "No se pudo resolver el precio del paquete" }, 500);
     }
-
-    const amount_total = activePrecio;
-    const currency = activeCurrency;
+    const resolvedPrice = Array.isArray(priceRows) ? priceRows[0] : priceRows;
+    const amount_total = Number(resolvedPrice?.precio ?? pkg.precio ?? 0);
+    const currency = resolvedPrice?.currency || pkg.currency || "ARS";
 
     // 2) Upsert del participante externo
     const { data: existingList } = await admin
@@ -167,7 +159,7 @@ Deno.serve(async (req) => {
         external_participant_id: participantId,
         package_id: pkg.id,
         package_nombre_snapshot: pkg.nombre,
-        price_snapshot: pkg.precio,
+        price_snapshot: amount_total,
         currency_snapshot: currency,
         amount_total,
         amount_paid: 0,
