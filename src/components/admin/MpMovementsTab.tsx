@@ -173,6 +173,65 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   useEffect(() => {
     void load();
     void loadCuentas();
+
+    // Red de seguridad automática:
+    // - el webhook es el camino principal e inmediato;
+    // - al abrir Pagos reconciliamos silenciosamente si hace falta;
+    // - mientras esta pantalla está abierta repetimos cada 10 min.
+    // LocalStorage evita repetir llamadas innecesarias entre recargas/pestañas.
+    let cancelled = false;
+    const runAuto = async () => {
+      if (cancelled || document.visibilityState === "hidden") return;
+
+      const now = Date.now();
+      const lastSync = Number(localStorage.getItem("reybaud_mp_auto_sync_at") || 0);
+      const lastEnrich = Number(localStorage.getItem("reybaud_mp_auto_enrich_at") || 0);
+      let changed = false;
+
+      if (now - lastSync >= 10 * 60_000) {
+        try {
+          const { error } = await supabase.functions.invoke("sync-mp-account-movements", {
+            body: { days: 7 },
+          });
+          if (!error) {
+            localStorage.setItem("reybaud_mp_auto_sync_at", String(Date.now()));
+            changed = true;
+          } else {
+            console.warn("[MP auto] sync falló:", error.message);
+          }
+        } catch (e) {
+          console.warn("[MP auto] sync falló:", e);
+        }
+      }
+
+      // El settlement report es más pesado y MP puede tardar en generarlo:
+      // una vez por hora alcanza como reintento automático.
+      if (now - lastEnrich >= 60 * 60_000) {
+        try {
+          const { error } = await supabase.functions.invoke("enrich-mp-settlement-report", {
+            body: { days: 30 },
+          });
+          if (!error) {
+            localStorage.setItem("reybaud_mp_auto_enrich_at", String(Date.now()));
+            changed = true;
+          } else {
+            console.warn("[MP auto] enriquecimiento falló:", error.message);
+          }
+        } catch (e) {
+          console.warn("[MP auto] enriquecimiento falló:", e);
+        }
+      }
+
+      if (changed && !cancelled) await load({ silent: true });
+    };
+
+    void runAuto();
+    const timer = window.setInterval(() => void runAuto(), 10 * 60_000);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [periodo]);
 
@@ -184,8 +243,8 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   }
 
 
-  async function load() {
-    setLoading(true);
+  async function load({ silent = false }: { silent?: boolean } = {}) {
+    if (!silent) setLoading(true);
     let query = supabase
       .from("mp_account_movements")
       .select(`
@@ -213,7 +272,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     } else {
       setMovements((data as any) ?? []);
     }
-    setLoading(false);
+    if (!silent) setLoading(false);
   }
 
   async function handleSync() {
@@ -517,17 +576,17 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
         <div>
           <h3 className="text-lg font-semibold">Movimientos de cuentas Mercado Pago</h3>
           <p className="text-sm text-muted-foreground">
-            Cobros recibidos en las cuentas MP {periodo && periodo !== "all" ? <span className="text-foreground font-medium">· período {periodo}</span> : <span className="text-foreground font-medium">· todos los meses</span>}. Asigná un alumno cuando no lo identifiquemos automáticamente.
+            Cobros recibidos en las cuentas MP {periodo && periodo !== "all" ? <span className="text-foreground font-medium">· período {periodo}</span> : <span className="text-foreground font-medium">· todos los meses</span>}. Conciliación automática por webhook + control periódico; intervení sólo en excepciones.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button onClick={handleEnrich} disabled={enriching} variant="outline" title="Completa nombres de pagador leyendo el settlement report de MP. Sólo llena campos vacíos.">
+          <Button onClick={handleEnrich} disabled={enriching} variant="outline" title="Herramienta manual de respaldo. La conciliación y el reprocesamiento normal son automáticos.">
             <UserPlus className={`h-4 w-4 mr-2 ${enriching ? "animate-pulse" : ""}`} />
-            {enriching ? "Enriqueciendo..." : "Enriquecer nombres"}
+            {enriching ? "Reprocesando..." : "Reprocesar pagadores"}
           </Button>
           <Button onClick={handleSync} disabled={syncing} variant="outline">
             <RefreshCw className={`h-4 w-4 mr-2 ${syncing ? "animate-spin" : ""}`} />
-            {syncing ? "Sincronizando..." : "Sincronizar con MP"}
+            {syncing ? "Sincronizando..." : "Forzar sincronización"}
           </Button>
         </div>
       </div>
@@ -615,7 +674,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                 {loading && <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">Cargando...</TableCell></TableRow>}
                 {!loading && filtered.length === 0 && (
                   <TableRow><TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
-                    Sin movimientos. Presioná "Sincronizar con MP" para traer los últimos cobros.
+                    Sin movimientos. La sincronización es automática; podés usar "Forzar sincronización" sólo como respaldo.
                   </TableCell></TableRow>
                 )}
                 {filtered.map((m) => {
