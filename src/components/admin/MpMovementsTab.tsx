@@ -31,6 +31,7 @@ type Movement = {
   payer_email: string | null;
   payer_name: string | null;
   payer_document: string | null;
+  raw?: Record<string, any> | null;
   external_reference: string | null;
   fecha_movimiento: string;
   alumno_id: string | null;
@@ -190,7 +191,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       .from("mp_account_movements")
       .select(`
         id, cuenta_mp_id, mp_payment_id, status, status_detail, payment_method, payment_type,
-        amount, net_received, currency, description, payer_email, payer_name, payer_document,
+        amount, net_received, currency, description, payer_email, payer_name, payer_document, raw,
         external_reference, fecha_movimiento, alumno_id, reservation_payment_id, suscripcion_id,
         assigned_manually, assign_notes,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug ),
@@ -647,9 +648,23 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                           const alumnoIdentityMatch = !!m.alumnos &&
                             (documentMatchesAlumno || emailMatchesAlumno || nameMatchesAlumno);
 
+                          const settlement = (m.raw as any)?.settlement_report ?? null;
+                          const originBank = settlement
+                            ? (
+                                settlement.ISSUER_NAME ||
+                                settlement.BANK_NAME ||
+                                settlement.PAYER_BANK_NAME ||
+                                settlement.ORIGIN_BANK ||
+                                settlement.FINANCIAL_INSTITUTION_NAME ||
+                                null
+                              )
+                            : null;
                           const desc = m.description && m.description.trim() && m.description.trim().toLowerCase() !== "varios"
                             ? m.description.trim()
                             : null;
+                          const originBlock = originBank ? (
+                            <div className="text-muted-foreground text-[10px]">Origen: {String(originBank)}</div>
+                          ) : null;
                           const descBlock = desc ? (
                             <div className="mt-1 text-[10px] text-cyan-400/80 italic border-l border-cyan-500/40 pl-1.5">
                               {desc}
@@ -675,6 +690,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                                   <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>
                                 )}
                                 <div className="text-[10px] text-emerald-400">Identificado por {via}</div>
+                                {originBlock}
                                 {descBlock}
                               </>
                             );
@@ -686,6 +702,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                                 <div className="font-medium">{m.payer_name}</div>
                                 {m.payer_email && !emailIsOwn && <div className="text-muted-foreground">{m.payer_email}</div>}
                                 {m.payer_document && <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>}
+                                {originBlock}
                                 {descBlock}
                               </>
                             );
@@ -695,6 +712,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                               <>
                                 <div>{m.payer_email}</div>
                                 {m.payer_document && <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>}
+                                {originBlock}
                                 {descBlock}
                               </>
                             );
