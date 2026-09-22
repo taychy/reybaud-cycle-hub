@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import {
   CheckCircle, AlertCircle, Clock, Shield, Bike, Footprints,
   Plane, ShieldCheck, Package, Banknote, Loader2, CalendarDays,
-  MapPin, CreditCard, ChevronRight, Bell, XCircle, MessageCircle, BedDouble,
+  MapPin, CreditCard, ChevronRight, Bell, XCircle, MessageCircle, BedDouble, Utensils,
 } from "lucide-react";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import TripBikeDrawer from "@/components/reservation/TripBikeDrawer";
@@ -16,6 +16,7 @@ import TripPedalsDrawer from "@/components/reservation/TripPedalsDrawer";
 import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import TripTokenExtrasCard from "@/components/reservation/TripTokenExtrasCard";
+import TripFormDrawer from "@/components/reservation/TripFormDrawer";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 
 interface ReservationData {
@@ -82,7 +83,7 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
-  actionType: "bike" | "pedals" | "document" | "none";
+  actionType: "bike" | "pedals" | "document" | "form" | "none";
   stepKey?: string;
 }
 
@@ -92,6 +93,7 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
     { id: "pedales", label: "Pedales y calas", description: "Contanos qué usás o subí una foto", icon: Footprints, completed: !!checklistData["pedales"]?.completed, actionType: "pedals" },
     { id: "pasaje", label: "Pasaje o transporte", description: "Reserva de vuelo o info de llegada", icon: Plane, completed: !!checklistData["pasaje"]?.completed, actionType: "document", stepKey: "pasaje" },
     { id: "seguro", label: "Seguro viajero", description: "Adjuntá tu póliza de seguro", icon: ShieldCheck, completed: !!checklistData["seguro"]?.completed, actionType: "document", stepKey: "seguro" },
+    { id: "alimentacion", label: "Alimentación", description: "Dieta, alergias y restricciones", icon: Utensils, completed: !!checklistData["alimentacion"]?.completed, actionType: "form", stepKey: "alimentacion" },
   ];
 
   const enabledSteps = meta?.checklist_steps;
@@ -120,6 +122,7 @@ const ExternalTripView = () => {
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
+  const [formDrawer, setFormDrawer] = useState<{ open: boolean; stepKey: string }>({ open: false, stepKey: "" });
 
   const loadData = useCallback(async () => {
     if (!token) { setError("Link inválido. Pedí un nuevo enlace al equipo."); setLoading(false); return; }
@@ -206,6 +209,8 @@ const ExternalTripView = () => {
     else if (item.actionType === "document" && item.stepKey) {
       const cfg = docStepConfig[item.stepKey] || { title: item.label, description: item.description, helpText: "", icon: null };
       setDocDrawer({ open: true, stepKey: item.stepKey, ...cfg });
+    } else if (item.actionType === "form" && item.stepKey) {
+      setFormDrawer({ open: true, stepKey: item.stepKey });
     }
   };
 
@@ -456,6 +461,15 @@ const ExternalTripView = () => {
         description={docDrawer.description}
         helpText={docDrawer.helpText}
         icon={docDrawer.icon}
+        token={token ?? undefined}
+        onSaved={reloadChecklist}
+      />
+      <TripFormDrawer
+        open={formDrawer.open}
+        onOpenChange={(v) => setFormDrawer((prev) => ({ ...prev, open: v }))}
+        reservationId={reservation.id}
+        alumnoId={reservation.alumno_id}
+        stepKey={formDrawer.stepKey}
         token={token ?? undefined}
         onSaved={reloadChecklist}
       />
