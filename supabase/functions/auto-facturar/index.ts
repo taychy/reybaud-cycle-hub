@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { corsHeaders } from "https://esm.sh/@supabase/supabase-js@2/cors";
 import { resolveClienteFiscal } from "../_shared/fiscal-identity.ts";
 
@@ -347,7 +347,7 @@ Deno.serve(async (req) => {
  *  3. Entre los candidatos, gana el de mayor cupo disponible (o el primero si nadie tiene límite).
  */
 async function elegirEmisor(
-  adminClient: ReturnType<typeof createClient>,
+  adminClient: SupabaseClient,
   segmento: Segmento,
   monto: number
 ) {

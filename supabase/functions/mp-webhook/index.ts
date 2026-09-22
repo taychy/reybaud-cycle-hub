@@ -1,4 +1,4 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
@@ -12,7 +12,7 @@ const corsHeaders = {
 // cada cuenta activa hasta que MP responda OK, y como último fallback usa
 // MP_ACCESS_TOKEN legacy. Devuelve { token, slug } para auditoría.
 async function resolveWebhookToken(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: SupabaseClient,
   cuentaSlug: string | null,
   fetchUrl: string,
 ): Promise<{ token: string; slug: string | null; data: any | null; ok: boolean }> {
@@ -100,7 +100,7 @@ const extractPayerName = (p: any): string | null => {
 };
 
 async function persistMpAccountMovement(
-  supabaseAdmin: ReturnType<typeof createClient>,
+  supabaseAdmin: SupabaseClient,
   payment: any,
   resolved: { token: string; slug: string | null },
 ) {

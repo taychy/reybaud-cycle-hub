@@ -34,7 +34,7 @@ serve(async (req) => {
           auth: { persistSession: false, autoRefreshToken: false },
         });
         const jwt = authHeader.replace("Bearer ", "");
-        const { data: claimsData } = await userClient.auth.getClaims(jwt);
+        const { data: claimsData } = await (userClient.auth as any).getClaims(jwt);
         const em = claimsData?.claims?.email;
         if (em) authedEmail = String(em).toLowerCase();
       } catch (_) { /* ignore */ }
