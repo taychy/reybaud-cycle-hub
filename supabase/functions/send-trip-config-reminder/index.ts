@@ -86,6 +86,7 @@ interface Reservation {
   alumno_id: string;
   event_id: string;
   reservation_status: string;
+  access_token: string | null;
   created_at: string;
 }
 interface EventLite { id: string; title: string; type: string | null; date: string | null; }
@@ -97,11 +98,12 @@ function buildContenido(params: {
   eventDate: string | null;
   pendingSteps: string[];
   reservationId: string;
+  accessToken: string;
   trigger: Trigger;
   daysToEvent: number | null;
 }) {
-  const { first_name, eventTitle, eventDate, pendingSteps, reservationId, trigger, daysToEvent } = params;
-  const url = `${APP_URL}/mis-reservas?reservation=${reservationId}`;
+  const { first_name, eventTitle, eventDate, pendingSteps, accessToken, trigger, daysToEvent } = params;
+  const url = `${APP_URL}/viaje/mi-reserva?token=${encodeURIComponent(accessToken)}`;
   const stepsHtml = pendingSteps.map((s) => `<li style="margin-bottom:6px;color:#333;">${labelForStep(s)}</li>`).join('');
   const stepsText = pendingSteps.map((s) => `• ${labelForStep(s)}`).join('\n');
 
@@ -169,6 +171,12 @@ async function processReservation(
   trigger: Trigger,
   daysToEvent: number | null,
 ): Promise<{ sent: boolean; reason?: string }> {
+  // Sin token no se puede generar un link válido: no enviamos.
+  if (!reservation.access_token) {
+    console.warn(`[trip-config] reserva ${reservation.id} sin access_token: no se envía`);
+    return { sent: false, reason: 'missing_access_token' };
+  }
+
   const idempotency_key = `trip-config-${reservation.id}-${trigger}`;
 
   // Chequeo de idempotencia
@@ -198,6 +206,7 @@ async function processReservation(
     eventDate: event.date,
     pendingSteps,
     reservationId: reservation.id,
+    accessToken: reservation.access_token,
     trigger,
     daysToEvent,
   });
@@ -262,7 +271,7 @@ Deno.serve(async (req) => {
   let query = supabase
     .from('event_reservations')
     .select(`
-      id, alumno_id, event_id, reservation_status, created_at,
+      id, alumno_id, event_id, reservation_status, access_token, created_at,
       alumnos!inner(id, nombre, apellido, email),
       events!inner(id, title, type, date)
     `)
