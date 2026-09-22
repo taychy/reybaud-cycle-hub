@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { type PreorderLabelData } from "@/lib/preorderLabels";
 import OrderLabelPrintDialog from "@/components/deposito/OrderLabelPrintDialog";
 import PruebasSection from "@/components/store/PruebasSection";
+import CambiosPreparacionSection from "@/components/deposito/CambiosPreparacionSection";
 import {
   CASH_BLOCK_MESSAGE,
   buildCashPaymentPatch,
@@ -71,7 +72,7 @@ interface Props {
   title?: string;
 }
 
-const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) => {
+const DepositoPedidos = ({ restrictStatuses, title = "Pedidos para preparar" }: Props = {}) => {
   const [rows, setRows] = useState<any[]>([]);
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, any[]>>({});
   const [alumnosMap, setAlumnosMap] = useState<Record<string, any>>({});
@@ -526,6 +527,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
         </div>
       </div>
 
+      {!restrictStatuses && (filterStatus === "all" || filterStatus === "preparando") && (
+        <CambiosPreparacionSection />
+      )}
+
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -561,7 +566,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
               <div className="flex items-start gap-2">
                 <Checkbox className="mt-1" checked={selectedIds.has(r.id)} onCheckedChange={() => toggleId(r.id)} />
                 <div className="flex-1 min-w-0">
-                  <div className="font-heading font-bold text-sm leading-tight">{res.texto}</div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge variant="outline" className="text-[9px]">VENTA</Badge>
+                    <div className="font-heading font-bold text-sm leading-tight">{res.texto}</div>
+                  </div>
                   <div className="text-xs text-muted-foreground mt-0.5">{nombreCliente(r)} · #{r.order_number}{res.cantidad ? ` · x${res.cantidad}` : ""}</div>
                   <div className="text-xs text-muted-foreground">{new Date(r.created_at).toLocaleDateString("es-AR")}</div>
                 </div>
@@ -648,7 +656,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                     <Checkbox checked={selectedIds.has(r.id)} onCheckedChange={() => toggleId(r.id)} />
                   </td>
                   <td className="px-4 py-2">
-                    <div className="font-medium leading-tight">{res.texto}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[9px]">VENTA</Badge>
+                      <div className="font-medium leading-tight">{res.texto}</div>
+                    </div>
                     <div className="text-xs text-muted-foreground">#{r.order_number}</div>
                   </td>
                   <td className="px-4 py-2 text-foreground">{nombreCliente(r)}</td>
