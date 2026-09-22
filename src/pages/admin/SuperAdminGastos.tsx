@@ -241,6 +241,11 @@ const SuperAdminGastos = () => {
     forma_pago: "transferencia", concepto: "", notas: "",
   });
 
+  // Devoluciones a participantes vinculadas a un gasto
+  const [devolucionesPorGasto, setDevolucionesPorGasto] = useState<Record<string, DevolucionVinculada>>({});
+  const [devDialogOpen, setDevDialogOpen] = useState(false);
+  const [devGasto, setDevGasto] = useState<GastoParaDevolucion | null>(null);
+
   const loadDeudaSaldos = useCallback(async () => {
     const { data } = await supabase.rpc("get_all_gastos_saldo_deuda" as any);
     const map: Record<string, { saldo: number; moneda: string }> = {};
