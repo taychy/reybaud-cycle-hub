@@ -99,6 +99,6 @@
 - [x] Importes de línea mostrados en la moneda del pedido (precios base legacy USD)
 - [x] Stock de combos consultado a la base (`get_combo_available_stock`)
 ## Camioneta · Referencia breve en WhatsApp
-- [ ] Incluir número, producto, variante, cantidad y restantes en avisos desde Pedidos y Camioneta
-- [ ] Validar pruebas relevantes y tipos; no publicar ni desplegar
+- [x] Incluir número, producto, variante, cantidad y restantes en avisos desde Pedidos y Camioneta
+- [x] Validar pruebas relevantes y tipos; no publicar ni desplegar
 
