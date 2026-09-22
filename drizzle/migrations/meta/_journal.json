@@ -71,6 +71,13 @@
       "when": 1790080497698,
       "tag": "0009_stock_negativo_y_sustitucion_falta_stock",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790103494145,
+      "tag": "0010_gasto_devolucion_participante",
+      "breakpoints": true
     }
   ]
 }
