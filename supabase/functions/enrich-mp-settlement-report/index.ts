@@ -4,8 +4,11 @@
 // Estrategia:
 //  1) Solicita/reutiliza un settlement report para el rango pedido.
 //  2) Espera hasta ~25s a que el reporte esté disponible.
-//  3) Descarga el CSV, parsea y actualiza los movimientos cuyos campos
-//     de pagador estén vacíos (merge-only, nunca pisa datos existentes).
+//  3) Descarga el CSV, parsea y completa datos faltantes.
+//  4) Si un dato guardado pertenece a la propia cuenta receptora, lo limpia
+//     o reemplaza por el dato real del pagador.
+//  5) Si documento/email/nombre bancario coincide de forma única, identifica
+//     automáticamente al alumno sin imputar todavía la deuda.
 //
 // POST /enrich-mp-settlement-report { days?: number, cuenta_id?: string }
 
@@ -24,6 +27,27 @@ const json = (status: number, data: unknown) =>
   });
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const normalizeEmail = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase();
+
+const normalizeDigits = (value: unknown) =>
+  String(value ?? "").replace(/\D/g, "");
+
+const normalizeName = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+const addUnique = (map: Map<string, string | null>, key: string, alumnoId: string) => {
+  if (!key) return;
+  if (!map.has(key)) map.set(key, alumnoId);
+  else if (map.get(key) !== alumnoId) map.set(key, null);
+};
 
 function parseCsv(text: string): Array<Record<string, string>> {
   // Reportes MP: separador `;` habitual, encabezados en la primera línea con datos.
@@ -79,6 +103,25 @@ Deno.serve(async (req) => {
   const { data: cuentas, error: cErr } = await q;
   if (cErr) return json(500, { error: cErr.message });
 
+  const { data: alumnosIdentidad, error: aErr } = await supabase
+    .from("alumnos")
+    .select("id, email, emails_adicionales, documento, nombres_bancarios");
+  if (aErr) return json(500, { error: aErr.message });
+
+  const alumnosByEmail = new Map<string, string | null>();
+  const alumnosByDocument = new Map<string, string | null>();
+  const alumnosByBankName = new Map<string, string | null>();
+  for (const a of alumnosIdentidad ?? []) {
+    addUnique(alumnosByEmail, normalizeEmail((a as any).email), (a as any).id);
+    for (const e of ((a as any).emails_adicionales ?? [])) {
+      addUnique(alumnosByEmail, normalizeEmail(e), (a as any).id);
+    }
+    addUnique(alumnosByDocument, normalizeDigits((a as any).documento), (a as any).id);
+    for (const n of ((a as any).nombres_bancarios ?? [])) {
+      addUnique(alumnosByBankName, normalizeName(n), (a as any).id);
+    }
+  }
+
   const beginDate = new Date(Date.now() - days * 86400_000).toISOString();
   const endDate = new Date().toISOString();
 
@@ -90,9 +133,28 @@ Deno.serve(async (req) => {
       summary.errors.push({ cuenta: c.slug, error: "token_no_configurado" });
       continue;
     }
-    const cuentaOut: any = { cuenta: c.slug, enriched: 0, matched: 0, pending: false };
+    const cuentaOut: any = { cuenta: c.slug, enriched: 0, matched: 0, autoIdentified: 0, pending: false };
 
     try {
+      let ownEmail = "";
+      let ownDocument = "";
+      let ownName = "";
+      try {
+        const meResp = await fetch("https://api.mercadopago.com/users/me", {
+          headers: { Authorization: `Bearer ${mpToken}` },
+        });
+        if (meResp.ok) {
+          const me = await meResp.json();
+          ownEmail = normalizeEmail(me?.email);
+          ownDocument = normalizeDigits(me?.identification?.number);
+          ownName = normalizeName([me?.first_name, me?.last_name].filter(Boolean).join(" "));
+        } else {
+          summary.errors.push({ cuenta: c.slug, error: `mp_profile_${meResp.status}` });
+        }
+      } catch (e) {
+        summary.errors.push({ cuenta: c.slug, error: `mp_profile_fetch_failed: ${(e as Error).message}` });
+      }
+
       // 1) Listar reportes ya disponibles
       const listResp = await fetch(
         `https://api.mercadopago.com/v1/account/settlement_report/list?begin_date=${encodeURIComponent(beginDate)}&end_date=${encodeURIComponent(endDate)}`,
@@ -151,33 +213,52 @@ Deno.serve(async (req) => {
       const rows = parseCsv(csv);
       cuentaOut.rows = rows.length;
 
-      // 4) Mergear (sólo campos vacíos)
+      // 4) Mergear. Los datos de la propia cuenta receptora se consideran
+      // inválidos y pueden limpiarse/reemplazarse.
       for (const r of rows) {
         const paymentId = r.PAYMENT_ID || r.SOURCE_ID || r.OPERATION_ID;
         if (!paymentId) continue;
 
-        const name = [r.PAYER_FIRST_NAME || r.PAYER_NAME, r.PAYER_LAST_NAME]
+        const rawName = [r.PAYER_FIRST_NAME || r.PAYER_NAME, r.PAYER_LAST_NAME]
           .filter(Boolean)
           .join(" ")
           .trim() || null;
-        const email = (r.PAYER_EMAIL || r["PAYER_E-MAIL"] || "").trim() || null;
-        const doc = (r.PAYER_DOCUMENT_NUMBER || r.PAYER_ID_NUMBER || "").trim() || null;
+        const rawEmail = (r.PAYER_EMAIL || r["PAYER_E-MAIL"] || "").trim() || null;
+        const rawDoc = (r.PAYER_DOCUMENT_NUMBER || r.PAYER_ID_NUMBER || "").trim() || null;
 
-        if (!name && !email && !doc) continue;
+        const name = rawName && (!ownName || normalizeName(rawName) !== ownName) ? rawName : null;
+        const email = rawEmail && (!ownEmail || normalizeEmail(rawEmail) !== ownEmail) ? rawEmail : null;
+        const doc = rawDoc && (!ownDocument || normalizeDigits(rawDoc) !== ownDocument) ? rawDoc : null;
 
         const { data: existing } = await supabase
           .from("mp_account_movements")
-          .select("id, payer_name, payer_email, payer_document")
+          .select("id, payer_name, payer_email, payer_document, alumno_id, assigned_manually")
           .eq("cuenta_mp_id", c.id)
           .eq("mp_payment_id", String(paymentId))
           .maybeSingle();
         if (!existing) continue;
         cuentaOut.matched++;
 
-        const patch: Record<string, string> = {};
-        if (name && !existing.payer_name) patch.payer_name = name;
-        if (email && !existing.payer_email) patch.payer_email = email;
-        if (doc && !existing.payer_document) patch.payer_document = doc;
+        const existingNameIsOwn = !!existing.payer_name && !!ownName && normalizeName(existing.payer_name) === ownName;
+        const existingEmailIsOwn = !!existing.payer_email && !!ownEmail && normalizeEmail(existing.payer_email) === ownEmail;
+        const existingDocIsOwn = !!existing.payer_document && !!ownDocument && normalizeDigits(existing.payer_document) === ownDocument;
+
+        const patch: Record<string, string | null> = {};
+        if ((!existing.payer_name || existingNameIsOwn) && (name || existingNameIsOwn)) patch.payer_name = name;
+        if ((!existing.payer_email || existingEmailIsOwn) && (email || existingEmailIsOwn)) patch.payer_email = email;
+        if ((!existing.payer_document || existingDocIsOwn) && (doc || existingDocIsOwn)) patch.payer_document = doc;
+
+        if (!existing.assigned_manually && !existing.alumno_id) {
+          let alumnoId: string | null = null;
+          if (doc) alumnoId = alumnosByDocument.get(normalizeDigits(doc)) ?? null;
+          if (!alumnoId && email) alumnoId = alumnosByEmail.get(normalizeEmail(email)) ?? null;
+          if (!alumnoId && name) alumnoId = alumnosByBankName.get(normalizeName(name)) ?? null;
+          if (alumnoId) {
+            patch.alumno_id = alumnoId;
+            cuentaOut.autoIdentified++;
+          }
+        }
+
         if (Object.keys(patch).length === 0) continue;
 
         const { error: upErr } = await supabase
