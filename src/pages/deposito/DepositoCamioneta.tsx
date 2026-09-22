@@ -39,6 +39,7 @@ interface CargaItem {
   estado: string;
   entregado_at: string | null;
   chequeado_at?: string | null;
+  created_at?: string | null;
 }
 interface CandidateItem {
   id: string;
@@ -140,7 +141,7 @@ const DepositoCamioneta = () => {
     if (existente?.id) {
       setCreating(false);
       setShowCreate(false);
-      toast.info("Esa sede ya tiene una caja activa. Te llevamos a esa.");
+      toast.info("Esa sede ya está activa en la camioneta. Te llevamos a esa sección.");
       navigate(`/deposito/camioneta/${existente.id}`);
       return;
     }
@@ -158,10 +159,10 @@ const DepositoCamioneta = () => {
       .single();
     setCreating(false);
     if (error || !data) {
-      toast.error(error?.message?.includes("una_activa_por_sede") ? "Esa sede ya tiene una caja activa" : (error?.message || "Error al crear"));
+      toast.error(error?.message?.includes("una_activa_por_sede") ? "Esa sede ya está activa en la camioneta" : (error?.message || "Error al crear"));
       return;
     }
-    toast.success("Carga creada");
+    toast.success("Sede agregada a la camioneta");
     setShowCreate(false);
     setForm({ sede_id: "", fecha_salida: new Date().toISOString().slice(0, 10), entregador: "", notas: "" });
     navigate(`/deposito/camioneta/${data.id}`);
@@ -177,18 +178,18 @@ const DepositoCamioneta = () => {
           <Truck className="w-5 h-5 text-primary" />
           <div>
             <h1 className="text-xl font-heading font-bold uppercase tracking-wider">Camioneta</h1>
-            <p className="text-xs text-muted-foreground">Salidas de mercadería por sede.</p>
+            <p className="text-xs text-muted-foreground">Una sola camioneta, organizada internamente por sede.</p>
           </div>
         </div>
         <Button variant="gold" size="sm" onClick={() => setShowCreate(true)}>
-          <Plus className="w-4 h-4 mr-1" /> Nueva carga
+          <Plus className="w-4 h-4 mr-1" /> Agregar sede
         </Button>
       </div>
 
       {!loading && sinCargar.length > 0 && (
         <div className="rounded-lg border border-border bg-muted/30 p-3">
           <p className="text-sm font-medium text-foreground">
-            En camioneta · caja sin identificar ({sinCargar.length})
+            En camioneta · sede sin identificar ({sinCargar.length})
           </p>
           <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
             {sinCargar.map((o) => (
@@ -196,7 +197,7 @@ const DepositoCamioneta = () => {
             ))}
           </ul>
           <p className="mt-2 text-xs text-muted-foreground">
-            Están físicamente en la camioneta; el sistema no registró en qué caja.
+            Están físicamente en la camioneta; el sistema todavía no resolvió la sede de retiro.
           </p>
         </div>
       )}
@@ -232,28 +233,35 @@ const DepositoCamioneta = () => {
             <>
               {activas.length > 0 ? (
                 <div>
-                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-1">Camioneta ahora</h2>
-                  <p className="text-xs text-muted-foreground mb-3">Las cajas viajan juntas; la entrega se realiza en la sede con clase del día.</p>
-                  <div className="space-y-2">
-                    {activas.map((c) => {
-                      const sede = sedes.find((s) => s.id === c.sede_id);
-                      return (
-                        <Link key={c.id} to={`/deposito/camioneta/${c.id}`} className="rounded-lg p-5 border border-primary/40 bg-primary/5 hover:border-primary/70 flex items-center gap-3 transition-colors">
-                          <Truck className="w-6 h-6 text-primary shrink-0" />
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-foreground truncate">Caja {sede?.nombre || "Sede"}</span>
-                              {estadoBadge(c.estado)}
+                  <h2 className="text-xs font-medium uppercase tracking-wider text-muted-foreground mb-2">Camioneta ahora</h2>
+                  <div className="rounded-xl border border-primary/40 bg-primary/5 p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <Truck className="w-6 h-6 text-primary shrink-0" />
+                      <div className="flex-1">
+                        <div className="font-medium text-foreground">Camioneta actual</div>
+                        <p className="text-xs text-muted-foreground">Una sola camioneta. La mercadería se organiza abajo por sede de retiro.</p>
+                      </div>
+                      <Badge variant="outline">{activas.length} sede{activas.length === 1 ? "" : "s"}</Badge>
+                    </div>
+                    <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
+                      {activas.map((c) => {
+                        const sede = sedes.find((s) => s.id === c.sede_id);
+                        return (
+                          <Link key={c.id} to={`/deposito/camioneta/${c.id}`} className="p-3 bg-background/40 hover:bg-muted/50 flex items-center gap-3 transition-colors">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="font-medium text-foreground truncate">{sede?.nombre || "Sede"}</span>
+                                {estadoBadge(c.estado)}
+                              </div>
+                              <div className="text-xs text-muted-foreground mt-0.5">
+                                {c.fecha_salida}{c.entregador_nombre ? ` · ${c.entregador_nombre}` : ""}
+                              </div>
                             </div>
-                            <div className="text-xs text-muted-foreground flex items-center gap-3">
-                              <span>{c.fecha_salida}</span>
-                              {c.entregador_nombre && <span>· {c.entregador_nombre}</span>}
-                            </div>
-                          </div>
-                          <ChevronRight className="w-5 h-5 text-primary shrink-0" />
-                        </Link>
-                      );
-                    })}
+                            <ChevronRight className="w-4 h-4 text-primary shrink-0" />
+                          </Link>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
               ) : (
@@ -261,7 +269,7 @@ const DepositoCamioneta = () => {
                   <Truck className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
                   <p className="text-sm text-muted-foreground mb-3">No hay ninguna camioneta en operación ahora.</p>
                   <Button variant="gold" size="sm" onClick={() => setShowCreate(true)}>
-                    <Plus className="w-4 h-4 mr-1" /> Nueva carga
+                    <Plus className="w-4 h-4 mr-1" /> Agregar sede
                   </Button>
                 </div>
               )}
@@ -281,7 +289,7 @@ const DepositoCamioneta = () => {
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent>
-          <DialogHeader><DialogTitle>Nueva carga de camioneta</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>Agregar sede a la camioneta</DialogTitle></DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
               <Label>Sede destino</Label>
@@ -656,6 +664,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const [externoByItem, setExternoByItem] = useState<Record<string, any>>({});
   const [resolverBusy, setResolverBusy] = useState<string | null>(null);
   const [avisoPendiente, setAvisoPendiente] = useState<{ orderId: string | null; label: string } | null>(null);
+  const [showEntregadosHist, setShowEntregadosHist] = useState(false);
 
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
@@ -793,6 +802,22 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     const link = avisoWaLink(ext?.cliente_telefono || "", `Hola, ${nombre}. ${sujeto.charAt(0).toUpperCase()}${sujeto.slice(1)} sigue en la camioneta para que puedas retirarlo. ¡Gracias!`);
     if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
     window.open(link, "_blank");
+  };
+
+  /** Consulta al alumno cuando el pedido no aparece en la camioneta, sin cambiar estados. */
+  const consultarRecepcion = (it: CargaItem) => {
+    const ord = orderByItem[it.id];
+    const ext = externoByItem[it.id];
+    const nombre = String(ord?.customer_name || ext?.cliente_nombre || it.cliente_nombre || "").split(" ")[0] || "cliente";
+    const telefono = ord?.telefono || ext?.cliente_telefono || "";
+    const itemsRef = ord?.items || items.filter((item) => item.source_table === "pedidos_externos" && item.source_id === it.source_id);
+    const referencia = buildAvisoPedidoReferencia(ord?.order_number ?? null, itemsRef);
+    const sujeto = referencia.toLowerCase().startsWith("tu ") ? referencia : `tu ${referencia}`;
+    const mensaje = `Hola, ${nombre}. Estamos haciendo un control de la camioneta y ${sujeto} ya no aparece entre los pedidos pendientes. ¿Pudiste retirarlo o recibirlo? Gracias.`;
+    const link = avisoWaLink(telefono, mensaje);
+    if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
+    window.open(link, "_blank");
+    toast.info("Consulta abierta en WhatsApp. Cuando responda, marcá si fue entregado o si sigue en camioneta.");
   };
 
   /** El registro del aviso se guarda sólo cuando la persona confirma que lo envió. */
@@ -1021,13 +1046,32 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const chequeados = items.filter((i) => !!i.chequeado_at && i.estado !== "entregado").length;
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
-  // Grupos operativos del flujo, derivados SOLO de estados existentes (sin lógica nueva).
+  const diasDesde = (iso?: string | null): number | null => {
+    if (!iso) return null;
+    const ms = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(ms)) return null;
+    return Math.max(0, Math.floor(ms / 86_400_000));
+  };
+  const fechaMs = (iso?: string | null) => iso ? new Date(iso).getTime() : Number.MAX_SAFE_INTEGER;
+  const entregaReciente = (it: CargaItem) => {
+    const dias = diasDesde(it.entregado_at);
+    return dias === null || dias <= 7;
+  };
+
   // VISTO = sigue en camioneta · NO VISTO = revisar entrega · CANCELADO = debe volver.
-  const itemsEnCamioneta = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !!i.chequeado_at);
-  const itemsParaEntregar = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !i.chequeado_at);
+  // Los pendientes se ordenan por antigüedad para que los olvidados aparezcan primero.
+  const itemsEnCamioneta = items
+    .filter((i) => i.estado === "cargado" && !cancelInfo(i) && !!i.chequeado_at)
+    .sort((a, b) => fechaMs(a.created_at) - fechaMs(b.created_at));
+  const itemsParaEntregar = items
+    .filter((i) => i.estado === "cargado" && !cancelInfo(i) && !i.chequeado_at)
+    .sort((a, b) => fechaMs(a.created_at) - fechaMs(b.created_at));
   const itemsAVolver = items.filter((i) => (i.estado === "cargado" && !!cancelInfo(i)) || i.estado === "retornado");
   const itemsNoEncontrados = items.filter((i) => i.estado === "faltante");
   const itemsEntregados = items.filter((i) => i.estado === "entregado");
+  const itemsEntregadosRecientes = itemsEntregados.filter(entregaReciente);
+  const itemsEntregadosAnteriores = itemsEntregados.filter((i) => !entregaReciente(i));
+  const itemsEntregadosVisibles = showEntregadosHist ? itemsEntregados : itemsEntregadosRecientes;
 
   const porCliente = (list: CargaItem[]) => {
     const g: Record<string, CargaItem[]> = {};
@@ -1057,6 +1101,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           {cancelado && (
             <span className="block text-[11px] text-destructive">
               Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
+            </span>
+          )}
+          {it.estado === "cargado" && diasDesde(it.created_at) !== null && (
+            <span className={`block text-[10px] ${(diasDesde(it.created_at) || 0) >= 30 ? "text-destructive font-medium" : (diasDesde(it.created_at) || 0) >= 14 ? "text-amber-500" : "text-muted-foreground"}`}>
+              En camioneta hace {diasDesde(it.created_at)} día{diasDesde(it.created_at) === 1 ? "" : "s"}
             </span>
           )}
           {sigueEnCamioneta && ord?.aviso_camioneta_enviado_at && (
@@ -1103,6 +1152,14 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
         <span className="block text-[11px] text-muted-foreground">{fuenteTexto(it)}</span>
       </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7"
+        onClick={() => consultarRecepcion(it)}
+      >
+        Consultar si lo recibió
+      </Button>
       <Button
         variant="outline"
         size="sm"
@@ -1239,8 +1296,8 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                       Control físico {chequeo.ronda > 1 ? `· control ${chequeo.ronda}` : ""}
                     </div>
                     <p className="text-xs text-muted-foreground">
-                      Control opcional, disponible cuando lo necesites: mirá la camioneta y anotá cuántas unidades ves de cada línea.
-                      Cerrar el control solo guarda lo observado: no cambia stock, pedidos, entregas ni devoluciones.
+                      Mirá la camioneta y marcá qué está y qué no está. “No está” registra 0 unidades; al cerrar el control pasa a “Revisar entrega”,
+                      donde podés marcar que fue entregado o consultar al alumno por WhatsApp. El control no modifica stock por sí solo.
                     </p>
                   </div>
                   <div className="flex gap-2">
@@ -1296,6 +1353,24 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
                                 registrarLineas([{ item_id: l.item_id, cantidad: n }]);
                               }}
                             />
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-[11px]"
+                              onClick={() => registrarLineas([{ item_id: l.item_id, cantidad: esperado }])}
+                            >
+                              Está
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="h-7 px-2 text-[11px]"
+                              onClick={() => registrarLineas([{ item_id: l.item_id, cantidad: 0 }])}
+                            >
+                              No está
+                            </Button>
                           </div>
                           <div className="text-[11px] w-24 text-right">
                             {!l.registrado ? (
@@ -1411,7 +1486,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           <section className="space-y-2">
             {seccionHeader("No encontrado en el último control · revisar entrega", itemsNoEncontrados.length)}
             <p className="text-xs text-muted-foreground">
-              El sistema esperaba esta mercadería en la camioneta pero no fue vista en el control. Puede haber sido entregada sin registrar.
+              El sistema esperaba esta mercadería pero no fue vista. Si no sabés si se entregó, consultá al alumno por WhatsApp antes de cambiar el estado.
             </p>
             {itemsNoEncontrados.length === 0 ? (
               grupoVacio("El último control encontró todo lo esperado.")
@@ -1422,12 +1497,21 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
           {/* 4 · ENTREGADO */}
           <section className="space-y-2">
-            {seccionHeader("Entregado", itemsEntregados.length)}
-            <p className="text-xs text-muted-foreground">Historial de lo que salió de la camioneta y fue entregado.</p>
-            {itemsEntregados.length === 0 ? (
-              grupoVacio("Todavía no se entregó nada de esta carga.")
+            <div className="flex items-center justify-between gap-2">
+              {seccionHeader(showEntregadosHist ? "Entregado · historial" : "Entregado · últimos 7 días", itemsEntregadosVisibles.length)}
+              {itemsEntregadosAnteriores.length > 0 && (
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={() => setShowEntregadosHist((v) => !v)}>
+                  {showEntregadosHist ? "Ocultar anteriores" : `Ver historial (${itemsEntregadosAnteriores.length})`}
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Los entregados se muestran 7 días para no acumular. Los anteriores quedan disponibles en historial.
+            </p>
+            {itemsEntregadosVisibles.length === 0 ? (
+              grupoVacio(itemsEntregados.length ? "No hay entregas de los últimos 7 días." : "Todavía no se entregó nada de esta carga.")
             ) : (
-              clienteCards(itemsEntregados)
+              clienteCards(itemsEntregadosVisibles)
             )}
           </section>
         </div>
