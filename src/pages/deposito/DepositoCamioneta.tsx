@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
 import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
+import { avisoWaLink, buildAvisoCamionetaMessage, formatAvisoFecha } from "@/lib/camionetaAviso";
 
 
 interface Sede { id: string; nombre: string; }
@@ -650,6 +651,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   // Pedidos de tienda cancelados cuya mercadería sigue arriba de la camioneta.
   const [cancelledByItem, setCancelledByItem] = useState<Record<string, { orderId: string; orderNumber: number | null }>>({});
   const [retornoBusy, setRetornoBusy] = useState<string | null>(null);
+  // Pedido de tienda / venta externa asociado a cada ítem (para el aviso de WhatsApp).
+  const [orderByItem, setOrderByItem] = useState<Record<string, any>>({});
+  const [externoByItem, setExternoByItem] = useState<Record<string, any>>({});
+  const [resolverBusy, setResolverBusy] = useState<string | null>(null);
+  const [avisoPendiente, setAvisoPendiente] = useState<{ orderId: string | null; label: string } | null>(null);
 
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
@@ -673,23 +679,58 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       if (orderIds.length) {
         const { data: ords } = await supabase
           .from("store_orders")
-          .select("id, order_number, status, stock_restored_at")
+          .select("id, order_number, status, stock_restored_at, total, currency, pagado_at, metodo_pago, customer_name, customer_phone, alumno_id, aviso_camioneta_enviado_at")
           .in("id", orderIds);
+        const alumnoIds = Array.from(new Set(((ords as any[]) || []).map((o: any) => o.alumno_id).filter(Boolean)));
+        const telByAlumno: Record<string, string> = {};
+        if (alumnoIds.length) {
+          const { data: als } = await supabase.from("alumnos").select("id, telefono").in("id", alumnoIds);
+          ((als as any[]) || []).forEach((a: any) => { if (a.telefono) telByAlumno[a.id] = a.telefono; });
+        }
+        const byId = new Map<string, any>();
+        ((ords as any[]) || []).forEach((o: any) => byId.set(o.id, { ...o, telefono: telByAlumno[o.alumno_id] || o.customer_phone || null }));
         const cancelled = new Map<string, any>();
-        (ords || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
+        ((ords as any[]) || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
         const map: Record<string, { orderId: string; orderNumber: number | null }> = {};
+        const ordMap: Record<string, any> = {};
         list.forEach((it: any) => {
           if (it.source_table !== "store_order_items") return;
           const rel = (soi || []).find((s: any) => s.id === it.source_id);
+          const full = rel?.order_id ? byId.get(rel.order_id) : null;
+          if (full) ordMap[it.id] = full;
           const ord = rel?.order_id ? cancelled.get(rel.order_id) : null;
           if (ord) map[it.id] = { orderId: ord.id, orderNumber: ord.order_number ?? null };
         });
         setCancelledByItem(map);
+        setOrderByItem(ordMap);
       } else {
         setCancelledByItem({});
+        setOrderByItem({});
       }
     } else {
       setCancelledByItem({});
+      setOrderByItem({});
+    }
+
+    // Ventas externas: teléfono del cliente para el recordatorio de retiro.
+    const extIds = list
+      .filter((i: any) => i.source_table === "pedidos_externos" && i.source_id)
+      .map((i: any) => i.source_id);
+    if (extIds.length) {
+      const { data: exts } = await supabase
+        .from("pedidos_externos")
+        .select("id, cliente_nombre, cliente_telefono, estado")
+        .in("id", extIds);
+      const byId = new Map<string, any>(((exts as any[]) || []).map((e: any) => [e.id, e]));
+      const extMap: Record<string, any> = {};
+      list.forEach((it: any) => {
+        if (it.source_table !== "pedidos_externos") return;
+        const e = byId.get(it.source_id);
+        if (e) extMap[it.id] = e;
+      });
+      setExternoByItem(extMap);
+    } else {
+      setExternoByItem({});
     }
     setLoading(false);
   };
@@ -704,6 +745,54 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setRetornoBusy(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Retorno confirmado: la mercadería volvió al depósito y el stock quedó repuesto.");
+    await load();
+  };
+
+  /** Resuelve un ítem que el control no encontró: ya fue entregado o sigue en la camioneta. */
+  const resolverItem = async (itemId: string, accion: "entregado" | "sigue_en_camioneta") => {
+    setResolverBusy(itemId);
+    const { error } = await (supabase as any).rpc("resolver_item_chequeo", { _item_id: itemId, _accion: accion });
+    setResolverBusy(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success(accion === "entregado" ? "Marcado como entregado." : "Vuelve a figurar en la camioneta.");
+    await load();
+  };
+
+  /** Recordatorio de retiro por WhatsApp para mercadería que sigue en la camioneta. */
+  const recordarRetiro = async (it: CargaItem, forzar = false) => {
+    const ord = orderByItem[it.id];
+    const ext = externoByItem[it.id];
+    if (ord) {
+      if (ord.aviso_camioneta_enviado_at && !forzar) {
+        if (!confirm(`Ya se avisó el ${formatAvisoFecha(ord.aviso_camioneta_enviado_at)}. ¿Enviar de nuevo?`)) return;
+      }
+      const { data: saldos } = await (supabase.rpc as any)("get_store_orders_saldo", { _ids: [ord.id] });
+      const saldo = Number((saldos || [])[0]?.saldo ?? ord.total ?? 0);
+      const nombre = String(ord.customer_name || it.cliente_nombre || "").split(" ")[0];
+      const link = avisoWaLink(ord.telefono || "", buildAvisoCamionetaMessage(nombre, ord, saldo));
+      if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
+      window.open(link, "_blank");
+      setAvisoPendiente({ orderId: ord.id, label: `Pedido #${ord.order_number ?? "—"}` });
+      return;
+    }
+    const nombre = String(ext?.cliente_nombre || it.cliente_nombre || "").split(" ")[0] || "cliente";
+    const link = avisoWaLink(ext?.cliente_telefono || "", `Hola, ${nombre}. Tu pedido sigue en la camioneta para que puedas retirarlo. ¡Gracias!`);
+    if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
+    window.open(link, "_blank");
+  };
+
+  /** El registro del aviso se guarda sólo cuando la persona confirma que lo envió. */
+  const confirmarAvisoEnviado = async () => {
+    const orderId = avisoPendiente?.orderId;
+    setAvisoPendiente(null);
+    if (!orderId) return;
+    const { data: auth } = await supabase.auth.getUser();
+    await supabase.from("store_orders").update({
+      aviso_camioneta_enviado_at: new Date().toISOString(),
+      aviso_camioneta_enviado_por: auth?.user?.id || null,
+      aviso_camioneta_enviado_por_email: auth?.user?.email || null,
+    } as any).eq("id", orderId);
+    toast.success("Aviso registrado.");
     await load();
   };
 
@@ -919,9 +1008,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
   // Grupos operativos del flujo, derivados SOLO de estados existentes (sin lógica nueva).
+  // VISTO = sigue en camioneta · NO VISTO = revisar entrega · CANCELADO = debe volver.
   const itemsEnCamioneta = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !!i.chequeado_at);
   const itemsParaEntregar = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !i.chequeado_at);
-  const itemsAVolver = items.filter((i) => (i.estado === "cargado" && !!cancelInfo(i)) || i.estado === "retornado" || i.estado === "faltante");
+  const itemsAVolver = items.filter((i) => (i.estado === "cargado" && !!cancelInfo(i)) || i.estado === "retornado");
+  const itemsNoEncontrados = items.filter((i) => i.estado === "faltante");
   const itemsEntregados = items.filter((i) => i.estado === "entregado");
 
   const porCliente = (list: CargaItem[]) => {
@@ -932,8 +1023,17 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     return g;
   };
 
+  const fuenteTexto = (it: CargaItem): string => {
+    const ord = orderByItem[it.id];
+    if (ord) return `Pedido #${ord.order_number ?? "—"}`;
+    if (externoByItem[it.id]) return "Venta externa";
+    return "Lista de entrega";
+  };
+
   const itemRow = (it: CargaItem) => {
     const cancelado = cancelInfo(it);
+    const sigueEnCamioneta = it.estado === "cargado" && !cancelado && !!it.chequeado_at;
+    const ord = orderByItem[it.id];
     return (
       <div key={it.id} className={`flex items-center gap-2 text-sm flex-wrap ${cancelado ? "rounded-md border border-destructive/40 bg-destructive/10 p-2" : ""}`}>
         <div className="flex-1 min-w-0">
@@ -944,6 +1044,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             <span className="block text-[11px] text-destructive">
               Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
             </span>
+          )}
+          {sigueEnCamioneta && ord?.aviso_camioneta_enviado_at && (
+            <span className="block text-[10px] text-muted-foreground">Avisado {formatAvisoFecha(ord.aviso_camioneta_enviado_at)}</span>
           )}
         </div>
         {cancelado ? (
@@ -962,6 +1065,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         ) : (
           <>
             {itemEstadoBadge(it.estado)}
+            {sigueEnCamioneta && (
+              <Button variant="outline" size="sm" className="h-7 text-green-600" onClick={() => recordarRetiro(it)}>
+                Recordar retiro
+              </Button>
+            )}
             {carga.estado === "abierta" && it.estado === "cargado" && (
               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
                 <X className="w-3 h-3" />
@@ -972,6 +1080,46 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       </div>
     );
   };
+
+  const revisarRow = (it: CargaItem) => (
+    <div key={it.id} className="flex items-center gap-2 text-sm flex-wrap rounded-md border border-border p-2">
+      <div className="flex-1 min-w-0">
+        <span className="text-foreground">{it.producto || "—"}</span>
+        {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
+        <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
+        <span className="block text-[11px] text-muted-foreground">{fuenteTexto(it)}</span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7"
+        disabled={resolverBusy === it.id}
+        onClick={() => resolverItem(it.id, "entregado")}
+      >
+        Ya fue entregado
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7"
+        disabled={resolverBusy === it.id}
+        onClick={() => resolverItem(it.id, "sigue_en_camioneta")}
+      >
+        Sigue en camioneta
+      </Button>
+    </div>
+  );
+
+  const revisarCards = (list: CargaItem[]) => (
+    <div className="space-y-3">
+      {Object.entries(porCliente(list)).map(([cliente, its]) => (
+        <div key={cliente} className="glass-card rounded-lg p-3">
+          <div className="font-medium text-sm text-foreground mb-2">{cliente}</div>
+          <div className="space-y-1.5">{its.map(revisarRow)}</div>
+        </div>
+      ))}
+    </div>
+  );
 
   const clienteCards = (list: CargaItem[]) => (
     <div className="space-y-3">
@@ -1045,7 +1193,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
           <Metric label="Controlados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
-          <Metric label="Faltantes" value={faltantes} tone="danger" />
+          <Metric label="Revisar entrega" value={faltantes} tone="danger" />
         </div>
       </div>
 
@@ -1234,14 +1382,27 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             </section>
           )}
 
-          {/* 3 · DEBE VOLVER A DEPÓSITO */}
+          {/* 3 · DEBE VOLVER A DEPÓSITO (sólo compras canceladas y retornos) */}
           <section className="space-y-2">
             {seccionHeader("Debe volver a depósito", itemsAVolver.length, "danger")}
-            <p className="text-xs text-muted-foreground">Compras canceladas, faltantes y retornos ya identificados por su estado.</p>
+            <p className="text-xs text-muted-foreground">Mercadería de compras canceladas que debe regresar al depósito, y retornos ya confirmados.</p>
             {itemsAVolver.length === 0 ? (
               grupoVacio("Nada pendiente de volver al depósito.")
             ) : (
               clienteCards(itemsAVolver)
+            )}
+          </section>
+
+          {/* 3b · NO ENCONTRADO EN EL ÚLTIMO CONTROL */}
+          <section className="space-y-2">
+            {seccionHeader("No encontrado en el último control · revisar entrega", itemsNoEncontrados.length)}
+            <p className="text-xs text-muted-foreground">
+              El sistema esperaba esta mercadería en la camioneta pero no fue vista en el control. Puede haber sido entregada sin registrar.
+            </p>
+            {itemsNoEncontrados.length === 0 ? (
+              grupoVacio("El último control encontró todo lo esperado.")
+            ) : (
+              revisarCards(itemsNoEncontrados)
             )}
           </section>
 
@@ -1257,6 +1418,22 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           </section>
         </div>
       )}
+
+
+      <Dialog open={!!avisoPendiente} onOpenChange={(v) => { if (!v) setAvisoPendiente(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading">¿Enviaste el aviso?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se abrió WhatsApp para {avisoPendiente?.label}. El registro se guarda sólo si confirmás que lo enviaste.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAvisoPendiente(null)}>No lo envié</Button>
+            <Button onClick={confirmarAvisoEnviado}>Ya lo envié</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
 
       <EtiquetaExternaCapture
