@@ -17207,6 +17207,10 @@ export type Database = {
         Args: { p_product_id: string; p_variante: string }
         Returns: string
       }
+      resolver_item_chequeo: {
+        Args: { _accion: string; _item_id: string }
+        Returns: Json
+      }
       resolver_precio_tienda: {
         Args: { p_product_id: string; p_variante?: Json }
         Returns: {
