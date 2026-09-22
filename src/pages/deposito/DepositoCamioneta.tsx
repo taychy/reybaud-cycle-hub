@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
 import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
+import { avisoWaLink, buildAvisoCamionetaMessage, formatAvisoFecha } from "@/lib/camionetaAviso";
 
 
 interface Sede { id: string; nombre: string; }
