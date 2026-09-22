@@ -473,41 +473,61 @@ Deno.serve(async (req) => {
     results.cuentas.push({ cuenta: c.slug, inserted, updated, matched });
   }
 
-  // El cron existente ejecuta esta función cada 15 min. Para no generar
-  // settlement reports innecesarios, aprovechamos ese mismo cron como
-  // orquestador y lanzamos el enriquecimiento sólo una vez cada 4 horas.
-  // Así no hace falta otro scheduler ni otra configuración sensible.
-  if (isCron && expectedCronKey) {
-    const now = new Date();
-    const shouldEnrich = now.getUTCMinutes() < 15 && now.getUTCHours() % 4 === 0;
-    if (shouldEnrich) {
-      try {
-        const enrichResp = await fetch(
-          `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-mp-settlement-report`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "x-cron-key": expectedCronKey,
-            },
-            body: JSON.stringify({ days: 30 }),
-          },
-        );
-        results.enrichment = {
-          triggered: true,
-          ok: enrichResp.ok,
-          status: enrichResp.status,
-        };
-      } catch (e) {
-        results.enrichment = {
-          triggered: true,
-          ok: false,
-          error: (e as Error).message,
-        };
+  // Segundo paso de conciliación:
+  // Payment Search es rápido y aporta el detalle de pagos, pero Mercado Pago
+  // puede omitir allí algunos movimientos que sí aparecen en "Actividad".
+  // El reporte "Todas las transacciones" funciona como control de completitud.
+  //
+  // - Cron: lo ejecutamos cada 4 horas para no generar reportes de más.
+  // - Sincronización manual de una cuenta: lo ejecutamos siempre para que el
+  //   botón "Sincronizar" sea realmente exhaustivo.
+  const now = new Date();
+  const shouldCronEnrich =
+    isCron &&
+    !!expectedCronKey &&
+    now.getUTCMinutes() < 15 &&
+    now.getUTCHours() % 4 === 0;
+  const shouldManualEnrich = !isCron && !!cuentaId;
+
+  if (shouldCronEnrich || shouldManualEnrich) {
+    try {
+      const enrichHeaders: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
+      if (shouldCronEnrich && expectedCronKey) {
+        enrichHeaders["x-cron-key"] = expectedCronKey;
+      } else {
+        const authHeader = req.headers.get("Authorization");
+        if (authHeader) enrichHeaders["Authorization"] = authHeader;
       }
-    } else {
-      results.enrichment = { triggered: false };
+
+      const enrichResp = await fetch(
+        `${Deno.env.get("SUPABASE_URL")}/functions/v1/enrich-mp-settlement-report`,
+        {
+          method: "POST",
+          headers: enrichHeaders,
+          body: JSON.stringify({
+            days: Math.max(days, 30),
+            cuenta_id: cuentaId,
+          }),
+        },
+      );
+      const enrichData = await enrichResp.json().catch(() => null);
+      results.enrichment = {
+        triggered: true,
+        ok: enrichResp.ok,
+        status: enrichResp.status,
+        result: enrichData,
+      };
+    } catch (e) {
+      results.enrichment = {
+        triggered: true,
+        ok: false,
+        error: (e as Error).message,
+      };
     }
+  } else {
+    results.enrichment = { triggered: false };
   }
 
   return json(200, { ok: true, ...results });
