@@ -1008,9 +1008,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const faltantes = items.filter((i) => i.estado === "faltante").length;
 
   // Grupos operativos del flujo, derivados SOLO de estados existentes (sin lógica nueva).
+  // VISTO = sigue en camioneta · NO VISTO = revisar entrega · CANCELADO = debe volver.
   const itemsEnCamioneta = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !!i.chequeado_at);
   const itemsParaEntregar = items.filter((i) => i.estado === "cargado" && !cancelInfo(i) && !i.chequeado_at);
-  const itemsAVolver = items.filter((i) => (i.estado === "cargado" && !!cancelInfo(i)) || i.estado === "retornado" || i.estado === "faltante");
+  const itemsAVolver = items.filter((i) => (i.estado === "cargado" && !!cancelInfo(i)) || i.estado === "retornado");
+  const itemsNoEncontrados = items.filter((i) => i.estado === "faltante");
   const itemsEntregados = items.filter((i) => i.estado === "entregado");
 
   const porCliente = (list: CargaItem[]) => {
@@ -1021,8 +1023,17 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     return g;
   };
 
+  const fuenteTexto = (it: CargaItem): string => {
+    const ord = orderByItem[it.id];
+    if (ord) return `Pedido #${ord.order_number ?? "—"}`;
+    if (externoByItem[it.id]) return "Venta externa";
+    return "Lista de entrega";
+  };
+
   const itemRow = (it: CargaItem) => {
     const cancelado = cancelInfo(it);
+    const sigueEnCamioneta = it.estado === "cargado" && !cancelado && !!it.chequeado_at;
+    const ord = orderByItem[it.id];
     return (
       <div key={it.id} className={`flex items-center gap-2 text-sm flex-wrap ${cancelado ? "rounded-md border border-destructive/40 bg-destructive/10 p-2" : ""}`}>
         <div className="flex-1 min-w-0">
@@ -1033,6 +1044,9 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             <span className="block text-[11px] text-destructive">
               Compra #{cancelado.orderNumber ?? "—"} cancelada · no entregar, devolver al depósito
             </span>
+          )}
+          {sigueEnCamioneta && ord?.aviso_camioneta_enviado_at && (
+            <span className="block text-[10px] text-muted-foreground">Avisado {formatAvisoFecha(ord.aviso_camioneta_enviado_at)}</span>
           )}
         </div>
         {cancelado ? (
@@ -1051,6 +1065,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         ) : (
           <>
             {itemEstadoBadge(it.estado)}
+            {sigueEnCamioneta && (
+              <Button variant="outline" size="sm" className="h-7 text-green-600" onClick={() => recordarRetiro(it)}>
+                Recordar retiro
+              </Button>
+            )}
             {carga.estado === "abierta" && it.estado === "cargado" && (
               <Button variant="ghost" size="icon" className="h-6 w-6 text-destructive" onClick={() => removeItem(it.id)}>
                 <X className="w-3 h-3" />
@@ -1061,6 +1080,46 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       </div>
     );
   };
+
+  const revisarRow = (it: CargaItem) => (
+    <div key={it.id} className="flex items-center gap-2 text-sm flex-wrap rounded-md border border-border p-2">
+      <div className="flex-1 min-w-0">
+        <span className="text-foreground">{it.producto || "—"}</span>
+        {it.variante && <span className="text-muted-foreground"> · {it.variante}</span>}
+        <span className="text-muted-foreground"> × {Number(it.cantidad)}</span>
+        <span className="block text-[11px] text-muted-foreground">{fuenteTexto(it)}</span>
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7"
+        disabled={resolverBusy === it.id}
+        onClick={() => resolverItem(it.id, "entregado")}
+      >
+        Ya fue entregado
+      </Button>
+      <Button
+        variant="outline"
+        size="sm"
+        className="h-7"
+        disabled={resolverBusy === it.id}
+        onClick={() => resolverItem(it.id, "sigue_en_camioneta")}
+      >
+        Sigue en camioneta
+      </Button>
+    </div>
+  );
+
+  const revisarCards = (list: CargaItem[]) => (
+    <div className="space-y-3">
+      {Object.entries(porCliente(list)).map(([cliente, its]) => (
+        <div key={cliente} className="glass-card rounded-lg p-3">
+          <div className="font-medium text-sm text-foreground mb-2">{cliente}</div>
+          <div className="space-y-1.5">{its.map(revisarRow)}</div>
+        </div>
+      ))}
+    </div>
+  );
 
   const clienteCards = (list: CargaItem[]) => (
     <div className="space-y-3">
