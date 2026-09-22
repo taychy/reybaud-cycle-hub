@@ -188,7 +188,7 @@ Deno.serve(async (req) => {
       summary.errors.push({ cuenta: c.slug, error: "token_no_configurado" });
       continue;
     }
-    const cuentaOut: any = { cuenta: c.slug, enriched: 0, matched: 0, insertedMissing: 0, autoIdentified: 0, pending: false };
+    const cuentaOut: any = { cuenta: c.slug, enriched: 0, matched: 0, autoIdentified: 0, pending: false };
 
     try {
       // Para conciliación completa necesitamos que el reporte incluya retiros
@@ -393,71 +393,11 @@ Deno.serve(async (req) => {
           .eq("mp_payment_id", String(paymentId))
           .maybeSingle();
 
-        if (!existing) {
-          // Payment Search no siempre expone todos los movimientos que sí
-          // impactaron el saldo (por ejemplo algunas transferencias enviadas).
-          // "Todas las transacciones" es el backstop autoritativo de completitud.
-          const transactionType = String(r.TRANSACTION_TYPE || "").toUpperCase();
-          const allowedTypes = new Set(["SETTLEMENT", "WITHDRAWAL", "PAYOUT", "WITHDRAWAL_CANCEL"]);
-          if (!allowedTypes.has(transactionType)) continue;
-
-          const parseNumber = (value: unknown): number | null => {
-            const raw = String(value ?? "").trim();
-            if (!raw) return null;
-            const n = Number(raw.replace(",", "."));
-            return Number.isFinite(n) ? n : null;
-          };
-
-          const txAmount = parseNumber(r.TRANSACTION_AMOUNT);
-          const netImpact = parseNumber(r.SETTLEMENT_NET_AMOUNT) ?? parseNumber(r.REAL_AMOUNT) ?? txAmount;
-          if (netImpact == null || netImpact === 0) continue;
-
-          const amount = Math.abs(txAmount ?? netImpact);
-          if (!Number.isFinite(amount) || amount <= 0) continue;
-
-          let alumnoId: string | null = null;
-          if (doc) alumnoId = lookupUniqueByDocument(alumnosByDocument, doc);
-          if (!alumnoId && email) alumnoId = alumnosByEmail.get(normalizeEmail(email)) ?? null;
-          if (!alumnoId && name) alumnoId = alumnosByBankName.get(normalizeName(name)) ?? null;
-
-          const reportDate =
-            r.TRANSACTION_DATE ||
-            r.SETTLEMENT_DATE ||
-            new Date().toISOString();
-
-          const { error: insertErr } = await supabase.from("mp_account_movements").insert({
-            cuenta_mp_id: c.id,
-            mp_payment_id: String(paymentId),
-            tipo: "settlement_report",
-            status: "approved",
-            status_detail: "settlement_report",
-            payment_method: r.PAYMENT_METHOD || null,
-            payment_type: r.PAYMENT_METHOD_TYPE || null,
-            amount,
-            net_received: netImpact,
-            fee_amount: Math.abs(parseNumber(r.FEE_AMOUNT) ?? 0),
-            currency: r.TRANSACTION_CURRENCY || r.SETTLEMENT_CURRENCY || "ARS",
-            description: null,
-            payer_email: email,
-            payer_name: name,
-            payer_document: doc,
-            external_reference: r.EXTERNAL_REFERENCE || null,
-            fecha_movimiento: reportDate,
-            raw: {
-              settlement_report: r,
-              settlement_report_backfill: true,
-            },
-            alumno_id: alumnoId,
-          });
-
-          if (insertErr) {
-            summary.errors.push({ cuenta: c.slug, mp: String(paymentId), error: `report_insert: ${insertErr.message}` });
-          } else {
-            cuentaOut.insertedMissing++;
-            if (alumnoId) cuentaOut.autoIdentified++;
-          }
-          continue;
-        }
+        // Este reporte se usa sólo para enriquecer movimientos ya existentes.
+        // No crea movimientos faltantes: SOURCE_ID puede repetirse en varias filas
+        // del CSV y colapsarlas como un pago único puede distorsionar importes.
+        // La completitud de egresos se concilia por release_report.
+        if (!existing) continue;
 
         cuentaOut.matched++;
 
