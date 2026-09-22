@@ -3211,6 +3211,7 @@ export type Database = {
           created_by: string | null
           cuenta_mp_id: string | null
           fecha: string
+          gasto_id: string | null
           id: string
           metodo: string
           moneda: string
@@ -3233,6 +3234,7 @@ export type Database = {
           created_by?: string | null
           cuenta_mp_id?: string | null
           fecha?: string
+          gasto_id?: string | null
           id?: string
           metodo?: string
           moneda?: string
@@ -3255,6 +3257,7 @@ export type Database = {
           created_by?: string | null
           cuenta_mp_id?: string | null
           fecha?: string
+          gasto_id?: string | null
           id?: string
           metodo?: string
           moneda?: string
@@ -3310,6 +3313,13 @@ export type Database = {
             columns: ["cuenta_mp_id"]
             isOneToOne: false
             referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devoluciones_gasto_id_fkey"
+            columns: ["gasto_id"]
+            isOneToOne: false
+            referencedRelation: "gastos"
             referencedColumns: ["id"]
           },
           {
@@ -6597,6 +6607,7 @@ export type Database = {
       }
       gastos: {
         Row: {
+          alumno_id: string | null
           categoria: string
           categoria_asignada_at: string | null
           categoria_asignada_por: string | null
@@ -6622,11 +6633,14 @@ export type Database = {
           proveedor: string | null
           recurrente: boolean
           registrado_por: string | null
+          reservation_id: string | null
           subcategoria: string | null
+          tipo_egreso: string
           unidad_negocio: string
           updated_at: string
         }
         Insert: {
+          alumno_id?: string | null
           categoria?: string
           categoria_asignada_at?: string | null
           categoria_asignada_por?: string | null
@@ -6652,11 +6666,14 @@ export type Database = {
           proveedor?: string | null
           recurrente?: boolean
           registrado_por?: string | null
+          reservation_id?: string | null
           subcategoria?: string | null
+          tipo_egreso?: string
           unidad_negocio?: string
           updated_at?: string
         }
         Update: {
+          alumno_id?: string | null
           categoria?: string
           categoria_asignada_at?: string | null
           categoria_asignada_por?: string | null
@@ -6682,11 +6699,34 @@ export type Database = {
           proveedor?: string | null
           recurrente?: boolean
           registrado_por?: string | null
+          reservation_id?: string | null
           subcategoria?: string | null
+          tipo_egreso?: string
           unidad_negocio?: string
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "gastos_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "gastos_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
           {
             foreignKeyName: "gastos_categoria_id_fkey"
             columns: ["categoria_id"]
@@ -6714,6 +6754,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "liquidaciones_mensuales"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gastos_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
           },
         ]
       }
@@ -16130,6 +16184,10 @@ export type Database = {
         }
         Returns: string
       }
+      desvincular_gasto_devolucion: {
+        Args: { p_gasto_id: string }
+        Returns: boolean
+      }
       eliminar_gasto_categoria: {
         Args: { _categoria_id: string }
         Returns: string
@@ -17830,6 +17888,16 @@ export type Database = {
       vincular_egreso_mp_coach: {
         Args: { _coach_id: string; _confirmar?: boolean; _movement_id: string }
         Returns: undefined
+      }
+      vincular_gasto_como_devolucion: {
+        Args: {
+          p_alumno_id?: string
+          p_gasto_id: string
+          p_motivo?: string
+          p_notas?: string
+          p_reservation_id?: string
+        }
+        Returns: string
       }
     }
     Enums: {

@@ -18,11 +18,12 @@ import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
   CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown, Link2,
   ChevronDown, ChevronUp, Archive, ArchiveRestore, History, Eye, EyeOff,
-  Tags,
+  Tags, RotateCcw, Link2Off,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import AgendaMes from "@/components/admin/gastos/AgendaMes";
 import MpEgresosTab from "@/components/admin/MpEgresosTab";
+import VincularGastoDevolucionDialog, { type GastoParaDevolucion } from "@/components/admin/VincularGastoDevolucionDialog";
 
 type Ambito = "personal" | "emprendimiento" | "mixto";
 type Frecuencia = "mensual" | "bimestral" | "trimestral" | "semestral" | "anual" | "variable";
@@ -97,6 +98,18 @@ interface GastoRow {
   origen_registro?: string | null;
   estado_conciliacion?: string | null;
   unidad_negocio?: UnidadNegocio | null;
+  event_id?: string | null;
+  alumno_id?: string | null;
+  reservation_id?: string | null;
+  tipo_egreso?: string | null;
+}
+
+interface DevolucionVinculada {
+  gasto_id: string;
+  devolucion_id: string;
+  alumno_nombre: string;
+  evento_nombre: string | null;
+  reservation_id: string | null;
 }
 
 const CATEGORIAS = ["Sueldos","Sueldos Variables","Vehiculo","Oficina","Servicios","Software","Honorarios","Marketing","Impuestos","Tarjetas","Educacion","Extras","Inversiones","Personal","Otros"];
@@ -228,6 +241,11 @@ const SuperAdminGastos = () => {
     forma_pago: "transferencia", concepto: "", notas: "",
   });
 
+  // Devoluciones a participantes vinculadas a un gasto
+  const [devolucionesPorGasto, setDevolucionesPorGasto] = useState<Record<string, DevolucionVinculada>>({});
+  const [devDialogOpen, setDevDialogOpen] = useState(false);
+  const [devGasto, setDevGasto] = useState<GastoParaDevolucion | null>(null);
+
   const loadDeudaSaldos = useCallback(async () => {
     const { data } = await supabase.rpc("get_all_gastos_saldo_deuda" as any);
     const map: Record<string, { saldo: number; moneda: string }> = {};
@@ -235,6 +253,25 @@ const SuperAdminGastos = () => {
       map[row.recurrente_id] = { saldo: Number(row.saldo_total || 0), moneda: row.moneda || "ARS" };
     }
     setDeudaSaldos(map);
+  }, []);
+
+  // Devoluciones a participantes: proyección semántica de un gasto ya registrado.
+  const loadDevoluciones = useCallback(async () => {
+    const { data } = await supabase
+      .from("devoluciones")
+      .select("id, gasto_id, reservation_id, alumnos(nombre, apellido), event_reservations(events(title))")
+      .not("gasto_id", "is", null);
+    const map: Record<string, DevolucionVinculada> = {};
+    for (const row of ((data as any[]) || [])) {
+      map[row.gasto_id] = {
+        gasto_id: row.gasto_id,
+        devolucion_id: row.id,
+        alumno_nombre: [row.alumnos?.nombre, row.alumnos?.apellido].filter(Boolean).join(" ") || "Participante",
+        evento_nombre: row.event_reservations?.events?.title ?? null,
+        reservation_id: row.reservation_id ?? null,
+      };
+    }
+    setDevolucionesPorGasto(map);
   }, []);
 
   const loadData = useCallback(async () => {
@@ -247,9 +284,9 @@ const SuperAdminGastos = () => {
     setRecurrentes((recRes.data || []) as any);
     setEjecuciones((ejecRes.data || []) as any);
     setGastos((gastosRes.data || []) as any);
-    await loadDeudaSaldos();
+    await Promise.all([loadDeudaSaldos(), loadDevoluciones()]);
     setLoading(false);
-  }, [mes, loadDeudaSaldos]);
+  }, [mes, loadDeudaSaldos, loadDevoluciones]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -488,6 +525,24 @@ const SuperAdminGastos = () => {
     toast({ title: "Unidad de negocio actualizada" });
     loadData();
   };
+
+  const abrirVincularDevolucion = (g: GastoRow) => {
+    setDevGasto({
+      id: g.id, descripcion: g.descripcion, monto: Number(g.monto), moneda: g.moneda,
+      fecha: g.fecha, forma_pago: g.forma_pago, mp_payment_id: g.mp_payment_id ?? null,
+      event_id: g.event_id ?? null, alumno_id: g.alumno_id ?? null, reservation_id: g.reservation_id ?? null,
+    });
+    setDevDialogOpen(true);
+  };
+
+  const desvincularDevolucion = async (g: GastoRow) => {
+    if (!confirm("¿Desvincular esta devolución? El gasto se conserva; sólo deja de contarse como devolución del participante.")) return;
+    const { error } = await supabase.rpc("desvincular_gasto_devolucion" as any, { p_gasto_id: g.id });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Devolución desvinculada" });
+    loadData();
+  };
+
 
 
   const deletePago = async (id: string) => {
@@ -857,6 +912,12 @@ const SuperAdminGastos = () => {
   return (
     <div className="space-y-6">
       <GastoCategoriasDialog open={categoriasOpen} onOpenChange={setCategoriasOpen} />
+      <VincularGastoDevolucionDialog
+        open={devDialogOpen}
+        onOpenChange={(o) => { setDevDialogOpen(o); if (!o) setDevGasto(null); }}
+        gasto={devGasto}
+        onDone={loadData}
+      />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gastos</h1>
@@ -1380,7 +1441,24 @@ const SuperAdminGastos = () => {
                                     {g.estado_conciliacion === "pendiente_conciliar" && (
                                       <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0" title="Pendiente de conciliar">⚠</Badge>
                                     )}
+                                    {devolucionesPorGasto[g.id] && (
+                                      <Badge className="text-[10px] h-5 px-1.5 shrink-0 bg-orange-500/15 text-orange-500 border-orange-500/30">Devolución</Badge>
+                                    )}
                                   </div>
+                                  {devolucionesPorGasto[g.id] && (
+                                    <div className="flex items-center gap-1 flex-wrap mt-1">
+                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">{devolucionesPorGasto[g.id].alumno_nombre}</Badge>
+                                      {devolucionesPorGasto[g.id].evento_nombre && (
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">{devolucionesPorGasto[g.id].evento_nombre}</Badge>
+                                      )}
+                                      {devolucionesPorGasto[g.id].reservation_id && (
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">Reserva vinculada</Badge>
+                                      )}
+                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                        {g.estado_conciliacion === "conciliado" ? "Conciliado" : "Sin conciliar"}
+                                      </Badge>
+                                    </div>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
                                 <TableCell>
@@ -1395,6 +1473,11 @@ const SuperAdminGastos = () => {
                                 <TableCell>
                                   <div className="flex gap-1">
                                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                                    {devolucionesPorGasto[g.id] ? (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-500" onClick={() => desvincularDevolucion(g)} title="Desvincular devolución (el gasto se conserva)"><Link2Off className="w-3 h-3" /></Button>
+                                    ) : (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => abrirVincularDevolucion(g)} title="Vincular como devolución de un participante"><RotateCcw className="w-3 h-3" /></Button>
+                                    )}
                                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
                                   </div>
                                 </TableCell>
