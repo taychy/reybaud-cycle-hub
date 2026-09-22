@@ -58,6 +58,33 @@ interface ConciliacionCuenta {
   diferencia: number;
 }
 
+interface CashBoxBalance {
+  baseline_date: string | null;
+  baseline_amount: number;
+  ingresos: number;
+  egresos: number;
+  expected_amount: number;
+  movements_count: number;
+  review_count: number;
+  review_amount: number;
+  other_currencies: Record<string, { ingresos: number; egresos: number; neto: number; movimientos: number }>;
+}
+
+interface CashBoxMovement {
+  movement_date: string;
+  occurred_at: string;
+  direction: "baseline" | "ingreso" | "egreso";
+  unit: string;
+  origin: string;
+  ref_id: string | null;
+  description: string;
+  person: string | null;
+  amount: number;
+  currency: string;
+  needs_review: boolean;
+  note: string | null;
+}
+
 const todayStr = () => format(new Date(), "yyyy-MM-dd");
 
 export default function AdminCierreCaja() {
@@ -74,18 +101,33 @@ export default function AdminCierreCaja() {
   const [expanded, setExpanded] = useState<Record<Unidad, boolean>>({ escuela: false, viajes: false, tienda: false });
   const [detalles, setDetalles] = useState<Record<Unidad, DetalleRow[]>>({ escuela: [], viajes: [], tienda: [] });
   const [historial, setHistorial] = useState<Cierre[]>([]);
+  const [cashBox, setCashBox] = useState<CashBoxBalance | null>(null);
+  const [cashMovements, setCashMovements] = useState<CashBoxMovement[]>([]);
+  const [cashExpanded, setCashExpanded] = useState(false);
+  const [showMovementForm, setShowMovementForm] = useState(false);
+  const [savingMovement, setSavingMovement] = useState(false);
+  const [movementForm, setMovementForm] = useState({
+    direction: "egreso",
+    unit: "general",
+    amount: "",
+    currency: "ARS",
+    description: "",
+    notes: "",
+  });
 
   const cerrado = cierre?.estado === "cerrado";
 
   async function loadAll() {
     setLoading(true);
     try {
-      const [tRes, kRes, kcRes, cRes, hRes] = await Promise.all([
+      const [tRes, kRes, kcRes, cRes, hRes, cashRes, cashMovRes] = await Promise.all([
         supabase.rpc("get_efectivo_del_dia", { p_fecha: fecha }),
         supabase.rpc("get_conciliacion_del_dia", { p_fecha: fecha }),
         supabase.rpc("get_conciliacion_por_cuenta_del_dia" as any, { p_fecha: fecha }),
         supabase.from("cierres_caja_diarios").select("*").eq("fecha", fecha).maybeSingle(),
         supabase.from("cierres_caja_diarios").select("*").order("fecha", { ascending: false }).limit(30),
+        supabase.rpc("get_cash_box_balance" as any, { p_hasta: todayStr() }),
+        supabase.rpc("get_cash_box_movements" as any, { p_hasta: todayStr() }),
       ]);
       if (tRes.error) throw tRes.error;
       const t = (tRes.data as any)?.[0] || tRes.data;
@@ -106,6 +148,11 @@ export default function AdminCierreCaja() {
       setNotas(c?.notas || "");
 
       if (hRes.data) setHistorial(hRes.data as Cierre[]);
+      if (!cashRes.error) {
+        const cb = (cashRes.data as any)?.[0] || cashRes.data;
+        setCashBox(cb || null);
+      }
+      if (!cashMovRes.error) setCashMovements(((cashMovRes.data as any) || []) as CashBoxMovement[]);
     } catch (e: any) {
       toast.error("Error al cargar", { description: e.message });
     } finally {
@@ -193,6 +240,39 @@ export default function AdminCierreCaja() {
     { key: "tienda", label: "Tienda", icon: ShoppingBag, sistema: totales?.tienda ?? 0, count: totales?.tienda_count ?? 0, diff: diffTienda },
   ];
 
+  async function registrarMovimientoCaja() {
+    const amount = Number(movementForm.amount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error("Ingresá un monto válido");
+      return;
+    }
+    if (!movementForm.description.trim()) {
+      toast.error("Indicá el concepto del movimiento");
+      return;
+    }
+    setSavingMovement(true);
+    try {
+      const { error } = await supabase.rpc("register_cash_box_manual_movement" as any, {
+        p_direction: movementForm.direction,
+        p_unit: movementForm.unit,
+        p_amount: amount,
+        p_description: movementForm.description.trim(),
+        p_notes: movementForm.notes.trim() || null,
+        p_occurred_at: new Date().toISOString(),
+        p_currency: movementForm.currency,
+      });
+      if (error) throw error;
+      toast.success(movementForm.direction === "egreso" ? "Retiro registrado" : "Ingreso registrado");
+      setMovementForm({ direction: "egreso", unit: "general", amount: "", currency: "ARS", description: "", notes: "" });
+      setShowMovementForm(false);
+      await loadAll();
+    } catch (e: any) {
+      toast.error("No se pudo registrar el movimiento", { description: e.message });
+    } finally {
+      setSavingMovement(false);
+    }
+  }
+
   async function syncMP() {
     setSyncing(true);
     try {
@@ -232,6 +312,199 @@ export default function AdminCierreCaja() {
           )}
         </div>
       </div>
+
+      <Card className="border-primary/30">
+        <CardHeader className="pb-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wallet className="w-4 h-4" /> Efectivo esperado en caja ahora
+              </CardTitle>
+              <div className="text-xs text-muted-foreground mt-1">
+                Según el último arqueo físico y todos los ingresos/egresos en efectivo registrados.
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCashExpanded((v) => !v)}>
+                {cashExpanded ? <ChevronUp className="w-3 h-3 mr-1" /> : <ChevronDown className="w-3 h-3 mr-1" />}
+                {cashExpanded ? "Ocultar detalle" : "Ver detalle"}
+              </Button>
+              <Button size="sm" onClick={() => setShowMovementForm((v) => !v)}>
+                {showMovementForm ? "Cancelar" : "Registrar movimiento"}
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-muted-foreground">Debería haber</div>
+              <div className="font-mono text-2xl font-bold">{formatPrice(cashBox?.expected_amount ?? 0, "ARS")}</div>
+              <div className="text-[11px] text-muted-foreground">ARS</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-muted-foreground">Último arqueo físico</div>
+              <div className="font-mono text-lg font-semibold">{formatPrice(cashBox?.baseline_amount ?? 0, "ARS")}</div>
+              <div className="text-[11px] text-muted-foreground">
+                {cashBox?.baseline_date ? format(new Date(cashBox.baseline_date + "T12:00:00"), "dd/MM/yyyy") : "Sin cierre previo"}
+              </div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-muted-foreground">Ingresos desde ese cierre</div>
+              <div className="font-mono text-lg font-semibold text-green-600">+{formatPrice(cashBox?.ingresos ?? 0, "ARS")}</div>
+              <div className="text-[11px] text-muted-foreground">{cashBox?.movements_count ?? 0} movimientos ARS</div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <div className="text-xs text-muted-foreground">Egresos desde ese cierre</div>
+              <div className="font-mono text-lg font-semibold text-red-600">−{formatPrice(cashBox?.egresos ?? 0, "ARS")}</div>
+              <div className="text-[11px] text-muted-foreground">gastos, devoluciones y retiros</div>
+            </div>
+          </div>
+
+          {(cashBox?.review_count ?? 0) > 0 && (
+            <div className="rounded-lg border border-amber-500/50 bg-amber-500/5 p-3 text-sm flex items-start gap-2">
+              <AlertTriangle className="w-4 h-4 text-amber-600 mt-0.5 shrink-0" />
+              <div>
+                <div className="font-medium">Hay {cashBox?.review_count} movimiento(s) a revisar por {formatPrice(cashBox?.review_amount ?? 0, "ARS")}</div>
+                <div className="text-xs text-muted-foreground">El detalle los marca para que confirmes si realmente correspondieron a efectivo físico.</div>
+              </div>
+            </div>
+          )}
+
+          {cashBox?.other_currencies && Object.keys(cashBox.other_currencies).length > 0 && (
+            <div className="rounded-lg border p-3 text-sm">
+              <div className="font-medium mb-2">Otras monedas — no se suman al total ARS</div>
+              <div className="flex flex-wrap gap-3">
+                {Object.entries(cashBox.other_currencies).map(([currency, fx]) => (
+                  <div key={currency} className="text-xs">
+                    <span className="font-semibold">{currency}</span>: ingresos {formatPrice(Number(fx.ingresos || 0), currency as any)} ·
+                    egresos {formatPrice(Number(fx.egresos || 0), currency as any)} ·
+                    neto {formatPrice(Number(fx.neto || 0), currency as any)}
+                  </div>
+                ))}
+              </div>
+              <div className="text-[11px] text-muted-foreground mt-1">El último arqueo histórico no separaba saldo inicial por moneda extranjera.</div>
+            </div>
+          )}
+
+          {showMovementForm && (
+            <div className="rounded-lg border p-3 space-y-3 bg-muted/20">
+              <div className="font-medium text-sm">Registrar movimiento físico de caja</div>
+              <div className="grid gap-3 md:grid-cols-4">
+                <div>
+                  <Label className="text-xs">Tipo</Label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={movementForm.direction}
+                    onChange={(e) => setMovementForm((p) => ({ ...p, direction: e.target.value }))}
+                  >
+                    <option value="egreso">Retiro / egreso</option>
+                    <option value="ingreso">Ingreso manual</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Unidad</Label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={movementForm.unit}
+                    onChange={(e) => setMovementForm((p) => ({ ...p, unit: e.target.value }))}
+                  >
+                    <option value="general">General</option>
+                    <option value="escuela">Escuela</option>
+                    <option value="viajes">Viajes / Eventos</option>
+                    <option value="tienda">Tienda</option>
+                  </select>
+                </div>
+                <div>
+                  <Label className="text-xs">Monto</Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={movementForm.amount}
+                    onChange={(e) => setMovementForm((p) => ({ ...p, amount: e.target.value }))}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Moneda</Label>
+                  <select
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                    value={movementForm.currency}
+                    onChange={(e) => setMovementForm((p) => ({ ...p, currency: e.target.value }))}
+                  >
+                    <option value="ARS">ARS</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <Label className="text-xs">Concepto</Label>
+                  <Input
+                    value={movementForm.description}
+                    onChange={(e) => setMovementForm((p) => ({ ...p, description: e.target.value }))}
+                    placeholder="Ej.: retiro para pagar proveedor"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs">Nota opcional</Label>
+                  <Input
+                    value={movementForm.notes}
+                    onChange={(e) => setMovementForm((p) => ({ ...p, notes: e.target.value }))}
+                    placeholder="Quién retiró, destino, aclaración..."
+                  />
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <Button onClick={registrarMovimientoCaja} disabled={savingMovement}>
+                  {savingMovement && <Loader2 className="w-4 h-4 mr-1 animate-spin" />}
+                  Guardar movimiento
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {cashExpanded && (
+            <div className="rounded-lg border overflow-hidden">
+              <div className="px-3 py-2 bg-muted/30 text-xs font-medium">
+                Composición del efectivo esperado
+              </div>
+              <div className="max-h-[420px] overflow-auto">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 bg-background border-b">
+                    <tr>
+                      <th className="text-left py-2 px-3">Fecha</th>
+                      <th className="text-left px-3">Origen</th>
+                      <th className="text-left px-3">Detalle</th>
+                      <th className="text-left px-3">Unidad</th>
+                      <th className="text-right px-3">Movimiento</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...cashMovements].reverse().map((m, idx) => (
+                      <tr key={m.ref_id || `baseline-${idx}`} className={`border-b last:border-0 ${m.needs_review ? "bg-amber-500/5" : ""}`}>
+                        <td className="py-2 px-3 whitespace-nowrap">{format(new Date(m.movement_date + "T12:00:00"), "dd/MM/yy")}</td>
+                        <td className="px-3 capitalize">{m.origin.replaceAll("_", " ")}</td>
+                        <td className="px-3">
+                          <div>{m.person ? `${m.person} · ` : ""}{m.description}</div>
+                          {m.note && <div className="text-[10px] text-muted-foreground">{m.note}</div>}
+                        </td>
+                        <td className="px-3 capitalize">{m.unit}</td>
+                        <td className={`px-3 text-right font-mono whitespace-nowrap ${m.direction === "ingreso" ? "text-green-600" : m.direction === "egreso" ? "text-red-600" : ""}`}>
+                          {m.direction === "ingreso" ? "+" : m.direction === "egreso" ? "−" : ""}
+                          {formatPrice(Number(m.amount || 0), m.currency as any)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {loading && !totales ? (
         <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
