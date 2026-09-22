@@ -1420,6 +1420,22 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       )}
 
 
+      <Dialog open={!!avisoPendiente} onOpenChange={(v) => { if (!v) setAvisoPendiente(null); }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-heading">¿Enviaste el aviso?</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Se abrió WhatsApp para {avisoPendiente?.label}. El registro se guarda sólo si confirmás que lo enviaste.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAvisoPendiente(null)}>No lo envié</Button>
+            <Button onClick={confirmarAvisoEnviado}>Ya lo envié</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+
       <EtiquetaExternaCapture
         open={etiquetaOpen}
         onOpenChange={setEtiquetaOpen}
