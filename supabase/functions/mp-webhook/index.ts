@@ -59,6 +59,219 @@ async function resolveWebhookToken(
   return { token: legacy, slug: null, data: null, ok: false };
 }
 
+const normalizeEmail = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase();
+
+const normalizeDigits = (value: unknown) =>
+  String(value ?? "").replace(/\D/g, "");
+
+const documentKeys = (value: unknown): string[] => {
+  const digits = normalizeDigits(value);
+  if (!digits) return [];
+  const keys = new Set<string>([digits]);
+  if (digits.length === 11) {
+    const dni8 = digits.slice(2, 10);
+    keys.add(dni8);
+    keys.add(dni8.replace(/^0+/, ""));
+  } else if (digits.length <= 8) {
+    keys.add(digits.padStart(8, "0"));
+    keys.add(digits.replace(/^0+/, ""));
+  }
+  return [...keys].filter(Boolean);
+};
+
+const normalizeName = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+const extractPayerName = (p: any): string | null => {
+  const direct = [p?.payer?.first_name, p?.payer?.last_name].filter(Boolean).join(" ").trim();
+  if (direct) return direct;
+  const extra = [p?.additional_info?.payer?.first_name, p?.additional_info?.payer?.last_name]
+    .filter(Boolean).join(" ").trim();
+  if (extra) return extra;
+  const cardholder = p?.card?.cardholder?.name;
+  return cardholder ? String(cardholder).trim() || null : null;
+};
+
+async function persistMpAccountMovement(
+  supabaseAdmin: ReturnType<typeof createClient>,
+  payment: any,
+  resolved: { token: string; slug: string | null },
+) {
+  if (!payment?.id || !resolved.slug) return { stored: false, reason: "account_not_resolved" };
+
+  const { data: cuenta } = await supabaseAdmin
+    .from("cuentas_mp")
+    .select("id, slug")
+    .eq("slug", resolved.slug)
+    .maybeSingle();
+  if (!cuenta?.id) return { stored: false, reason: "account_not_found" };
+
+  let ownEmail = "";
+  let ownDocument = "";
+  let ownName = "";
+  try {
+    const meResp = await fetch("https://api.mercadopago.com/users/me", {
+      headers: { Authorization: `Bearer ${resolved.token}` },
+    });
+    if (meResp.ok) {
+      const me = await meResp.json();
+      ownEmail = normalizeEmail(me?.email);
+      ownDocument = normalizeDigits(me?.identification?.number);
+      ownName = normalizeName([me?.first_name, me?.last_name].filter(Boolean).join(" "));
+    }
+  } catch (e) {
+    console.warn("[mp-webhook] no se pudo leer /users/me", (e as Error).message);
+  }
+
+  const rawEmail = normalizeEmail(payment?.payer?.email ?? payment?.additional_info?.payer?.email);
+  const rawDocumentValue =
+    payment?.payer?.identification?.number ??
+    payment?.additional_info?.payer?.identification?.number ??
+    null;
+  const rawDocument = normalizeDigits(rawDocumentValue);
+  const rawNameValue = extractPayerName(payment);
+  const rawName = normalizeName(rawNameValue);
+
+  const payerEmail = rawEmail && rawEmail !== ownEmail ? rawEmail : null;
+  const payerDocument = rawDocument && rawDocument !== ownDocument
+    ? String(rawDocumentValue).trim()
+    : null;
+  const payerName = rawNameValue && (!ownName || rawName !== ownName)
+    ? rawNameValue
+    : null;
+
+  const mpId = String(payment.id);
+  let reservationPaymentId: string | null = null;
+  let suscripcionId: string | null = null;
+  let alumnoId: string | null = null;
+
+  const { data: rp } = await supabaseAdmin
+    .from("reservation_payments")
+    .select("id, alumno_id")
+    .eq("mp_payment_id", mpId)
+    .maybeSingle();
+  if (rp) {
+    reservationPaymentId = rp.id;
+    alumnoId = rp.alumno_id ?? null;
+  } else {
+    const { data: sub } = await supabaseAdmin
+      .from("suscripciones")
+      .select("id, alumno_id")
+      .eq("mp_payment_id", mpId)
+      .maybeSingle();
+    if (sub) {
+      suscripcionId = sub.id;
+      alumnoId = sub.alumno_id ?? null;
+    }
+  }
+
+  // Transferencias directas suelen no tener external_reference. En ese caso
+  // resolvemos identidad con señales fuertes y sólo si la coincidencia es única.
+  if (!alumnoId && (payerDocument || payerEmail || payerName)) {
+    const { data: alumnos } = await supabaseAdmin
+      .from("alumnos")
+      .select("id, email, emails_adicionales, documento, nombres_bancarios");
+
+    const matches = new Set<string>();
+    const payerDocKeys = new Set(documentKeys(payerDocument));
+    const payerEmailNorm = normalizeEmail(payerEmail);
+    const payerNameNorm = normalizeName(payerName);
+
+    for (const a of alumnos ?? []) {
+      let matched = false;
+
+      if (payerDocKeys.size > 0) {
+        matched = documentKeys((a as any).documento).some((key) => payerDocKeys.has(key));
+      }
+
+      if (!matched && payerEmailNorm) {
+        const emails = [(a as any).email, ...((a as any).emails_adicionales ?? [])]
+          .map(normalizeEmail)
+          .filter(Boolean);
+        matched = emails.includes(payerEmailNorm);
+      }
+
+      if (!matched && payerNameNorm) {
+        const bankNames = ((a as any).nombres_bancarios ?? [])
+          .map(normalizeName)
+          .filter(Boolean);
+        matched = bankNames.includes(payerNameNorm);
+      }
+
+      if (matched) matches.add((a as any).id);
+    }
+
+    if (matches.size === 1) alumnoId = [...matches][0];
+  }
+
+  const feeAmount = Array.isArray(payment?.fee_details)
+    ? payment.fee_details.reduce((sum: number, fee: any) => sum + Number(fee?.amount ?? 0), 0)
+    : null;
+
+  const row: Record<string, unknown> = {
+    cuenta_mp_id: cuenta.id,
+    mp_payment_id: mpId,
+    tipo: "payment",
+    direccion: "ingreso",
+    status: payment?.status ?? null,
+    status_detail: payment?.status_detail ?? null,
+    payment_method: payment?.payment_method_id ?? null,
+    payment_type: payment?.payment_type_id ?? null,
+    amount: Number(payment?.transaction_amount ?? 0),
+    net_received: payment?.transaction_details?.net_received_amount != null
+      ? Number(payment.transaction_details.net_received_amount)
+      : null,
+    fee_amount: feeAmount,
+    currency: payment?.currency_id ?? "ARS",
+    description: payment?.description ?? null,
+    payer_email: payerEmail,
+    payer_name: payerName,
+    payer_document: payerDocument,
+    external_reference: payment?.external_reference ?? null,
+    fecha_movimiento: payment?.date_created ?? new Date().toISOString(),
+    raw: payment,
+    alumno_id: alumnoId,
+    reservation_payment_id: reservationPaymentId,
+    suscripcion_id: suscripcionId,
+  };
+
+  const { data: existing } = await supabaseAdmin
+    .from("mp_account_movements")
+    .select("id, alumno_id, reservation_payment_id, suscripcion_id, assigned_manually")
+    .eq("cuenta_mp_id", cuenta.id)
+    .eq("mp_payment_id", mpId)
+    .maybeSingle();
+
+  if (existing) {
+    if (existing.assigned_manually) {
+      delete row.alumno_id;
+      delete row.reservation_payment_id;
+      delete row.suscripcion_id;
+    } else {
+      row.alumno_id = alumnoId ?? existing.alumno_id ?? null;
+      row.reservation_payment_id = reservationPaymentId ?? existing.reservation_payment_id ?? null;
+      row.suscripcion_id = suscripcionId ?? existing.suscripcion_id ?? null;
+    }
+    const { error } = await supabaseAdmin
+      .from("mp_account_movements")
+      .update(row)
+      .eq("id", existing.id);
+    if (error) throw error;
+    return { stored: true, updated: true, alumno_id: row.alumno_id ?? existing.alumno_id ?? null };
+  }
+
+  const { error } = await supabaseAdmin.from("mp_account_movements").insert(row);
+  if (error) throw error;
+  return { stored: true, inserted: true, alumno_id: alumnoId };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -318,9 +531,24 @@ Deno.serve(async (req) => {
       via: paymentResolved.slug,
     });
 
+    // Todo payment que llegue por webhook se refleja inmediatamente en
+    // mp_account_movements, incluso una transferencia directa sin referencia.
+    // Esto convierte al webhook en el camino principal de conciliación.
+    let movementResult: any = null;
+    try {
+      movementResult = await persistMpAccountMovement(supabaseAdmin, payment, paymentResolved);
+    } catch (movementError) {
+      console.error("[mp-webhook] no se pudo persistir movimiento", movementError);
+      // No abortamos el flujo existente: reservas/tienda/eventos deben seguir.
+    }
+
     if (!payment.external_reference) {
-      console.log("No external_reference, skipping");
-      return new Response(JSON.stringify({ ok: true, no_ref: true }), {
+      console.log("No external_reference; movimiento conciliado por webhook", movementResult);
+      return new Response(JSON.stringify({
+        ok: true,
+        no_ref: true,
+        movement: movementResult,
+      }), {
         status: 200,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
