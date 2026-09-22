@@ -1,6 +1,8 @@
 // Sincroniza movimientos (cobros) de cada cuenta MP activa (v2)
 // public.mp_account_movements. Intenta auto-linkear con reservation_payments,
-// suscripciones y alumnos por mp_payment_id y payer.email.
+// suscripciones y alumnos por payment_id, documento, email y nombre bancario.
+// También descarta como "pagador" los datos que Mercado Pago devuelve de la
+// propia cuenta receptora.
 //
 // POST /sync-mp-account-movements { days?: number, cuenta_id?: string }
 
@@ -22,6 +24,37 @@ const json = (status: number, data: unknown) =>
 async function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
+
+const normalizeEmail = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase();
+
+const normalizeDigits = (value: unknown) =>
+  String(value ?? "").replace(/\D/g, "");
+
+const normalizeName = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+
+const addUnique = (map: Map<string, string | null>, key: string, alumnoId: string) => {
+  if (!key) return;
+  if (!map.has(key)) map.set(key, alumnoId);
+  else if (map.get(key) !== alumnoId) map.set(key, null);
+};
+
+const extractPayerName = (p: any): string | null => {
+  const parts = [p?.payer?.first_name, p?.payer?.last_name].filter(Boolean).join(" ").trim();
+  if (parts) return parts;
+  const ai = [p?.additional_info?.payer?.first_name, p?.additional_info?.payer?.last_name].filter(Boolean).join(" ").trim();
+  if (ai) return ai;
+  const ch = p?.card?.cardholder?.name;
+  if (ch) return String(ch).trim() || null;
+  return null;
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
@@ -62,6 +95,28 @@ Deno.serve(async (req) => {
   const { data: cuentas, error: cErr } = await q;
   if (cErr) return json(500, { error: cErr.message });
 
+  // Índices de identidad de alumnos. Guardamos null cuando una clave es
+  // ambigua para no autoasignar nunca por una coincidencia no única.
+  const { data: alumnosIdentidad, error: aErr } = await supabase
+    .from("alumnos")
+    .select("id, email, emails_adicionales, documento, nombres_bancarios");
+  if (aErr) return json(500, { error: aErr.message });
+
+  const alumnosByEmail = new Map<string, string | null>();
+  const alumnosByDocument = new Map<string, string | null>();
+  const alumnosByBankName = new Map<string, string | null>();
+
+  for (const a of alumnosIdentidad ?? []) {
+    addUnique(alumnosByEmail, normalizeEmail((a as any).email), (a as any).id);
+    for (const e of ((a as any).emails_adicionales ?? [])) {
+      addUnique(alumnosByEmail, normalizeEmail(e), (a as any).id);
+    }
+    addUnique(alumnosByDocument, normalizeDigits((a as any).documento), (a as any).id);
+    for (const n of ((a as any).nombres_bancarios ?? [])) {
+      addUnique(alumnosByBankName, normalizeName(n), (a as any).id);
+    }
+  }
+
   const results: any = { cuentas: [], errors: [] as any[] };
   const sinceIso = new Date(Date.now() - days * 86400_000).toISOString();
   const beginDate = sinceIso;
@@ -73,6 +128,49 @@ Deno.serve(async (req) => {
       results.errors.push({ cuenta: c.slug, error: "token_no_configurado" });
       continue;
     }
+
+    // Mercado Pago puede devolver en payer.* datos de la propia cuenta
+    // receptora, especialmente en transferencias. Leemos /users/me con el
+    // token de cada cuenta para poder descartarlos sin hardcodear emails.
+    let ownEmail = "";
+    let ownDocument = "";
+    let ownName = "";
+    try {
+      const meResp = await fetch("https://api.mercadopago.com/users/me", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (meResp.ok) {
+        const me = await meResp.json();
+        ownEmail = normalizeEmail(me?.email);
+        ownDocument = normalizeDigits(me?.identification?.number);
+        ownName = normalizeName([me?.first_name, me?.last_name].filter(Boolean).join(" "));
+      } else {
+        results.errors.push({ cuenta: c.slug, error: `mp_profile_${meResp.status}` });
+      }
+    } catch (e) {
+      results.errors.push({ cuenta: c.slug, error: `mp_profile_fetch_failed: ${(e as Error).message}` });
+    }
+
+    const getSafePayerIdentity = (p: any) => {
+      const rawEmail = normalizeEmail(p?.payer?.email ?? p?.additional_info?.payer?.email);
+      const rawDocumentValue =
+        p?.payer?.identification?.number ??
+        p?.additional_info?.payer?.identification?.number ??
+        null;
+      const rawDocument = normalizeDigits(rawDocumentValue);
+      const rawNameValue = extractPayerName(p);
+      const rawName = normalizeName(rawNameValue);
+
+      return {
+        email: rawEmail && rawEmail !== ownEmail ? rawEmail : null,
+        document: rawDocument && rawDocument !== ownDocument
+          ? String(rawDocumentValue).trim()
+          : null,
+        name: rawNameValue && (!ownName || rawName !== ownName)
+          ? rawNameValue
+          : null,
+      };
+    };
 
     let inserted = 0, updated = 0, matched = 0;
     let offset = 0;
@@ -110,18 +208,9 @@ Deno.serve(async (req) => {
       const total = payload?.paging?.total ?? items.length;
       if (items.length === 0) break;
 
-      const extractPayerName = (p: any): string | null => {
-        const parts = [p?.payer?.first_name, p?.payer?.last_name].filter(Boolean).join(" ").trim();
-        if (parts) return parts;
-        const ai = [p?.additional_info?.payer?.first_name, p?.additional_info?.payer?.last_name].filter(Boolean).join(" ").trim();
-        if (ai) return ai;
-        const ch = p?.card?.cardholder?.name;
-        if (ch) return String(ch);
-        return null;
-      };
-
       for (const p of items) {
         const mpId = String(p.id);
+        const payerIdentity = getSafePayerIdentity(p);
         // Intentar auto-linkear
         let resPayId: string | null = null;
         let subId: string | null = null;
@@ -147,15 +236,19 @@ Deno.serve(async (req) => {
           }
         }
 
-        // Si no hay match por payment_id, intentar por email del payer
-        if (!alumnoId && p?.payer?.email) {
-          const { data: al } = await supabase
-            .from("alumnos")
-            .select("id")
-            .ilike("email", p.payer.email)
-            .limit(1)
-            .maybeSingle();
-          if (al) alumnoId = al.id;
+        // Si no hay match por payment_id, resolver sólo coincidencias únicas.
+        // Prioridad: documento > email > nombre bancario registrado.
+        if (!alumnoId && payerIdentity.document) {
+          const id = alumnosByDocument.get(normalizeDigits(payerIdentity.document));
+          if (id) alumnoId = id;
+        }
+        if (!alumnoId && payerIdentity.email) {
+          const id = alumnosByEmail.get(normalizeEmail(payerIdentity.email));
+          if (id) alumnoId = id;
+        }
+        if (!alumnoId && payerIdentity.name) {
+          const id = alumnosByBankName.get(normalizeName(payerIdentity.name));
+          if (id) alumnoId = id;
         }
 
         if (alumnoId || resPayId || subId) matched++;
@@ -178,9 +271,9 @@ Deno.serve(async (req) => {
           fee_amount: feeAmount,
           currency: p?.currency_id ?? "ARS",
           description: p?.description ?? null,
-          payer_email: p?.payer?.email ?? null,
-          payer_name: extractPayerName(p),
-          payer_document: p?.payer?.identification?.number ?? null,
+          payer_email: payerIdentity.email,
+          payer_name: payerIdentity.name,
+          payer_document: payerIdentity.document,
           external_reference: p?.external_reference ?? null,
           fecha_movimiento: p?.date_created ?? new Date().toISOString(),
           raw: p,
@@ -229,7 +322,7 @@ Deno.serve(async (req) => {
               ? String(p.point_of_interaction.transaction_data.plan_id)
               : null,
             _cuenta_mp_id: c.id,
-            _payer_email: p?.payer?.email ?? null,
+            _payer_email: payerIdentity.email,
             _descripcion: p?.description ?? null,
             _importe: Number(p?.transaction_amount ?? 0) || null,
             _moneda: p?.currency_id ?? "ARS",
@@ -263,9 +356,9 @@ Deno.serve(async (req) => {
             fee_amount: null,
             currency: p?.currency_id ?? "ARS",
             description: `Refund de pago ${mpId}${p?.description ? ` — ${p.description}` : ""}`,
-            payer_email: p?.payer?.email ?? null,
-            payer_name: extractPayerName(p),
-            payer_document: p?.payer?.identification?.number ?? null,
+            payer_email: payerIdentity.email,
+            payer_name: payerIdentity.name,
+            payer_document: payerIdentity.document,
             external_reference: p?.external_reference ?? null,
             fecha_movimiento: refundDate,
             raw: rf,
