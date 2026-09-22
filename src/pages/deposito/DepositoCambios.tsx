@@ -245,7 +245,15 @@ const DepositoCambios = () => {
         </TabsList>
 
         <TabsContent value="pendientes" className="mt-3 space-y-2">
-          {buckets.pendientes.length === 0 ? vacio("No hay cambios para recibir") : buckets.pendientes.map((c) => renderItem(c, "scan"))}
+          {buckets.pendientes.length === 0 && buckets.sustituciones.length === 0
+            ? vacio("No hay cambios para recibir")
+            : (
+              <>
+                {buckets.pendientes.map((c) => renderItem(c, "scan"))}
+                {buckets.sustituciones.map((c) => renderItem(c, "sustitucion"))}
+              </>
+            )}
+
         </TabsContent>
         <TabsContent value="esperando" className="mt-3 space-y-2">
           {buckets.esperando.length === 0 ? vacio("No hay cambios esperando reemplazo") : buckets.esperando.map((c) => renderItem(c, "define"))}

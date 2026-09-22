@@ -8,6 +8,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
 import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
+import { esSustitucionFaltaStock, RESOLUCION_LABEL, type ResolucionEconomica } from "@/lib/faltaStock";
+
 import {
   esPrueba, esPruebaActiva, resultadoClass, resultadoLabel, tipoRegistro,
 } from "@/lib/pruebas";
