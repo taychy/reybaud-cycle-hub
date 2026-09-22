@@ -18,6 +18,8 @@ interface Addon {
   precio: number;
   currency: string;
   tipo: string;
+  categoria: string;
+  aplica_a_paquetes: string[];
   max_por_participante: number | null;
   activo: boolean;
 }
@@ -54,11 +56,16 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: addons }, { data: contractedRows }] = await Promise.all([
+    const [{ data: addons }, { data: contractedRows }, { data: reservation }] = await Promise.all([
       supabase.from("event_addons" as any).select("*").eq("event_id", eventId).eq("activo", true).order("sort_order"),
       supabase.from("reservation_addons" as any).select("*, addon:event_addons(*)").eq("reservation_id", reservationId).order("created_at"),
+      supabase.from("event_reservations").select("package_id").eq("id", reservationId).maybeSingle(),
     ]);
-    setAvailable((addons as unknown as Addon[]) || []);
+    const packageId = (reservation as any)?.package_id as string | null | undefined;
+    const filtered = (((addons as unknown as Addon[]) || [])
+      .map((a) => ({ ...a, aplica_a_paquetes: a.aplica_a_paquetes || [] }))
+      .filter((a) => !a.aplica_a_paquetes.length || (!!packageId && a.aplica_a_paquetes.includes(packageId))));
+    setAvailable(filtered);
     setContracted((contractedRows as unknown as ContractedAddon[]) || []);
     setLoading(false);
   }, [eventId, reservationId]);
