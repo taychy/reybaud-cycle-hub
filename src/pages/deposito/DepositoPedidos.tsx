@@ -75,6 +75,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
   const [itemsByOrder, setItemsByOrder] = useState<Record<string, any[]>>({});
   const [alumnosMap, setAlumnosMap] = useState<Record<string, any>>({});
   const [sedesMap, setSedesMap] = useState<Record<string, any>>({});
+  const [sedesList, setSedesList] = useState<any[]>([]);
+  const [sedeBusy, setSedeBusy] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [showFinalizados, setShowFinalizados] = useState(false);
@@ -131,13 +133,11 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
       (als || []).forEach((a: any) => { m[a.id] = a; });
       setAlumnosMap(m);
     }
-    const sedeIds = Array.from(new Set(list.map((r: any) => r.sede_retiro_id).filter(Boolean)));
-    if (sedeIds.length) {
-      const { data: sds } = await supabase.from("sedes").select("id, nombre").in("id", sedeIds);
-      const sm: Record<string, any> = {};
-      (sds || []).forEach((s: any) => { sm[s.id] = s; });
-      setSedesMap(sm);
-    }
+    const { data: sds } = await supabase.from("sedes").select("id, nombre, activa").order("nombre");
+    const sm: Record<string, any> = {};
+    (sds || []).forEach((s: any) => { sm[s.id] = s; });
+    setSedesMap(sm);
+    setSedesList((sds || []).filter((s: any) => s.activa !== false));
     setLoading(false);
   };
 
@@ -332,6 +332,30 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     toast({ title: "Retorno confirmado", description: "La mercadería volvió al depósito y el stock quedó repuesto." });
     setSelected(null);
     await load();
+  };
+
+  const cambiarSedeRetiro = async (order: any, sedeId: string) => {
+    if (!order?.id || !sedeId || order.sede_retiro_id === sedeId) return;
+    setSedeBusy(order.id);
+    const { data, error } = await (supabase.rpc as any)("cambiar_sede_retiro_store_order", {
+      _order_id: order.id,
+      _sede_id: sedeId,
+    });
+    setSedeBusy(null);
+    if (error) {
+      toast({ title: "No se pudo cambiar la sede", description: error.message, variant: "destructive" });
+      return;
+    }
+    const sedeNombre = sedesMap[sedeId]?.nombre || sedesList.find((s: any) => s.id === sedeId)?.nombre || "la nueva sede";
+    const res: any = Array.isArray(data) ? data[0] : data;
+    setRows((prev) => prev.map((r) => (r.id === order.id ? { ...r, sede_retiro_id: sedeId } : r)));
+    if (selected?.id === order.id) setSelected((prev: any) => ({ ...prev, sede_retiro_id: sedeId }));
+    toast({
+      title: "Sede de retiro actualizada",
+      description: order.status === "en_camioneta"
+        ? `El pedido sigue en la camioneta y ahora queda agrupado en ${sedeNombre}${res?.items_movidos ? ` (${res.items_movidos} ítem(s) movidos)` : ""}.`
+        : `Este pedido ahora se retira en ${sedeNombre}. La ficha del alumno no fue modificada.`,
+    });
   };
 
   const saveTracking = async () => {
@@ -717,6 +741,42 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
                 <div><span className="text-muted-foreground">Pago:</span> <div className="mt-0.5"><PagoBadge o={selected} /></div></div>
                 <div><span className="text-muted-foreground">Estado:</span> <div className="mt-0.5"><EstadoBadge o={selected} /></div></div>
                 <div><span className="text-muted-foreground">Fecha:</span> <div className="font-medium">{new Date(selected.created_at).toLocaleDateString("es-AR")}</div></div>
+              </div>
+
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div>
+                    <h3 className="text-xs font-heading uppercase text-muted-foreground">Sede de retiro</h3>
+                    <p className="text-[11px] text-muted-foreground">
+                      Cambia solo este pedido; no modifica la sede habitual del alumno.
+                    </p>
+                  </div>
+                  {selected.sede_retiro_id && (
+                    <Badge variant="outline">{sedesMap[selected.sede_retiro_id]?.nombre || "Sede asignada"}</Badge>
+                  )}
+                </div>
+                <Select
+                  value={selected.sede_retiro_id || ""}
+                  onValueChange={(v) => cambiarSedeRetiro(selected, v)}
+                  disabled={sedeBusy === selected.id || CLOSED_STATUSES.includes(selected.status)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Elegir sede de retiro" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {sedesList.map((s: any) => (
+                      <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selected.status === "en_camioneta" && (
+                  <p className="text-[11px] text-primary">
+                    Como ya está en camioneta, al cambiar la sede el pedido seguirá arriba y se moverá a la sección de la nueva sede.
+                  </p>
+                )}
+                {CLOSED_STATUSES.includes(selected.status) && (
+                  <p className="text-[11px] text-muted-foreground">Los pedidos entregados o cancelados conservan su sede histórica.</p>
+                )}
               </div>
 
               <div>
