@@ -125,3 +125,10 @@ verify_jwt = true
 [functions.whatsapp-webhook]
 verify_jwt = false
 
+
+
+[functions.sync-mp-account-movements]
+verify_jwt = false
+
+[functions.enrich-mp-settlement-report]
+verify_jwt = false
