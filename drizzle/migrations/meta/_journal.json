@@ -64,6 +64,13 @@
       "when": 1790040028687,
       "tag": "0008_chequeo_camioneta_faltantes",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790080497698,
+      "tag": "0009_stock_negativo_y_sustitucion_falta_stock",
+      "breakpoints": true
     }
   ]
 }
