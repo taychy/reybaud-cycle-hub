@@ -218,11 +218,15 @@ const DepositoCambios = () => {
       <div className="flex items-start justify-between gap-2">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Cambios</h1>
-          <p className="text-sm text-muted-foreground">Recepción y entrega de mercadería por cambio, y prendas enviadas a prueba.</p>
+          <p className="text-sm text-muted-foreground">Seguimiento e historial. La preparación operativa de cambios y sustituciones se gestiona desde Ventas → Pedidos.</p>
         </div>
         <Button size="sm" onClick={() => setPresencialOpen(true)}>
           <Plus className="w-4 h-4 mr-1" /> Recibir presencial
         </Button>
+      </div>
+
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
+        Para preparar, recibir devoluciones, marcar un reemplazo listo o entregarlo, usá <b>Ventas → Pedidos</b>. Esta pantalla queda como consulta y trazabilidad.
       </div>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
@@ -249,17 +253,17 @@ const DepositoCambios = () => {
             ? vacio("No hay cambios para recibir")
             : (
               <>
-                {buckets.pendientes.map((c) => renderItem(c, "scan"))}
-                {buckets.sustituciones.map((c) => renderItem(c, "sustitucion"))}
+                {buckets.pendientes.map((c) => renderItem(c, "readonly"))}
+                {buckets.sustituciones.map((c) => renderItem(c, "readonly"))}
               </>
             )}
 
         </TabsContent>
         <TabsContent value="esperando" className="mt-3 space-y-2">
-          {buckets.esperando.length === 0 ? vacio("No hay cambios esperando reemplazo") : buckets.esperando.map((c) => renderItem(c, "define"))}
+          {buckets.esperando.length === 0 ? vacio("No hay cambios esperando reemplazo") : buckets.esperando.map((c) => renderItem(c, "readonly"))}
         </TabsContent>
         <TabsContent value="listos" className="mt-3 space-y-2">
-          {buckets.listoRetiro.length === 0 ? vacio("Sin cambios listos para retirar") : buckets.listoRetiro.map((c) => renderItem(c, "view"))}
+          {buckets.listoRetiro.length === 0 ? vacio("Sin cambios listos para retirar") : buckets.listoRetiro.map((c) => renderItem(c, "readonly"))}
         </TabsContent>
         <TabsContent value="pruebas" className="mt-3 space-y-2">
           <p className="text-[11px] text-muted-foreground">
