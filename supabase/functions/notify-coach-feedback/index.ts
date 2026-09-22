@@ -65,8 +65,8 @@ Deno.serve(async (req) => {
     const [generalRaw, detalleRaw = ""] = fullComentario.split("---DETALLE---");
     const detailCount = detalleRaw
       .split("\n")
-      .map((l) => l.trim())
-      .filter((l) => l.startsWith("•")).length;
+      .map((l: string) => l.trim())
+      .filter((l: string) => l.startsWith("•")).length;
 
     const sendResult = await sendRegisteredTemplate("coach-feedback", alumno.email, {
       templateData: {

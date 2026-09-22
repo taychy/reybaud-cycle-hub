@@ -3,7 +3,7 @@
 //  - reject:  revert a "pendiente_verificacion" sub to "vencida" and email the student
 //  - simulate_fail: force the auto-charge-failure branch (super admin only) — useful
 //                   to QA the email + banner without waiting for MP to actually fail
-import { createClient } from "npm:@supabase/supabase-js@2";
+import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
@@ -269,7 +269,7 @@ function rejectHtml(nombre: string, planName: string, motivo: string) {
 }
 
 async function logAudit(
-  admin: ReturnType<typeof createClient>,
+  admin: SupabaseClient,
   userId: string,
   userEmail: string | null | undefined,
   role: string | null,

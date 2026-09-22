@@ -102,7 +102,7 @@ Deno.serve(async (req) => {
     if (createError && createError.message?.includes("already been registered")) {
       // User exists — look them up by email
       alreadyExisted = true;
-      const { data: existingUsers } = await adminClient.auth.admin.listUsers({ filter: email });
+      const { data: existingUsers } = await adminClient.auth.admin.listUsers({ filter: email } as any);
       const existingUser = existingUsers?.users?.find((u: any) => u.email?.toLowerCase() === email);
       if (!existingUser) throw new Error("No se pudo encontrar el usuario existente");
       userId = existingUser.id;

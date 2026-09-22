@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
     }
 
     // 5) MP
-    const cuenta = await resolveCuentaMP(admin, { unidad_negocio: "eventos" });
+    const cuenta = await resolveCuentaMP(admin, { unidad_negocio: "evento" });
     if (!cuenta.access_token) return jsonResp({ error: "Mercado Pago no está configurado" }, 500);
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";

@@ -171,7 +171,7 @@ Deno.serve(async (req) => {
           emailSent = true;
         }
       } catch (queueErr) {
-        emailError = `Queue exception: ${queueErr.message}`;
+        emailError = `Queue exception: ${(queueErr as Error).message}`;
         console.error(emailError);
       }
     }
@@ -228,7 +228,7 @@ Deno.serve(async (req) => {
 
   } catch (err) {
     console.error('Error:', err);
-    return new Response(JSON.stringify({ error: err.message, error_code: 'internal_error' }), {
+    return new Response(JSON.stringify({ error: (err as Error).message, error_code: 'internal_error' }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
