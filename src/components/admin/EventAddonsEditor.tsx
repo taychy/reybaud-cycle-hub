@@ -21,10 +21,18 @@ interface Addon {
   precio: number;
   currency: string;
   tipo: string;
+  categoria: string;
+  aplica_a_paquetes: string[];
   max_por_participante: number | null;
   stock_total: number | null;
   activo: boolean;
   sort_order: number;
+}
+
+interface PackageOption {
+  id: string;
+  nombre: string;
+  activo: boolean;
 }
 
 interface Props {
@@ -38,26 +46,37 @@ const emptyDraft = (currency: string) => ({
   precio: "",
   currency,
   tipo: "opcional",
+  categoria: "general",
+  aplica_a_paquetes: [] as string[],
   max_por_participante: "1",
   stock_total: "",
 });
 
 export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
   const [items, setItems] = useState<Addon[]>([]);
+  const [packages, setPackages] = useState<PackageOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [draft, setDraft] = useState(emptyDraft(eventCurrency));
 
   const load = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from("event_addons" as any)
-      .select("*")
-      .eq("event_id", eventId)
-      .order("sort_order", { ascending: true })
-      .order("created_at", { ascending: true });
+    const [{ data, error }, { data: pkgData }] = await Promise.all([
+      supabase
+        .from("event_addons" as any)
+        .select("*")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true }),
+      supabase
+        .from("event_packages" as any)
+        .select("id, nombre, activo")
+        .eq("event_id", eventId)
+        .order("sort_order", { ascending: true }),
+    ]);
     if (error) toast.error("Error al cargar extras");
-    setItems((data as unknown as Addon[]) || []);
+    setItems(((data as unknown as Addon[]) || []).map((a) => ({ ...a, aplica_a_paquetes: a.aplica_a_paquetes || [] })));
+    setPackages((pkgData as unknown as PackageOption[]) || []);
     setLoading(false);
   }, [eventId]);
 
@@ -81,6 +100,8 @@ export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
       precio,
       currency: draft.currency,
       tipo: draft.tipo,
+      categoria: draft.categoria,
+      aplica_a_paquetes: draft.aplica_a_paquetes,
       max_por_participante: draft.max_por_participante ? parseInt(draft.max_por_participante) : 1,
       stock_total: draft.stock_total ? parseInt(draft.stock_total) : null,
       sort_order: items.length,
@@ -91,6 +112,29 @@ export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
     toast.success("Extra agregado");
     setDraft(emptyDraft(eventCurrency));
     load();
+  };
+
+  const patchAddon = async (a: Addon, patch: Partial<Pick<Addon, "categoria" | "aplica_a_paquetes">>) => {
+    const { error } = await supabase.from("event_addons" as any).update(patch).eq("id", a.id);
+    if (error) { toast.error("Error: " + error.message); return; }
+    setItems((old) => old.map((x) => x.id === a.id ? { ...x, ...patch } : x));
+  };
+
+  const toggleAddonPackage = (a: Addon, packageId: string) => {
+    const current = a.aplica_a_paquetes || [];
+    const next = current.includes(packageId)
+      ? current.filter((id) => id !== packageId)
+      : [...current, packageId];
+    patchAddon(a, { aplica_a_paquetes: next });
+  };
+
+  const toggleDraftPackage = (packageId: string) => {
+    setDraft((prev) => ({
+      ...prev,
+      aplica_a_paquetes: prev.aplica_a_paquetes.includes(packageId)
+        ? prev.aplica_a_paquetes.filter((id) => id !== packageId)
+        : [...prev.aplica_a_paquetes, packageId],
+    }));
   };
 
   const toggleActive = async (a: Addon) => {
@@ -131,6 +175,7 @@ export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium">{a.nombre}</span>
                   <Badge variant="outline" className="text-[10px] h-5">{a.tipo}</Badge>
+                  <Badge variant="outline" className="text-[10px] h-5 capitalize">{a.categoria || "general"}</Badge>
                   <span className="text-xs text-muted-foreground">{formatPrice(a.precio, a.currency as any)}</span>
                   {a.stock_total != null && <span className="text-[10px] text-muted-foreground">stock: {a.stock_total}</span>}
                   {a.max_por_participante && a.max_por_participante > 1 && (
@@ -138,6 +183,41 @@ export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
                   )}
                 </div>
                 {a.descripcion && <p className="text-[11px] text-muted-foreground truncate">{a.descripcion}</p>}
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] text-muted-foreground">Categoría:</span>
+                    <Select value={a.categoria || "general"} onValueChange={(v) => patchAddon(a, { categoria: v })}>
+                      <SelectTrigger className="h-7 w-36 text-[11px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="general">General</SelectItem>
+                        <SelectItem value="gastronomia">Gastronomía</SelectItem>
+                        <SelectItem value="alojamiento">Alojamiento</SelectItem>
+                        <SelectItem value="transporte">Transporte</SelectItem>
+                        <SelectItem value="servicio">Servicio</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">
+                      Paquetes: {a.aplica_a_paquetes?.length ? "sólo seleccionados" : "todos"}
+                    </p>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1">
+                      {packages.map((p) => (
+                        <label key={p.id} className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={(a.aplica_a_paquetes || []).includes(p.id)}
+                            onChange={() => toggleAddonPackage(a, p.id)}
+                          />
+                          {p.nombre}{!p.activo ? " (inactivo)" : ""}
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-[9px] text-muted-foreground mt-1">
+                      Si no marcás ninguno, el extra queda disponible para todos los paquetes.
+                    </p>
+                  </div>
+                </div>
               </div>
               <Switch checked={a.activo} onCheckedChange={() => toggleActive(a)} />
               <Button size="icon" variant="ghost" onClick={() => remove(a)} className="h-7 w-7">
@@ -186,12 +266,41 @@ export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
             </Select>
           </div>
           <div className="space-y-1">
+            <Label className="text-xs">Categoría</Label>
+            <Select value={draft.categoria} onValueChange={(v) => setDraft({ ...draft, categoria: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="general">General</SelectItem>
+                <SelectItem value="gastronomia">Gastronomía</SelectItem>
+                <SelectItem value="alojamiento">Alojamiento</SelectItem>
+                <SelectItem value="transporte">Transporte</SelectItem>
+                <SelectItem value="servicio">Servicio</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
             <Label className="text-xs">Máx. por persona</Label>
             <Input type="number" value={draft.max_por_participante} onChange={(e) => setDraft({ ...draft, max_por_participante: e.target.value })} />
           </div>
           <div className="space-y-1">
             <Label className="text-xs">Stock total (opcional)</Label>
             <Input type="number" value={draft.stock_total} onChange={(e) => setDraft({ ...draft, stock_total: e.target.value })} placeholder="Sin límite" />
+          </div>
+          <div className="space-y-1 col-span-2 rounded-md border border-border/40 p-2">
+            <Label className="text-xs">Disponible para paquetes</Label>
+            <p className="text-[10px] text-muted-foreground">Sin selección = todos los paquetes.</p>
+            <div className="flex flex-wrap gap-x-3 gap-y-1 pt-1">
+              {packages.map((p) => (
+                <label key={p.id} className="flex items-center gap-1 text-[10px] text-muted-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={draft.aplica_a_paquetes.includes(p.id)}
+                    onChange={() => toggleDraftPackage(p.id)}
+                  />
+                  {p.nombre}{!p.activo ? " (inactivo)" : ""}
+                </label>
+              ))}
+            </div>
           </div>
         </div>
         <Button size="sm" onClick={addAddon} disabled={saving} className="gap-1 w-full">
