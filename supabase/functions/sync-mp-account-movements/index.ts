@@ -332,14 +332,36 @@ Deno.serve(async (req) => {
 
         const { data: existing } = await supabase
           .from("mp_account_movements")
-          .select("id, alumno_id, assigned_manually")
+          .select("id, alumno_id, assigned_manually, payer_name, payer_email, payer_document, raw")
           .eq("cuenta_mp_id", c.id)
           .eq("mp_payment_id", mpId)
           .maybeSingle();
 
         if (existing) {
-          // No pisar asignaciones manuales
+          // No pisar asignaciones manuales ni la identidad autoritativa que ya
+          // haya llegado desde el Settlement Report.
           const patch: any = { ...row };
+          const existingRaw = existing.raw && typeof existing.raw === "object"
+            ? existing.raw as Record<string, unknown>
+            : {};
+          const settlementReport = (existingRaw as any)?.settlement_report ?? null;
+          if (settlementReport) {
+            patch.raw = { ...p, settlement_report: settlementReport };
+            const isTransfer = ["account_money", "cvu", "bank_transfer", "bank_transfer_in"].includes(
+              String(p?.payment_method_id ?? p?.payment_type_id ?? "").toLowerCase(),
+            );
+            if (isTransfer) {
+              // El endpoint /v1/payments no vuelve a degradar los datos que
+              // ya validó el reporte de conciliación.
+              delete patch.payer_name;
+              delete patch.payer_email;
+              delete patch.payer_document;
+
+              // Si no apareció un vínculo fuerte nuevo por payment_id,
+              // conservamos también la identidad de alumno resuelta por reporte.
+              if (!resPayId && !subId) delete patch.alumno_id;
+            }
+          }
           if (existing.assigned_manually) {
             delete patch.alumno_id;
             delete patch.reservation_payment_id;
