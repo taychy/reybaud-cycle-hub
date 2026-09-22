@@ -107,10 +107,23 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  // Admin logueado o cron interno, igual que sync-mp-account-movements.
+  // Admin logueado, cron legacy (CRON_SECRET) o automatización interna segura.
   const cronKey = req.headers.get("x-cron-key");
   const expectedCronKey = Deno.env.get("CRON_SECRET");
-  const isCron = !!expectedCronKey && cronKey === expectedCronKey;
+  const legacyCron = !!expectedCronKey && cronKey === expectedCronKey;
+
+  const automationKey = req.headers.get("x-automation-key");
+  let internalAutomation = false;
+  if (automationKey) {
+    const { data: automationSecret } = await supabase
+      .from("automation_internal_secrets")
+      .select("secret")
+      .eq("name", "mp_reconciliation")
+      .maybeSingle();
+    internalAutomation = !!automationSecret?.secret && automationSecret.secret === automationKey;
+  }
+
+  const isCron = legacyCron || internalAutomation;
 
   if (!isCron) {
     const authHeader = req.headers.get("Authorization") ?? "";
