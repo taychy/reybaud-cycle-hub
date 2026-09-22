@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2, Wallet, Link2, AlertTriangle } from "lucide-react";
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import { GASTO_PAYMENT_METHODS, formatGastoPaymentMethod } from "@/lib/gastoPaymentMethods";
 import { formatPnl, pnlColor, type EventPnL } from "@/lib/mpFees";
@@ -25,15 +25,40 @@ interface GastoRow {
   forma_pago: string | null;
 }
 
+interface MpViajesRow {
+  movement_id: string;
+  mp_payment_id: string;
+  amount: number;
+  currency: string;
+  description: string | null;
+  external_reference: string | null;
+  fecha_movimiento: string;
+  cuenta_mp_id: string;
+  cuenta_nombre: string;
+  gasto_id: string | null;
+  gasto_event_id: string | null;
+  estado_asociacion: "pendiente" | "gasto_sin_evento" | "asociado_evento" | "otro_evento";
+}
+
 const CATEGORIAS = ["Logística", "Alojamiento", "Comidas", "Transporte", "Premios", "Marketing", "Staff", "Otros"];
 
 export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; eventTitle?: string }) {
   const [pnl, setPnl] = useState<EventPnL | null>(null);
   const [gastos, setGastos] = useState<GastoRow[]>([]);
+  const [mpViajes, setMpViajes] = useState<MpViajesRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
+  const [syncingOutflows, setSyncingOutflows] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [mpDialog, setMpDialog] = useState<MpViajesRow | null>(null);
+  const [mpSaving, setMpSaving] = useState(false);
+  const [mpForm, setMpForm] = useState({
+    categoria: "Otros",
+    descripcion: "",
+    proveedor: "",
+    notas: "",
+  });
   const [form, setForm] = useState({
     fecha: new Date().toISOString().slice(0, 10),
     descripcion: "",
@@ -47,18 +72,20 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [pnlRes, gastosRes] = await Promise.all([
+    const [pnlRes, gastosRes, mpRes] = await Promise.all([
       supabase.rpc("get_event_pnl", { p_event_id: eventId }),
       supabase
         .from("gastos")
         .select("id, fecha, descripcion, categoria, proveedor, monto, moneda, forma_pago")
         .eq("event_id", eventId)
         .order("fecha", { ascending: false }),
+      supabase.rpc("get_event_mp_viajes_outflows" as any, { p_event_id: eventId }),
     ]);
     if (pnlRes.data && Array.isArray(pnlRes.data) && pnlRes.data[0]) {
       setPnl(pnlRes.data[0] as EventPnL);
     }
     setGastos((gastosRes.data as GastoRow[]) || []);
+    if (!mpRes.error) setMpViajes(((mpRes.data as any[]) || []) as MpViajesRow[]);
     setLoading(false);
   }, [eventId]);
 
@@ -81,6 +108,75 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
       toast({ variant: "destructive", title: "Error al sincronizar", description: String((e as Error).message) });
     } finally {
       setSyncing(false);
+    }
+  };
+
+  const syncViajesOutflows = async () => {
+    setSyncingOutflows(true);
+    try {
+      const { data: accountId, error: accountErr } = await supabase.rpc("get_viajes_mp_account_id" as any);
+      if (accountErr) throw accountErr;
+      if (!accountId) throw new Error("No está configurada la cuenta MP de Viajes/Eventos.");
+
+      const { error } = await supabase.functions.invoke("sync-mp-account-movements", {
+        body: { days: 90, cuenta_id: accountId },
+      });
+      if (error) throw error;
+
+      await load();
+      toast({
+        title: "Salidas MP Viajes sincronizadas",
+        description: "Los movimientos nuevos quedaron disponibles para asociarlos al evento.",
+      });
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "No se pudieron sincronizar las salidas",
+        description: String((e as Error).message),
+      });
+    } finally {
+      setSyncingOutflows(false);
+    }
+  };
+
+  const openMpDialog = (m: MpViajesRow) => {
+    setMpDialog(m);
+    setMpForm({
+      categoria: "Otros",
+      descripcion: m.description?.trim() || `Egreso MP Viajes ${m.mp_payment_id}`,
+      proveedor: "",
+      notas: m.external_reference ? `Ref. MP: ${m.external_reference}` : "",
+    });
+  };
+
+  const associateMpOutflow = async () => {
+    if (!mpDialog) return;
+    if (!mpForm.descripcion.trim()) {
+      toast({ variant: "destructive", title: "Poné una descripción" });
+      return;
+    }
+    setMpSaving(true);
+    try {
+      const { error } = await supabase.rpc("link_mp_viajes_outflow_to_event" as any, {
+        p_movement_id: mpDialog.movement_id,
+        p_event_id: eventId,
+        p_categoria: mpForm.categoria,
+        p_descripcion: mpForm.descripcion.trim(),
+        p_proveedor: mpForm.proveedor.trim() || null,
+        p_notas: mpForm.notas.trim() || null,
+      });
+      if (error) throw error;
+      toast({ title: "Salida MP asociada al evento" });
+      setMpDialog(null);
+      await load();
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "No se pudo asociar",
+        description: String((e as Error).message),
+      });
+    } finally {
+      setMpSaving(false);
     }
   };
 
@@ -133,6 +229,8 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
   };
 
   const moneda = pnl?.moneda || "ARS";
+  const mpPendientes = mpViajes.filter((m) => m.estado_asociacion === "pendiente" || m.estado_asociacion === "gasto_sin_evento");
+  const mpAsociados = mpViajes.filter((m) => m.estado_asociacion === "asociado_evento");
 
   return (
     <Card className="glass-card">
@@ -145,10 +243,16 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
             Ingresos netos (descontando comisión MP) menos gastos y honorarios.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={syncFees} disabled={syncing}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
-          Sincronizar comisiones MP
-        </Button>
+        <div className="flex flex-wrap gap-2 justify-end">
+          <Button variant="outline" size="sm" onClick={syncViajesOutflows} disabled={syncingOutflows}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${syncingOutflows ? "animate-spin" : ""}`} />
+            Sincronizar salidas MP Viajes
+          </Button>
+          <Button variant="outline" size="sm" onClick={syncFees} disabled={syncing}>
+            <RefreshCw className={`w-4 h-4 mr-1 ${syncing ? "animate-spin" : ""}`} />
+            Sincronizar comisiones MP
+          </Button>
+        </div>
       </CardHeader>
 
       <CardContent className="space-y-6">
@@ -156,7 +260,6 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
           <div className="text-sm text-muted-foreground animate-pulse">Cargando...</div>
         ) : pnl ? (
           <>
-            {/* P&L breakdown */}
             <div className="rounded-lg border border-border bg-secondary/20 divide-y divide-border">
               <PnlRow label="Ingresos brutos" value={pnl.ingresos_brutos} moneda={moneda} />
               <PnlRow label="− Comisión MP + IIBB" value={-pnl.comision_mp_total} moneda={moneda} muted />
@@ -183,7 +286,117 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
           <p className="text-sm text-muted-foreground">Sin datos.</p>
         )}
 
-        {/* Gastos del evento */}
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h4 className="text-sm font-semibold flex items-center gap-2">
+                <Link2 className="w-4 h-4" /> Salidas de MP Viajes
+              </h4>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Se sincronizan desde la cuenta MP de Viajes/Eventos. No se descuentan del resultado hasta que las asocies a este evento.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Badge variant={mpPendientes.length > 0 ? "destructive" : "secondary"}>
+                {mpPendientes.length} sin asociar
+              </Badge>
+              <Badge variant="outline">{mpAsociados.length} asociadas</Badge>
+            </div>
+          </div>
+
+          {mpPendientes.length === 0 ? (
+            <div className="text-xs text-muted-foreground py-2">
+              No hay salidas MP Viajes pendientes de asociar en el período de este evento.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {mpPendientes.map((m) => (
+                <div key={m.movement_id} className="flex flex-col sm:flex-row sm:items-center gap-3 rounded border border-amber-500/25 bg-amber-500/5 p-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge variant="outline" className="text-[10px]">{m.cuenta_nombre}</Badge>
+                      {m.estado_asociacion === "gasto_sin_evento" && (
+                        <Badge className="bg-cyan-500/15 text-cyan-300 border-cyan-500/30 text-[10px]">
+                          Ya categorizado · falta evento
+                        </Badge>
+                      )}
+                      <span className="text-sm font-medium truncate">{m.description || "Movimiento MP sin descripción"}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1">
+                      {new Date(m.fecha_movimiento).toLocaleString("es-AR")} · MP {m.mp_payment_id}
+                      {m.external_reference ? ` · ref ${m.external_reference}` : ""}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0">
+                    <span className="font-semibold text-orange-400">− {formatPrice(Number(m.amount), m.currency || "ARS")}</span>
+                    <Button size="sm" onClick={() => openMpDialog(m)}>Asociar al evento</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {mpPendientes.length > 0 && (
+            <div className="text-[11px] text-muted-foreground flex gap-1.5 items-start">
+              <AlertTriangle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
+              No asociamos automáticamente todas las salidas: una misma cuenta MP puede contener impuestos, transferencias o pagos de otros viajes. La asociación explícita evita cargar costos al evento equivocado.
+            </div>
+          )}
+        </div>
+
+        <Dialog open={!!mpDialog} onOpenChange={(open) => !open && setMpDialog(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Asociar salida MP a {eventTitle || "este evento"}</DialogTitle>
+            </DialogHeader>
+            {mpDialog && (
+              <div className="space-y-3">
+                <div className="rounded border bg-secondary/20 p-3 text-sm">
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Monto</span>
+                    <span className="font-semibold">{formatPrice(Number(mpDialog.amount), mpDialog.currency || "ARS")}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 mt-1">
+                    <span className="text-muted-foreground">Fecha</span>
+                    <span>{new Date(mpDialog.fecha_movimiento).toLocaleString("es-AR")}</span>
+                  </div>
+                  <div className="flex justify-between gap-3 mt-1">
+                    <span className="text-muted-foreground">MP ID</span>
+                    <span className="font-mono text-xs">{mpDialog.mp_payment_id}</span>
+                  </div>
+                </div>
+                <div>
+                  <Label>Categoría</Label>
+                  <Select value={mpForm.categoria} onValueChange={(v) => setMpForm({ ...mpForm, categoria: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIAS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>Descripción</Label>
+                  <Input value={mpForm.descripcion} onChange={(e) => setMpForm({ ...mpForm, descripcion: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Proveedor (opcional)</Label>
+                  <Input value={mpForm.proveedor} onChange={(e) => setMpForm({ ...mpForm, proveedor: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Notas (opcional)</Label>
+                  <Textarea value={mpForm.notas} onChange={(e) => setMpForm({ ...mpForm, notas: e.target.value })} rows={2} />
+                </div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setMpDialog(null)}>Cancelar</Button>
+              <Button onClick={associateMpOutflow} disabled={mpSaving}>
+                {mpSaving ? "Asociando..." : "Asociar y descontar del evento"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
         <div className="space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-sm font-semibold">Gastos asociados ({gastos.length})</h4>
