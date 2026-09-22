@@ -912,6 +912,12 @@ const SuperAdminGastos = () => {
   return (
     <div className="space-y-6">
       <GastoCategoriasDialog open={categoriasOpen} onOpenChange={setCategoriasOpen} />
+      <VincularGastoDevolucionDialog
+        open={devDialogOpen}
+        onOpenChange={(o) => { setDevDialogOpen(o); if (!o) setDevGasto(null); }}
+        gasto={devGasto}
+        onDone={loadData}
+      />
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-heading font-bold uppercase tracking-wider">Gastos</h1>
