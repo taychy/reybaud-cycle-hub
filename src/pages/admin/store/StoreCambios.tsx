@@ -103,10 +103,16 @@ const AdminCambios = () => {
                 </div>
                 <div className="flex flex-col items-end gap-1">
                   <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+                  {esSustitucionFaltaStock(c) && (
+                    <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-400">
+                      Falta de stock · {RESOLUCION_LABEL[c.resolucion_economica as ResolucionEconomica] || "sin ajuste"}
+                    </Badge>
+                  )}
                   {esPrueba(c) && (
                     <Badge className={`text-[10px] uppercase ${resultadoClass(c)}`}>{resultadoLabel(c)}</Badge>
                   )}
                 </div>
+
 
               </div>
             </button>
