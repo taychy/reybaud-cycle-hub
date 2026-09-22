@@ -101,10 +101,24 @@ Deno.serve(async (req) => {
   const days = Math.min(Math.max(Number(body?.days ?? 7), 1), 90);
   const cuentaId: string | undefined = body?.cuenta_id;
 
-  // Autenticación: acepta admin logueado O cron con service role via secreto x-cron-key
+  // Autenticación: acepta admin logueado, cron legacy (CRON_SECRET)
+  // o automatización interna con secreto generado en DB y nunca expuesto al cliente.
   const cronKey = req.headers.get("x-cron-key");
   const expectedCronKey = Deno.env.get("CRON_SECRET");
-  const isCron = expectedCronKey && cronKey === expectedCronKey;
+  const legacyCron = !!expectedCronKey && cronKey === expectedCronKey;
+
+  const automationKey = req.headers.get("x-automation-key");
+  let internalAutomation = false;
+  if (automationKey) {
+    const { data: automationSecret } = await supabase
+      .from("automation_internal_secrets")
+      .select("secret")
+      .eq("name", "mp_reconciliation")
+      .maybeSingle();
+    internalAutomation = !!automationSecret?.secret && automationSecret.secret === automationKey;
+  }
+
+  const isCron = legacyCron || internalAutomation;
 
   if (!isCron) {
     const authHeader = req.headers.get("Authorization") ?? "";
