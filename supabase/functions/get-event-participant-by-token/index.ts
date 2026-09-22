@@ -26,7 +26,9 @@ type Body = {
     | "get_by_reservation"
     | "submit_distance_authenticated"
     | "trip_get"
-    | "trip_save_step";
+    | "trip_save_step"
+    | "resolve_reservation_link";
+
   token?: string;
   event_id?: string;
   reservation_id?: string;
