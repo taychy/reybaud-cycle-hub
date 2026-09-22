@@ -650,6 +650,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   // Pedidos de tienda cancelados cuya mercadería sigue arriba de la camioneta.
   const [cancelledByItem, setCancelledByItem] = useState<Record<string, { orderId: string; orderNumber: number | null }>>({});
   const [retornoBusy, setRetornoBusy] = useState<string | null>(null);
+  // Pedido de tienda / venta externa asociado a cada ítem (para el aviso de WhatsApp).
+  const [orderByItem, setOrderByItem] = useState<Record<string, any>>({});
+  const [externoByItem, setExternoByItem] = useState<Record<string, any>>({});
+  const [resolverBusy, setResolverBusy] = useState<string | null>(null);
+  const [avisoPendiente, setAvisoPendiente] = useState<{ orderId: string | null; label: string } | null>(null);
 
   const load = async () => {
     const [cRes, iRes] = await Promise.all([
@@ -673,23 +678,58 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       if (orderIds.length) {
         const { data: ords } = await supabase
           .from("store_orders")
-          .select("id, order_number, status, stock_restored_at")
+          .select("id, order_number, status, stock_restored_at, total, currency, pagado_at, metodo_pago, customer_name, customer_phone, alumno_id, aviso_camioneta_enviado_at")
           .in("id", orderIds);
+        const alumnoIds = Array.from(new Set(((ords as any[]) || []).map((o: any) => o.alumno_id).filter(Boolean)));
+        const telByAlumno: Record<string, string> = {};
+        if (alumnoIds.length) {
+          const { data: als } = await supabase.from("alumnos").select("id, telefono").in("id", alumnoIds);
+          ((als as any[]) || []).forEach((a: any) => { if (a.telefono) telByAlumno[a.id] = a.telefono; });
+        }
+        const byId = new Map<string, any>();
+        ((ords as any[]) || []).forEach((o: any) => byId.set(o.id, { ...o, telefono: telByAlumno[o.alumno_id] || o.customer_phone || null }));
         const cancelled = new Map<string, any>();
-        (ords || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
+        ((ords as any[]) || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
         const map: Record<string, { orderId: string; orderNumber: number | null }> = {};
+        const ordMap: Record<string, any> = {};
         list.forEach((it: any) => {
           if (it.source_table !== "store_order_items") return;
           const rel = (soi || []).find((s: any) => s.id === it.source_id);
+          const full = rel?.order_id ? byId.get(rel.order_id) : null;
+          if (full) ordMap[it.id] = full;
           const ord = rel?.order_id ? cancelled.get(rel.order_id) : null;
           if (ord) map[it.id] = { orderId: ord.id, orderNumber: ord.order_number ?? null };
         });
         setCancelledByItem(map);
+        setOrderByItem(ordMap);
       } else {
         setCancelledByItem({});
+        setOrderByItem({});
       }
     } else {
       setCancelledByItem({});
+      setOrderByItem({});
+    }
+
+    // Ventas externas: teléfono del cliente para el recordatorio de retiro.
+    const extIds = list
+      .filter((i: any) => i.source_table === "pedidos_externos" && i.source_id)
+      .map((i: any) => i.source_id);
+    if (extIds.length) {
+      const { data: exts } = await supabase
+        .from("pedidos_externos")
+        .select("id, cliente_nombre, cliente_telefono, estado")
+        .in("id", extIds);
+      const byId = new Map<string, any>(((exts as any[]) || []).map((e: any) => [e.id, e]));
+      const extMap: Record<string, any> = {};
+      list.forEach((it: any) => {
+        if (it.source_table !== "pedidos_externos") return;
+        const e = byId.get(it.source_id);
+        if (e) extMap[it.id] = e;
+      });
+      setExternoByItem(extMap);
+    } else {
+      setExternoByItem({});
     }
     setLoading(false);
   };
@@ -704,6 +744,54 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     setRetornoBusy(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Retorno confirmado: la mercadería volvió al depósito y el stock quedó repuesto.");
+    await load();
+  };
+
+  /** Resuelve un ítem que el control no encontró: ya fue entregado o sigue en la camioneta. */
+  const resolverItem = async (itemId: string, accion: "entregado" | "sigue_en_camioneta") => {
+    setResolverBusy(itemId);
+    const { error } = await (supabase as any).rpc("resolver_item_chequeo", { _item_id: itemId, _accion: accion });
+    setResolverBusy(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success(accion === "entregado" ? "Marcado como entregado." : "Vuelve a figurar en la camioneta.");
+    await load();
+  };
+
+  /** Recordatorio de retiro por WhatsApp para mercadería que sigue en la camioneta. */
+  const recordarRetiro = async (it: CargaItem, forzar = false) => {
+    const ord = orderByItem[it.id];
+    const ext = externoByItem[it.id];
+    if (ord) {
+      if (ord.aviso_camioneta_enviado_at && !forzar) {
+        if (!confirm(`Ya se avisó el ${formatAvisoFecha(ord.aviso_camioneta_enviado_at)}. ¿Enviar de nuevo?`)) return;
+      }
+      const { data: saldos } = await (supabase.rpc as any)("get_store_orders_saldo", { _ids: [ord.id] });
+      const saldo = Number((saldos || [])[0]?.saldo ?? ord.total ?? 0);
+      const nombre = String(ord.customer_name || it.cliente_nombre || "").split(" ")[0];
+      const link = avisoWaLink(ord.telefono || "", buildAvisoCamionetaMessage(nombre, ord, saldo));
+      if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
+      window.open(link, "_blank");
+      setAvisoPendiente({ orderId: ord.id, label: `Pedido #${ord.order_number ?? "—"}` });
+      return;
+    }
+    const nombre = String(ext?.cliente_nombre || it.cliente_nombre || "").split(" ")[0] || "cliente";
+    const link = avisoWaLink(ext?.cliente_telefono || "", `Hola, ${nombre}. Tu pedido sigue en la camioneta para que puedas retirarlo. ¡Gracias!`);
+    if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
+    window.open(link, "_blank");
+  };
+
+  /** El registro del aviso se guarda sólo cuando la persona confirma que lo envió. */
+  const confirmarAvisoEnviado = async () => {
+    const orderId = avisoPendiente?.orderId;
+    setAvisoPendiente(null);
+    if (!orderId) return;
+    const { data: auth } = await supabase.auth.getUser();
+    await supabase.from("store_orders").update({
+      aviso_camioneta_enviado_at: new Date().toISOString(),
+      aviso_camioneta_enviado_por: auth?.user?.id || null,
+      aviso_camioneta_enviado_por_email: auth?.user?.email || null,
+    } as any).eq("id", orderId);
+    toast.success("Aviso registrado.");
     await load();
   };
 
