@@ -143,6 +143,7 @@ Deno.serve(async (req) => {
   const body = await req.json().catch(() => ({}));
   const days = Math.min(Math.max(Number(body?.days ?? 30), 1), 90);
   const cuentaId: string | undefined = body?.cuenta_id;
+  const forceFresh = Boolean(body?.force_fresh ?? false);
 
   const q = supabase
     .from("cuentas_mp")
@@ -282,10 +283,19 @@ Deno.serve(async (req) => {
       );
       let files: any[] = [];
       if (listResp.ok) files = await listResp.json().catch(() => []);
-      // 2) Si no hay reciente, agendar uno nuevo
+
+      const existingNames = new Set(
+        (Array.isArray(files) ? files : [])
+          .map((f: any) => String(f?.file_name ?? ""))
+          .filter(Boolean),
+      );
+
+      // 2) En sync manual pedimos SIEMPRE un reporte fresco: la configuración
+      // puede haber cambiado (ej. include_withdraw=true) y reutilizar un CSV
+      // viejo dejaría transferencias enviadas afuera del control.
       const recent = Array.isArray(files) ? files.find((f: any) => f?.file_name) : null;
-      if (!recent) {
-        await fetch("https://api.mercadopago.com/v1/account/settlement_report", {
+      if (!recent || forceFresh) {
+        const createResp = await fetch("https://api.mercadopago.com/v1/account/settlement_report", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${mpToken}`,
@@ -294,21 +304,46 @@ Deno.serve(async (req) => {
           body: JSON.stringify({ begin_date: beginDate, end_date: endDate }),
         }).catch(() => null);
 
-        // Poll ~25s
-        const deadline = Date.now() + 25_000;
+        if (createResp && !createResp.ok) {
+          summary.errors.push({ cuenta: c.slug, error: `report_create_${createResp.status}` });
+        }
+
+        // Poll ~30s. Si forceFresh, esperamos un nombre de archivo nuevo.
+        const deadline = Date.now() + 30_000;
+        let freshFound = false;
         while (Date.now() < deadline) {
           await sleep(4000);
           const r = await fetch(
             `https://api.mercadopago.com/v1/account/settlement_report/list?begin_date=${encodeURIComponent(beginDate)}&end_date=${encodeURIComponent(endDate)}`,
             { headers: { Authorization: `Bearer ${mpToken}` } },
           );
-          if (r.ok) {
-            const arr = await r.json().catch(() => []);
-            if (Array.isArray(arr) && arr.length) {
-              files = arr;
+          if (!r.ok) continue;
+
+          const arr = await r.json().catch(() => []);
+          if (!Array.isArray(arr) || arr.length === 0) continue;
+
+          if (forceFresh) {
+            const fresh = arr.find((f: any) => {
+              const name = String(f?.file_name ?? "");
+              return !!name && !existingNames.has(name);
+            });
+            if (fresh) {
+              files = [fresh, ...arr.filter((f: any) => f !== fresh)];
+              freshFound = true;
               break;
             }
+          } else {
+            files = arr;
+            freshFound = true;
+            break;
           }
+        }
+
+        if (forceFresh && !freshFound) {
+          cuentaOut.pending = true;
+          cuentaOut.message = "Reporte fresco solicitado a MP; todavía está en preparación.";
+          summary.cuentas.push(cuentaOut);
+          continue;
         }
       }
 
