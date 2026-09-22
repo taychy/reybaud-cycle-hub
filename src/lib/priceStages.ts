@@ -1,6 +1,12 @@
 /**
  * Helper para resolver el precio "vigente" de un paquete de evento según etapas.
- * Si no hay etapas configuradas o ninguna está activa en `now`, devuelve el precio base del paquete.
+ *
+ * Regla:
+ * 1) Si hay una etapa cuya ventana contiene now, usarla.
+ * 2) Si no hay una etapa vigente pero ya comenzó alguna etapa activa, mantener
+ *    la más reciente (carry-forward), aunque su vigente_hasta haya vencido.
+ *    Esto evita caer silenciosamente al precio base por huecos o fin de etapas.
+ * 3) Sólo usar el precio base si todavía no comenzó ninguna etapa activa.
  */
 import { supabase } from "@/integrations/supabase/client";
 
@@ -20,7 +26,11 @@ export interface PriceStage {
 export interface ActivePriceResult {
   precio: number;
   currency: string;
-  /** Etapa actualmente vigente (si la hay) */
+  /**
+   * Etapa usada para resolver el precio.
+   * Puede ser la etapa actualmente vigente o la última etapa pasada
+   * cuando se aplica carry-forward.
+   */
   activeStage: PriceStage | null;
   /** Próxima etapa que entra en vigencia (para countdown) */
   nextStage: PriceStage | null;
@@ -34,6 +44,7 @@ export async function fetchPriceStages(packageIds: string[]): Promise<Record<str
     .in("package_id", packageIds)
     .eq("activo", true)
     .order("vigente_desde", { ascending: true });
+
   const map: Record<string, PriceStage[]> = {};
   ((data as any[]) || []).forEach((r) => {
     const row: PriceStage = {
@@ -63,26 +74,37 @@ export function resolveActivePrice(
   if (!stages || stages.length === 0) {
     return { precio: basePrecio, currency: baseCurrency, activeStage: null, nextStage: null };
   }
+
   const t = now.getTime();
   let active: PriceStage | null = null;
+  let latestStarted: PriceStage | null = null;
   let next: PriceStage | null = null;
+
   for (const s of stages) {
     const desde = new Date(s.vigente_desde).getTime();
     const hasta = s.vigente_hasta ? new Date(s.vigente_hasta).getTime() : null;
-    if (desde <= t && (hasta == null || hasta > t)) {
-      // si solapan, gana el de vigente_desde más reciente
-      if (!active || new Date(active.vigente_desde).getTime() < desde) active = s;
-    } else if (desde > t) {
-      if (!next || new Date(next.vigente_desde).getTime() > desde) next = s;
+
+    if (desde <= t) {
+      if (!latestStarted || new Date(latestStarted.vigente_desde).getTime() < desde) {
+        latestStarted = s;
+      }
+      if (hasta == null || hasta > t) {
+        if (!active || new Date(active.vigente_desde).getTime() < desde) active = s;
+      }
+    } else if (!next || new Date(next.vigente_desde).getTime() > desde) {
+      next = s;
     }
   }
-  if (!active) {
+
+  const resolvedStage = active ?? latestStarted;
+  if (!resolvedStage) {
     return { precio: basePrecio, currency: baseCurrency, activeStage: null, nextStage: next };
   }
+
   return {
-    precio: active.precio,
-    currency: active.currency || baseCurrency,
-    activeStage: active,
+    precio: resolvedStage.precio,
+    currency: resolvedStage.currency || baseCurrency,
+    activeStage: resolvedStage,
     nextStage: next,
   };
 }
