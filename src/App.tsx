@@ -192,7 +192,9 @@ const App = () => (
           <Route path="/eventos/:id/lista-espera" element={<EventWaitlistPage />} />
           <Route path="/preinscripcion/:slug" element={<PreinscripcionPage />} />
           <Route path="/eventos/:id" element={<EventDetail />} />
+          <Route path="/mis-reservas" element={<MisReservasLegacyRedirect />} />
           <Route path="/mis-reservas/:id" element={<MisReservas />} />
+
           <Route path="/mi-reserva/:token" element={<GuestReservationView />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
