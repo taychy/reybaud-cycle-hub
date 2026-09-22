@@ -250,6 +250,25 @@ const SuperAdminGastos = () => {
     setDeudaSaldos(map);
   }, []);
 
+  // Devoluciones a participantes: proyección semántica de un gasto ya registrado.
+  const loadDevoluciones = useCallback(async () => {
+    const { data } = await supabase
+      .from("devoluciones")
+      .select("id, gasto_id, reservation_id, alumnos(nombre, apellido), event_reservations(events(title))")
+      .not("gasto_id", "is", null);
+    const map: Record<string, DevolucionVinculada> = {};
+    for (const row of ((data as any[]) || [])) {
+      map[row.gasto_id] = {
+        gasto_id: row.gasto_id,
+        devolucion_id: row.id,
+        alumno_nombre: [row.alumnos?.nombre, row.alumnos?.apellido].filter(Boolean).join(" ") || "Participante",
+        evento_nombre: row.event_reservations?.events?.title ?? null,
+        reservation_id: row.reservation_id ?? null,
+      };
+    }
+    setDevolucionesPorGasto(map);
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     const [recRes, ejecRes, gastosRes] = await Promise.all([
@@ -260,9 +279,9 @@ const SuperAdminGastos = () => {
     setRecurrentes((recRes.data || []) as any);
     setEjecuciones((ejecRes.data || []) as any);
     setGastos((gastosRes.data || []) as any);
-    await loadDeudaSaldos();
+    await Promise.all([loadDeudaSaldos(), loadDevoluciones()]);
     setLoading(false);
-  }, [mes, loadDeudaSaldos]);
+  }, [mes, loadDeudaSaldos, loadDevoluciones]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
