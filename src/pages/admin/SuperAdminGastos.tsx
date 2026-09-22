@@ -1467,6 +1467,11 @@ const SuperAdminGastos = () => {
                                 <TableCell>
                                   <div className="flex gap-1">
                                     <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => openHistoricoEdit(g)} title="Editar"><Edit2 className="w-3 h-3" /></Button>
+                                    {devolucionesPorGasto[g.id] ? (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7 text-orange-500" onClick={() => desvincularDevolucion(g)} title="Desvincular devolución (el gasto se conserva)"><Link2Off className="w-3 h-3" /></Button>
+                                    ) : (
+                                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => abrirVincularDevolucion(g)} title="Vincular como devolución de un participante"><RotateCcw className="w-3 h-3" /></Button>
+                                    )}
                                     <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => deleteHistorico(g)} title="Eliminar"><Trash2 className="w-3 h-3" /></Button>
                                   </div>
                                 </TableCell>
