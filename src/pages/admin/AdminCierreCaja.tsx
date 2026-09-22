@@ -486,7 +486,7 @@ export default function AdminCierreCaja() {
                     {[...cashMovements].reverse().map((m, idx) => (
                       <tr key={m.ref_id || `baseline-${idx}`} className={`border-b last:border-0 ${m.needs_review ? "bg-amber-500/5" : ""}`}>
                         <td className="py-2 px-3 whitespace-nowrap">{format(new Date(m.movement_date + "T12:00:00"), "dd/MM/yy")}</td>
-                        <td className="px-3 capitalize">{m.origin.replaceAll("_", " ")}</td>
+                        <td className="px-3 capitalize">{m.origin.replace(/_/g, " ")}</td>
                         <td className="px-3">
                           <div>{m.person ? `${m.person} · ` : ""}{m.description}</div>
                           {m.note && <div className="text-[10px] text-muted-foreground">{m.note}</div>}
