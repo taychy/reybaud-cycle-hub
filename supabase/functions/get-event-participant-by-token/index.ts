@@ -56,7 +56,27 @@ serve(async (req) => {
     const body = (await req.json().catch(() => ({}))) as Body;
     const action = body.action ?? "get";
 
+    // ---------- resolver reservation_id -> access_token (links legacy de mails) ----------
+    // Sólo devuelve el token de una reserva existente y no cancelada. No expone PII.
+    if (action === "resolve_reservation_link") {
+      const rid = (body.reservation_id || "").trim();
+      if (!UUID_RE.test(rid)) return json({ error: "invalid_reservation_id" }, 400);
+      const { data, error } = await supabase
+        .from("event_reservations")
+        .select("id, access_token, reservation_status")
+        .eq("id", rid)
+        .maybeSingle();
+      if (error) return json({ error: "lookup_failed" }, 500);
+      if (!data) return json({ error: "not_found" }, 404);
+      if (String(data.reservation_status || "").startsWith("cancel")) {
+        return json({ error: "cancelled" }, 409);
+      }
+      if (!data.access_token) return json({ error: "no_token" }, 409);
+      return json({ ok: true, token: data.access_token });
+    }
+
     // ---------- ranking (no requiere token) ----------
+
     if (action === "ranking") {
       const eventId = body.event_id;
       if (!eventId) return json({ error: "missing_event_id" }, 400);
