@@ -5,9 +5,11 @@
 //  1) Solicita/reutiliza un settlement report para el rango pedido.
 //  2) Espera hasta ~25s a que el reporte esté disponible.
 //  3) Descarga el CSV, parsea y completa datos faltantes.
-//  4) Si un dato guardado pertenece a la propia cuenta receptora, lo limpia
-//     o reemplaza por el dato real del pagador.
-//  5) Si documento/email/nombre bancario coincide de forma única, identifica
+//  4) Para transferencias recibidas, el Settlement Report es la fuente
+//     autoritativa de identidad: puede reemplazar nombre/documento/email aunque
+//     /v1/payments ya hubiera guardado otros valores.
+//  5) Conserva además todos los campos del reporte dentro de raw.settlement_report.
+//  6) Si documento/email/nombre coincide de forma única, identifica
 //     automáticamente al alumno sin imputar todavía la deuda.
 //
 // POST /enrich-mp-settlement-report { days?: number, cuenta_id?: string }
@@ -152,7 +154,7 @@ Deno.serve(async (req) => {
 
   const { data: alumnosIdentidad, error: aErr } = await supabase
     .from("alumnos")
-    .select("id, email, emails_adicionales, documento, nombres_bancarios");
+    .select("id, nombre, apellido, email, emails_adicionales, documento, nombres_bancarios");
   if (aErr) return json(500, { error: aErr.message });
 
   const alumnosByEmail = new Map<string, string | null>();
@@ -166,6 +168,8 @@ Deno.serve(async (req) => {
     for (const key of documentKeys((a as any).documento)) {
       addUnique(alumnosByDocument, key, (a as any).id);
     }
+    const fullName = normalizeName([(a as any).nombre, (a as any).apellido].filter(Boolean).join(" "));
+    addUnique(alumnosByBankName, fullName, (a as any).id);
     for (const n of ((a as any).nombres_bancarios ?? [])) {
       addUnique(alumnosByBankName, normalizeName(n), (a as any).id);
     }
@@ -281,7 +285,7 @@ Deno.serve(async (req) => {
 
         const { data: existing } = await supabase
           .from("mp_account_movements")
-          .select("id, payer_name, payer_email, payer_document, alumno_id, assigned_manually")
+          .select("id, payer_name, payer_email, payer_document, alumno_id, assigned_manually, payment_method, payment_type, raw")
           .eq("cuenta_mp_id", c.id)
           .eq("mp_payment_id", String(paymentId))
           .maybeSingle();
@@ -291,18 +295,38 @@ Deno.serve(async (req) => {
         const existingNameIsOwn = !!existing.payer_name && !!ownName && normalizeName(existing.payer_name) === ownName;
         const existingEmailIsOwn = !!existing.payer_email && !!ownEmail && normalizeEmail(existing.payer_email) === ownEmail;
         const existingDocIsOwn = !!existing.payer_document && !!ownDocument && normalizeDigits(existing.payer_document) === ownDocument;
+        const isTransfer = ["account_money", "cvu", "bank_transfer", "bank_transfer_in"].includes(
+          String(existing.payment_method ?? existing.payment_type ?? "").toLowerCase(),
+        );
 
-        const patch: Record<string, string | null> = {};
-        if ((!existing.payer_name || existingNameIsOwn) && (name || existingNameIsOwn)) patch.payer_name = name;
-        if ((!existing.payer_email || existingEmailIsOwn) && (email || existingEmailIsOwn)) patch.payer_email = email;
-        if ((!existing.payer_document || existingDocIsOwn) && (doc || existingDocIsOwn)) patch.payer_document = doc;
+        const patch: Record<string, unknown> = {};
 
-        if (!existing.assigned_manually && !existing.alumno_id) {
+        // Guardamos el reporte completo para auditoría y para no perder datos
+        // que la UI de Mercado Pago sí conoce (ej. banco emisor / identificadores).
+        const previousRaw = existing.raw && typeof existing.raw === "object" ? existing.raw as Record<string, unknown> : {};
+        patch.raw = { ...previousRaw, settlement_report: r };
+
+        if (isTransfer) {
+          // En transferencias, el reporte de conciliación manda sobre /v1/payments.
+          // Nombre y documento se reemplazan cuando el reporte los informa.
+          if (name) patch.payer_name = name;
+          if (doc) patch.payer_document = doc;
+
+          // payer.email del endpoint de pagos puede ser el mail de la cuenta
+          // receptora; sólo conservamos email si el reporte lo confirma.
+          patch.payer_email = email;
+        } else {
+          if ((!existing.payer_name || existingNameIsOwn) && (name || existingNameIsOwn)) patch.payer_name = name;
+          if ((!existing.payer_email || existingEmailIsOwn) && (email || existingEmailIsOwn)) patch.payer_email = email;
+          if ((!existing.payer_document || existingDocIsOwn) && (doc || existingDocIsOwn)) patch.payer_document = doc;
+        }
+
+        if (!existing.assigned_manually) {
           let alumnoId: string | null = null;
           if (doc) alumnoId = lookupUniqueByDocument(alumnosByDocument, doc);
           if (!alumnoId && email) alumnoId = alumnosByEmail.get(normalizeEmail(email)) ?? null;
           if (!alumnoId && name) alumnoId = alumnosByBankName.get(normalizeName(name)) ?? null;
-          if (alumnoId) {
+          if (alumnoId && alumnoId !== existing.alumno_id) {
             patch.alumno_id = alumnoId;
             cuentaOut.autoIdentified++;
           }
