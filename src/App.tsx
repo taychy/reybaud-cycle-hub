@@ -56,6 +56,8 @@ import AdminProgramaFlujoRunner from "./pages/admin/AdminProgramaFlujoRunner";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
 import MisReservas from "./pages/MisReservas";
+import MisReservasLegacyRedirect from "./pages/MisReservasLegacyRedirect";
+
 import GuestReservationView from "./pages/GuestReservationView";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
