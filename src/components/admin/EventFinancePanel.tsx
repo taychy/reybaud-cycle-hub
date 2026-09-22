@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2, Wallet, Link2, AlertTriangle } from "lucide-react";
+import { TrendingUp, TrendingDown, RefreshCw, Plus, Trash2, Wallet, Link2, AlertTriangle, Pencil } from "lucide-react";
 import { formatPrice, MONEDAS } from "@/lib/currency";
 import { GASTO_PAYMENT_METHODS, formatGastoPaymentMethod } from "@/lib/gastoPaymentMethods";
 import { formatPnl, pnlColor, type EventPnL } from "@/lib/mpFees";
@@ -23,6 +23,10 @@ interface GastoRow {
   monto: number;
   moneda: string;
   forma_pago: string | null;
+  notas: string | null;
+  origen_registro: string | null;
+  estado_conciliacion: string | null;
+  mp_payment_id: string | null;
 }
 
 interface MpViajesRow {
@@ -51,6 +55,18 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
   const [syncingOutflows, setSyncingOutflows] = useState(false);
   const [newOpen, setNewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editGasto, setEditGasto] = useState<GastoRow | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState({
+    fecha: "",
+    descripcion: "",
+    categoria: "Otros",
+    proveedor: "",
+    monto: "",
+    moneda: "ARS",
+    forma_pago: "efectivo",
+    notas: "",
+  });
   const [mpDialog, setMpDialog] = useState<MpViajesRow | null>(null);
   const [mpSaving, setMpSaving] = useState(false);
   const [mpForm, setMpForm] = useState({
@@ -76,7 +92,7 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
       supabase.rpc("get_event_pnl", { p_event_id: eventId }),
       supabase
         .from("gastos")
-        .select("id, fecha, descripcion, categoria, proveedor, monto, moneda, forma_pago")
+        .select("id, fecha, descripcion, categoria, proveedor, monto, moneda, forma_pago, notas, origen_registro, estado_conciliacion, mp_payment_id")
         .eq("event_id", eventId)
         .order("fecha", { ascending: false }),
       supabase.rpc("get_event_mp_viajes_outflows" as any, { p_event_id: eventId }),
@@ -177,6 +193,61 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
       });
     } finally {
       setMpSaving(false);
+    }
+  };
+
+  const openEditGasto = (g: GastoRow) => {
+    setEditGasto(g);
+    setEditForm({
+      fecha: g.fecha,
+      descripcion: g.descripcion || "",
+      categoria: g.categoria || "Otros",
+      proveedor: g.proveedor || "",
+      monto: String(g.monto ?? ""),
+      moneda: g.moneda || "ARS",
+      forma_pago: g.forma_pago || "efectivo",
+      notas: g.notas || "",
+    });
+  };
+
+  const saveEditGasto = async () => {
+    if (!editGasto) return;
+    if (!editForm.descripcion.trim()) {
+      toast({ variant: "destructive", title: "Poné una descripción" });
+      return;
+    }
+    const monto = Number(editForm.monto);
+    if (!editGasto.mp_payment_id && (!monto || monto <= 0)) {
+      toast({ variant: "destructive", title: "Monto inválido" });
+      return;
+    }
+
+    setEditSaving(true);
+    try {
+      const { error } = await supabase.rpc("update_event_gasto" as any, {
+        p_gasto_id: editGasto.id,
+        p_event_id: eventId,
+        p_categoria: editForm.categoria,
+        p_descripcion: editForm.descripcion.trim(),
+        p_proveedor: editForm.proveedor.trim() || null,
+        p_notas: editForm.notas.trim() || null,
+        p_fecha: editForm.fecha || null,
+        p_monto: Number.isFinite(monto) ? monto : null,
+        p_moneda: editForm.moneda || null,
+        p_forma_pago: editForm.forma_pago || null,
+      });
+      if (error) throw error;
+      toast({ title: "Gasto actualizado" });
+      setEditGasto(null);
+      await load();
+    } catch (e) {
+      toast({
+        variant: "destructive",
+        title: "No se pudo editar el gasto",
+        description: String((e as Error).message),
+      });
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -469,6 +540,103 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
             </Dialog>
           </div>
 
+          <Dialog open={!!editGasto} onOpenChange={(open) => !open && setEditGasto(null)}>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>Editar gasto {eventTitle ? `— ${eventTitle}` : ""}</DialogTitle>
+              </DialogHeader>
+              {editGasto && (() => {
+                const linkedMp = !!editGasto.mp_payment_id || String(editGasto.origen_registro || "").startsWith("mp_");
+                return (
+                  <div className="space-y-3">
+                    {linkedMp && (
+                      <div className="rounded-md border border-cyan-500/30 bg-cyan-500/5 p-3 text-xs text-muted-foreground">
+                        Este gasto está conciliado con Mercado Pago. Podés corregir categoría, descripción, proveedor y notas.
+                        El monto, la fecha, la moneda y el medio de pago quedan bloqueados para no romper la conciliación.
+                      </div>
+                    )}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <Label>Fecha</Label>
+                        <Input
+                          type="date"
+                          value={editForm.fecha}
+                          disabled={linkedMp}
+                          onChange={(e) => setEditForm({ ...editForm, fecha: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Categoría</Label>
+                        <Select value={editForm.categoria} onValueChange={(v) => setEditForm({ ...editForm, categoria: v })}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {CATEGORIAS.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Descripción</Label>
+                      <Input value={editForm.descripcion} onChange={(e) => setEditForm({ ...editForm, descripcion: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label>Proveedor (opcional)</Label>
+                      <Input value={editForm.proveedor} onChange={(e) => setEditForm({ ...editForm, proveedor: e.target.value })} />
+                    </div>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <Label>Monto</Label>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          value={editForm.monto}
+                          disabled={linkedMp}
+                          onChange={(e) => setEditForm({ ...editForm, monto: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <Label>Moneda</Label>
+                        <Select
+                          value={editForm.moneda}
+                          disabled={linkedMp}
+                          onValueChange={(v) => setEditForm({ ...editForm, moneda: v })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {MONEDAS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label>Forma de pago</Label>
+                        <Select
+                          value={editForm.forma_pago}
+                          disabled={linkedMp}
+                          onValueChange={(v) => setEditForm({ ...editForm, forma_pago: v })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {GASTO_PAYMENT_METHODS.map((m) => <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div>
+                      <Label>Notas (opcional)</Label>
+                      <Textarea value={editForm.notas} onChange={(e) => setEditForm({ ...editForm, notas: e.target.value })} rows={2} />
+                    </div>
+                  </div>
+                );
+              })()}
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEditGasto(null)}>Cancelar</Button>
+                <Button onClick={saveEditGasto} disabled={editSaving}>
+                  {editSaving ? "Guardando..." : "Guardar cambios"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           {gastos.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4 border border-dashed border-border rounded">
               Sin gastos asociados. Registrá el primero con "Registrar gasto".
@@ -486,9 +654,12 @@ export function EventFinancePanel({ eventId, eventTitle }: { eventId: string; ev
                       {g.fecha} · {formatGastoPaymentMethod(g.forma_pago)} {g.proveedor ? `· ${g.proveedor}` : ""}
                     </p>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className="font-semibold">{formatPrice(Number(g.monto), g.moneda || "ARS")}</span>
-                    <Button variant="ghost" size="sm" onClick={() => deleteGasto(g.id)} className="text-red-400 hover:text-red-500">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <span className="font-semibold mr-1">{formatPrice(Number(g.monto), g.moneda || "ARS")}</span>
+                    <Button variant="ghost" size="sm" onClick={() => openEditGasto(g)} title="Editar gasto">
+                      <Pencil className="w-4 h-4" />
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => deleteGasto(g.id)} className="text-red-400 hover:text-red-500" title="Eliminar gasto">
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
