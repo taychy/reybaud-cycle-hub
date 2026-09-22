@@ -526,6 +526,24 @@ const SuperAdminGastos = () => {
     loadData();
   };
 
+  const abrirVincularDevolucion = (g: GastoRow) => {
+    setDevGasto({
+      id: g.id, descripcion: g.descripcion, monto: Number(g.monto), moneda: g.moneda,
+      fecha: g.fecha, forma_pago: g.forma_pago, mp_payment_id: g.mp_payment_id ?? null,
+      event_id: g.event_id ?? null, alumno_id: g.alumno_id ?? null, reservation_id: g.reservation_id ?? null,
+    });
+    setDevDialogOpen(true);
+  };
+
+  const desvincularDevolucion = async (g: GastoRow) => {
+    if (!confirm("¿Desvincular esta devolución? El gasto se conserva; sólo deja de contarse como devolución del participante.")) return;
+    const { error } = await supabase.rpc("desvincular_gasto_devolucion" as any, { p_gasto_id: g.id });
+    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Devolución desvinculada" });
+    loadData();
+  };
+
+
 
   const deletePago = async (id: string) => {
     if (!confirm("¿Eliminar este pago? El estado de la cuota se va a recalcular.")) return;
