@@ -34,6 +34,7 @@ import { ensureOrderInCamioneta, markOrderItemsEntregados, listCargasActivas, re
 import ElegirCajaDialog from "@/components/deposito/ElegirCajaDialog";
 import {
   buildAvisoCamionetaMessage,
+  buildAvisoPedidoReferencia,
   avisoWaLink,
   formatAvisoFecha,
 } from "@/lib/camionetaAviso";
@@ -216,7 +217,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos" }: Props = {}) =>
     let omitidos = orders.length - vigentes.length;
     for (const r of vigentes) {
       const saldo = saldoMap[r.id] ?? Math.max(Number(r.total || 0), 0);
-      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r, saldo));
+      const referencia = buildAvisoPedidoReferencia(r.order_number, itemsByOrder[r.id] || []);
+      const link = avisoWaLink(telefonoDe(r), buildAvisoCamionetaMessage(primerNombre(r), r, saldo, referencia));
       if (!link) { omitidos++; continue; }
       window.open(link, "_blank");
       abiertos.push(r);

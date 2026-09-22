@@ -98,3 +98,7 @@
 - [x] Etiquetas Niimbot con talle y cantidad, jerarquía grande y QR sólo si hay saldo pendiente
 - [x] Importes de línea mostrados en la moneda del pedido (precios base legacy USD)
 - [x] Stock de combos consultado a la base (`get_combo_available_stock`)
+## Camioneta · Referencia breve en WhatsApp
+- [x] Incluir número, producto, variante, cantidad y restantes en avisos desde Pedidos y Camioneta
+- [x] Validar pruebas relevantes y tipos; no publicar ni desplegar
+
