@@ -1193,7 +1193,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
 
           <Metric label="Controlados" value={chequeados} />
           <Metric label="Entregados" value={entregados} tone="ok" />
-          <Metric label="Faltantes" value={faltantes} tone="danger" />
+          <Metric label="Revisar entrega" value={faltantes} tone="danger" />
         </div>
       </div>
 
@@ -1382,14 +1382,27 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
             </section>
           )}
 
-          {/* 3 · DEBE VOLVER A DEPÓSITO */}
+          {/* 3 · DEBE VOLVER A DEPÓSITO (sólo compras canceladas y retornos) */}
           <section className="space-y-2">
             {seccionHeader("Debe volver a depósito", itemsAVolver.length, "danger")}
-            <p className="text-xs text-muted-foreground">Compras canceladas, faltantes y retornos ya identificados por su estado.</p>
+            <p className="text-xs text-muted-foreground">Mercadería de compras canceladas que debe regresar al depósito, y retornos ya confirmados.</p>
             {itemsAVolver.length === 0 ? (
               grupoVacio("Nada pendiente de volver al depósito.")
             ) : (
               clienteCards(itemsAVolver)
+            )}
+          </section>
+
+          {/* 3b · NO ENCONTRADO EN EL ÚLTIMO CONTROL */}
+          <section className="space-y-2">
+            {seccionHeader("No encontrado en el último control · revisar entrega", itemsNoEncontrados.length)}
+            <p className="text-xs text-muted-foreground">
+              El sistema esperaba esta mercadería en la camioneta pero no fue vista en el control. Puede haber sido entregada sin registrar.
+            </p>
+            {itemsNoEncontrados.length === 0 ? (
+              grupoVacio("El último control encontró todo lo esperado.")
+            ) : (
+              revisarCards(itemsNoEncontrados)
             )}
           </section>
 
