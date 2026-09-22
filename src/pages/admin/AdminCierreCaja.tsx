@@ -217,7 +217,7 @@ export default function AdminCierreCaja() {
             <Wallet className="w-6 h-6" /> Cierre de caja (efectivo)
           </h1>
           <p className="text-sm text-muted-foreground">
-            Arqueo nocturno. Contá el efectivo físico y compará con lo que registra el sistema.
+            Arqueo del día seleccionado. Sólo cuenta efectivo realmente recibido y validado; no incluye pedidos pendientes de cobro.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -247,7 +247,7 @@ export default function AdminCierreCaja() {
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Sistema ({count})</span>
+                    <span className="text-muted-foreground">Efectivo esperado ({count})</span>
                     <span className="font-mono font-semibold">{formatPrice(sistema, "ARS")}</span>
                   </div>
                   <div className="space-y-1">
@@ -299,7 +299,7 @@ export default function AdminCierreCaja() {
             <CardHeader><CardTitle className="text-base">Total del día</CardTitle></CardHeader>
             <CardContent className="grid gap-2 sm:grid-cols-3 text-sm">
               <div>
-                <div className="text-muted-foreground">Sistema</div>
+                <div className="text-muted-foreground">Efectivo esperado hoy</div>
                 <div className="font-mono text-lg font-bold">{formatPrice(totalSistema, "ARS")}</div>
               </div>
               <div>
