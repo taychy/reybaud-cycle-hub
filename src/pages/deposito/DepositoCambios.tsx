@@ -112,7 +112,9 @@ const DepositoCambios = () => {
     load();
   };
 
-  const renderItem = (c: any, action: "scan" | "define" | "view" | "readonly") => (
+  const renderItem = (c: any, action: "scan" | "define" | "view" | "readonly" | "sustitucion") => {
+    const esSust = esSustitucionFaltaStock(c);
+    return (
     <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
@@ -122,11 +124,26 @@ const DepositoCambios = () => {
             {c.origen_solicitud === "presencial" && <Badge variant="outline" className="ml-1 text-[9px]">Presencial</Badge>}
           </p>
         </div>
-        <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+        <div className="flex flex-col items-end gap-1">
+          <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+          {esSust && (
+            <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-400">Sustitución por falta de stock</Badge>
+          )}
+        </div>
       </div>
       <div className="text-xs text-muted-foreground space-y-0.5">
-        <p><b>Devuelve:</b> {formatVariante(c.variante_origen)}</p>
-        <p><b>Recibe:</b> {c.variante_destino ? formatVariante(c.variante_destino) : <span className="text-amber-400">Sin definir</span>}</p>
+        {esSust ? (
+          <>
+            <p><b>Original no entregado:</b> {formatVariante(c.variante_origen)}</p>
+            <p><b>Entregar:</b> {c.variante_destino ? formatVariante(c.variante_destino) : <span className="text-amber-400">Sin definir</span>}</p>
+            <p className="text-[10px]">No hay devolución física: el cliente nunca recibió el original.</p>
+          </>
+        ) : (
+          <>
+            <p><b>Devuelve:</b> {formatVariante(c.variante_origen)}</p>
+            <p><b>Recibe:</b> {c.variante_destino ? formatVariante(c.variante_destino) : <span className="text-amber-400">Sin definir</span>}</p>
+          </>
+        )}
       </div>
       <div className="flex gap-2 pt-1">
         {action === "scan" && (
@@ -139,6 +156,11 @@ const DepositoCambios = () => {
             <Package className="w-3.5 h-3.5 mr-1" /> Definir reemplazo
           </Button>
         )}
+        {action === "sustitucion" && (
+          <Button size="sm" onClick={() => marcarListo(c.id)}>
+            <Package className="w-3.5 h-3.5 mr-1" /> Listo para entregar
+          </Button>
+        )}
         {action === "view" && (
           <div className="flex items-center gap-2 flex-wrap">
             <Badge className="bg-green-500/20 text-green-400">Esperando retiro en sede</Badge>
@@ -149,7 +171,9 @@ const DepositoCambios = () => {
         )}
       </div>
     </div>
-  );
+    );
+  };
+
 
   const renderPrueba = (c: any) => {
     const activa = esPruebaActiva(c);
