@@ -132,3 +132,7 @@ verify_jwt = false
 
 [functions.enrich-mp-settlement-report]
 verify_jwt = false
+
+
+[functions.reconcile-mp-release-report]
+verify_jwt = false
