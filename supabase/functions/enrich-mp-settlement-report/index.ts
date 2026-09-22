@@ -141,7 +141,8 @@ Deno.serve(async (req) => {
   }
 
   const body = await req.json().catch(() => ({}));
-  const days = Math.min(Math.max(Number(body?.days ?? 30), 1), 90);
+  // Mercado Pago limita el reporte "Todas las transacciones" a 60 días.
+  const days = Math.min(Math.max(Number(body?.days ?? 30), 1), 60);
   const cuentaId: string | undefined = body?.cuenta_id;
   const forceFresh = Boolean(body?.force_fresh ?? false);
 
