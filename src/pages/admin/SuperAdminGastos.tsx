@@ -1435,7 +1435,24 @@ const SuperAdminGastos = () => {
                                     {g.estado_conciliacion === "pendiente_conciliar" && (
                                       <Badge variant="destructive" className="text-[10px] h-5 px-1.5 shrink-0" title="Pendiente de conciliar">⚠</Badge>
                                     )}
+                                    {devolucionesPorGasto[g.id] && (
+                                      <Badge className="text-[10px] h-5 px-1.5 shrink-0 bg-orange-500/15 text-orange-500 border-orange-500/30">Devolución</Badge>
+                                    )}
                                   </div>
+                                  {devolucionesPorGasto[g.id] && (
+                                    <div className="flex items-center gap-1 flex-wrap mt-1">
+                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">{devolucionesPorGasto[g.id].alumno_nombre}</Badge>
+                                      {devolucionesPorGasto[g.id].evento_nombre && (
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">{devolucionesPorGasto[g.id].evento_nombre}</Badge>
+                                      )}
+                                      {devolucionesPorGasto[g.id].reservation_id && (
+                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5">Reserva vinculada</Badge>
+                                      )}
+                                      <Badge variant="outline" className="text-[10px] h-5 px-1.5">
+                                        {g.estado_conciliacion === "conciliado" ? "Conciliado" : "Sin conciliar"}
+                                      </Badge>
+                                    </div>
+                                  )}
                                 </TableCell>
                                 <TableCell className="text-xs">{FORMA_PAGO_LABELS[g.forma_pago] || g.forma_pago}</TableCell>
                                 <TableCell>
