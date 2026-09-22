@@ -4125,6 +4125,8 @@ export type Database = {
       event_addons: {
         Row: {
           activo: boolean
+          aplica_a_paquetes: string[]
+          categoria: string
           created_at: string
           currency: string
           descripcion: string | null
@@ -4140,6 +4142,8 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
+          aplica_a_paquetes?: string[]
+          categoria?: string
           created_at?: string
           currency?: string
           descripcion?: string | null
@@ -4155,6 +4159,8 @@ export type Database = {
         }
         Update: {
           activo?: boolean
+          aplica_a_paquetes?: string[]
+          categoria?: string
           created_at?: string
           currency?: string
           descripcion?: string | null
@@ -4940,6 +4946,7 @@ export type Database = {
           descripcion: string | null
           event_id: string
           id: string
+          incluye_gastronomia: boolean
           lodging_group_key: string | null
           nombre: string
           permite_mixto: boolean
@@ -4961,6 +4968,7 @@ export type Database = {
           descripcion?: string | null
           event_id: string
           id?: string
+          incluye_gastronomia?: boolean
           lodging_group_key?: string | null
           nombre: string
           permite_mixto?: boolean
@@ -4982,6 +4990,7 @@ export type Database = {
           descripcion?: string | null
           event_id?: string
           id?: string
+          incluye_gastronomia?: boolean
           lodging_group_key?: string | null
           nombre?: string
           permite_mixto?: boolean
@@ -17762,6 +17771,21 @@ export type Database = {
         Returns: undefined
       }
       unassign_mp_movement: { Args: { _movement_id: string }; Returns: Json }
+      update_event_gasto: {
+        Args: {
+          p_categoria: string
+          p_descripcion: string
+          p_event_id: string
+          p_fecha?: string
+          p_forma_pago?: string
+          p_gasto_id: string
+          p_moneda?: string
+          p_monto?: number
+          p_notas?: string
+          p_proveedor?: string
+        }
+        Returns: Json
+      }
       update_gasto_deuda_mov: {
         Args: {
           p_concepto?: string
