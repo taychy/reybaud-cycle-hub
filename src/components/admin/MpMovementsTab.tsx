@@ -39,7 +39,15 @@ type Movement = {
   assigned_manually: boolean;
   assign_notes: string | null;
   cuentas_mp?: { nombre: string; slug: string } | null;
-  alumnos?: { id: string; nombre: string; apellido: string | null; email: string } | null;
+  alumnos?: {
+    id: string;
+    nombre: string;
+    apellido: string | null;
+    email: string;
+    emails_adicionales?: string[] | null;
+    documento?: string | null;
+    nombres_bancarios?: string[] | null;
+  } | null;
 };
 
 type Alumno = { id: string; nombre: string; apellido: string | null; email: string };
@@ -67,6 +75,35 @@ const isOwnMpEmail = (slug: string | undefined, email: string | null) => {
   if (!slug || !email) return false;
   return (OWN_MP_EMAILS_BY_SLUG[slug] ?? []).includes(email.toLowerCase());
 };
+
+const normalizeDigits = (value: unknown) => String(value ?? "").replace(/\D/g, "");
+const documentKeys = (value: unknown) => {
+  const digits = normalizeDigits(value);
+  if (!digits) return [] as string[];
+  const keys = new Set<string>([digits]);
+  if (digits.length === 11) {
+    const dni8 = digits.slice(2, 10);
+    keys.add(dni8);
+    keys.add(dni8.replace(/^0+/, ""));
+  } else if (digits.length <= 8) {
+    keys.add(digits.padStart(8, "0"));
+    keys.add(digits.replace(/^0+/, ""));
+  }
+  return [...keys].filter(Boolean);
+};
+const documentsEquivalent = (a: unknown, b: unknown) => {
+  const bKeys = new Set(documentKeys(b));
+  return documentKeys(a).some((key) => bKeys.has(key));
+};
+const normalizeIdentityEmail = (value: unknown) => String(value ?? "").trim().toLowerCase();
+const normalizeIdentityName = (value: unknown) =>
+  String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
 
 export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }) {
   const [loading, setLoading] = useState(true);
@@ -157,7 +194,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
         external_reference, fecha_movimiento, alumno_id, reservation_payment_id, suscripcion_id,
         assigned_manually, assign_notes,
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug ),
-        alumnos:alumnos!alumno_id ( id, nombre, apellido, email )
+        alumnos:alumnos!alumno_id ( id, nombre, apellido, email, emails_adicionales, documento, nombres_bancarios )
       `)
       .eq("direccion", "ingreso");
 
@@ -592,6 +629,24 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                         {(() => {
                           const isTransfer = ["account_money", "cvu", "bank_transfer"].includes(m.payment_method ?? "");
                           const emailIsOwn = isOwnMpEmail(m.cuentas_mp?.slug, m.payer_email);
+
+                          const alumnoEmails = m.alumnos
+                            ? [m.alumnos.email, ...(m.alumnos.emails_adicionales ?? [])]
+                                .map(normalizeIdentityEmail)
+                                .filter(Boolean)
+                            : [];
+                          const emailMatchesAlumno = !!m.payer_email &&
+                            alumnoEmails.includes(normalizeIdentityEmail(m.payer_email));
+                          const documentMatchesAlumno = !!m.alumnos?.documento && !!m.payer_document &&
+                            documentsEquivalent(m.payer_document, m.alumnos.documento);
+                          const payerNameNormalized = normalizeIdentityName(m.payer_name);
+                          const nameMatchesAlumno = !!payerNameNormalized && !!m.alumnos &&
+                            (m.alumnos.nombres_bancarios ?? [])
+                              .map(normalizeIdentityName)
+                              .includes(payerNameNormalized);
+                          const alumnoIdentityMatch = !!m.alumnos &&
+                            (documentMatchesAlumno || emailMatchesAlumno || nameMatchesAlumno);
+
                           const desc = m.description && m.description.trim() && m.description.trim().toLowerCase() !== "varios"
                             ? m.description.trim()
                             : null;
@@ -600,6 +655,31 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                               {desc}
                             </div>
                           ) : null;
+                          // Si el movimiento ya quedó vinculado a un alumno y tenemos una
+                          // coincidencia fuerte por DNI/CUIT, email o nombre bancario, mostramos la
+                          // identidad resuelta del alumno. Así no presentamos como "pagador" un email
+                          // técnico/propio que MP haya puesto en una transferencia.
+                          if (alumnoIdentityMatch && m.alumnos) {
+                            const via = documentMatchesAlumno
+                              ? "DNI/CUIT"
+                              : emailMatchesAlumno
+                                ? "email"
+                                : "nombre bancario";
+                            return (
+                              <>
+                                <div className="font-medium">
+                                  {m.alumnos.nombre} {m.alumnos.apellido ?? ""}
+                                </div>
+                                <div className="text-muted-foreground">{m.alumnos.email}</div>
+                                {m.payer_document && (
+                                  <div className="text-muted-foreground">DNI/CUIT: {m.payer_document}</div>
+                                )}
+                                <div className="text-[10px] text-emerald-400">Identificado por {via}</div>
+                                {descBlock}
+                              </>
+                            );
+                          }
+
                           if (m.payer_name) {
                             return (
                               <>
