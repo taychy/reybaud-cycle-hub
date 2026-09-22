@@ -509,6 +509,7 @@ Deno.serve(async (req) => {
           body: JSON.stringify({
             days: Math.max(days, 30),
             cuenta_id: cuentaId,
+            force_fresh: !!cuentaId,
           }),
         },
       );
