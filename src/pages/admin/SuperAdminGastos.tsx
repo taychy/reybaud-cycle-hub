@@ -18,7 +18,7 @@ import {
   Plus, Receipt, Wallet, Trash2, Edit2, AlertTriangle, Calendar,
   CheckCircle2, Clock, RefreshCw, Building2, Home, Boxes, CreditCard, TrendingDown, Link2,
   ChevronDown, ChevronUp, Archive, ArchiveRestore, History, Eye, EyeOff,
-  Tags,
+  Tags, RotateCcw, Link2Off,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import AgendaMes from "@/components/admin/gastos/AgendaMes";
