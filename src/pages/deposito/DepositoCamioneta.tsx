@@ -14,7 +14,7 @@ import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
 import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
-import { avisoWaLink, buildAvisoCamionetaMessage, formatAvisoFecha } from "@/lib/camionetaAviso";
+import { avisoWaLink, buildAvisoCamionetaMessage, buildAvisoPedidoReferencia, formatAvisoFecha } from "@/lib/camionetaAviso";
 
 
 interface Sede { id: string; nombre: string; }
@@ -673,7 +673,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     if (soiIds.length) {
       const { data: soi } = await supabase
         .from("store_order_items")
-        .select("id, order_id")
+        .select("id, order_id, product_name, variant_selection, quantity")
         .in("id", soiIds);
       const orderIds = Array.from(new Set((soi || []).map((s: any) => s.order_id).filter(Boolean)));
       if (orderIds.length) {
@@ -688,7 +688,11 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
           ((als as any[]) || []).forEach((a: any) => { if (a.telefono) telByAlumno[a.id] = a.telefono; });
         }
         const byId = new Map<string, any>();
-        ((ords as any[]) || []).forEach((o: any) => byId.set(o.id, { ...o, telefono: telByAlumno[o.alumno_id] || o.customer_phone || null }));
+        ((ords as any[]) || []).forEach((o: any) => byId.set(o.id, {
+          ...o,
+          telefono: telByAlumno[o.alumno_id] || o.customer_phone || null,
+          items: ((soi as any[]) || []).filter((item) => item.order_id === o.id),
+        }));
         const cancelled = new Map<string, any>();
         ((ords as any[]) || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
         const map: Record<string, { orderId: string; orderNumber: number | null }> = {};
@@ -769,14 +773,18 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       const { data: saldos } = await (supabase.rpc as any)("get_store_orders_saldo", { _ids: [ord.id] });
       const saldo = Number((saldos || [])[0]?.saldo ?? ord.total ?? 0);
       const nombre = String(ord.customer_name || it.cliente_nombre || "").split(" ")[0];
-      const link = avisoWaLink(ord.telefono || "", buildAvisoCamionetaMessage(nombre, ord, saldo));
+      const referencia = buildAvisoPedidoReferencia(ord.order_number, ord.items || []);
+      const link = avisoWaLink(ord.telefono || "", buildAvisoCamionetaMessage(nombre, ord, saldo, referencia));
       if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
       window.open(link, "_blank");
       setAvisoPendiente({ orderId: ord.id, label: `Pedido #${ord.order_number ?? "—"}` });
       return;
     }
     const nombre = String(ext?.cliente_nombre || it.cliente_nombre || "").split(" ")[0] || "cliente";
-    const link = avisoWaLink(ext?.cliente_telefono || "", `Hola, ${nombre}. Tu pedido sigue en la camioneta para que puedas retirarlo. ¡Gracias!`);
+    const itemsExternos = items.filter((item) => item.source_table === "pedidos_externos" && item.source_id === it.source_id);
+    const referencia = buildAvisoPedidoReferencia(null, itemsExternos);
+    const sujeto = referencia.toLowerCase().startsWith("tu ") ? referencia : `tu ${referencia}`;
+    const link = avisoWaLink(ext?.cliente_telefono || "", `Hola, ${nombre}. ${sujeto.charAt(0).toUpperCase()}${sujeto.slice(1)} sigue en la camioneta para que puedas retirarlo. ¡Gracias!`);
     if (!link) { toast.error("El cliente no tiene teléfono cargado."); return; }
     window.open(link, "_blank");
   };
