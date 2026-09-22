@@ -186,9 +186,76 @@ Deno.serve(async (req) => {
       summary.errors.push({ cuenta: c.slug, error: "token_no_configurado" });
       continue;
     }
-    const cuentaOut: any = { cuenta: c.slug, enriched: 0, matched: 0, autoIdentified: 0, pending: false };
+    const cuentaOut: any = { cuenta: c.slug, enriched: 0, matched: 0, insertedMissing: 0, autoIdentified: 0, pending: false };
 
     try {
+      // Para conciliación completa necesitamos que el reporte incluya retiros
+      // y las columnas mínimas que permiten reconstruir movimientos faltantes.
+      // Conservamos la configuración existente y sólo agregamos lo necesario.
+      try {
+        const cfgResp = await fetch(
+          "https://api.mercadopago.com/v1/account/settlement_report/config",
+          { headers: { Authorization: `Bearer ${mpToken}` } },
+        );
+        if (cfgResp.ok) {
+          const cfg = await cfgResp.json();
+          const requiredColumns = [
+            "SOURCE_ID",
+            "EXTERNAL_REFERENCE",
+            "PAYMENT_METHOD_TYPE",
+            "PAYMENT_METHOD",
+            "TRANSACTION_TYPE",
+            "TRANSACTION_AMOUNT",
+            "TRANSACTION_CURRENCY",
+            "TRANSACTION_DATE",
+            "FEE_AMOUNT",
+            "SETTLEMENT_NET_AMOUNT",
+            "SETTLEMENT_CURRENCY",
+            "SETTLEMENT_DATE",
+            "REAL_AMOUNT",
+          ];
+          const currentColumns = Array.isArray(cfg?.columns)
+            ? cfg.columns.map((x: any) => String(x?.key ?? "")).filter(Boolean)
+            : [];
+          const mergedColumns = [...new Set([...currentColumns, ...requiredColumns])];
+          const needsUpdate =
+            cfg?.include_withdraw !== true ||
+            requiredColumns.some((key) => !currentColumns.includes(key));
+
+          if (needsUpdate) {
+            const updateBody: any = {
+              file_name_prefix: cfg?.file_name_prefix || `settlement-report-${c.slug}`,
+              show_fee_prevision: Boolean(cfg?.show_fee_prevision),
+              show_chargeback_cancel: cfg?.show_chargeback_cancel !== false,
+              coupon_detailed: cfg?.coupon_detailed !== false,
+              include_withdraw: true,
+              shipping_detail: cfg?.shipping_detail !== false,
+              refund_detailed: cfg?.refund_detailed !== false,
+              display_timezone: cfg?.display_timezone || "GMT-03",
+              header_language: cfg?.header_language || "es",
+              frequency: cfg?.frequency || { hour: 0, type: "monthly", value: 1 },
+              columns: mergedColumns.map((key) => ({ key })),
+            };
+            const putResp = await fetch(
+              "https://api.mercadopago.com/v1/account/settlement_report/config",
+              {
+                method: "PUT",
+                headers: {
+                  Authorization: `Bearer ${mpToken}`,
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(updateBody),
+              },
+            );
+            if (!putResp.ok) {
+              summary.errors.push({ cuenta: c.slug, error: `report_config_${putResp.status}` });
+            }
+          }
+        }
+      } catch (e) {
+        summary.errors.push({ cuenta: c.slug, error: `report_config_failed: ${(e as Error).message}` });
+      }
+
       let ownEmail = "";
       let ownDocument = "";
       let ownName = "";
@@ -289,7 +356,73 @@ Deno.serve(async (req) => {
           .eq("cuenta_mp_id", c.id)
           .eq("mp_payment_id", String(paymentId))
           .maybeSingle();
-        if (!existing) continue;
+
+        if (!existing) {
+          // Payment Search no siempre expone todos los movimientos que sí
+          // impactaron el saldo (por ejemplo algunas transferencias enviadas).
+          // "Todas las transacciones" es el backstop autoritativo de completitud.
+          const transactionType = String(r.TRANSACTION_TYPE || "").toUpperCase();
+          const allowedTypes = new Set(["SETTLEMENT", "WITHDRAWAL", "PAYOUT", "WITHDRAWAL_CANCEL"]);
+          if (!allowedTypes.has(transactionType)) continue;
+
+          const parseNumber = (value: unknown): number | null => {
+            const raw = String(value ?? "").trim();
+            if (!raw) return null;
+            const n = Number(raw.replace(",", "."));
+            return Number.isFinite(n) ? n : null;
+          };
+
+          const txAmount = parseNumber(r.TRANSACTION_AMOUNT);
+          const netImpact = parseNumber(r.SETTLEMENT_NET_AMOUNT) ?? parseNumber(r.REAL_AMOUNT) ?? txAmount;
+          if (netImpact == null || netImpact === 0) continue;
+
+          const amount = Math.abs(txAmount ?? netImpact);
+          if (!Number.isFinite(amount) || amount <= 0) continue;
+
+          let alumnoId: string | null = null;
+          if (doc) alumnoId = lookupUniqueByDocument(alumnosByDocument, doc);
+          if (!alumnoId && email) alumnoId = alumnosByEmail.get(normalizeEmail(email)) ?? null;
+          if (!alumnoId && name) alumnoId = alumnosByBankName.get(normalizeName(name)) ?? null;
+
+          const reportDate =
+            r.TRANSACTION_DATE ||
+            r.SETTLEMENT_DATE ||
+            new Date().toISOString();
+
+          const { error: insertErr } = await supabase.from("mp_account_movements").insert({
+            cuenta_mp_id: c.id,
+            mp_payment_id: String(paymentId),
+            tipo: "settlement_report",
+            status: "approved",
+            status_detail: "settlement_report",
+            payment_method: r.PAYMENT_METHOD || null,
+            payment_type: r.PAYMENT_METHOD_TYPE || null,
+            amount,
+            net_received: netImpact,
+            fee_amount: Math.abs(parseNumber(r.FEE_AMOUNT) ?? 0),
+            currency: r.TRANSACTION_CURRENCY || r.SETTLEMENT_CURRENCY || "ARS",
+            description: null,
+            payer_email: email,
+            payer_name: name,
+            payer_document: doc,
+            external_reference: r.EXTERNAL_REFERENCE || null,
+            fecha_movimiento: reportDate,
+            raw: {
+              settlement_report: r,
+              settlement_report_backfill: true,
+            },
+            alumno_id: alumnoId,
+          });
+
+          if (insertErr) {
+            summary.errors.push({ cuenta: c.slug, mp: String(paymentId), error: `report_insert: ${insertErr.message}` });
+          } else {
+            cuentaOut.insertedMissing++;
+            if (alumnoId) cuentaOut.autoIdentified++;
+          }
+          continue;
+        }
+
         cuentaOut.matched++;
 
         const existingNameIsOwn = !!existing.payer_name && !!ownName && normalizeName(existing.payer_name) === ownName;
