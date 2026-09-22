@@ -107,16 +107,23 @@ Deno.serve(async (req) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
   );
 
-  const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.replace(/^Bearer\s+/i, "");
-  if (!token) return json(401, { error: "missing_token" });
-  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
-  if (userErr || !userData?.user) return json(401, { error: "invalid_token" });
-  const { data: isAdmin } = await supabase.rpc("has_role", {
-    _user_id: userData.user.id,
-    _role: "admin",
-  });
-  if (!isAdmin) return json(403, { error: "not_admin" });
+  // Admin logueado o cron interno, igual que sync-mp-account-movements.
+  const cronKey = req.headers.get("x-cron-key");
+  const expectedCronKey = Deno.env.get("CRON_SECRET");
+  const isCron = !!expectedCronKey && cronKey === expectedCronKey;
+
+  if (!isCron) {
+    const authHeader = req.headers.get("Authorization") ?? "";
+    const token = authHeader.replace(/^Bearer\s+/i, "");
+    if (!token) return json(401, { error: "missing_token" });
+    const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+    if (userErr || !userData?.user) return json(401, { error: "invalid_token" });
+    const { data: isAdmin } = await supabase.rpc("has_role", {
+      _user_id: userData.user.id,
+      _role: "admin",
+    });
+    if (!isAdmin) return json(403, { error: "not_admin" });
+  }
 
   const body = await req.json().catch(() => ({}));
   const days = Math.min(Math.max(Number(body?.days ?? 30), 1), 90);
