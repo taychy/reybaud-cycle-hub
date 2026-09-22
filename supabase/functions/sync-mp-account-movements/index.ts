@@ -520,6 +520,31 @@ Deno.serve(async (req) => {
         status: enrichResp.status,
         result: enrichData,
       };
+
+      // Para una sincronización manual/focalizada, además conciliamos
+      // Liberaciones. Ese reporte es la fuente de respaldo para egresos que
+      // afectan dinero disponible pero que /v1/payments/search puede omitir
+      // (por ejemplo transferencias enviadas desde la billetera).
+      if (cuentaId) {
+        const releaseResp = await fetch(
+          `${Deno.env.get("SUPABASE_URL")}/functions/v1/reconcile-mp-release-report`,
+          {
+            method: "POST",
+            headers: enrichHeaders,
+            body: JSON.stringify({
+              days: Math.min(Math.max(days, 30), 60),
+              cuenta_id: cuentaId,
+            }),
+          },
+        );
+        const releaseData = await releaseResp.json().catch(() => null);
+        results.release_reconciliation = {
+          triggered: true,
+          ok: releaseResp.ok,
+          status: releaseResp.status,
+          result: releaseData,
+        };
+      }
     } catch (e) {
       results.enrichment = {
         triggered: true,
@@ -529,6 +554,10 @@ Deno.serve(async (req) => {
     }
   } else {
     results.enrichment = { triggered: false };
+  }
+
+  if (!cuentaId) {
+    results.release_reconciliation = { triggered: false };
   }
 
   return json(200, { ok: true, ...results });
