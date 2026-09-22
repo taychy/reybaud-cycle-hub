@@ -44,7 +44,7 @@ serve(async (req) => {
 
     const { data: reservation, error: reservationError } = await supabase
       .from("event_reservations")
-      .select("id, event_id, alumno_id, reservation_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot")
+      .select("id, event_id, alumno_id, package_id, reservation_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot")
       .eq("access_token", token)
       .maybeSingle();
 
@@ -53,13 +53,18 @@ serve(async (req) => {
 
     const { data: addons, error: addonsError } = await supabase
       .from("event_addons")
-      .select("id, event_id, nombre, descripcion, precio, currency, tipo, max_por_participante, stock_total, activo, sort_order, created_at")
+      .select("id, event_id, nombre, descripcion, precio, currency, tipo, categoria, aplica_a_paquetes, max_por_participante, stock_total, activo, sort_order, created_at")
       .eq("event_id", reservation.event_id)
       .eq("activo", true)
       .order("sort_order", { ascending: true })
       .order("created_at", { ascending: true });
 
     if (addonsError) return json({ error: "addons_failed", detail: addonsError.message }, 500);
+
+    const availableAddons = (addons ?? []).filter((addon: any) => {
+      const scoped = Array.isArray(addon.aplica_a_paquetes) ? addon.aplica_a_paquetes : [];
+      return scoped.length === 0 || (!!reservation.package_id && scoped.includes(reservation.package_id));
+    });
 
     const loadContracted = async () => {
       const { data, error } = await supabase
@@ -77,7 +82,7 @@ serve(async (req) => {
         ok: true,
         event_id: reservation.event_id,
         reservation_status: reservation.reservation_status,
-        addons: addons ?? [],
+        addons: availableAddons,
         contracted,
       });
     }
@@ -90,7 +95,7 @@ serve(async (req) => {
     const selections = Array.isArray(body.selections) ? body.selections : [];
     if (selections.length > 100) return json({ error: "too_many_selections" }, 400);
 
-    const addonMap = new Map((addons ?? []).map((addon: any) => [addon.id, addon]));
+    const addonMap = new Map(availableAddons.map((addon: any) => [addon.id, addon]));
     const normalized = new Map<string, { cantidad: number; noche_timing: string | null }>();
 
     for (const row of selections) {
@@ -228,7 +233,7 @@ serve(async (req) => {
       ok: true,
       event_id: reservation.event_id,
       reservation_status: reservation.reservation_status,
-      addons: addons ?? [],
+      addons: availableAddons,
       contracted,
       reservation: refreshed ?? null,
     });

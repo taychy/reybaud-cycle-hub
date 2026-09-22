@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag } from "lucide-react";
+import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag, Utensils } from "lucide-react";
 import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
 import { nocheTimingShortLabel } from "@/lib/nocheExtra";
 import { formatPrice } from "@/lib/currency";
@@ -28,6 +28,7 @@ interface Props {
 
 interface Row {
   reservation_id: string;
+  package_id: string | null;
   nombre: string;
   apellido: string;
   email: string;
@@ -68,6 +69,8 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [addonRows, setAddonRows] = useState<any[]>([]);
+  const [foodRows, setFoodRows] = useState<any[]>([]);
+  const [gastronomyCatalog, setGastronomyCatalog] = useState<any[]>([]);
 
 
   useEffect(() => {
@@ -121,6 +124,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         const pkg: any = r.package_id ? pkgMap.get(r.package_id) : null;
         return {
           reservation_id: r.id,
+          package_id: r.package_id || null,
           nombre: p.nombre || "",
           apellido: p.apellido || "",
           email: p.email || "",
@@ -149,10 +153,28 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       const { data: addonsData } = resIds.length
         ? await (supabase as any)
             .from("reservation_addons")
-            .select("id, reservation_id, cantidad, precio_unitario, subtotal, currency, notas, noche_timing, addon:event_addons(id, nombre, tipo, sort_order)")
+            .select("id, reservation_id, cantidad, precio_unitario, subtotal, currency, notas, noche_timing, addon:event_addons(id, nombre, tipo, categoria, aplica_a_paquetes, sort_order)")
             .in("reservation_id", resIds)
         : { data: [] as any[] };
       setAddonRows((addonsData as any[]) || []);
+
+      const [{ data: foodData }, { data: gastroData }] = await Promise.all([
+        resIds.length
+          ? (supabase as any)
+              .from("reservation_checklist_data")
+              .select("reservation_id, completed, data")
+              .in("reservation_id", resIds)
+              .eq("step_key", "alimentacion")
+          : Promise.resolve({ data: [] as any[] }),
+        (supabase as any)
+          .from("event_addons")
+          .select("id, nombre, activo, categoria, aplica_a_paquetes, sort_order")
+          .eq("event_id", eventId)
+          .eq("categoria", "gastronomia")
+          .order("sort_order", { ascending: true }),
+      ]);
+      setFoodRows((foodData as any[]) || []);
+      setGastronomyCatalog((gastroData as any[]) || []);
 
       setLoading(false);
     })();
@@ -260,6 +282,46 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
     downloadCSV([header, ...body], `extras_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
 
+  const gastronomyRows = useMemo(() => {
+    const foodMap = new Map(foodRows.map((f: any) => [f.reservation_id, f]));
+    const addonByReservation = new Map<string, string[]>();
+    addonRows.forEach((a: any) => {
+      if (a.addon?.categoria !== "gastronomia") return;
+      const arr = addonByReservation.get(a.reservation_id) || [];
+      arr.push(`${a.addon?.nombre || "Gastronomía"} x${Number(a.cantidad) || 0}`);
+      addonByReservation.set(a.reservation_id, arr);
+    });
+
+    return rows.map((r) => {
+      const applicable = gastronomyCatalog.filter((a: any) => {
+        const scoped = Array.isArray(a.aplica_a_paquetes) ? a.aplica_a_paquetes : [];
+        return scoped.length === 0 || (!!r.package_id && scoped.includes(r.package_id));
+      });
+      const food: any = foodMap.get(r.reservation_id);
+      const data = food?.data || {};
+      const includedByPackage = gastronomyCatalog.length > 0 && applicable.length === 0;
+      return {
+        ...r,
+        gastronomia_base: includedByPackage ? "Incluida en paquete" : "No incluida / contratar aparte",
+        comidas_extra: (addonByReservation.get(r.reservation_id) || []).join(" · "),
+        dieta: data.dieta || "",
+        alergias: data.alergias || "",
+        restricciones: data.restricciones || "",
+        alimentacion_completada: !!food?.completed,
+      };
+    });
+  }, [rows, foodRows, addonRows, gastronomyCatalog]);
+
+  const exportGastronomia = () => {
+    const header = ["Nombre", "Apellido", "Paquete", "Gastronomía base", "Comidas extra", "Dieta", "Alergias", "Restricciones", "Ficha alimentación"];
+    const body = gastronomyRows.map((r) => [
+      r.nombre, r.apellido, r.package_nombre ?? "", r.gastronomia_base, r.comidas_extra,
+      r.dieta, r.alergias, r.restricciones, r.alimentacion_completada ? "Completa" : "Pendiente",
+    ]);
+    downloadCSV([header, ...body], `gastronomia_${eventTitle.replace(/\s+/g, "_")}.csv`);
+  };
+
+  const missingFood = gastronomyRows.filter((r) => !r.alimentacion_completada);
   const missingSeguro = rows.filter(r => !r.is_external && (!r.documento || !r.contacto_emergencia_telefono));
 
 
@@ -278,6 +340,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
             <TabsList className="w-full">
               <TabsTrigger value="habitaciones" className="flex-1"><BedDouble className="w-3.5 h-3.5 mr-1.5" />Habitaciones</TabsTrigger>
               <TabsTrigger value="extras" className="flex-1"><ShoppingBag className="w-3.5 h-3.5 mr-1.5" />Extras</TabsTrigger>
+              <TabsTrigger value="gastronomia" className="flex-1"><Utensils className="w-3.5 h-3.5 mr-1.5" />Gastronomía</TabsTrigger>
               <TabsTrigger value="seguro" className="flex-1"><ShieldCheck className="w-3.5 h-3.5 mr-1.5" />Seguro</TabsTrigger>
             </TabsList>
 
@@ -392,6 +455,54 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                   ))}
                 </div>
               )}
+            </TabsContent>
+
+
+            <TabsContent value="gastronomia" className="space-y-3 mt-4">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <div>
+                  <p className="text-xs text-muted-foreground">{gastronomyRows.length} participante(s)</p>
+                  {missingFood.length > 0 && (
+                    <p className="text-[10px] text-amber-500">{missingFood.length} sin completar dieta / alergias / restricciones.</p>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" onClick={exportGastronomia}>
+                  <Download className="w-3.5 h-3.5 mr-1.5" /> CSV
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-1.5 px-2">Participante</th>
+                      <th className="text-left py-1.5 px-2">Paquete</th>
+                      <th className="text-left py-1.5 px-2">Gastronomía</th>
+                      <th className="text-left py-1.5 px-2">Dieta / alergias</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {gastronomyRows.map((r) => (
+                      <tr key={r.reservation_id} className="border-b border-border/50 align-top">
+                        <td className="py-1.5 px-2 font-medium">{r.nombre} {r.apellido}</td>
+                        <td className="py-1.5 px-2">{r.package_nombre || "—"}</td>
+                        <td className="py-1.5 px-2">
+                          <div>{r.gastronomia_base}</div>
+                          {r.comidas_extra && <div className="text-[10px] text-muted-foreground">{r.comidas_extra}</div>}
+                        </td>
+                        <td className="py-1.5 px-2">
+                          {r.alimentacion_completada ? (
+                            <>
+                              <div>{r.dieta || "Sin especificar"}</div>
+                              {r.alergias && <div className="text-[10px] text-amber-500">Alergias: {r.alergias}</div>}
+                              {r.restricciones && <div className="text-[10px] text-muted-foreground">Restricciones: {r.restricciones}</div>}
+                            </>
+                          ) : <span className="text-amber-500">Pendiente</span>}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </TabsContent>
 
 

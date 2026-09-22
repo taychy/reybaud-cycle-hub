@@ -20,6 +20,8 @@ interface Addon {
   precio: number;
   currency: string;
   tipo: string;
+  categoria: string;
+  aplica_a_paquetes: string[];
   max_por_participante: number | null;
   stock_total: number | null;
   activo: boolean;
@@ -72,7 +74,7 @@ const TripExtrasDrawer = ({
 
     const load = async () => {
       setLoading(true);
-      const [{ data: addonRows, error: addonError }, { data: contractedRows, error: contractedError }, { data: checklistRow }] = await Promise.all([
+      const [{ data: addonRows, error: addonError }, { data: contractedRows, error: contractedError }, { data: checklistRow }, { data: reservationRow }] = await Promise.all([
         supabase
           .from("event_addons" as any)
           .select("*")
@@ -91,6 +93,11 @@ const TripExtrasDrawer = ({
           .eq("reservation_id", reservationId)
           .eq("step_key", "extras")
           .maybeSingle(),
+        supabase
+          .from("event_reservations")
+          .select("package_id")
+          .eq("id", reservationId)
+          .maybeSingle(),
       ]);
 
       if (cancelled) return;
@@ -98,7 +105,10 @@ const TripExtrasDrawer = ({
         toast.error("No pudimos cargar los extras");
       }
 
-      const loadedAddons = (addonRows as unknown as Addon[]) || [];
+      const packageId = (reservationRow as any)?.package_id as string | null | undefined;
+      const loadedAddons = (((addonRows as unknown as Addon[]) || [])
+        .map((a) => ({ ...a, aplica_a_paquetes: a.aplica_a_paquetes || [] }))
+        .filter((a) => !a.aplica_a_paquetes.length || (!!packageId && a.aplica_a_paquetes.includes(packageId))));
       const loadedContracted = (contractedRows as unknown as ContractedAddon[]) || [];
       const nextQuantities: Record<string, number> = {};
       const nextTimings: Record<string, NocheTiming | null> = {};
