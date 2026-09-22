@@ -677,10 +677,16 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         .in("id", soiIds);
       const orderIds = Array.from(new Set((soi || []).map((s: any) => s.order_id).filter(Boolean)));
       if (orderIds.length) {
-        const { data: ords } = await supabase
-          .from("store_orders")
-          .select("id, order_number, status, stock_restored_at, total, currency, pagado_at, metodo_pago, customer_name, customer_phone, alumno_id, aviso_camioneta_enviado_at")
-          .in("id", orderIds);
+        const [{ data: ords }, { data: allOrderItems }] = await Promise.all([
+          supabase
+            .from("store_orders")
+            .select("id, order_number, status, stock_restored_at, total, currency, pagado_at, metodo_pago, customer_name, customer_phone, alumno_id, aviso_camioneta_enviado_at")
+            .in("id", orderIds),
+          supabase
+            .from("store_order_items")
+            .select("id, order_id, product_name, variant_selection, quantity")
+            .in("order_id", orderIds),
+        ]);
         const alumnoIds = Array.from(new Set(((ords as any[]) || []).map((o: any) => o.alumno_id).filter(Boolean)));
         const telByAlumno: Record<string, string> = {};
         if (alumnoIds.length) {
@@ -691,7 +697,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
         ((ords as any[]) || []).forEach((o: any) => byId.set(o.id, {
           ...o,
           telefono: telByAlumno[o.alumno_id] || o.customer_phone || null,
-          items: ((soi as any[]) || []).filter((item) => item.order_id === o.id),
+          items: ((allOrderItems as any[]) || []).filter((item) => item.order_id === o.id),
         }));
         const cancelled = new Map<string, any>();
         ((ords as any[]) || []).forEach((o: any) => { if (o.status === "cancelado") cancelled.set(o.id, o); });
