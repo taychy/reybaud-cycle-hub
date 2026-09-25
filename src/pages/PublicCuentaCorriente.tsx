@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wallet, Loader2, ShieldAlert, ExternalLink, CircleDot } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
+import { monthLabel } from "@/lib/subscriptionPeriod";
+import { businessToday, isoDateParts } from "@/lib/businessTime";
 import { toast } from "sonner";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 
@@ -79,6 +81,19 @@ const ORIGEN_LABEL: Record<string, string> = {
 
 function origenLabel(origen: string): string {
   return ORIGEN_LABEL[origen] || "Movimiento";
+}
+
+/** Mes del período de una mensualidad (por due_date) + estado: Atrasada / Mes actual / Próxima. */
+function suscripcionPeriodoInfo(dueDate: string | null): { mes: string; estado: string } | null {
+  const iso = (dueDate || "").substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const { year, month } = isoDateParts(iso);
+  const cur = isoDateParts(businessToday());
+  const key = year * 12 + month;
+  const curKey = cur.year * 12 + cur.month;
+  const estado = key < curKey ? "Atrasada" : key === curKey ? "Mes actual" : "Próxima";
+  const mes = monthLabel(iso);
+  return { mes: mes ? mes.charAt(0).toUpperCase() + mes.slice(1) : "", estado };
 }
 
 export default function PublicCuentaCorriente() {
@@ -295,6 +310,14 @@ export default function PublicCuentaCorriente() {
                       <p className="font-medium text-sm text-foreground truncate flex items-center gap-1.5">
                         <CircleDot className="w-3 h-3 text-destructive" />{d.concepto}
                       </p>
+                      {d.tipo === "suscripcion" && (() => {
+                        const pi = suscripcionPeriodoInfo(d.due_date);
+                        return pi ? (
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            {pi.mes} · {pi.estado}
+                          </p>
+                        ) : null;
+                      })()}
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Vence: {fmtDate(d.due_date)} · {d.moneda}
                       </p>

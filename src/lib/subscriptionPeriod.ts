@@ -136,3 +136,9 @@ export function monthLabel(iso: string): string {
   if (!year || !month) return "";
   return `${MONTH_NAMES[month - 1]} ${year}`;
 }
+
+/** Clave YYYY*12+MM para comparar meses calendario sin construir Date. */
+export function monthKey(input?: string | Date): number {
+  const { year, month } = partsOf(input);
+  return year * 12 + month;
+}

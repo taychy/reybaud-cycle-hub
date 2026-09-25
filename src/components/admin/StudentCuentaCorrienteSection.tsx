@@ -24,6 +24,8 @@ import {
 import { Plus, Trash2, ExternalLink, RefreshCw, Wallet, ChevronDown, ChevronUp, XCircle, ArrowRightLeft, Info, FileText, Banknote, Hash, Calendar } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { getPaymentMethodLabel } from "@/lib/paymentMethods";
+import { monthLabel } from "@/lib/subscriptionPeriod";
+import { businessToday, isoDateParts } from "@/lib/businessTime";
 import { toast } from "sonner";
 import { AjusteCuentaModal, type AjusteCuentaValue } from "./AjusteCuentaModal";
 import { RegistrarCobranzaDialog } from "./RegistrarCobranzaDialog";
@@ -164,6 +166,30 @@ function formatDate(d: string): string {
   const parts = d.substring(0, 10).split("-");
   if (parts.length !== 3) return d;
   return `${parts[2]}/${parts[1]}/${parts[0]}`;
+}
+
+/** Mes de período (capitalizado) + etiqueta temporal respecto al mes de negocio actual. */
+function periodoMesInfo(fecha: string | null | undefined): { mes: string; tag: string } | null {
+  const iso = (fecha || "").substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const { year, month } = isoDateParts(iso);
+  const cur = isoDateParts(businessToday());
+  const key = year * 12 + month;
+  const curKey = cur.year * 12 + cur.month;
+  const tag = key < curKey ? "Período anterior" : key === curKey ? "Período actual" : "Próximo período";
+  const mes = monthLabel(iso);
+  return { mes: mes ? mes.charAt(0).toUpperCase() + mes.slice(1) : "", tag };
+}
+
+/** Estado de una deuda pendiente según su mes: Atrasada / Mes actual / Próxima. */
+function deudaEstadoMes(fecha: string | null | undefined): string | null {
+  const iso = (fecha || "").substring(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const { year, month } = isoDateParts(iso);
+  const cur = isoDateParts(businessToday());
+  const key = year * 12 + month;
+  const curKey = cur.year * 12 + cur.month;
+  return key < curKey ? "Atrasada" : key === curKey ? "Mes actual" : "Próxima";
 }
 
 export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged }: Props) {
@@ -676,6 +702,9 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 // El detalle está disponible para todos los movimientos.
                 const hasDetalle = true;
                 const isExpanded = expandedRow === rowKey;
+                const periodoCargo = m.tipo === "cargo_suscripcion"
+                  ? periodoMesInfo(typeof rx.periodo === "string" && /^\d{4}-\d{2}/.test(rx.periodo) ? rx.periodo : m.fecha)
+                  : null;
                 return (
                   <Fragment key={rowKey}>
                     <TableRow className="text-sm">
@@ -687,7 +716,16 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                           {tipoInfo.label}
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-foreground text-sm">{m.concepto}</TableCell>
+                      <TableCell className="text-foreground text-sm">
+                        <div>
+                          <span>{m.concepto}</span>
+                          {periodoCargo && (
+                            <div className="text-[10px] text-muted-foreground mt-0.5">
+                              {periodoCargo.mes} · {periodoCargo.tag}
+                            </div>
+                          )}
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         <div className="flex flex-col leading-tight">
                           <span className={medioRaw ? "text-foreground" : ""}>{medioLabel}</span>
@@ -956,13 +994,19 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                   <SelectValue placeholder="Elegí la deuda a saldar" />
                 </SelectTrigger>
                 <SelectContent>
-                  {applyTargets.map((s) => (
-                    <SelectItem key={s.key} value={s.key}>
-                      {s.icon} {s.label} · {s.fecha ? formatDate(s.fecha) + " · " : ""}
-                      {formatPrice(s.amount, s.currency)}
-                      {s.extra ? ` (${s.extra})` : ""}
-                    </SelectItem>
-                  ))}
+                  {applyTargets.map((s) => {
+                    const susMes = s.type === "suscripcion" ? periodoMesInfo(s.fecha) : null;
+                    const susEstado = s.type === "suscripcion" ? deudaEstadoMes(s.fecha) : null;
+                    return (
+                      <SelectItem key={s.key} value={s.key}>
+                        {s.icon} {s.label}
+                        {susMes?.mes && susEstado ? ` · ${susMes.mes} · ${susEstado}` : ""}
+                        {" · "}{s.fecha ? formatDate(s.fecha) + " · " : ""}
+                        {formatPrice(s.amount, s.currency)}
+                        {s.extra ? ` (${s.extra})` : ""}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             )}
