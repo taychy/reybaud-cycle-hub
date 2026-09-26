@@ -95,6 +95,9 @@ export default function EventCostSimulator({ eventId }: Props) {
   const [participantesReales, setParticipantesReales] = useState<Record<string, number>>({});
   const [applyDialog, setApplyDialog] = useState(false);
   const [applyMap, setApplyMap] = useState<Record<string, boolean>>({});
+  // Mantiene el texto mientras se edita para permitir borrar el valor completo
+  // ("" es un estado intermedio válido; recién convertimos a número al salir).
+  const [scenarioInscriptosDraft, setScenarioInscriptosDraft] = useState<Record<string, string>>({});
 
   const current = sims.find((s) => s.id === currentId) || null;
 
@@ -1153,12 +1156,44 @@ export default function EventCostSimulator({ eventId }: Props) {
                         </div>
                         <div className="flex items-center gap-2">
                           <Label className="text-[10px] text-muted-foreground">Inscriptos</Label>
-                          <Input type="number" className="h-8 w-24" value={e.inscriptos}
+                          <Input
+                            type="number"
+                            min={0}
+                            step={1}
+                            className="h-8 w-24"
+                            value={scenarioInscriptosDraft[e.id] ?? String(e.inscriptos)}
                             onChange={(ev) => {
-                              const next = escenarios.map((x, i) => i === idx ? { ...x, inscriptos: Number(ev.target.value) } : x);
-                              patchCurrent({ escenarios_inscripcion: next });
+                              // No convertir con Number() acá: Number("") === 0 y
+                              // eso impedía borrar el cero para escribir otro valor.
+                              setScenarioInscriptosDraft((prev) => ({
+                                ...prev,
+                                [e.id]: ev.target.value,
+                              }));
                             }}
-                            onBlur={() => persistEscenarios(escenarios)} />
+                            onBlur={async () => {
+                              const raw = scenarioInscriptosDraft[e.id];
+                              if (raw === undefined) return;
+                              const trimmed = raw.trim();
+
+                              setScenarioInscriptosDraft((prev) => {
+                                const nextDraft = { ...prev };
+                                delete nextDraft[e.id];
+                                return nextDraft;
+                              });
+
+                              // Si queda vacío, no pisamos el valor anterior.
+                              if (trimmed === "") return;
+
+                              const parsed = Number(trimmed);
+                              if (!Number.isFinite(parsed)) return;
+                              const inscriptos = Math.max(0, Math.round(parsed));
+                              const next = escenarios.map((x, i) =>
+                                i === idx ? { ...x, inscriptos } : x
+                              );
+                              patchCurrent({ escenarios_inscripcion: next });
+                              await persistEscenarios(next);
+                            }}
+                          />
                         </div>
                         {activo ? (
                           <Badge className="text-[10px]">Activo · usado para precios</Badge>
