@@ -192,6 +192,54 @@ export default function EventCostSimulator({ eventId }: Props) {
     [current?.cantidades_esperadas],
   );
 
+  /**
+   * Ajusta una distribución simbólica para que sume exactamente el total del
+   * escenario, preservando las proporciones existentes cuando las hay.
+   * Los cupos por paquete no se usan como límite: en viajes como Rimini son
+   * orientativos y la disponibilidad real se define con el hotel.
+   */
+  const ajustarDistribucion = useCallback(
+    (base: Record<string, number> | undefined, total: number): Record<string, number> => {
+      const keys = packages.map((p) => String(p.id));
+      const objetivo = Math.max(0, Math.round(Number(total) || 0));
+      if (keys.length === 0) return {};
+      if (objetivo === 0) return Object.fromEntries(keys.map((k) => [k, 0]));
+
+      const pesos = keys.map((k) => Math.max(0, Number(base?.[k] ?? 0)));
+      const sumaPesos = pesos.reduce((a, v) => a + v, 0);
+
+      if (sumaPesos <= 0) {
+        const baseIgual = Math.floor(objetivo / keys.length);
+        let resto = objetivo - baseIgual * keys.length;
+        const out: Record<string, number> = {};
+        keys.forEach((k) => {
+          out[k] = baseIgual + (resto > 0 ? 1 : 0);
+          if (resto > 0) resto -= 1;
+        });
+        return out;
+      }
+
+      const exactos = keys.map((key, idx) => ({
+        key,
+        exacto: (objetivo * pesos[idx]) / sumaPesos,
+        idx,
+      }));
+      const out: Record<string, number> = {};
+      exactos.forEach((x) => { out[x.key] = Math.floor(x.exacto); });
+      let faltan = objetivo - Object.values(out).reduce((a, v) => a + v, 0);
+      exactos
+        .slice()
+        .sort((a, b) => ((b.exacto - Math.floor(b.exacto)) - (a.exacto - Math.floor(a.exacto))) || (a.idx - b.idx))
+        .forEach((x) => {
+          if (faltan <= 0) return;
+          out[x.key] += 1;
+          faltan -= 1;
+        });
+      return out;
+    },
+    [packages],
+  );
+
   // Los umbrales de tarifa por tramos pertenecen al proveedor: NO generan escenarios.
 
 
@@ -202,19 +250,13 @@ export default function EventCostSimulator({ eventId }: Props) {
         nombre: String(e.nombre || ""),
         inscriptos: Number(e.inscriptos) || 0,
       };
-      if (e.distribucion && typeof e.distribucion === "object") {
-        base.distribucion = Object.fromEntries(
-          Object.entries(e.distribucion).map(([k, v]) => [k, Number(v) || 0]),
-        );
-      } else if (packages.length === 1) {
-        // Escenario legacy con un único paquete: la distribución es inequívoca.
-        const p = packages[0];
-        const cupo = Number(p.cupo) || 0;
-        base.distribucion = { [p.id]: cupo > 0 ? Math.min(base.inscriptos, cupo) : base.inscriptos };
-      }
+      const fuente = e.distribucion && typeof e.distribucion === "object"
+        ? e.distribucion
+        : (current?.cantidades_esperadas || {});
+      base.distribucion = ajustarDistribucion(fuente, base.inscriptos);
       return base;
     },
-    [packages],
+    [ajustarDistribucion, current?.cantidades_esperadas],
   );
 
   const escenarios: EscenarioInscripcion[] = useMemo(() => {
@@ -236,16 +278,42 @@ export default function EventCostSimulator({ eventId }: Props) {
       || null;
   }, [escenarios, current?.escenario_activo_id]);
 
-  /** Persiste la lista de escenarios y cuál está activo. No toca la distribución. */
+  /** Persiste escenarios y mantiene la distribución simbólica alineada al escenario activo. */
   const persistEscenarios = async (next: EscenarioInscripcion[], activoId?: string | null) => {
     if (!current) return;
+    const normalizados = next.map(normalizarEscenario);
     const activo = activoId !== undefined ? activoId : (current.escenario_activo_id || escenarioActivo?.id || null);
-    const payload: Partial<SimRow> = { escenarios_inscripcion: next, escenario_activo_id: activo };
+    const seleccionado = normalizados.find((e) => e.id === activo) || normalizados[0] || null;
+    const cantidades = seleccionado?.distribucion || current.cantidades_esperadas || {};
+    const payload: Partial<SimRow> = {
+      escenarios_inscripcion: normalizados,
+      escenario_activo_id: activo,
+      cantidades_esperadas: cantidades,
+    };
     patchCurrent(payload);
     await supabase.from("event_cost_simulations")
       .update(payload as any)
       .eq("id", current.id);
   };
+
+  // Migra simulaciones anteriores: cada escenario conserva su propio mix ficticio
+  // y el escenario activo siempre alimenta el cálculo con una distribución válida.
+  useEffect(() => {
+    if (!current || !escenarioActivo?.distribucion) return;
+    const cantidades = escenarioActivo.distribucion;
+    const mismasCantidades = JSON.stringify(current.cantidades_esperadas || {}) === JSON.stringify(cantidades);
+    const mismosEscenarios = JSON.stringify(current.escenarios_inscripcion || []) === JSON.stringify(escenarios);
+    if (mismasCantidades && mismosEscenarios) return;
+
+    const payload: Partial<SimRow> = {
+      cantidades_esperadas: cantidades,
+      escenarios_inscripcion: escenarios,
+    };
+    setSims((old) => old.map((sim) => sim.id === current.id ? { ...sim, ...payload } : sim));
+    void supabase.from("event_cost_simulations")
+      .update(payload as any)
+      .eq("id", current.id);
+  }, [current?.id, current?.cantidades_esperadas, current?.escenarios_inscripcion, escenarioActivo?.id, escenarioActivo?.distribucion, escenarios]);
 
 
   const supuestos: Supuestos | null = current ? {
