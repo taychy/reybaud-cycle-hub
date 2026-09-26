@@ -416,3 +416,66 @@ describe("escenario activo como única verdad y suplementos", () => {
     expect(r.precio_final_por_modalidad[DOB]).toBeLessThan(r.precio_base_sugerido);
   });
 });
+
+
+describe("Beneficio Plus por ahorro de proveedor", () => {
+  const baseItem = (p: Partial<CostItem>): CostItem => ({
+    categoria: "alojamiento", descripcion: "", cantidad: 1, precio_unitario: 0,
+    moneda: "EUR", es_por_persona: false, aplica_a_modalidades: [],
+    grupo_costo: "alojamiento", ...p,
+  });
+  const round2 = (n: number) => Math.round(n * 100) / 100;
+
+  it("conserva 35% del ahorro para Reybaud además del honorario y deja imprevistos sobre costo real", () => {
+    const DOB = "dob";
+    const r = calcularSimulacion([
+      baseItem({
+        precio_unitario: 2530,
+        detalle: {
+          package_id: DOB, cost_basis: "persona_estadia",
+          tarifa_por_tramos: true,
+          tarifas_tramos: [{ min: 6, max: 8, precio: 3022 }, { min: 9, max: null, precio: 2530 }],
+          compartir_ahorro_pct: 65,
+        },
+      }),
+      { ...baseItem({ grupo_costo: "participante", categoria: "servicios", precio_unitario: 180, es_por_persona: true }), detalle: undefined },
+      { ...baseItem({ grupo_costo: "staff", categoria: "staff", precio_unitario: 1980 }), detalle: undefined },
+      { ...baseItem({ grupo_costo: "general", categoria: "otros", precio_unitario: 100 }), detalle: undefined },
+    ], [{ key: DOB, label: "Doble", esperados: 9 }], {
+      tc_usd: 1, tc_eur: 1, moneda_base: "EUR",
+      pct_imprevistos: 5, pct_margen_objetivo: 0,
+      participantes_prorrateo: 9, paquete_base_id: DOB,
+      rentabilidad_modo: "honorario_participante", honorario_por_participante: 400,
+    });
+
+    const ahorro = 3022 - 2530;
+    const parteReybaud = ahorro * 0.35;
+    const costoRealConImprevistos = 2530 * 1.05 + 180 * 1.05 + (1980 + 100) * 1.05 / 9;
+    expect(round2(parteReybaud)).toBe(172.2);
+    expect(round2(r.precio_base_sugerido)).toBe(round2(costoRealConImprevistos + 400 + parteReybaud));
+  });
+
+  it("cada modalidad conserva su propio 35% del ahorro", () => {
+    const DOB = "dob", IND = "ind";
+    const r = calcularSimulacion([
+      baseItem({ precio_unitario: 2530, detalle: {
+        package_id: DOB, cost_basis: "persona_estadia", tarifa_por_tramos: true,
+        tarifas_tramos: [{ min: 6, max: 8, precio: 3022 }, { min: 9, max: null, precio: 2530 }],
+        compartir_ahorro_pct: 65,
+      }}),
+      baseItem({ precio_unitario: 3022, detalle: {
+        package_id: IND, cost_basis: "persona_estadia", tarifa_por_tramos: true,
+        tarifas_tramos: [{ min: 6, max: 8, precio: 3522 }, { min: 9, max: null, precio: 3022 }],
+        compartir_ahorro_pct: 65,
+      }}),
+    ], [{ key: DOB, label: "Doble", esperados: 8 }, { key: IND, label: "Individual", esperados: 1 }], {
+      tc_usd: 1, tc_eur: 1, moneda_base: "EUR",
+      pct_imprevistos: 5, pct_margen_objetivo: 0,
+      participantes_prorrateo: 9, paquete_base_id: DOB,
+      rentabilidad_modo: "honorario_participante", honorario_por_participante: 400,
+    });
+    expect(round2(r.precio_base_sugerido)).toBe(round2(2530 * 1.05 + 400 + 492 * 0.35));
+    expect(round2(r.precio_final_por_modalidad[IND]))
+      .toBe(round2(3022 * 1.05 + 400 + 500 * 0.35));
+  });
+});
