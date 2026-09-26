@@ -407,7 +407,13 @@ export function calcularSimulacion(
   let staffTotalRaw = 0;
   let generalTotalRaw = 0;
   const costo_alojamiento_unitario_por_modalidad: Record<string, number> = {};
-  modalidades.forEach((m) => (costo_alojamiento_unitario_por_modalidad[m.key] = 0));
+  /** Parte del ahorro por tarifa de proveedor que Reybaud conserva por participante.
+   * Es una capa comercial: no forma parte del costo real ni recibe imprevistos. */
+  const ahorro_reybaud_por_modalidad: Record<string, number> = {};
+  modalidades.forEach((m) => {
+    costo_alojamiento_unitario_por_modalidad[m.key] = 0;
+    ahorro_reybaud_por_modalidad[m.key] = 0;
+  });
 
   for (const it of items) {
     const grupo = inferGrupoCosto(it);
@@ -418,6 +424,21 @@ export function calcularSimulacion(
       const unit = lodgingUnitCost(it, mod, supuestos) * factorImp;
       costo_alojamiento_unitario_por_modalidad[det.package_id] =
         (costo_alojamiento_unitario_por_modalidad[det.package_id] || 0) + unit;
+
+      // Beneficio Plus: cuando una tarifa por tramos reduce el costo del proveedor,
+      // el porcentaje NO compartido con el cliente queda para Reybaud.
+      // El precio_unitario ya contiene la tarifa aplicada; por eso comparamos contra
+      // la primera tarifa (base) y agregamos sólo la parte de Reybaud al precio final.
+      const tarifas = Array.isArray(det.tarifas_tramos) ? det.tarifas_tramos as Array<{ min?: number; precio?: number }> : [];
+      const compartirPct = Math.min(100, Math.max(0, Number(det.compartir_ahorro_pct ?? 0) || 0));
+      if (det.tarifa_por_tramos === true && tarifas.length > 0) {
+        const tarifaBase = Number([...tarifas].sort((a, b) => Number(a.min || 0) - Number(b.min || 0))[0]?.precio || 0);
+        const tarifaAplicada = Number(it.precio_unitario || 0);
+        const ahorroProveedor = Math.max(0, tarifaBase - tarifaAplicada);
+        const ahorroReybaud = ahorroProveedor * (1 - compartirPct / 100);
+        ahorro_reybaud_por_modalidad[det.package_id] =
+          (ahorro_reybaud_por_modalidad[det.package_id] || 0) + toBase(ahorroReybaud, it.moneda, supuestos);
+      }
       continue;
     }
     const totalItem = toBase(
@@ -453,7 +474,10 @@ export function calcularSimulacion(
     ? costo + honorario
     : (margen < 1 ? costo / (1 - margen) : costo);
 
-  const precio_base_sugerido = paquete_base_id ? aPrecio(costo_base_unitario) : 0;
+  const beneficio_reybaud_base = paquete_base_id ? (ahorro_reybaud_por_modalidad[paquete_base_id] || 0) : 0;
+  const precio_base_sugerido = paquete_base_id
+    ? aPrecio(costo_base_unitario) + beneficio_reybaud_base
+    : 0;
 
   const suplemento_costo_por_modalidad: Record<string, number> = {};
   const suplemento_precio_por_modalidad: Record<string, number> = {};
@@ -469,7 +493,13 @@ export function calcularSimulacion(
       : (margen < 1 ? supCosto / (1 - margen) : supCosto);
     suplemento_costo_por_modalidad[m.key] = supCosto;
     suplemento_precio_por_modalidad[m.key] = supPrecio;
-    precio_final_por_modalidad[m.key] = paquete_base_id ? precio_base_sugerido + supPrecio : 0;
+    // Ajustamos por la diferencia de Beneficio Plus entre esta modalidad y la base.
+    // Así el honorario se mantiene una sola vez y cada paquete conserva exactamente
+    // su parte del ahorro del proveedor.
+    const ajusteBeneficioReybaud = (ahorro_reybaud_por_modalidad[m.key] || 0) - beneficio_reybaud_base;
+    precio_final_por_modalidad[m.key] = paquete_base_id
+      ? precio_base_sugerido + supPrecio + ajusteBeneficioReybaud
+      : 0;
   });
 
   const distribucion_total = totalEsperados;
