@@ -73,6 +73,7 @@ import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
+import EventPublicationPlaybook from "@/components/admin/EventPublicationPlaybook";
 import EventBudgetStartDialog from "@/components/admin/EventBudgetStartDialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -163,6 +164,7 @@ const EventsList = () => {
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [saving, setSaving] = useState(false);
   const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
+  const [reservationsTab, setReservationsTab] = useState("gestion");
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [newReservationsByEvent, setNewReservationsByEvent] = useState<Record<string, number>>({});
@@ -317,6 +319,8 @@ const EventsList = () => {
         ...(payload.metadata as Record<string, any> || {}),
         installments: freshMeta.installments ?? (payload.metadata as any)?.installments,
         installments_enabled: freshMeta.installments_enabled ?? (payload.metadata as any)?.installments_enabled,
+        // Checklist del playbook se guarda aparte: no pisarlo con el estado del formulario.
+        publication_checklist: freshMeta.publication_checklist ?? (payload.metadata as any)?.publication_checklist,
       };
       ({ error } = await supabase.from("events").update({ ...(payload as any), metadata: mergedMeta }).eq("id", editingEvent.id));
     } else {
@@ -690,13 +694,28 @@ const EventsList = () => {
             <SheetDescription className="sr-only">Panel de gestión de reservas del evento</SheetDescription>
           </SheetHeader>
           {reservationsEvent && (
-            <Tabs defaultValue="gestion" className="pb-8">
+            <Tabs value={reservationsTab} onValueChange={setReservationsTab} className="pb-8">
               <TabsList>
                 <TabsTrigger value="gestion">Gestión</TabsTrigger>
                 <TabsTrigger value="presupuesto" className="gap-1.5">
                   <Calculator className="w-3.5 h-3.5" /> Presupuesto
                 </TabsTrigger>
+                {["camp", "viaje"].includes(String((reservationsEvent as any).type)) && (
+                  <TabsTrigger value="publicacion">Estado de publicación</TabsTrigger>
+                )}
               </TabsList>
+              {["camp", "viaje"].includes(String((reservationsEvent as any).type)) && (
+                <TabsContent value="publicacion" className="pt-4">
+                  <EventPublicationPlaybook
+                    eventId={reservationsEvent.id}
+                    onNavigate={(link) => {
+                      if (link === "presupuesto") setReservationsTab("presupuesto");
+                      else if (link === "gestion") setReservationsTab("gestion");
+                      else if (link === "editar") openEdit(reservationsEvent);
+                    }}
+                  />
+                </TabsContent>
+              )}
               <TabsContent value="gestion" className="pt-4">
                 <div className="space-y-6">
                   <AdminEventReservations
