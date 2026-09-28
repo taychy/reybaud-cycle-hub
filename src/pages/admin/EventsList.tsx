@@ -165,6 +165,7 @@ const EventsList = () => {
   const [saving, setSaving] = useState(false);
   const [reservationsEvent, setReservationsEvent] = useState<Event | null>(null);
   const [reservationsTab, setReservationsTab] = useState("gestion");
+  useEffect(() => { setReservationsTab("gestion"); }, [reservationsEvent?.id]);
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [newReservationsByEvent, setNewReservationsByEvent] = useState<Record<string, number>>({});
