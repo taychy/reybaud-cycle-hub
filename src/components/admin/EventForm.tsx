@@ -364,6 +364,50 @@ const EventForm = ({
 
   const meta = form.metadata;
 
+  // Autoguardado para eventos existentes: persiste cambios luego de una breve pausa.
+  // Se preservan campos de metadata administrados por otros editores para evitar pisarlos.
+  const autosaveReadyRef = useRef(false);
+  const lastAutosavedRef = useRef<string>("");
+  useEffect(() => {
+    if (!isEditing || !eventId) return;
+    const serialized = JSON.stringify(form);
+    if (!autosaveReadyRef.current) {
+      autosaveReadyRef.current = true;
+      lastAutosavedRef.current = serialized;
+      return;
+    }
+    if (serialized === lastAutosavedRef.current) return;
+
+    const timer = window.setTimeout(async () => {
+      if (!form.title || !form.date) return;
+      const payload = eventFormToPayload(form);
+      const { data: freshEv } = await supabase
+        .from("events")
+        .select("metadata")
+        .eq("id", eventId)
+        .maybeSingle();
+      const freshMeta = (freshEv?.metadata as Record<string, any>) || {};
+      const mergedMeta = {
+        ...((payload.metadata as Record<string, any>) || {}),
+        installments: freshMeta.installments ?? (payload.metadata as any)?.installments,
+        installments_enabled: freshMeta.installments_enabled ?? (payload.metadata as any)?.installments_enabled,
+        publication_checklist: freshMeta.publication_checklist ?? (payload.metadata as any)?.publication_checklist,
+      };
+      const { error } = await supabase
+        .from("events")
+        .update({ ...(payload as any), metadata: mergedMeta, updated_at: new Date().toISOString() })
+        .eq("id", eventId);
+      if (error) {
+        console.error("Error en autoguardado del evento:", error);
+        toast.error("No se pudo autoguardar el evento.");
+        return;
+      }
+      lastAutosavedRef.current = serialized;
+    }, 1200);
+
+    return () => window.clearTimeout(timer);
+  }, [form, isEditing, eventId]);
+
   // Step 1: Category selection (only for new events)
   if (!selectedCategory) {
     return (
