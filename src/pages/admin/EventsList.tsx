@@ -323,7 +323,7 @@ const EventsList = () => {
         // Checklist del playbook se guarda aparte: no pisarlo con el estado del formulario.
         publication_checklist: freshMeta.publication_checklist ?? (payload.metadata as any)?.publication_checklist,
       };
-      ({ error } = await supabase.from("events").update({ ...(payload as any), metadata: mergedMeta }).eq("id", editingEvent.id));
+      ({ error } = await supabase.from("events").update({ ...(payload as any), metadata: mergedMeta, updated_at: new Date().toISOString() }).eq("id", editingEvent.id));
     } else {
       ({ error } = await supabase.from("events").insert(payload as any));
     }
