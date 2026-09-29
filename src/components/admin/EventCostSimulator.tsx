@@ -201,65 +201,12 @@ export default function EventCostSimulator({ eventId }: Props) {
    * Los cupos por paquete no se usan como límite: en viajes como Rimini son
    * orientativos y la disponibilidad real se define con el hotel.
    */
-  const ajustarDistribucion = useCallback(
-    (base: Record<string, number> | undefined, total: number): Record<string, number> => {
-      const keys = packages.map((p) => String(p.id));
-      const objetivo = Math.max(0, Math.round(Number(total) || 0));
-      if (keys.length === 0) return {};
-      if (objetivo === 0) return Object.fromEntries(keys.map((k) => [k, 0]));
-
-      const pesos = keys.map((k) => Math.max(0, Number(base?.[k] ?? 0)));
-      const sumaPesos = pesos.reduce((a, v) => a + v, 0);
-
-      if (sumaPesos <= 0) {
-        const baseIgual = Math.floor(objetivo / keys.length);
-        let resto = objetivo - baseIgual * keys.length;
-        const out: Record<string, number> = {};
-        keys.forEach((k) => {
-          out[k] = baseIgual + (resto > 0 ? 1 : 0);
-          if (resto > 0) resto -= 1;
-        });
-        return out;
-      }
-
-      const exactos = keys.map((key, idx) => ({
-        key,
-        exacto: (objetivo * pesos[idx]) / sumaPesos,
-        idx,
-      }));
-      const out: Record<string, number> = {};
-      exactos.forEach((x) => { out[x.key] = Math.floor(x.exacto); });
-      let faltan = objetivo - Object.values(out).reduce((a, v) => a + v, 0);
-      exactos
-        .slice()
-        .sort((a, b) => ((b.exacto - Math.floor(b.exacto)) - (a.exacto - Math.floor(a.exacto))) || (a.idx - b.idx))
-        .forEach((x) => {
-          if (faltan <= 0) return;
-          out[x.key] += 1;
-          faltan -= 1;
-        });
-      return out;
-    },
-    [packages],
-  );
-
-  // Los umbrales de tarifa por tramos pertenecen al proveedor: NO generan escenarios.
-
+  const packageKeys = useMemo(() => packages.map((p) => String(p.id)), [packages]);
 
   const normalizarEscenario = useCallback(
-    (e: EscenarioInscripcion): EscenarioInscripcion => {
-      const base: EscenarioInscripcion = {
-        id: String(e.id),
-        nombre: String(e.nombre || ""),
-        inscriptos: Number(e.inscriptos) || 0,
-      };
-      const fuente = e.distribucion && typeof e.distribucion === "object"
-        ? e.distribucion
-        : (current?.cantidades_esperadas || {});
-      base.distribucion = ajustarDistribucion(fuente, base.inscriptos);
-      return base;
-    },
-    [ajustarDistribucion, current?.cantidades_esperadas],
+    (e: EscenarioInscripcion): EscenarioInscripcion =>
+      normalizarEscenarioLib(packageKeys, e, current?.cantidades_esperadas || {}) as EscenarioInscripcion,
+    [packageKeys, current?.cantidades_esperadas],
   );
 
   const escenarios: EscenarioInscripcion[] = useMemo(() => {
@@ -471,6 +418,11 @@ export default function EventCostSimulator({ eventId }: Props) {
 
   const guardarCambios = async () => {
     if (!current) return;
+    const v = validarDistribucion(current.cantidades_esperadas, Number(escenarioActivo?.inscriptos) || 0);
+    if (!v.ok) {
+      toast({ title: "No se guardó el presupuesto", description: v.mensaje || undefined, variant: "destructive" });
+      return;
+    }
     await supabase.from("event_cost_simulations").update({
       nombre: current.nombre,
       notas: current.notas,
