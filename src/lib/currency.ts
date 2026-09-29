@@ -9,12 +9,14 @@ const CURRENCY_MAP: Record<string, { currency: string; symbol: string }> = {
 export const formatPrice = (precio: number, moneda: string = "ARS"): string => {
   const code = String(moneda || "ARS").toUpperCase();
   const config = CURRENCY_MAP[code] || CURRENCY_MAP.ARS;
+  const rounded = Math.round(Number(precio) * 100) / 100;
+  const hasCents = Math.abs(rounded - Math.trunc(rounded)) > 0.000001;
   return new Intl.NumberFormat("es-AR", {
     style: "currency",
     currency: config.currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(precio);
+    minimumFractionDigits: hasCents ? 2 : 0,
+    maximumFractionDigits: hasCents ? 2 : 0,
+  }).format(rounded);
 };
 
 export const MONEDAS = [
