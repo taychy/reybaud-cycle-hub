@@ -9,6 +9,8 @@ import { Landmark, Copy, Check, ChevronRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 import { EVENTOS_TRANSFER_INFO } from "@/lib/contactInfo";
+import { fetchFxBookForAnyUser } from "@/lib/fx";
+import { quoteArsTransfer, type EventPaymentPolicy, type ArsTransferQuote } from "@/lib/eventPaymentPolicy";
 
 interface PayByTransferDrawerProps {
   open: boolean;
@@ -17,17 +19,32 @@ interface PayByTransferDrawerProps {
   currency: string;
   balanceDue: number;
   /** Se llama cuando el alumno confirma que ya transfirió, para abrir "Ya pagué" preseleccionado */
-  onProceedToUploadProof: (amount: number) => void;
+  onProceedToUploadProof: (amount: number, currency?: string) => void;
+  /** Política internacional del evento; si falta, el flujo queda igual que siempre */
+  paymentPolicy?: EventPaymentPolicy | null;
 }
 
 const PayByTransferDrawer = ({
-  open, onOpenChange, reservationId, currency, balanceDue, onProceedToUploadProof,
+  open, onOpenChange, reservationId, currency, balanceDue, onProceedToUploadProof, paymentPolicy,
 }: PayByTransferDrawerProps) => {
   const [copied, setCopied] = useState<"cbu" | "alias" | null>(null);
   const [amount, setAmount] = useState<number>(balanceDue);
   const [amountCurrency, setAmountCurrency] = useState<string>(currency);
   const [concepto, setConcepto] = useState<string>("saldo");
   const [loading, setLoading] = useState(false);
+  const [arsQuote, setArsQuote] = useState<ArsTransferQuote | null>(null);
+  const [fxError, setFxError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setArsQuote(null); setFxError(null);
+    if (!open || !paymentPolicy || loading || !(amount > 0)) return;
+    if (amountCurrency !== paymentPolicy.contract_currency) return;
+    let cancelled = false;
+    fetchFxBookForAnyUser()
+      .then((book) => { if (!cancelled) setArsQuote(quoteArsTransfer(paymentPolicy, book, amount)); })
+      .catch(() => { if (!cancelled) setFxError("No pudimos obtener la cotización vigente."); });
+    return () => { cancelled = true; };
+  }, [open, paymentPolicy, loading, amount, amountCurrency]);
 
   useEffect(() => {
     if (!open) return;
@@ -98,6 +115,33 @@ const PayByTransferDrawer = ({
             )}
           </div>
 
+          {paymentPolicy && !loading && (
+            <div className="rounded-xl border border-border p-4 space-y-3 text-sm">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Formas de pago</p>
+              <div>
+                <p className="font-medium text-foreground">{paymentPolicy.contract_currency} en efectivo</p>
+                <p className="text-muted-foreground">
+                  {formatPrice(amount, amountCurrency)}
+                  {paymentPolicy.eur_cash_surcharge_pct > 0 ? ` + ${paymentPolicy.eur_cash_surcharge_pct}%` : " · sin recargo"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Transferencia en pesos (ARS)</p>
+                {arsQuote ? (
+                  <>
+                    <p className="text-lg font-heading font-bold text-primary">{formatPrice(arsQuote.totalArs, "ARS")}</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      Cotización vigente {formatPrice(arsQuote.referenceRate, "ARS")} por {arsQuote.obligationCurrency} + {arsQuote.surchargePct}%
+                      ({formatPrice(arsQuote.baseArs, "ARS")} + {formatPrice(arsQuote.surchargeArs, "ARS")}). Tu saldo se sigue llevando en {arsQuote.obligationCurrency}.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-muted-foreground text-[12px]">{fxError || "Calculando…"}</p>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Datos bancarios */}
           <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
             <div className="space-y-1">
@@ -161,7 +205,8 @@ const PayByTransferDrawer = ({
             className="w-full gap-2"
             onClick={() => {
               onOpenChange(false);
-              onProceedToUploadProof(amount);
+              if (arsQuote) onProceedToUploadProof(arsQuote.totalArs, "ARS");
+              else onProceedToUploadProof(amount);
             }}
           >
             Ya transferí — subir comprobante
