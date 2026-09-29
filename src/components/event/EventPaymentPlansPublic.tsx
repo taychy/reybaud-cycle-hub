@@ -244,7 +244,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
                         {pkg.availability.map((a, i) => (
                           <li key={i} className={`flex items-center justify-between text-[11px] ${a.available <= 0 ? "text-destructive" : "text-foreground/90"}`}>
                             <span>{formatAvailabilityRow(a)}</span>
-                            <span className="text-muted-foreground tabular-nums">{a.taken}/{a.capacity}</span>
+                            <span className="text-muted-foreground tabular-nums ml-2">{a.taken}/{a.capacity} ocupados</span>
                           </li>
                         ))}
                       </ul>
