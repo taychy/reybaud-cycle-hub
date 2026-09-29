@@ -24,7 +24,7 @@ describe("internationalPaymentPlan", () => {
 
   it("plan suma exacto: 30% seña + 70% en cuotas iguales, redondeo en la última", () => {
     const t = buildIntlPlanTemplate({ fechaLanzamiento: "2026-10-01", fechaInicio: "2027-06-10" });
-    if (!t.ok) throw new Error(t.error);
+    if (!t.ok) throw new Error((t as any).error);
     expect(t.template.last_installment_absorbs_rounding).toBe(true);
     expect(t.template.regla_reserva_tardia).toBe("cobrar_al_reservar");
     const res = calculatePlan({ template: t.template, precioFinal: 2284, fechaReserva: "2026-10-01" });

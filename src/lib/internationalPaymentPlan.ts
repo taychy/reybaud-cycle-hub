@@ -82,7 +82,7 @@ export function buildIntlPlanTemplate(opts: {
   fechaInicio: string | null | undefined;
 }): { ok: true; template: PlanTemplate } | { ok: false; error: string } {
   const sched = computeIntlInstallmentDates(opts);
-  if (!sched.ok) return sched;
+  if (!sched.ok) return { ok: false, error: (sched as { error: string }).error };
   const installments = buildIntlInstallments(sched.dueDates);
   return {
     ok: true,

@@ -177,7 +177,7 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency, ev
 
   const applyIntlRule = () => {
     const r = buildIntlPlanTemplate({ fechaLanzamiento: launchDate || null, fechaInicio: eventStart });
-    if (!r.ok) { toast.error(r.error); return; }
+    if (!r.ok) { toast.error((r as any).error); return; }
     const t = r.template;
     setNombre(t.nombre);
     setSenaTipo(t.sena_tipo);
@@ -394,7 +394,7 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency, ev
                   Salen <b>{intlPreview.dueDates.length} cuotas</b>: {intlPreview.dueDates.map(fmtDate).join(", ")}
                 </p>
               ) : (
-                <p className="text-[10px] text-destructive">{intlPreview.error}</p>
+                <p className="text-[10px] text-destructive">{(intlPreview as any).error}</p>
               )}
             </div>
           )}
