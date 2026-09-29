@@ -140,10 +140,14 @@ const ValidatePaymentDrawer = ({
         if (origCurr === "ARS") {
           const { data: res } = await supabase
             .from("event_reservations" as any)
-            .select("events(metadata)")
+            .select("event_id")
             .eq("id", payment.reservation_id)
             .maybeSingle();
-          const policy = parsePaymentPolicy((res as any)?.events?.metadata);
+          const evId = (res as any)?.event_id;
+          const { data: ev } = evId
+            ? await supabase.from("events").select("metadata").eq("id", evId).maybeSingle()
+            : { data: null };
+          const policy = parsePaymentPolicy((ev as any)?.metadata);
           if (policy && policy.contract_currency === evCurr) {
             suggested = arsToContractRate(fxArsPerUnit(book, evCurr, "sell"), policy.ars_transfer_surcharge_pct);
           }
