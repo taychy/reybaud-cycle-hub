@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import PayByTransferDrawer from "./PayByTransferDrawer";
+import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
@@ -273,6 +274,9 @@ const ReservationStatusCard = ({
   const [preselectedInstallmentId, setPreselectedInstallmentId] = useState<string | null>(null);
   const [paymentMode, setPaymentMode] = useState<"paid" | "cash" | undefined>(undefined);
   const [paymentMethodInit, setPaymentMethodInit] = useState<string | undefined>(undefined);
+  const [paymentCurrencyInit, setPaymentCurrencyInit] = useState<string | undefined>(undefined);
+  const [paymentAmountInit, setPaymentAmountInit] = useState<number | undefined>(undefined);
+  const paymentPolicy = useMemo(() => parsePaymentPolicy(eventMetadata), [eventMetadata]);
   const [showTransferDrawer, setShowTransferDrawer] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mpLoading, setMpLoading] = useState(false);
@@ -1284,7 +1288,7 @@ const ReservationStatusCard = ({
 
       <ReportPaymentDrawer
         open={showPaymentDrawer}
-        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); setPaymentMethodInit(undefined); } }}
+        onOpenChange={(o) => { setShowPaymentDrawer(o); if (!o) { setPreselectedInstallmentId(null); setPaymentMode(undefined); setPaymentMethodInit(undefined); setPaymentCurrencyInit(undefined); setPaymentAmountInit(undefined); } }}
         reservation={reservation}
         alumnoId={alumnoId}
         currency={currency}
@@ -1292,6 +1296,9 @@ const ReservationStatusCard = ({
         preselectedInstallmentId={preselectedInstallmentId}
         initialMode={paymentMode === "cash" ? "cash_announce" : paymentMode === "paid" ? "paid" : undefined}
         initialMethod={paymentMethodInit}
+        paymentPolicy={paymentPolicy}
+        initialCurrency={paymentCurrencyInit}
+        initialAmount={paymentAmountInit}
       />
 
       <PayByTransferDrawer
@@ -1300,7 +1307,9 @@ const ReservationStatusCard = ({
         reservationId={reservation.id}
         currency={currency}
         balanceDue={reservation.balance_due ?? 0}
-        onProceedToUploadProof={() => {
+        paymentPolicy={paymentPolicy}
+        onProceedToUploadProof={(amt, cur) => {
+          if (cur) { setPaymentCurrencyInit(cur); setPaymentAmountInit(amt); }
           setPaymentMode("paid");
           setPaymentMethodInit("transferencia");
           setShowPaymentDrawer(true);

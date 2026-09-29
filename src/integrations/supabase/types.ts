@@ -10561,6 +10561,10 @@ export type Database = {
           event_currency: string | null
           exchange_rate_to_event_currency: number | null
           fees_synced_at: string | null
+          fx_base_amount: number | null
+          fx_reference_rate: number | null
+          fx_surcharge_amount: number | null
+          fx_surcharge_pct: number | null
           id: string
           iibb: number | null
           installment_id: string | null
@@ -10569,11 +10573,13 @@ export type Database = {
           mp_payment_id: string | null
           neto_recibido: number | null
           notes: string | null
+          obligation_amount_contract: number | null
           original_amount: number | null
           original_currency: string | null
           otros_fees: number | null
           payment_date: string
           payment_method: string
+          payment_policy_snapshot: Json | null
           payment_reference: string | null
           proof_url: string | null
           reservation_id: string
@@ -10597,6 +10603,10 @@ export type Database = {
           event_currency?: string | null
           exchange_rate_to_event_currency?: number | null
           fees_synced_at?: string | null
+          fx_base_amount?: number | null
+          fx_reference_rate?: number | null
+          fx_surcharge_amount?: number | null
+          fx_surcharge_pct?: number | null
           id?: string
           iibb?: number | null
           installment_id?: string | null
@@ -10605,11 +10615,13 @@ export type Database = {
           mp_payment_id?: string | null
           neto_recibido?: number | null
           notes?: string | null
+          obligation_amount_contract?: number | null
           original_amount?: number | null
           original_currency?: string | null
           otros_fees?: number | null
           payment_date?: string
           payment_method?: string
+          payment_policy_snapshot?: Json | null
           payment_reference?: string | null
           proof_url?: string | null
           reservation_id: string
@@ -10633,6 +10645,10 @@ export type Database = {
           event_currency?: string | null
           exchange_rate_to_event_currency?: number | null
           fees_synced_at?: string | null
+          fx_base_amount?: number | null
+          fx_reference_rate?: number | null
+          fx_surcharge_amount?: number | null
+          fx_surcharge_pct?: number | null
           id?: string
           iibb?: number | null
           installment_id?: string | null
@@ -10641,11 +10657,13 @@ export type Database = {
           mp_payment_id?: string | null
           neto_recibido?: number | null
           notes?: string | null
+          obligation_amount_contract?: number | null
           original_amount?: number | null
           original_currency?: string | null
           otros_fees?: number | null
           payment_date?: string
           payment_method?: string
+          payment_policy_snapshot?: Json | null
           payment_reference?: string | null
           proof_url?: string | null
           reservation_id?: string

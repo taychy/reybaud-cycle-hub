@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { PAYMENT_METHODS } from "@/lib/paymentMethods";
+import { fetchFxBookForAnyUser, type FxBook } from "@/lib/fx";
+import { quoteArsTransfer, buildArsTransferTrace, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
 
 interface Reservation {
   id: string;
@@ -51,6 +53,10 @@ interface ReportPaymentDrawerProps {
   initialMode?: "paid" | "cash_announce";
   /** If set, preselect this payment method when opening (e.g. "transferencia") */
   initialMethod?: string;
+  /** Política internacional del evento (events.metadata.payment_policy), si existe */
+  paymentPolicy?: EventPaymentPolicy | null;
+  initialCurrency?: string;
+  initialAmount?: number;
 }
 
 const ALLOWED_CURRENCIES = ["EUR", "USD", "BRL", "ARS"];
@@ -63,6 +69,7 @@ const fmtDate = (d?: string | null) => {
 
 const ReportPaymentDrawer = ({
   open, onOpenChange, reservation, alumnoId, currency, onSuccess, preselectedInstallmentId, initialMode, initialMethod,
+  paymentPolicy, initialCurrency, initialAmount,
 }: ReportPaymentDrawerProps) => {
   const { toast } = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -89,6 +96,12 @@ const ReportPaymentDrawer = ({
   useEffect(() => {
     if (open && initialMethod) setMethod(initialMethod);
   }, [open, initialMethod]);
+  useEffect(() => {
+    if (open && initialCurrency) setPaymentCurrency(initialCurrency);
+  }, [open, initialCurrency]);
+  useEffect(() => {
+    if (open && initialAmount != null && initialAmount > 0) setAmount(String(initialAmount));
+  }, [open, initialAmount]);
   const [reference, setReference] = useState("");
   const [notes, setNotes] = useState("");
   const [proofPath, setProofPath] = useState<string | null>(null);
@@ -171,6 +184,24 @@ const ReportPaymentDrawer = ({
   const proofRequired = !isCashMethod;
   const referenceOrNotesRequired = isCashMethod;
 
+  // --- Política de pagos internacionales (solo si el evento la tiene) ---
+  const policyObligation = Number(selectedInstallment?.balance_due ?? reservation.balance_due ?? 0);
+  const arsPolicyActive = !!paymentPolicy && paymentCurrency === "ARS" && paymentPolicy.contract_currency !== "ARS";
+  const [fxBook, setFxBook] = useState<FxBook | null>(null);
+  const [fxError, setFxError] = useState<string | null>(null);
+  useEffect(() => {
+    if (!open || !arsPolicyActive || fxBook) return;
+    let cancelled = false;
+    fetchFxBookForAnyUser()
+      .then((b) => { if (!cancelled) { setFxBook(b); setFxError(null); } })
+      .catch(() => { if (!cancelled) setFxError("No pudimos obtener la cotización vigente. Probá de nuevo más tarde."); });
+    return () => { cancelled = true; };
+  }, [open, arsPolicyActive, fxBook]);
+  const arsQuote = useMemo(() => {
+    if (!arsPolicyActive || !fxBook || !paymentPolicy || !(policyObligation > 0)) return null;
+    try { return quoteArsTransfer(paymentPolicy, fxBook, policyObligation); } catch { return null; }
+  }, [arsPolicyActive, fxBook, paymentPolicy, policyObligation]);
+
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -203,6 +234,7 @@ const ReportPaymentDrawer = ({
     const amt = parseFloat(amount);
     if (!amt || amt <= 0) return "Ingresá un monto válido.";
     if (!ALLOWED_CURRENCIES.includes(paymentCurrency)) return "Moneda no soportada.";
+    if (arsPolicyActive && !arsQuote) return fxError || "Esperá a que se calcule la cotización vigente.";
     if (proofRequired && !proofPath) return "El comprobante es obligatorio para este medio de pago.";
     if (referenceOrNotesRequired && !reference.trim() && !notes.trim()) {
       return "Para pagos en efectivo, agregá una referencia o nota.";
@@ -219,6 +251,18 @@ const ReportPaymentDrawer = ({
     setSubmitting(true);
 
     const amt = parseFloat(amount);
+    // Política internacional: la traza guarda obligación EUR, cotización y recargo.
+    // El equivalente acreditado excluye el recargo, así el saldo EUR no se altera.
+    const policyTrace = arsPolicyActive && arsQuote && paymentPolicy
+      ? buildArsTransferTrace(paymentPolicy, arsQuote, amt)
+      : paymentPolicy && paymentCurrency === paymentPolicy.contract_currency
+        ? {
+            obligation_amount_contract: policyObligation,
+            fx_surcharge_pct: paymentPolicy.eur_cash_surcharge_pct,
+            fx_surcharge_amount: 0,
+            payment_policy_snapshot: paymentPolicy,
+          }
+        : {};
 
     const { error: payErr } = await supabase
       .from("reservation_payments" as any)
@@ -240,6 +284,7 @@ const ReportPaymentDrawer = ({
         status: "informado",
         installment_id: selectedInstallment?.id || null,
         installment_number: selectedInstallment?.installment_number || null,
+        ...policyTrace,
       } as any);
 
     if (payErr) {
@@ -546,7 +591,28 @@ const ReportPaymentDrawer = ({
                 </div>
               </div>
 
-              {paymentCurrency !== currency && (
+              {arsPolicyActive ? (
+                <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-[12px] space-y-1">
+                  {arsQuote ? (
+                    <>
+                      <p>
+                        Para cubrir <strong>{formatPrice(arsQuote.obligationAmount, arsQuote.obligationCurrency)}</strong> transferí{" "}
+                        <strong>{formatPrice(arsQuote.totalArs, "ARS")}</strong>.
+                      </p>
+                      <p className="text-muted-foreground">
+                        Cotización vigente {formatPrice(arsQuote.referenceRate, "ARS")} por {arsQuote.obligationCurrency} = {formatPrice(arsQuote.baseArs, "ARS")} + {arsQuote.surchargePct}% ({formatPrice(arsQuote.surchargeArs, "ARS")}). Tu saldo se sigue llevando en {arsQuote.obligationCurrency}.
+                      </p>
+                      {Math.abs((parseFloat(amount) || 0) - arsQuote.totalArs) > 0.01 && (
+                        <button type="button" className="text-primary underline" onClick={() => setAmount(String(arsQuote.totalArs))}>
+                          Usar {formatPrice(arsQuote.totalArs, "ARS")}
+                        </button>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-muted-foreground">{fxError || "Calculando cotización vigente…"}</p>
+                  )}
+                </div>
+              ) : paymentCurrency !== currency && (
                 <p className="text-[11px] text-muted-foreground bg-muted/40 rounded-md p-2 leading-relaxed">
                   Vas a informar en <strong>{paymentCurrency}</strong>. Administración va a aplicar la cotización oficial y reconocer el equivalente en <strong>{currency}</strong> al validar.
                 </p>

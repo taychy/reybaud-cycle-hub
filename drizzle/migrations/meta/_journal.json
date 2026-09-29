@@ -78,6 +78,13 @@
       "when": 1790103494145,
       "tag": "0010_gasto_devolucion_participante",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790706934374,
+      "tag": "0011_reservation_payments_fx_policy_trace",
+      "breakpoints": true
     }
   ]
 }
