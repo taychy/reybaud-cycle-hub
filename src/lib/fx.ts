@@ -49,6 +49,51 @@ export async function fetchCurrentFxBook(force = false): Promise<FxBook> {
   return data.book as FxBook;
 }
 
+/**
+ * Cotización vigente para cualquier usuario autenticado.
+ * Personal: usa get-current-fx. Resto: lee la misma cotización central guardada en app_config
+ * (no es otra fuente: son los valores que escribe get-current-fx).
+ */
+export async function fetchFxBookForAnyUser(): Promise<FxBook> {
+  try {
+    return await fetchCurrentFxBook();
+  } catch (_) {
+    const keys = ["fx_source", "fx_bcra_date", "fx_last_checked_date", "fx_updated_at",
+      ...FX_FOREIGN.flatMap((c) => {
+        const l = c.toLowerCase();
+        return [`fx_${l}_reference_ars`, `fx_${l}_buy_ars`, `fx_${l}_sell_ars`, `fx_${l}_ars`,
+          `fx_${l}_buy_margin_pct`, `fx_${l}_sell_margin_pct`];
+      })];
+    const { data, error } = await supabase.from("app_config").select("key,value").in("key", keys);
+    if (error) throw new Error("No pudimos obtener la cotización vigente");
+    const cfg: Record<string, string> = {};
+    for (const r of data || []) cfg[(r as any).key] = String((r as any).value ?? "");
+    const n = (k: string) => Number(cfg[k]) || 0;
+    const currencies = {} as Record<FxForeign, FxCurrencyBook>;
+    for (const c of FX_FOREIGN) {
+      const l = c.toLowerCase();
+      const sell = n(`fx_${l}_sell_ars`) || n(`fx_${l}_ars`);
+      currencies[c] = {
+        reference: n(`fx_${l}_reference_ars`),
+        buy: n(`fx_${l}_buy_ars`),
+        sell,
+        buyMarginPct: n(`fx_${l}_buy_margin_pct`),
+        sellMarginPct: n(`fx_${l}_sell_margin_pct`),
+      };
+    }
+    if (!currencies.EUR.sell) throw new Error("No hay cotización disponible");
+    return {
+      currencies,
+      source: cfg.fx_source || "",
+      bcraDate: cfg.fx_bcra_date || "",
+      lastCheckedDate: cfg.fx_last_checked_date || "",
+      updatedAt: cfg.fx_updated_at || "",
+      fresh: false,
+      stale: false,
+    };
+  }
+}
+
 export const fxArsPerUnit = (book: FxBook, currency: string, side: FxSide): number => {
   const code = String(currency || "ARS").toUpperCase();
   if (code === "ARS") return 1;
