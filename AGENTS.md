@@ -1,1 +1,2 @@
 - Distribución de escenarios del simulador de costos: usar `src/lib/scenarioDistribution.ts` (suma = participantes del escenario; nunca copiar cupos). Why: evitar resultados incoherentes en cualquier evento.
+- Pagos internacionales de eventos: usar `src/lib/eventPaymentPolicy.ts` solo si `events.metadata.payment_policy` existe; el recargo ARS se calcula una vez sobre la cotización central y nunca se acredita como saldo. Why: saldo contractual EUR trazable.
