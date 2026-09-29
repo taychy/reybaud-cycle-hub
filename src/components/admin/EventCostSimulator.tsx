@@ -21,6 +21,7 @@ import LodgingCostRow from "@/components/admin/LodgingCostRow";
 import AddLodgingTypeDialog from "@/components/admin/AddLodgingTypeDialog";
 import CostGroupSection from "@/components/admin/CostGroupSection";
 import { fetchCurrentFxBook, formatFxArs, fxStatusLabel, FX_FOREIGN, type FxBook } from "@/lib/fx";
+import { normalizarEscenario as normalizarEscenarioLib, validarDistribucion } from "@/lib/scenarioDistribution";
 
 import {
   calcularSimulacion, CATEGORIAS_COSTO, CATEGORIA_LABELS, GRUPO_LABELS, inferGrupoCosto, toBase,
