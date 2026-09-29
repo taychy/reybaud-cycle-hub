@@ -16,11 +16,13 @@ import {
   validateTemplate, generateMonthlyInstallments,
   DEFAULT_REMINDERS_CUOTA, DEFAULT_REMINDERS_ULTIMA, DEFAULT_REMINDERS_SENA,
 } from "@/lib/paymentPlanCalculator";
+import { computeIntlInstallmentDates, buildIntlPlanTemplate } from "@/lib/internationalPaymentPlan";
 
 interface Props {
   packageId: string;
   packagePrice: number;
   currency: string;
+  eventId?: string;
 }
 
 const REMINDER_OPTIONS = [-14, -7, -2, 0, 1, 3, 7];
@@ -31,7 +33,12 @@ function chipLabel(offset: number) {
   return `${offset}d`;
 }
 
-export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: Props) => {
+function fmtDate(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency, eventId }: Props) => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [planExists, setPlanExists] = useState(false);
@@ -51,6 +58,19 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: 
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-30`;
   });
+  const [eventStart, setEventStart] = useState<string | null>(null);
+  const [launchDate, setLaunchDate] = useState<string>("");
+  const [savingLaunch, setSavingLaunch] = useState(false);
+
+  useEffect(() => {
+    if (!eventId) return;
+    supabase.from("events").select("date, fecha_lanzamiento_comercial" as any).eq("id", eventId).maybeSingle()
+      .then(({ data }) => {
+        const e = data as any;
+        setEventStart(e?.date ? String(e.date).slice(0, 10) : null);
+        setLaunchDate(e?.fecha_lanzamiento_comercial ?? "");
+      });
+  }, [eventId]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -137,6 +157,36 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: 
       const has = cur.includes(offset);
       return { ...r, reminders_config: has ? cur.filter(o => o !== offset) : [...cur, offset].sort((a, b) => a - b) };
     }));
+  };
+
+  const intlPreview = useMemo(
+    () => computeIntlInstallmentDates({ fechaLanzamiento: launchDate || null, fechaInicio: eventStart }),
+    [launchDate, eventStart],
+  );
+
+  const saveLaunchDate = async () => {
+    if (!eventId) return;
+    setSavingLaunch(true);
+    const { error } = await supabase.from("events")
+      .update({ fecha_lanzamiento_comercial: launchDate || null } as any)
+      .eq("id", eventId);
+    setSavingLaunch(false);
+    if (error) toast.error("No se pudo guardar la fecha: " + error.message);
+    else toast.success("Fecha de lanzamiento guardada");
+  };
+
+  const applyIntlRule = () => {
+    const r = buildIntlPlanTemplate({ fechaLanzamiento: launchDate || null, fechaInicio: eventStart });
+    if (!r.ok) { toast.error((r as any).error); return; }
+    const t = r.template;
+    setNombre(t.nombre);
+    setSenaTipo(t.sena_tipo);
+    setSenaValor(String(t.sena_valor));
+    setSenaVenceDias(String(t.sena_vence_dias));
+    setReglaTardia(t.regla_reserva_tardia);
+    setAbsorbRounding(true);
+    setInstallments(t.installments);
+    toast.success(`${t.installments.length} cuotas calculadas. Revisá y guardá el plan.`);
   };
 
   const generateMonthly = () => {
@@ -319,6 +369,35 @@ export const PackagePaymentPlanEditor = ({ packageId, packagePrice, currency }: 
               </div>
             </div>
           </div>
+
+          {/* Regla internacional */}
+          {eventId && (
+            <div className="rounded-md border border-primary/30 p-2 space-y-2 bg-primary/5">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground font-medium">Regla viaje internacional</p>
+              <p className="text-[10px] text-muted-foreground">
+                Seña 30% al reservar + cuotas mensuales iguales, una por cada mes completo entre el lanzamiento y un mes antes del viaje{eventStart ? ` (inicio ${fmtDate(eventStart)})` : ""}.
+              </p>
+              <div className="flex items-end gap-2">
+                <div className="space-y-1">
+                  <Label className="text-[10px]">Lanzamiento comercial</Label>
+                  <Input type="date" value={launchDate} onChange={(e) => setLaunchDate(e.target.value)} className="h-8 text-xs" />
+                </div>
+                <Button size="sm" variant="outline" onClick={saveLaunchDate} disabled={savingLaunch} className="h-8">
+                  {savingLaunch ? <Loader2 className="w-3 h-3 animate-spin" /> : "Guardar fecha"}
+                </Button>
+                <Button size="sm" onClick={applyIntlRule} disabled={!intlPreview.ok} className="h-8 gap-1">
+                  <Wand2 className="w-3 h-3" /> Aplicar regla
+                </Button>
+              </div>
+              {intlPreview.ok ? (
+                <p className="text-[10px]">
+                  Salen <b>{intlPreview.dueDates.length} cuotas</b>: {intlPreview.dueDates.map(fmtDate).join(", ")}
+                </p>
+              ) : (
+                <p className="text-[10px] text-destructive">{(intlPreview as any).error}</p>
+              )}
+            </div>
+          )}
 
           {/* Generador rápido */}
           <div className="flex items-end gap-2 rounded-md border border-dashed border-border/40 p-2">

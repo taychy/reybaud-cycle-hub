@@ -652,7 +652,7 @@ export const EventPackagesEditor = ({ eventId, eventCurrency, eventTitle }: Prop
                       )}
                     </div>
                     <PackagePriceStagesEditor packageId={p.id} packageBasePrice={p.precio} baseCurrency={p.currency} />
-                    <PackagePaymentPlanEditor packageId={p.id} packagePrice={p.precio} currency={p.currency} />
+                    <PackagePaymentPlanEditor packageId={p.id} packagePrice={p.precio} currency={p.currency} eventId={eventId} />
                   </div>
                 )}
               </div>

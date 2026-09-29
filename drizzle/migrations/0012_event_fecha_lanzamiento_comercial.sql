@@ -1,0 +1,2 @@
+ALTER TABLE public.events ADD COLUMN IF NOT EXISTS fecha_lanzamiento_comercial date;
+COMMENT ON COLUMN public.events.fecha_lanzamiento_comercial IS 'Fecha explícita de lanzamiento comercial; define la ventana de cuotas mensuales del plan de pagos (no inferir de updated_at).';

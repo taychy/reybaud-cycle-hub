@@ -5867,6 +5867,7 @@ export type Database = {
           end_date: string | null
           end_time: string | null
           estado_publicacion: string
+          fecha_lanzamiento_comercial: string | null
           id: string
           image_url: string | null
           incluye: string[]
@@ -5915,6 +5916,7 @@ export type Database = {
           end_date?: string | null
           end_time?: string | null
           estado_publicacion?: string
+          fecha_lanzamiento_comercial?: string | null
           id?: string
           image_url?: string | null
           incluye?: string[]
@@ -5963,6 +5965,7 @@ export type Database = {
           end_date?: string | null
           end_time?: string | null
           estado_publicacion?: string
+          fecha_lanzamiento_comercial?: string | null
           id?: string
           image_url?: string | null
           incluye?: string[]
