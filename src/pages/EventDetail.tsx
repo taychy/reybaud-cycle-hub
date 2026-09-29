@@ -903,6 +903,9 @@ const EventDetail = () => {
             defaultCollapsed={isTripLike && isActiveReservation}
           />
 
+          {/* Public roadbook for trip/camp before reservation. Reserved users already see it above. */}
+          {id && isTripLike && !isActiveReservation && <EventRoadbook eventId={id} />}
+
           {/* Itinerary */}
           {event.metadata?.itinerario && Array.isArray(event.metadata.itinerario) && event.metadata.itinerario.length > 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3">
