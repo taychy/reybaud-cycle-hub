@@ -6,6 +6,7 @@ import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage 
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
 import { Button } from "@/components/ui/button";
 import { WaitlistRequestDialog } from "./WaitlistRequestDialog";
+import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
 
 interface PlanInstallment {
   numero: number;
@@ -43,10 +44,28 @@ const fmtDate = (d?: string | null) => {
   return `${dd}/${m}/${y}`;
 };
 
+const round2 = (v: number) => Math.round(v * 100) / 100;
+
 const computeAmount = (tipo: string, valor: number, total: number, sena: number = 0) => {
-  if (tipo === "porcentaje") return Math.round((valor / 100) * total);
-  if (tipo === "porcentaje_saldo") return Math.round((valor / 100) * Math.max(total - sena, 0));
-  return valor;
+  if (tipo === "porcentaje") return round2((valor / 100) * total);
+  if (tipo === "porcentaje_saldo") return round2((valor / 100) * Math.max(total - sena, 0));
+  return round2(valor);
+};
+
+const computeInstallmentAmounts = (
+  cuotas: PlanInstallment[],
+  total: number,
+  sena: number,
+) => {
+  const saldo = round2(Math.max(total - sena, 0));
+  let acumulado = 0;
+  return cuotas.map((c, idx) => {
+    const esUltima = idx === cuotas.length - 1;
+    if (esUltima) return round2(saldo - acumulado);
+    const monto = computeAmount(c.monto_tipo, c.monto_valor, total, sena);
+    acumulado = round2(acumulado + monto);
+    return monto;
+  });
 };
 
 const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
@@ -54,15 +73,21 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
   const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
 
   useEffect(() => {
     (async () => {
-      const { data: pkgs } = await supabase
+      const [{ data: eventData }, { data: pkgs }] = await Promise.all([
+        supabase.from("events" as any).select("metadata").eq("id", eventId).maybeSingle(),
+        supabase
         .from("event_packages" as any)
         .select("id, nombre, descripcion, precio, currency")
         .eq("event_id", eventId)
         .eq("activo", true)
-        .order("sort_order", { ascending: true });
+        .order("sort_order", { ascending: true }),
+      ]);
+
+      setPaymentPolicy(parsePaymentPolicy((eventData as any)?.metadata));
 
       const pkgList = (pkgs as any[]) || [];
       if (pkgList.length === 0) { setLoading(false); return; }
@@ -149,7 +174,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
         {packages.map((pkg) => {
           const sena = pkg.plan ? computeAmount(pkg.plan.sena_tipo, pkg.plan.sena_valor, pkg.precio) : 0;
           const cuotas = pkg.plan?.installments ?? [];
-          const cuotaMontos = cuotas.map((c) => computeAmount(c.monto_tipo, c.monto_valor, pkg.precio, sena));
+          const cuotaMontos = computeInstallmentAmounts(cuotas, pkg.precio, sena);
           const minCuota = cuotaMontos.length ? Math.min(...cuotaMontos) : 0;
           const maxCuota = cuotaMontos.length ? Math.max(...cuotaMontos) : 0;
           const cuotasIguales = cuotaMontos.length > 0 && minCuota === maxCuota;
@@ -279,7 +304,9 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
         })}
       </div>
       <p className="text-[11px] text-muted-foreground">
-        Podés pagar con Mercado Pago, transferencia o efectivo. La seña confirma tu lugar.
+        {paymentPolicy
+          ? `Saldo contractual en ${paymentPolicy.balance_currency}. ${paymentPolicy.contract_currency} en efectivo sin recargo o transferencia en ARS con cotización vigente + ${paymentPolicy.ars_transfer_surcharge_pct}%. La seña confirma tu lugar.`
+          : "Podés pagar con Mercado Pago, transferencia o efectivo. La seña confirma tu lugar."}
       </p>
       {waitlistPkg && (
         <WaitlistRequestDialog
