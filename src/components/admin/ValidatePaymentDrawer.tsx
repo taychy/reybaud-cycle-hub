@@ -12,7 +12,8 @@ import {
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { CheckCircle, XCircle, FileText, Loader2, ExternalLink, AlertTriangle, Receipt } from "lucide-react";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
-import { fetchCurrentFxBook, rateToEvent } from "@/lib/fx";
+import { fetchCurrentFxBook, rateToEvent, fxArsPerUnit } from "@/lib/fx";
+import { parsePaymentPolicy, arsToContractRate } from "@/lib/eventPaymentPolicy";
 
 interface PaymentRow {
   id: string;
@@ -134,7 +135,19 @@ const ValidatePaymentDrawer = ({
     (async () => {
       try {
         const book = await fetchCurrentFxBook();
-        const suggested = rateToEvent(book, origCurr, evCurr);
+        let suggested = rateToEvent(book, origCurr, evCurr);
+        // Política internacional: ARS → moneda contractual con recargo descontado (no suma saldo).
+        if (origCurr === "ARS") {
+          const { data: res } = await supabase
+            .from("event_reservations" as any)
+            .select("events(metadata)")
+            .eq("id", payment.reservation_id)
+            .maybeSingle();
+          const policy = parsePaymentPolicy((res as any)?.events?.metadata);
+          if (policy && policy.contract_currency === evCurr) {
+            suggested = arsToContractRate(fxArsPerUnit(book, evCurr, "sell"), policy.ars_transfer_surcharge_pct);
+          }
+        }
         if (cancelled || !suggested || suggested <= 0) return;
         setRate((prev) => (prev ? prev : String(Number(suggested.toFixed(6)))));
         setFxSuggested(String(Number(suggested.toFixed(6))));
