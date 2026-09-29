@@ -1,0 +1,1 @@
+- Distribución de escenarios del simulador de costos: usar `src/lib/scenarioDistribution.ts` (suma = participantes del escenario; nunca copiar cupos). Why: evitar resultados incoherentes en cualquier evento.
