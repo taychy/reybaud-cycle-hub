@@ -329,7 +329,7 @@ const DepositoStock = () => {
                   <TableHead className="text-center">Stock actual</TableHead>
                   <TableHead className="text-center">Mínimo</TableHead>
                   <TableHead className="text-center">Estado</TableHead>
-                  <TableHead className="text-center">Acciones</TableHead>
+                  <TableHead className="hidden md:table-cell text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -343,6 +343,14 @@ const DepositoStock = () => {
                             RYB-{p.sku_base}
                           </span>
                         )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="mt-2 h-8 w-fit md:hidden"
+                          onClick={() => setLabelsProduct(p)}
+                        >
+                          <Tag className="w-3 h-3 mr-1" /> Imprimir etiqueta
+                        </Button>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -360,7 +368,7 @@ const DepositoStock = () => {
                         <Badge variant="secondary">OK</Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="hidden md:table-cell text-center">
                       <div className="flex gap-1 justify-center flex-wrap">
                         <Button
                           size="sm"
