@@ -423,7 +423,41 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
       };
     }
 
-    // 2) UUID suelto o dentro de una URL (etiquetas Niimbot de pedido/preventa, QR de producto)
+    // 2) QR de producto Niimbot (SKU RYB-*). En cambios sirve para
+    // controlar directamente la prenda de reemplazo que está dentro de la bolsa.
+    const sku = code.match(/RYB-[A-Z0-9_-]+/i)?.[0]?.toUpperCase();
+    if (sku) {
+      const { data: barcode } = await (supabase as any)
+        .from("product_barcodes")
+        .select("store_product_id,variante")
+        .eq("codigo", sku)
+        .maybeSingle();
+      if (barcode?.store_product_id) {
+        const { data: prod } = await supabase
+          .from("store_products")
+          .select("name")
+          .eq("id", barcode.store_product_id)
+          .maybeSingle();
+        const varianteTxt = barcode.variante && typeof barcode.variante === "object"
+          ? Object.entries(barcode.variante as Record<string, unknown>)
+              .filter(([, value]) => value !== null && value !== "" && value !== undefined)
+              .map(([key, value]) => `${key}: ${String(value)}`)
+              .join(" · ")
+          : "";
+        const productName = norm((prod as any)?.name || "");
+        const variantName = norm(varianteTxt);
+        const targets = pendientes.filter((i) => {
+          if (norm(i.producto || "") !== productName) return false;
+          if (!variantName) return true;
+          return norm(i.variante || "") === variantName;
+        });
+        if (targets.length) {
+          return { label: targets[0].cliente_nombre, targets, dliIds: [] };
+        }
+      }
+    }
+
+    // 3) UUID suelto o dentro de una URL (etiquetas Niimbot de pedido/preventa/cambio)
     const uuid = code.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i)?.[0];
     if (uuid) {
       // a) coincide directo con el ítem de la carga
@@ -492,7 +526,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
     }
 
 
-    // 3) Último recurso: texto que coincide con el nombre del cliente
+    // 4) Último recurso: texto que coincide con el nombre del cliente
     const t = norm(code);
     if (t.length >= 4) {
       const byName = pendientes.filter((i) => {
