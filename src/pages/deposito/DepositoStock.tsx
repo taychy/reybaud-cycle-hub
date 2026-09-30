@@ -10,13 +10,14 @@ import {
 } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera, Tag } from "lucide-react";
+import { Package, Search, Plus, Minus, RefreshCw, Upload, Camera, Tag, Download } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
 import { sortVariantSpecs } from "@/lib/variantSort";
 import { effectiveStock } from "@/lib/stock";
+import { downloadNoCambioNiimbotLabel } from "@/lib/depositoPolicyLabels";
 
 interface VariantSpec {
   name: string;
@@ -197,6 +198,22 @@ const DepositoStock = () => {
     }
   };
 
+  const handleDownloadNoCambioLabel = async () => {
+    try {
+      await downloadNoCambioNiimbotLabel();
+      toast({
+        title: "Etiqueta descargada",
+        description: "PNG Niimbot 40 × 30 mm listo para imprimir.",
+      });
+    } catch (err: any) {
+      toast({
+        title: "No se pudo descargar la etiqueta",
+        description: err?.message || "Intentá nuevamente.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleBarcodeSearch = () => {
     if (!barcodeInput.trim()) return;
     setSearch(barcodeInput.trim());
@@ -271,6 +288,37 @@ const DepositoStock = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Fixed operational labels */}
+      <Card className="border-border">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row md:items-center gap-4">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <Tag className="w-4 h-4 text-primary" />
+                <p className="font-medium">Etiqueta de cambios · Niimbot</p>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Etiqueta fija para recordar la política de cambio de indumentaria.
+              </p>
+            </div>
+
+            <div className="bg-white text-black border-2 border-black rounded-lg px-4 py-2 text-center font-black leading-tight text-[10px] min-w-[150px]">
+              <div className="text-sm">IMPORTANTE</div>
+              <div>SIN CAMBIO</div>
+              <div>SI SE RETIRA</div>
+              <div>LA ETIQUETA</div>
+              <div>O SE PRUEBA</div>
+              <div>TRANSPIRADO</div>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={handleDownloadNoCambioLabel}>
+              <Download className="w-4 h-4 mr-1" />
+              Descargar PNG 40×30
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Search + Scanner */}
       <div className="flex gap-2">
