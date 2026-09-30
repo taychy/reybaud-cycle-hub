@@ -91,25 +91,73 @@ const ScanSlot = ({
 
   const handleQrText = async (raw: string) => {
     setScannerOpen(false);
-    const dec = decodeProductQr(raw);
-    if (!dec) {
-      toast({ title: "QR no reconocido", description: "Usá la carga manual.", variant: "destructive" });
+    const code = (raw || "").trim();
+    if (!code) return;
+
+    // Soportamos los dos tipos de etiqueta que conviven hoy:
+    // 1) QR legacy/extenso con UUID del producto (decodeProductQr)
+    // 2) Etiqueta Niimbot cuyo QR contiene el SKU (ej. RYB-0004-S),
+    //    registrado en product_barcodes junto con producto + variante.
+    const dec = decodeProductQr(code);
+    let resolvedProductId: string | null = dec?.productId || null;
+    let resolvedVariante: Record<string, string> | null = dec?.variante || null;
+
+    if (!resolvedProductId) {
+      const { data: barcode, error: barcodeError } = await (supabase as any)
+        .from("product_barcodes")
+        .select("store_product_id, variante")
+        .eq("codigo", code)
+        .maybeSingle();
+
+      if (barcodeError) {
+        console.warn("No se pudo resolver product_barcodes", barcodeError);
+      }
+
+      if (barcode?.store_product_id) {
+        resolvedProductId = barcode.store_product_id;
+        if (barcode.variante && typeof barcode.variante === "object") {
+          resolvedVariante = barcode.variante as Record<string, string>;
+        }
+      }
+    }
+
+    if (!resolvedProductId) {
+      toast({
+        title: "QR no reconocido",
+        description: `El código leído fue “${code}”. No está vinculado a un producto.`,
+        variant: "destructive",
+      });
       return;
     }
-    const prod = await fetchProduct(dec.productId);
+
+    const prod = await fetchProduct(resolvedProductId);
     if (!prod) {
       toast({ title: "Producto no encontrado", variant: "destructive" });
       return;
     }
+
     setProductLoaded(prod);
-    if (dec.variante) {
-      onChange({ productId: prod.id, productName: prod.name, variante: dec.variante, metodo: "qr" });
-    } else {
-      // QR sin variante → pedir manualmente la variante
-      setProductId(prod.id);
-      setVariante({});
-      setManualOpen(true);
+
+    const specs = Array.isArray(prod.variants)
+      ? (prod.variants as any[]).filter((v) => v?.name && Array.isArray(v?.options) && v.options.length > 0)
+      : [];
+    const hasVariants = specs.length > 0;
+    const hasResolvedVariant = !!resolvedVariante && Object.keys(resolvedVariante).length > 0;
+
+    if (hasResolvedVariant || !hasVariants) {
+      onChange({
+        productId: prod.id,
+        productName: prod.name,
+        variante: resolvedVariante || {},
+        metodo: "qr",
+      });
+      return;
     }
+
+    // QR reconocido pero sin variante → pedir solamente talle/color/etc.
+    setProductId(prod.id);
+    setVariante({});
+    setManualOpen(true);
   };
 
   const variantSpecs: { name: string; options: string[] }[] = (() => {
