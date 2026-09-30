@@ -103,10 +103,18 @@ const ScanSlot = ({
     let resolvedVariante: Record<string, string> | null = dec?.variante || null;
 
     if (!resolvedProductId) {
+      // Algunos lectores devuelven diferencias de mayúsculas o el SKU dentro
+      // de un texto/URL. Extraemos el RYB-* y probamos ambas formas.
+      const skuMatch = code.match(/RYB-[A-Z0-9_-]+/i)?.[0] || null;
+      const lookupCodes = Array.from(
+        new Set([code, code.toUpperCase(), skuMatch, skuMatch?.toUpperCase()].filter(Boolean) as string[]),
+      );
+
       const { data: barcode, error: barcodeError } = await (supabase as any)
         .from("product_barcodes")
-        .select("store_product_id, variante")
-        .eq("codigo", code)
+        .select("store_product_id, variante, codigo")
+        .in("codigo", lookupCodes)
+        .limit(1)
         .maybeSingle();
 
       if (barcodeError) {
