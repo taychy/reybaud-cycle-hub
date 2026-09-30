@@ -106,3 +106,6 @@
 - [x] Lógica pura de 6 fases (producto, costeo, pricing, público, QA, lanzamiento) + tests
 - [x] Bloque "Estado de publicación" en edición de camp/viaje; checklists QA/lanzamiento en metadata
 - [x] Sin publicar ni tocar datos de Rimini/Italia-Suiza-Austria
+
+## Landing Emilia Romagna 2027
+- [x] Imagen principal como banner con proporción fija (móvil y escritorio)
