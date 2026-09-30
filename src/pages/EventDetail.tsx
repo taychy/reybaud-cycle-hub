@@ -454,6 +454,8 @@ const EventDetail = () => {
   const isSoldOut = event.estado_publicacion === "agotado";
   const isProximamente = event.estado_publicacion === "proximamente";
   const waitlistEnabled = !!event.waitlist_habilitada;
+  // Hero responsive: solo para Emilia Romagna 2027; el resto conserva el hero anterior.
+  const useResponsiveHero = event.id === "4c37ae21-fa91-415c-aede-4b0b5240b424";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
