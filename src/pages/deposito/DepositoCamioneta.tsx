@@ -1084,6 +1084,7 @@ const CargaDetail = ({ id, sedes, onBack }: { id: string; sedes: Sede[]; onBack:
   const fuenteTexto = (it: CargaItem): string => {
     const ord = orderByItem[it.id];
     if (ord) return `Pedido #${ord.order_number ?? "—"}`;
+    if (it.source_table === "store_cambios") return "Cambio";
     if (externoByItem[it.id]) return "Venta externa";
     return "Lista de entrega";
   };
