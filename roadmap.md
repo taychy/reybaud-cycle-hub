@@ -109,3 +109,7 @@
 
 ## Landing Emilia Romagna 2027
 - [x] Imagen principal como banner con proporción fija (móvil y escritorio)
+
+## Simulador de costos
+- [x] Punto de equilibrio por margen de contribución (Rimini_2027 = 5)
+- [x] Margen objetivo "No aplica" en modo honorario
