@@ -36,6 +36,8 @@ import EventPromoBanner from "@/components/event/EventPromoBanner";
 import { useEventPromo } from "@/hooks/useEventPromo";
 import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
+import { resolveEventHero } from "@/lib/eventHero";
+import EventHeroMedia from "@/components/event/EventHeroMedia";
 
 type Alumno = Tables<"alumnos">;
 
@@ -417,7 +419,7 @@ const EventDetail = () => {
   const priceDisplay = getEventPriceDisplay({ ...event, packages_min_price: packagesMinPrice });
   const showDesde = packagesCount > 1;
   const isPaid = priceDisplay.mode === "con_valor" && priceDisplay.price != null;
-  const heroImage = event.image_url || placeholderImages[event.type] || placeholderImages.otro;
+  const hero = resolveEventHero(event.image_url, event.metadata, placeholderImages[event.type] || placeholderImages.otro);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
   // checkinOpensAt: si el evento define metadata.checkin_opens_at (timestamp ISO),
@@ -454,47 +456,43 @@ const EventDetail = () => {
   const isSoldOut = event.estado_publicacion === "agotado";
   const isProximamente = event.estado_publicacion === "proximamente";
   const waitlistEnabled = !!event.waitlist_habilitada;
-  // Ajuste del hero por evento: metadata.hero_image_fit = "contain" muestra el arte completo
-  // (posters con texto en los bordes). Sin configurar, se conserva el hero anterior (cover).
-  const heroContain = event.metadata?.hero_image_fit === "contain";
+  const heroContain = hero.fit === "contain";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Image */}
       <div className="relative">
-        {heroContain ? (
-          <div className="w-full bg-muted flex justify-center pt-16 md:pt-0">
-            <img
-              src={heroImage}
-              alt={event.title}
-              className="block w-full h-auto md:w-auto md:max-w-full md:max-h-[520px] object-contain"
-            />
-          </div>
-        ) : (
-          <div className="w-full h-[280px] md:h-[420px] overflow-hidden">
-            <img src={heroImage} alt={event.title} className="w-full h-full object-cover" />
-            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
-          </div>
-        )}
-        <button
+        <EventHeroMedia hero={hero} title={event.title} />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={handleBack}
-          className="absolute top-4 left-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors"
+          className="absolute z-30 top-4 left-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm text-foreground hover:bg-background"
+          aria-label="Volver"
         >
           <ArrowLeft className="w-5 h-5" />
-        </button>
-        <button
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={handleShare}
-          className="absolute top-4 right-16 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+          className="absolute z-30 top-4 right-16 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
           aria-label="Compartir evento"
         >
           <Share2 className="w-5 h-5 text-foreground/70" />
-        </button>
-        <button
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={() => toggleFavorite(event.id)}
-          className="absolute top-4 right-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center hover:bg-background transition-colors"
+          className="absolute z-30 top-4 right-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
+          aria-label={isFavorite(event.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
         >
           <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
-        </button>
+        </Button>
         <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
           <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
