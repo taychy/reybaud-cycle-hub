@@ -18,6 +18,7 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
   const [autoplayPaused, setAutoplayPaused] = useState(false);
   const isCarousel = hero.mode === "carousel";
   const isContain = hero.fit === "contain";
+  const isContainBlur = hero.displayStyle === "contain_blur_background";
 
   useEffect(() => {
     if (!api) return;
@@ -44,22 +45,34 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
     action();
   }, [onInteraction]);
 
-  const image = (url: string, index: number) => (
-    <img
-      src={url}
-      alt={hero.images.length > 1 ? `${title}, imagen ${index + 1} de ${hero.images.length}` : title}
-      className={cn(
-        "block w-full",
-        isContain
-          ? "h-auto md:w-auto md:max-w-full md:max-h-[520px] object-contain mx-auto"
-          : "h-full object-cover",
-      )}
-      draggable={false}
-    />
-  );
+  const image = (url: string, index: number) => {
+    const alt = hero.images.length > 1 ? `${title}, imagen ${index + 1} de ${hero.images.length}` : title;
+    if (isContainBlur) {
+      return (
+        <div className="relative h-full w-full overflow-hidden bg-muted">
+          <img src={url} alt="" aria-hidden="true" className="absolute inset-0 h-full w-full scale-110 object-cover blur-2xl opacity-35" draggable={false} />
+          <div className="absolute inset-0 bg-background/45" />
+          <img src={url} alt={alt} className="relative z-10 h-full w-full object-contain" draggable={false} />
+        </div>
+      );
+    }
+    return (
+      <img
+        src={url}
+        alt={alt}
+        className={cn(
+          "block w-full",
+          isContain
+            ? "h-auto md:w-auto md:max-w-full md:max-h-[520px] object-contain mx-auto"
+            : "h-full object-cover",
+        )}
+        draggable={false}
+      />
+    );
+  };
 
   if (!isCarousel) {
-    return isContain ? (
+    return isContain || isContainBlur ? (
       <div className="w-full bg-muted flex justify-center pt-16 md:pt-0">{image(hero.images[0], 0)}</div>
     ) : (
       <div className="w-full h-[280px] md:h-[420px] overflow-hidden">
@@ -71,7 +84,12 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
 
   return (
     <div
-      className={cn("relative w-full", isContain ? "h-[420px] md:h-[520px] bg-muted pt-16 md:pt-0" : "h-[280px] md:h-[420px]")}
+      className={cn(
+        "relative w-full",
+        isContainBlur
+          ? "h-[420px] sm:h-[500px] md:h-[620px] bg-muted"
+          : isContain ? "h-[420px] md:h-[520px] bg-muted pt-16 md:pt-0" : "h-[280px] md:h-[420px]",
+      )}
       onPointerDown={() => setAutoplayPaused(true)}
       onFocusCapture={() => setAutoplayPaused(true)}
       onMouseEnter={() => setAutoplayPaused(true)}
@@ -80,13 +98,16 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
       <Carousel setApi={setApi} opts={{ loop: true }} className="h-full">
         <CarouselContent className="h-full ml-0">
           {hero.images.map((url, index) => (
-            <CarouselItem key={`${url}-${index}`} className={cn("pl-0", isContain ? "h-[356px] md:h-[520px]" : "h-[280px] md:h-[420px]") }>
+            <CarouselItem key={`${url}-${index}`} className={cn(
+              "pl-0",
+              isContainBlur ? "h-[420px] sm:h-[500px] md:h-[620px]" : isContain ? "h-[356px] md:h-[520px]" : "h-[280px] md:h-[420px]",
+            )}>
               <div className="w-full h-full flex justify-center">{image(url, index)}</div>
             </CarouselItem>
           ))}
         </CarouselContent>
       </Carousel>
-      {!isContain && <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />}
+      {!isContain && <div className={cn("pointer-events-none absolute inset-0 bg-gradient-to-t to-transparent", isContainBlur ? "from-background/75 via-transparent" : "from-background via-background/40")} />}
 
       <Button
         type="button"
@@ -109,7 +130,7 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
         <ChevronRight />
       </Button>
 
-      <div className={cn("absolute z-20 left-1/2 -translate-x-1/2 flex items-center gap-2", isContain ? "bottom-3" : "bottom-5")} aria-label={`Imagen ${selected + 1} de ${hero.images.length}`}>
+      <div className={cn("absolute z-20 left-1/2 -translate-x-1/2 flex items-center gap-2", isContain || isContainBlur ? "bottom-3" : "bottom-5")} aria-label={`Imagen ${selected + 1} de ${hero.images.length}`}>
         {hero.images.map((_, index) => (
           <Button
             key={index}
