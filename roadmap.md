@@ -113,4 +113,4 @@
 ## Simulador de costos
 - [x] Punto de equilibrio por margen de contribución (Rimini_2027 = 5)
 - [x] Margen objetivo "No aplica" en modo honorario
-- [ ] Hero configurable por viaje: imagen única o carrusel, editor admin, pruebas y validación visual
+- [ ] Implementar hero general single/carrusel en Viajes/Eventos, editor metadata, tests y validación mobile/desktop; no modificar imágenes de Austria ni Emilia Romagna
