@@ -63,7 +63,7 @@ export default function AdminTripAudit() {
     switch (l) {
       case "landing": return `/eventos/${eventId}`;
       case "lista_espera": return `/admin/eventos/${eventId}/lista-espera`;
-      case "gestion": return `/admin/eventos?gestion=${eventId}`;
+      case "gestion": return `/admin/eventos`;
       case "terminos": return `/terminos-eventos`;
       case "mis_reservas": return `/mis-reservas`;
       case "cambios_paquete": return `/admin/cambios-paquete`;
@@ -105,7 +105,7 @@ export default function AdminTripAudit() {
           <p className="text-sm text-muted-foreground">Auditoría humana paso a paso antes de publicar o vender.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/eventos?gestion=${eventId}`)} disabled={!eventId}>
+          <Button variant="outline" size="sm" onClick={() => navigate(`/admin/eventos`)} disabled={!eventId}>
             <ArrowLeft className="w-4 h-4 mr-1" /> Ficha del viaje
           </Button>
           <Button size="sm" onClick={() => window.open(`/eventos/${eventId}`, "_blank")} disabled={!eventId}>

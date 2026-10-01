@@ -121,6 +121,7 @@ import AdminPackageChangeRequests from "./pages/admin/AdminPackageChangeRequests
 import AdminWaitlistRequests from "./pages/admin/AdminWaitlistRequests";
 import AdminWaitlistTemplates from "./pages/admin/AdminWaitlistTemplates";
 import AdminEventWaitlist from "./pages/admin/AdminEventWaitlist";
+import AdminTripAudit from "./pages/admin/AdminTripAudit";
 import EventWaitlistPage from "./pages/EventWaitlistPage";
 import PreinscripcionPage from "./pages/PreinscripcionPage";
 import AdminGestionRedes from "./pages/admin/AdminGestionRedes";
@@ -240,6 +241,7 @@ const App = () => (
             <Route path="solicitudes-alojamiento" element={<AdminWaitlistRequests />} />
             <Route path="waitlist-plantillas" element={<AdminWaitlistTemplates />} />
             <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
+            <Route path="eventos/testeo-tecnico" element={<AdminTripAudit />} />
 
             <Route path="metricas" element={<Navigate to="/admin/resumen?tab=metricas" replace />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
