@@ -71,7 +71,7 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
 
   return (
     <div
-      className={cn("relative w-full", isContain ? "bg-muted pt-16 md:pt-0" : "h-[280px] md:h-[420px]")}
+      className={cn("relative w-full", isContain ? "h-[420px] md:h-[520px] bg-muted pt-16 md:pt-0" : "h-[280px] md:h-[420px]")}
       onPointerDown={() => setAutoplayPaused(true)}
       onFocusCapture={() => setAutoplayPaused(true)}
       onMouseEnter={() => setAutoplayPaused(true)}
@@ -80,8 +80,8 @@ export default function EventHeroMedia({ hero, title, onInteraction }: EventHero
       <Carousel setApi={setApi} opts={{ loop: true }} className="h-full">
         <CarouselContent className="h-full ml-0">
           {hero.images.map((url, index) => (
-            <CarouselItem key={`${url}-${index}`} className={cn("pl-0", !isContain && "h-[280px] md:h-[420px]") }>
-              <div className={cn("w-full", isContain ? "flex justify-center" : "h-full")}>{image(url, index)}</div>
+            <CarouselItem key={`${url}-${index}`} className={cn("pl-0", isContain ? "h-[356px] md:h-[520px]" : "h-[280px] md:h-[420px]") }>
+              <div className="w-full h-full flex justify-center">{image(url, index)}</div>
             </CarouselItem>
           ))}
         </CarouselContent>
