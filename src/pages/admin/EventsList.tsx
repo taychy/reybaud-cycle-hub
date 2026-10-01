@@ -575,6 +575,11 @@ const EventsList = () => {
                           <Trophy className="w-4 h-4 mr-2" /> Participantes y resultados
                         </DropdownMenuItem>
                       )}
+                      {(ev.type === "camp" || ev.type === "viaje") && (
+                        <DropdownMenuItem onClick={() => navigate(`/admin/eventos/testeo-tecnico?eventId=${ev.id}`)}>
+                          <ClipboardList className="w-4 h-4 mr-2" /> Testeo técnico
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem onClick={() => navigate(`/admin/eventos/${ev.id}/lista-espera`)}>
                         <ClipboardList className="w-4 h-4 mr-2" /> Lista de espera
                       </DropdownMenuItem>
