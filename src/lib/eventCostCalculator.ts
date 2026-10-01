@@ -577,3 +577,22 @@ export function calcularSimulacion(
     escenario_ganancia_por_participante,
   };
 }
+
+/**
+ * Punto de equilibrio por margen de contribución.
+ * contribución promedio = (ingreso − variables) / participantes.
+ * Devuelve null si no hay participantes o la contribución es <= 0 (no alcanzable).
+ */
+export function calcularPuntoEquilibrio(
+  costosFijos: number,
+  ingresoTotal: number,
+  costosVariablesTotal: number,
+  participantes: number,
+): number | null {
+  if (!(participantes > 0)) return null;
+  const contribucion = (ingresoTotal - costosVariablesTotal) / participantes;
+  if (!(contribucion > 0)) return null;
+  if (!(costosFijos > 0)) return 0;
+  // tolerancia para evitar que errores de coma flotante sumen 1 participante
+  return Math.ceil(costosFijos / contribucion - 1e-9);
+}
