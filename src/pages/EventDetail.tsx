@@ -454,33 +454,28 @@ const EventDetail = () => {
   const isSoldOut = event.estado_publicacion === "agotado";
   const isProximamente = event.estado_publicacion === "proximamente";
   const waitlistEnabled = !!event.waitlist_habilitada;
-  // Hero responsive: solo para Emilia Romagna 2027; el resto conserva el hero anterior.
-  const useResponsiveHero = event.id === "4c37ae21-fa91-415c-aede-4b0b5240b424";
+  // Ajuste del hero por evento: metadata.hero_image_fit = "contain" muestra el arte completo
+  // (posters con texto en los bordes). Sin configurar, se conserva el hero anterior (cover).
+  const heroContain = event.metadata?.hero_image_fit === "contain";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Hero Image */}
       <div className="relative">
-        <div
-          className={
-            useResponsiveHero
-              ? "w-full aspect-[4/3] max-h-[360px] md:aspect-[21/9] md:max-h-[460px] overflow-hidden bg-muted"
-              : "w-full h-[280px] md:h-[420px] overflow-hidden"
-          }
-        >
-          <img
-            src={heroImage}
-            alt={event.title}
-            className={useResponsiveHero ? "w-full h-full object-cover object-center" : "w-full h-full object-cover"}
-          />
-          <div
-            className={
-              useResponsiveHero
-                ? "absolute inset-0 bg-gradient-to-t from-background via-background/10 to-transparent"
-                : "absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent"
-            }
-          />
-        </div>
+        {heroContain ? (
+          <div className="w-full bg-muted flex justify-center pt-16 md:pt-0">
+            <img
+              src={heroImage}
+              alt={event.title}
+              className="block w-full h-auto md:w-auto md:max-w-full md:max-h-[520px] object-contain"
+            />
+          </div>
+        ) : (
+          <div className="w-full h-[280px] md:h-[420px] overflow-hidden">
+            <img src={heroImage} alt={event.title} className="w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/40 to-transparent" />
+          </div>
+        )}
         <button
           onClick={handleBack}
           className="absolute top-4 left-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm flex items-center justify-center text-foreground hover:bg-background transition-colors"
@@ -500,12 +495,13 @@ const EventDetail = () => {
         >
           <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
         </button>
-        <div className="absolute bottom-4 left-4 flex items-center gap-2">
+        <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
           <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
         </div>
       </div>
+
 
       <main className="flex-1 px-4 pb-24 -mt-2">
         <div className="w-full max-w-md md:max-w-2xl mx-auto space-y-4 animate-fade-in">
