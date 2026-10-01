@@ -391,10 +391,16 @@ export function calcularSimulacion(
     totalEsperados > 0 ? ganancia_estimada_total / totalEsperados : 0;
   const margen_estimado = ingreso_esperado > 0 ? ganancia_estimada_total / ingreso_esperado : 0;
 
-  // punto de equilibrio en participantes promedio: fijos / margen unitario promedio
-  const margen_unit_prom = totalEsperados > 0 ? ganancia_estimada_total / totalEsperados : 0;
-  const punto_equilibrio =
-    margen_unit_prom > 0 ? Math.ceil((costos_fijos * factorImp) / margen_unit_prom) : 0;
+  // Punto de equilibrio por margen de contribución:
+  // contribución promedio = (ingreso − costos variables) / inscriptos, ponderada por
+  // la distribución del escenario activo. Los fijos NO se descuentan de la contribución.
+  // Si la contribución es <= 0, el equilibrio no es alcanzable (null).
+  const punto_equilibrio = calcularPuntoEquilibrio(
+    costos_fijos * factorImp,
+    ingreso_esperado,
+    costos_variables * factorImp,
+    totalEsperados,
+  );
 
   /* ═══ Modelo precio base + suplementos ═══
      El precio del viaje se arma UNA sola vez por persona: alojamiento base +
