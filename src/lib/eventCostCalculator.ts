@@ -91,8 +91,8 @@ export interface CalculoResult {
   ingreso_esperado: number;
   ganancia_estimada_total: number;
   ganancia_promedio_por_participante: number;
-  /** Aproximado: costos fijos / margen unitario promedio */
-  punto_equilibrio: number;
+  /** Participantes para cubrir costos fijos: fijos / contribución promedio. null = no alcanzable. */
+  punto_equilibrio: number | null;
   moneda_base: string;
   /** Costos generales + staff (no específicos de un paquete) sujetos a prorrateo */
   costos_generales_prorrateables: number;
