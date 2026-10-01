@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
+import PasswordLogin from "@/components/PasswordLogin";
 import { lovable } from "@/integrations/lovable/index";
 import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest, saveOAuthReturnTo, loadOAuthReturnTo, clearOAuthReturnTo } from "@/lib/pendingOtp";
 
@@ -490,6 +491,8 @@ const Login = () => {
             Continuar con Google
           </Button>
         </form>
+
+        <PasswordLogin />
 
         <div className="text-center space-y-4 pt-2">
           <button
