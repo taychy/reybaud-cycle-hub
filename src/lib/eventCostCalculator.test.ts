@@ -520,6 +520,6 @@ describe("punto de equilibrio por contribución", () => {
     expect(calcularPuntoEquilibrio(1000, 0, 0, 0)).toBeNull();
     const items: CostItem[] = [base({ grupo_costo: "staff", precio_unitario: 1000 })];
     const r = calcularSimulacion(items, mods, { ...sup, rentabilidad_modo: "honorario_participante", honorario_por_participante: 0 });
-    expect(r.punto_equilibrio).toBeNull();
+    expect(r.punto_equilibrio).toBe(6); // sin honorario: equilibrio exacto = inscriptos del escenario
   });
 });
