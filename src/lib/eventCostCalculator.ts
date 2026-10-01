@@ -91,8 +91,8 @@ export interface CalculoResult {
   ingreso_esperado: number;
   ganancia_estimada_total: number;
   ganancia_promedio_por_participante: number;
-  /** Aproximado: costos fijos / margen unitario promedio */
-  punto_equilibrio: number;
+  /** Participantes para cubrir costos fijos: fijos / contribución promedio. null = no alcanzable. */
+  punto_equilibrio: number | null;
   moneda_base: string;
   /** Costos generales + staff (no específicos de un paquete) sujetos a prorrateo */
   costos_generales_prorrateables: number;
@@ -391,10 +391,16 @@ export function calcularSimulacion(
     totalEsperados > 0 ? ganancia_estimada_total / totalEsperados : 0;
   const margen_estimado = ingreso_esperado > 0 ? ganancia_estimada_total / ingreso_esperado : 0;
 
-  // punto de equilibrio en participantes promedio: fijos / margen unitario promedio
-  const margen_unit_prom = totalEsperados > 0 ? ganancia_estimada_total / totalEsperados : 0;
-  const punto_equilibrio =
-    margen_unit_prom > 0 ? Math.ceil((costos_fijos * factorImp) / margen_unit_prom) : 0;
+  // Punto de equilibrio por margen de contribución:
+  // contribución promedio = (ingreso − costos variables) / inscriptos, ponderada por
+  // la distribución del escenario activo. Los fijos NO se descuentan de la contribución.
+  // Si la contribución es <= 0, el equilibrio no es alcanzable (null).
+  const punto_equilibrio = calcularPuntoEquilibrio(
+    costos_fijos * factorImp,
+    ingreso_esperado,
+    costos_variables * factorImp,
+    totalEsperados,
+  );
 
   /* ═══ Modelo precio base + suplementos ═══
      El precio del viaje se arma UNA sola vez por persona: alojamiento base +
@@ -570,4 +576,23 @@ export function calcularSimulacion(
     escenario_margen,
     escenario_ganancia_por_participante,
   };
+}
+
+/**
+ * Punto de equilibrio por margen de contribución.
+ * contribución promedio = (ingreso − variables) / participantes.
+ * Devuelve null si no hay participantes o la contribución es <= 0 (no alcanzable).
+ */
+export function calcularPuntoEquilibrio(
+  costosFijos: number,
+  ingresoTotal: number,
+  costosVariablesTotal: number,
+  participantes: number,
+): number | null {
+  if (!(participantes > 0)) return null;
+  const contribucion = (ingresoTotal - costosVariablesTotal) / participantes;
+  if (!(contribucion > 0)) return null;
+  if (!(costosFijos > 0)) return 0;
+  // tolerancia para evitar que errores de coma flotante sumen 1 participante
+  return Math.ceil(costosFijos / contribucion - 1e-9);
 }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calcularSimulacion, type CostItem, type Modalidad, type Supuestos } from "./eventCostCalculator";
+import { calcularSimulacion, calcularPuntoEquilibrio, type CostItem, type Modalidad, type Supuestos } from "./eventCostCalculator";
 
 const sup: Supuestos = {
   tc_usd: 1, tc_eur: 1, pct_imprevistos: 0, pct_margen_objetivo: 0, moneda_base: "ARS",
@@ -477,5 +477,49 @@ describe("Beneficio Plus por ahorro de proveedor", () => {
     expect(round2(r.precio_base_sugerido)).toBe(round2(2530 * 1.05 + 400 + 492 * 0.35));
     expect(round2(r.precio_final_por_modalidad[IND]))
       .toBe(round2(3022 * 1.05 + 400 + 500 * 0.35));
+  });
+});
+
+describe("punto de equilibrio por contribución", () => {
+  it("Rimini_2027: 4 doble + 4 individual, honorario 400 => 5", () => {
+    const mods2: Modalidad[] = [
+      { key: "dob", label: "Doble", esperados: 4 },
+      { key: "ind", label: "Individual", esperados: 4 },
+    ];
+    const items: CostItem[] = [
+      base({ grupo_costo: "alojamiento", categoria: "alojamiento", precio_unitario: 799,
+        detalle: { package_id: "dob", cost_basis: "persona_estadia", noches: 8 } }),
+      base({ grupo_costo: "alojamiento", categoria: "alojamiento", precio_unitario: 1019,
+        detalle: { package_id: "ind", cost_basis: "persona_estadia", noches: 8 } }),
+      base({ grupo_costo: "participante", categoria: "servicios", precio_unitario: 624 }),
+      base({ grupo_costo: "staff", categoria: "staff", precio_unitario: 2303 }),
+      base({ grupo_costo: "general", categoria: "transporte", precio_unitario: 2150 }),
+    ];
+    const r = calcularSimulacion(items, mods2, {
+      ...sup, moneda_base: "EUR", pct_imprevistos: 5, pct_margen_objetivo: 30,
+      rentabilidad_modo: "honorario_participante", honorario_por_participante: 400,
+      participantes_prorrateo: 8, paquete_base_id: "dob",
+    });
+    expect(r.costos_fijos).toBeCloseTo(4675.65, 2);
+    expect(r.ganancia_estimada_total).toBeCloseTo(3200, 2);
+    expect(r.punto_equilibrio).toBe(5);
+  });
+
+  it("margen objetivo no influye en modo honorario", () => {
+    const items: CostItem[] = [base({ grupo_costo: "staff", precio_unitario: 1000 })];
+    const s = { ...sup, rentabilidad_modo: "honorario_participante" as const, honorario_por_participante: 100 };
+    const a = calcularSimulacion(items, mods, { ...s, pct_margen_objetivo: 0 });
+    const b = calcularSimulacion(items, mods, { ...s, pct_margen_objetivo: 30 });
+    expect(a.precio_sugerido_por_modalidad).toEqual(b.precio_sugerido_por_modalidad);
+    expect(a.punto_equilibrio).toBe(b.punto_equilibrio);
+  });
+
+  it("contribución <= 0 => no alcanzable (null), sin dividir por cero", () => {
+    expect(calcularPuntoEquilibrio(1000, 500, 500, 5)).toBeNull();
+    expect(calcularPuntoEquilibrio(1000, 400, 500, 5)).toBeNull();
+    expect(calcularPuntoEquilibrio(1000, 0, 0, 0)).toBeNull();
+    const items: CostItem[] = [base({ grupo_costo: "staff", precio_unitario: 1000 })];
+    const r = calcularSimulacion(items, mods, { ...sup, rentabilidad_modo: "honorario_participante", honorario_por_participante: 0 });
+    expect(r.punto_equilibrio).toBe(6); // sin honorario: equilibrio exacto = inscriptos del escenario
   });
 });
