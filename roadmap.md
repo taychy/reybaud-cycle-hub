@@ -109,6 +109,7 @@
 
 ## Landing Emilia Romagna 2027
 - [x] Imagen principal como banner con proporción fija (móvil y escritorio)
+- [ ] Reemplazar carrusel por 6 originales en alta, activar `contain_blur_background`, verificar desktop/mobile y publicar
 
 ## Simulador de costos
 - [x] Punto de equilibrio por margen de contribución (Rimini_2027 = 5)

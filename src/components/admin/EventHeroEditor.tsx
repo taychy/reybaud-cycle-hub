@@ -109,6 +109,20 @@ export default function EventHeroEditor({ imageUrl, metadata, onImageUrlChange, 
         </div>
       </div>
 
+      <div className="space-y-1.5">
+        <Label>Presentación</Label>
+        <Select
+          value={metadata.hero_display_style === "contain_blur_background" ? "contain_blur_background" : "standard"}
+          onValueChange={(value) => updateMetadata({ hero_display_style: value })}
+        >
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="standard">Estándar</SelectItem>
+            <SelectItem value="contain_blur_background">Foto completa con fondo suave</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+
       {mode === "single" ? (
         <div className="space-y-2">
           {imageUrl && <img src={imageUrl} alt="Vista previa de portada" className="w-full h-40 object-cover rounded-md border border-border" />}

@@ -1,11 +1,13 @@
 export type EventHeroMode = "single" | "carousel";
 export type EventHeroFit = "cover" | "contain";
+export type EventHeroDisplayStyle = "standard" | "contain_blur_background";
 
 export interface EventHeroMetadata {
   hero_mode?: unknown;
   hero_images?: unknown;
   hero_image_fit?: unknown;
   hero_autoplay?: unknown;
+  hero_display_style?: unknown;
 }
 
 export interface ResolvedEventHero {
@@ -13,6 +15,7 @@ export interface ResolvedEventHero {
   images: string[];
   fit: EventHeroFit;
   autoplay: boolean;
+  displayStyle: EventHeroDisplayStyle;
 }
 
 export function normalizeHeroImages(value: unknown): string[] {
@@ -44,5 +47,6 @@ export function resolveEventHero(
     images: carouselEnabled ? images : [primary || images[0] || placeholder],
     fit: metadata?.hero_image_fit === "contain" ? "contain" : "cover",
     autoplay: carouselEnabled && metadata?.hero_autoplay === true,
+    displayStyle: metadata?.hero_display_style === "contain_blur_background" ? "contain_blur_background" : "standard",
   };
 }

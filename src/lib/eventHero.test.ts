@@ -8,6 +8,7 @@ describe("eventHero", () => {
       images: ["main.jpg"],
       fit: "cover",
       autoplay: false,
+      displayStyle: "standard",
     });
   });
 
@@ -29,6 +30,18 @@ describe("eventHero", () => {
       images: ["first.jpg", "second.jpg"],
       fit: "contain",
       autoplay: true,
+      displayStyle: "standard",
+    });
+  });
+
+  it("resuelve la presentación completa con fondo suave desde metadata", () => {
+    expect(resolveEventHero("main.jpg", {
+      hero_mode: "carousel",
+      hero_images: ["one.jpg", "two.jpg"],
+      hero_display_style: "contain_blur_background",
+    }, "fallback.jpg")).toMatchObject({
+      mode: "carousel",
+      displayStyle: "contain_blur_background",
     });
   });
 
