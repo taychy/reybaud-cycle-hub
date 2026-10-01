@@ -837,10 +837,15 @@ export default function EventCostSimulator({ eventId }: Props) {
                   </Select>
                 </div>
                 {current.rentabilidad_modo === "honorario_participante" ? (
+                  <>
                   <div><Label className="text-xs">Honorario por participante ({current.moneda_base})</Label>
                     <Input type="number" value={current.honorario_por_participante ?? 0}
                       onChange={(e) => patchCurrent({ honorario_por_participante: Number(e.target.value) })}
                       onBlur={guardarCambios} /></div>
+                  <div><Label className="text-xs text-muted-foreground">% Margen objetivo</Label>
+                    <Input value="No aplica" disabled aria-label="Margen objetivo: no aplica con honorario por participante" />
+                    <p className="text-[11px] text-muted-foreground mt-1">Con honorario por participante el margen no se usa en el cálculo.</p></div>
+                  </>
                 ) : (
                   <div><Label className="text-xs">% Margen objetivo</Label>
                     <Input type="number" value={current.pct_margen_objetivo}
