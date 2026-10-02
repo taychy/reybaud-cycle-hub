@@ -15,7 +15,7 @@ BEGIN
   -- Usa dos profesores existentes; todo se revierte al final.
   SELECT id INTO v_c1 FROM public.coaches ORDER BY created_at LIMIT 1;
   SELECT id INTO v_c2 FROM public.coaches WHERE id <> v_c1 ORDER BY created_at LIMIT 1;
-  INSERT INTO public.honorarios (nombre_concepto, categoria, valor) VALUES ('ZZ Planillas test', 'otro', 27500) RETURNING id INTO v_hon;
+  INSERT INTO public.honorarios (nombre_concepto, categoria, valor) VALUES ('Planillas ZZ test', 'otro', 27500) RETURNING id INTO v_hon;
   INSERT INTO public.movimientos_liquidacion (coach_id, fecha, tipo_actividad, origen, total, estado_economico)
   VALUES (v_c2, v_fecha, 'grupal_1h30', 'agenda_admin', 22500, 'liquidable');
 
