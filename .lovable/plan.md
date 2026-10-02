@@ -1,13 +1,15 @@
-# Corregir portada de Emilia Romagna 2027
+# Mejorar Resumen de Liquidaciones
 
-## Implementación
-- Subir los seis originales descargados a almacenamiento permanente, manteniendo nombres y orden.
-- Extender la configuración general de portada con `hero_display_style: "contain_blur_background"`.
-- Renderizar ese estilo con la foto completa y nítida delante, más una copia desenfocada y oscurecida detrás; conservar navegación, indicadores, gestos y autoplay.
-- Aplicar la configuración únicamente al evento indicado, preservando toda su metadata restante y apuntando `image_url` al primer original.
-- Verificar la portada a 1720 px y en móvil, ejecutar las pruebas pertinentes y publicar.
+## Cambios
+- Abrir Liquidaciones en el mes anterior al actual, conservando el selector de meses.
+- Encabezar el Resumen como “Liquidaciones por profesor · {mes}”.
+- Destacar por profesor Total cargado, Confirmado, Pendiente de revisión y cantidad de movimientos.
+- Agregar un botón explícito para mostrar u ocultar el detalle.
+- Completar el detalle con Fecha, Tipo, Detalle, Base, Viáticos, Entrada, Estacionamiento, Extras, Total y Estado económico.
+- Mostrar un estado vacío claro y ofrecer el mes anterior cuando tenga movimientos.
 
-## Límites
-- No retocar ni recomprimir los originales.
-- No borrar imágenes anteriores ni cambiar otros viajes.
-- No modificar precios, cupos, pagos ni información operativa.
+## Alcance técnico
+- Modificar únicamente `src/pages/admin/AdminLiquidaciones.tsx`.
+- No cambiar datos, estados, honorarios, reglas, funciones SQL ni la cola global de Revisar.
+- Verificar en móvil que septiembre de 2026 abra por defecto, que Jorge y Daniela muestren sus importes esperados y que el detalle de Jorge se expanda correctamente.
+- Confirmar compilación y publicar a producción.
