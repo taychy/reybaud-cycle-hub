@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +38,7 @@ type Coach = { id: string; nombre: string };
 const money = (n: number) => `$${Number(n || 0).toLocaleString("es-AR")}`;
 
 const AdminLiquidaciones = () => {
+  const revisarRef = useRef<HTMLDivElement | null>(null);
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "resumen");
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedCoach, setSelectedCoach] = useState<string>("all");
