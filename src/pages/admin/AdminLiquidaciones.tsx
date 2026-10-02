@@ -594,6 +594,7 @@ const AdminLiquidaciones = () => {
             <CardContent className="p-4 text-sm text-muted-foreground space-y-1">
               <p><span className="font-medium text-foreground">1.</span> Definí cuánto se paga por cada tipo de clase.</p>
               <p><span className="font-medium text-foreground">2.</span> Asigná ese honorario a la agenda grupal del profesor o al servicio de Turnera (pestaña Agenda).</p>
+              <p><span className="font-medium text-foreground">3.</span> Valores usados por Liquidaciones. Los reintegros de entrada, estacionamiento y viáticos se cargan por separado.</p>
             </CardContent>
           </Card>
 
