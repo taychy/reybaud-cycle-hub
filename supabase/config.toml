@@ -136,3 +136,6 @@ verify_jwt = false
 
 [functions.reconcile-mp-release-report]
 verify_jwt = false
+
+[functions.send-liquidacion-reminders]
+verify_jwt = false
