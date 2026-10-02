@@ -554,6 +554,32 @@ const EventForm = ({
           </p>
         </div>
 
+        {(meta.event_nature || "propio_con_reserva") !== "propio_informativo" && meta.event_nature !== "externo_informativo" && (
+          <div className="space-y-1.5">
+            <Label>Quiénes pueden participar</Label>
+            <Select
+              value={meta.public_audience || (meta.active_students_only ? "students_only" : "open")}
+              onValueChange={(value) => setForm((prev) => ({
+                ...prev,
+                metadata: {
+                  ...prev.metadata,
+                  public_audience: value,
+                  active_students_only: value === "students_only",
+                },
+              }))}
+            >
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="open">Público general — no requiere ser alumno</SelectItem>
+                <SelectItem value="students_only">Solo alumnos de Reybaud</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Define la comunicación y el acceso de reserva en la página pública.
+            </p>
+          </div>
+        )}
+
         <div className="space-y-1.5">
           <Label>Precio del evento</Label>
           <Select
@@ -746,10 +772,6 @@ const EventForm = ({
             <div className="flex items-center gap-2">
               <Switch checked={meta.requires_registration || false} onCheckedChange={(v) => updateMeta("requires_registration", v)} />
               <Label className="text-sm">Requiere inscripción</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Switch checked={meta.active_students_only || false} onCheckedChange={(v) => updateMeta("active_students_only", v)} />
-              <Label className="text-sm">Solo alumnos activos</Label>
             </div>
           </div>
 

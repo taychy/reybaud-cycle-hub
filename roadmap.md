@@ -121,3 +121,6 @@
 - [x] Retirar de la landing el aviso público de política de pago internacional.
 - [x] Mostrarlo una sola vez antes de confirmar/pagar en el flujo reusable de reserva, según metadata.payment_policy.
 - [x] Verificar flujo, compilación y publicar junto con la mejora del Resumen de Liquidaciones.
+
+- [x] Actualizar comunicación de reserva pública, configurar Emilia Romagna como audiencia abierta y validar desktop/mobile.
+- [x] Publicar la nueva comunicación de reserva pública.

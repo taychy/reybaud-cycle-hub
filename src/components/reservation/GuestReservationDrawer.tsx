@@ -132,7 +132,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[95vh] overflow-y-auto">
         <SheetHeader>
-          <SheetTitle>Reservar como invitado</SheetTitle>
+          <SheetTitle>Reservar mi lugar</SheetTitle>
           <SheetDescription>{eventName} · Paso {step} de 3</SheetDescription>
         </SheetHeader>
 
