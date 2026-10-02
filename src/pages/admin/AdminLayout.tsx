@@ -95,7 +95,7 @@ const modules: NavModule[] = [
         label: "Contabilidad",
         items: [
           { to: "/admin/facturacion", label: "Facturación", icon: FileText },
-          // { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote }, // oculto: sin uso operativo real
+          { to: "/admin/liquidaciones", label: "Liquidaciones", icon: Banknote },
           { to: "/admin/gastos", label: "Gastos", icon: Wallet, superAdmin: true },
         ],
       },
