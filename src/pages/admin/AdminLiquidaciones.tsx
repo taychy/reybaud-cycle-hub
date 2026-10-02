@@ -304,7 +304,7 @@ const AdminLiquidaciones = () => {
       estado_economico: m.estado_economico || "",
       valor_base: Number(m.valor_base || 0),
       viaticos: Number(m.viaticos || 0),
-      extras: Number(m.extras || 0),
+      extras: Number(m.extras || 0) + Number(m.entrada || 0) + Number(m.estacionamiento || 0),
       total: Number(m.total || 0),
       observaciones: m.observaciones || "",
       reserva_turnera_id: m.reserva_turnera_id || "",
