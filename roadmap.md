@@ -116,3 +116,8 @@
 - [x] Punto de equilibrio por margen de contribución (Rimini_2027 = 5)
 - [x] Margen objetivo "No aplica" en modo honorario
 - [x] Implementar hero general single/carrusel en Viajes/Eventos, editor metadata, tests y validación mobile/desktop; no modificar imágenes de Austria ni Emilia Romagna
+
+## Emilia Romagna 2027 · aviso de moneda en compra
+- [ ] Retirar de la landing el aviso público de política de pago internacional.
+- [ ] Mostrarlo una sola vez antes de confirmar/pagar en el flujo reusable de reserva, según metadata.payment_policy.
+- [ ] Verificar flujo, compilación y publicar junto con la mejora del Resumen de Liquidaciones.
