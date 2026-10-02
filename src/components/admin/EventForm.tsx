@@ -559,10 +559,14 @@ const EventForm = ({
             <Label>Quiénes pueden participar</Label>
             <Select
               value={meta.public_audience || (meta.active_students_only ? "students_only" : "open")}
-              onValueChange={(value) => {
-                updateMeta("public_audience", value);
-                updateMeta("active_students_only", value === "students_only");
-              }}
+              onValueChange={(value) => setForm((prev) => ({
+                ...prev,
+                metadata: {
+                  ...prev.metadata,
+                  public_audience: value,
+                  active_students_only: value === "students_only",
+                },
+              }))}
             >
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>

@@ -744,7 +744,11 @@ const EventDetail = () => {
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? () => {
                         if (!alumno) {
-                          setShowGuestDrawer(true);
+                          if (isOpenAudience) {
+                            setShowGuestDrawer(true);
+                          } else {
+                            navigate(`/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+                          }
                           return;
                         }
                         if (isImpersonating) {
@@ -755,7 +759,7 @@ const EventDetail = () => {
                       }
                     : undefined
                 }
-                reserveLabel={isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
+                reserveLabel={!alumno && !isOpenAudience ? "Iniciar sesión" : isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
                 reserveDisabled={!!alumno && isImpersonating}
               />
             </div>
