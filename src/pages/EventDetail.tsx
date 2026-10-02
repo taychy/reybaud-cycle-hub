@@ -38,6 +38,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 import { resolveEventHero } from "@/lib/eventHero";
 import EventHeroMedia from "@/components/event/EventHeroMedia";
+import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 
 type Alumno = Tables<"alumnos">;
 
@@ -420,6 +421,7 @@ const EventDetail = () => {
   const showDesde = packagesCount > 1;
   const isPaid = priceDisplay.mode === "con_valor" && priceDisplay.price != null;
   const hero = resolveEventHero(event.image_url, event.metadata, placeholderImages[event.type] || placeholderImages.otro);
+  const paymentPolicy = parsePaymentPolicy(event.metadata);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const eventPast = new Date(event.date + "T23:59:59") < new Date();
   // checkinOpensAt: si el evento define metadata.checkin_opens_at (timestamp ISO),
@@ -551,7 +553,7 @@ const EventDetail = () => {
           {/* PRIORITY: Active reservation → show status card FIRST      */}
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* Cartel comercial editable por admin (banner amarillo/azul/verde según tipo) */}
-          {!isActiveReservation && (
+          {!isActiveReservation && !paymentPolicy && (
             <EventPriceBanner
               texto={event.precio_aviso_texto}
               tipo={event.precio_aviso_tipo}

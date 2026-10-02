@@ -37,14 +37,22 @@ type Coach = { id: string; nombre: string };
 
 const money = (n: number) => `$${Number(n || 0).toLocaleString("es-AR")}`;
 
+const shiftMonth = (month: string, offset: number) => {
+  const [year, monthNumber] = month.split("-").map(Number);
+  const date = new Date(year, monthNumber - 1 + offset, 1);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+};
+
+const getPreviousMonth = () => {
+  const now = new Date();
+  return shiftMonth(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`, -1);
+};
+
 const AdminLiquidaciones = () => {
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "resumen");
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedCoach, setSelectedCoach] = useState<string>("all");
-  const [mes, setMes] = useState(() => {
-    const n = new Date();
-    return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}`;
-  });
+  const [mes, setMes] = useState(getPreviousMonth);
   const [liquidaciones, setLiquidaciones] = useState<any[]>([]);
   const [movimientos, setMovimientos] = useState<any[]>([]);
   const [honorarios, setHonorarios] = useState<any[]>([]);
@@ -53,6 +61,7 @@ const AdminLiquidaciones = () => {
   const [servicios, setServicios] = useState<any[]>([]);
   const [alertas, setAlertas] = useState<any>(null);
   const [pendientesGlobales, setPendientesGlobales] = useState<any[]>([]);
+  const [previousMonthHasActivity, setPreviousMonthHasActivity] = useState(false);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -108,7 +117,14 @@ const AdminLiquidaciones = () => {
     let liqQuery = supabase.from("liquidaciones_mensuales").select("*").eq("mes", mes);
     if (selectedCoach !== "all") liqQuery = liqQuery.eq("coach_id", selectedCoach);
 
-    const [coachesRes, honRes, reglasRes, sedesRes, servRes, movs, liqs, alertRes, pendRes] = await Promise.all([
+    const previousMonth = shiftMonth(mes, -1);
+    const previousStart = `${previousMonth}-01`;
+    const [previousYear, previousNumber] = previousMonth.split("-").map(Number);
+    const previousEnd = new Date(previousYear, previousNumber, 0).toISOString().split("T")[0];
+    let previousQuery = supabase.from("movimientos_liquidacion").select("id", { count: "exact", head: true }).gte("fecha", previousStart).lte("fecha", previousEnd);
+    if (selectedCoach !== "all") previousQuery = previousQuery.eq("coach_id", selectedCoach);
+
+    const [coachesRes, honRes, reglasRes, sedesRes, servRes, movs, liqs, alertRes, pendRes, previousRes] = await Promise.all([
       supabase.from("coaches").select("id, nombre").eq("estado", "activo").order("nombre"),
       supabase.from("honorarios").select("*").order("nombre_concepto"),
       supabase.from("reglas_liquidacion").select("*").order("tipo_actividad"),
@@ -118,6 +134,7 @@ const AdminLiquidaciones = () => {
       liqQuery,
       supabase.rpc("get_liquidaciones_alertas" as any),
       pendQuery,
+      previousQuery,
     ]);
 
     setCoaches((coachesRes.data as any[]) || []);
@@ -129,6 +146,7 @@ const AdminLiquidaciones = () => {
     setLiquidaciones((liqs.data as any[]) || []);
     setAlertas(Array.isArray(alertRes.data) ? alertRes.data[0] : alertRes.data);
     setPendientesGlobales((pendRes.data as any[]) || []);
+    setPreviousMonthHasActivity((previousRes.count || 0) > 0);
     setLoading(false);
   };
 
@@ -166,6 +184,8 @@ const AdminLiquidaciones = () => {
         const estimado = cm.filter((m) => m.estado_operativo === "programada" || m.estado_operativo === "reservada")
           .reduce((s, m) => s + Number(m.total || 0), 0);
         const pend = cm.filter((m) => m.estado_economico === "pendiente_revision");
+        const totalCargado = cm.filter((m) => m.estado_economico !== "no_liquidable")
+          .reduce((s, m) => s + Number(m.total || 0), 0);
         return {
           ...c,
           movs: cm,
@@ -174,6 +194,7 @@ const AdminLiquidaciones = () => {
           manuales: cm.filter((m) => m.origen === "carga_coach").length,
           pendientes: pend.length,
           montoPendiente: pend.reduce((s, m) => s + Number(m.total || 0), 0),
+          totalCargado,
           confirmado,
           estimado,
           liq: liquidaciones.find((l) => l.coach_id === c.id),
@@ -350,34 +371,34 @@ const AdminLiquidaciones = () => {
         <TableHeader>
           <TableRow>
             <TableHead>Fecha</TableHead>
-            <TableHead>Origen</TableHead>
             <TableHead>Tipo</TableHead>
-            <TableHead>Grupo / Alumno</TableHead>
-            <TableHead>Sede</TableHead>
-            <TableHead>Estado</TableHead>
-            <TableHead className="text-right">Honorario</TableHead>
+            <TableHead>Detalle</TableHead>
+            <TableHead className="text-right">Base</TableHead>
+            <TableHead className="text-right">Viáticos</TableHead>
+            <TableHead className="text-right">Entrada</TableHead>
+            <TableHead className="text-right">Estacionamiento</TableHead>
+            <TableHead className="text-right">Extras</TableHead>
             <TableHead className="text-right">Total</TableHead>
+            <TableHead>Estado económico</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {movs.length === 0 ? (
-            <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sin movimientos</TableCell></TableRow>
+            <TableRow><TableCell colSpan={10} className="text-center text-muted-foreground">Sin movimientos</TableCell></TableRow>
           ) : movs.map((m) => (
             <TableRow key={m.id}>
               <TableCell className="text-xs font-mono">
-                {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}
-              </TableCell>
-              <TableCell>
-                <Badge variant="outline" className={`text-[10px] ${m.origen === "carga_coach" ? "border-primary/40 text-primary" : ""}`}>
-                  {ORIGEN_LABELS[m.origen] || m.origen}
-                </Badge>
+                {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
               </TableCell>
               <TableCell className="text-xs">{TIPO_LABELS[m.tipo_actividad] || m.tipo_actividad}</TableCell>
-              <TableCell className="text-xs">{m.grupo || m.nombre_externo || m.evento || "–"}</TableCell>
-              <TableCell className="text-xs text-muted-foreground">{sedeName(m.sede_id) || "–"}</TableCell>
-              <TableCell><Badge variant="outline" className="text-[10px]">{m.estado_economico}</Badge></TableCell>
+              <TableCell className="text-xs min-w-[180px]">{m.grupo || m.nombre_externo || m.evento || m.observaciones || "–"}</TableCell>
               <TableCell className="text-right font-mono text-xs">{money(Number(m.valor_base || 0))}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{money(Number(m.viaticos || 0))}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{money(Number(m.entrada || 0))}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{money(Number(m.estacionamiento || 0))}</TableCell>
+              <TableCell className="text-right font-mono text-xs">{money(Number(m.extras || 0))}</TableCell>
               <TableCell className="text-right font-mono font-medium">{money(Number(m.total || 0))}</TableCell>
+              <TableCell><Badge variant="outline" className="text-[10px] whitespace-nowrap">{m.estado_economico}</Badge></TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -482,10 +503,20 @@ const AdminLiquidaciones = () => {
 
         {/* ------- RESUMEN ------- */}
         <TabsContent value="resumen" className="space-y-4 mt-4">
+          <h2 className="font-heading font-semibold text-lg capitalize">Liquidaciones por profesor · {formatMes(mes)}</h2>
           {loading ? (
             <Card><CardContent className="p-6 text-center text-muted-foreground">Cargando…</CardContent></Card>
           ) : coachSummaries.length === 0 ? (
-            <Card><CardContent className="p-6 text-center text-muted-foreground">No hay actividad registrada para este mes.</CardContent></Card>
+            <Card>
+              <CardContent className="p-6 text-center space-y-3">
+                <p className="text-muted-foreground capitalize">No hay liquidaciones registradas para {formatMes(mes)}</p>
+                {previousMonthHasActivity && (
+                  <Button variant="outline" size="sm" onClick={() => setMes(shiftMonth(mes, -1))} className="capitalize">
+                    Ver {formatMes(shiftMonth(mes, -1))}
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
           ) : (
             <div className="space-y-3">
               {coachSummaries.map((c) => (
@@ -501,6 +532,9 @@ const AdminLiquidaciones = () => {
                         {c.liq && <Badge variant="outline" className="text-[10px] capitalize">{String(c.liq.estado).replace("_", " ")}</Badge>}
                       </button>
                       <div className="flex gap-2 items-center flex-wrap">
+                        <Button size="sm" variant="outline" onClick={() => setExpanded(expanded === c.id ? null : c.id)}>
+                          {expanded === c.id ? "Ocultar detalle" : "Ver detalle"}
+                        </Button>
                         {!c.liq && (
                           <Button size="sm" variant="outline" disabled={busy === c.id} onClick={() => prepararLiquidacion(c.id)}>
                             {busy === c.id ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Preparar liquidación
@@ -522,16 +556,17 @@ const AdminLiquidaciones = () => {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 md:grid-cols-6 gap-3 text-sm">
-                      <div><p className="text-[11px] text-muted-foreground">Clases confirmadas</p><p className="font-medium">{c.clases}</p></div>
-                      <div><p className="text-[11px] text-muted-foreground">Turnera realizadas</p><p className="font-medium">{c.turnera}</p></div>
-                      <div><p className="text-[11px] text-muted-foreground">Cargas manuales</p><p className="font-medium">{c.manuales}</p></div>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
+                      <div className="col-span-2 md:col-span-1 rounded-md bg-primary/5 border border-primary/20 p-3">
+                        <p className="text-[11px] text-muted-foreground">Total cargado</p>
+                        <p className="text-xl font-bold text-foreground">{money(c.totalCargado)}</p>
+                      </div>
+                      <div><p className="text-[11px] text-muted-foreground">Movimientos</p><p className="font-medium">{c.movs.length}</p></div>
                       <div>
-                        <p className="text-[11px] text-muted-foreground">Pendientes</p>
-                        <p className={`font-medium ${c.pendientes > 0 ? "text-amber-500" : ""}`}>{c.pendientes} · {money(c.montoPendiente)}</p>
+                        <p className="text-[11px] text-muted-foreground">Pendiente de revisión</p>
+                        <p className={`font-medium ${c.pendientes > 0 ? "text-amber-500" : ""}`}>{money(c.montoPendiente)}</p>
                       </div>
                       <div><p className="text-[11px] text-muted-foreground">Confirmado</p><p className="font-medium text-emerald-400">{money(c.confirmado)}</p></div>
-                      <div><p className="text-[11px] text-muted-foreground">Estimado</p><p className="font-medium text-blue-400">{money(c.estimado)}</p></div>
                     </div>
 
                     {c.liq && (
@@ -540,7 +575,12 @@ const AdminLiquidaciones = () => {
                       </p>
                     )}
 
-                    {expanded === c.id && <div className="pt-2 border-t border-border">{renderDetalleTabla(c.movs)}</div>}
+                    {expanded === c.id && (
+                      <div className="pt-2 border-t border-border space-y-2">
+                        <p className="text-xs text-muted-foreground md:hidden">Deslizá la tabla hacia los costados para ver el detalle completo.</p>
+                        {renderDetalleTabla(c.movs)}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
