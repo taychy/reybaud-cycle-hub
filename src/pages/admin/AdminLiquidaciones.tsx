@@ -447,9 +447,11 @@ const AdminLiquidaciones = () => {
           <TabsTrigger value="revisar">
             Revisar {pendientes.length > 0 && <Badge variant="secondary" className="ml-2 text-[10px]">{pendientes.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="agenda">Agenda y honorarios</TabsTrigger>
+          <TabsTrigger value="honorarios">Honorarios</TabsTrigger>
+          <TabsTrigger value="agenda">Agenda</TabsTrigger>
           <TabsTrigger value="reglas">Reglas</TabsTrigger>
         </TabsList>
+
 
         {/* ------- RESUMEN ------- */}
         <TabsContent value="resumen" className="space-y-4 mt-4">
@@ -586,12 +588,12 @@ const AdminLiquidaciones = () => {
           </div>
         </TabsContent>
 
-        {/* ------- AGENDA Y HONORARIOS ------- */}
-        <TabsContent value="agenda" className="mt-4 space-y-6">
+        {/* ------- HONORARIOS ------- */}
+        <TabsContent value="honorarios" className="mt-4 space-y-4">
           <Card className="bg-card/50 border-border">
             <CardContent className="p-4 text-sm text-muted-foreground space-y-1">
               <p><span className="font-medium text-foreground">1.</span> Definí cuánto se paga por cada tipo de clase.</p>
-              <p><span className="font-medium text-foreground">2.</span> Asigná ese honorario a la agenda grupal del profesor o al servicio de Turnera.</p>
+              <p><span className="font-medium text-foreground">2.</span> Asigná ese honorario a la agenda grupal del profesor o al servicio de Turnera (pestaña Agenda).</p>
             </CardContent>
           </Card>
 
@@ -630,6 +632,11 @@ const AdminLiquidaciones = () => {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        {/* ------- AGENDA ------- */}
+        <TabsContent value="agenda" className="mt-4 space-y-6">
+
 
           <div className="space-y-3">
             <h2 className="font-heading font-semibold">Agenda grupal por profesor</h2>
