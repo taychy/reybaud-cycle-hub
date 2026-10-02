@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -459,7 +459,7 @@ const AdminLiquidaciones = () => {
         </Card>
       )}
 
-      <Tabs ref={revisarRef} value={tab} onValueChange={setTab}>
+      <Tabs id="liquidaciones-tabs" value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="revisar">
