@@ -15,7 +15,6 @@ BEGIN
   -- Usa dos profesores existentes; todo se revierte al final.
   SELECT id INTO v_c1 FROM public.coaches ORDER BY created_at LIMIT 1;
   SELECT id INTO v_c2 FROM public.coaches WHERE id <> v_c1 ORDER BY created_at LIMIT 1;
-  DELETE FROM public.liquidacion_submissions WHERE coach_id IN (v_c1, v_c2) AND mes = v_mes;
   INSERT INTO public.honorarios (nombre_concepto, categoria, valor) VALUES ('ZZ Planillas test', 'otro', 27500) RETURNING id INTO v_hon;
   INSERT INTO public.movimientos_liquidacion (coach_id, fecha, tipo_actividad, origen, total, estado_economico)
   VALUES (v_c2, v_fecha, 'grupal_1h30', 'agenda_admin', 22500, 'liquidable');
@@ -67,7 +66,6 @@ BEGIN
   v_out := v_out || E'\nT5 PASS token vencido';
 
   -- T6 idempotencia de recordatorio
-  DELETE FROM public.liquidacion_reminder_log WHERE coach_id = v_c1 AND mes = v_mes;
   INSERT INTO public.liquidacion_reminder_log (coach_id, mes, tipo, email) VALUES (v_c1, v_mes, 'pre_cierre', 'zz@example.invalid');
   BEGIN
     INSERT INTO public.liquidacion_reminder_log (coach_id, mes, tipo, email) VALUES (v_c1, v_mes, 'pre_cierre', 'zz@example.invalid');
