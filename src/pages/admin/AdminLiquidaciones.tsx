@@ -443,7 +443,7 @@ const AdminLiquidaciones = () => {
                 </p>
               </div>
             </div>
-            <Button size="sm" onClick={() => setTab("revisar")}>Ir a Revisar</Button>
+            <Button size="sm" onClick={handleIrARevisar}>Ir a Revisar</Button>
           </CardContent>
         </Card>
       )}
@@ -460,7 +460,7 @@ const AdminLiquidaciones = () => {
         </Card>
       )}
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs ref={revisarRef} value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="revisar">
@@ -566,6 +566,9 @@ const AdminLiquidaciones = () => {
           <p className="text-sm text-muted-foreground">
             Movimientos que no suman al confirmado hasta que los apruebes. Confirmá para que se liquiden o excluilos.
           </p>
+          {pendientes.length > 0 && (
+            <p className="text-xs text-muted-foreground md:hidden">Deslizá la tabla hacia los costados para ver las acciones.</p>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
