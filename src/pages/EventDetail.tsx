@@ -39,6 +39,7 @@ import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 import { resolveEventHero } from "@/lib/eventHero";
 import EventHeroMedia from "@/components/event/EventHeroMedia";
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
+import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
 
 type Alumno = Tables<"alumnos">;
 
@@ -459,6 +460,8 @@ const EventDetail = () => {
   const isProximamente = event.estado_publicacion === "proximamente";
   const waitlistEnabled = !!event.waitlist_habilitada;
   const heroContain = hero.fit === "contain";
+  const publicAudience = resolveEventPublicAudience(event);
+  const isOpenAudience = publicAudience === "open";
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -828,31 +831,34 @@ const EventDetail = () => {
                 <h3 className="font-heading font-semibold text-foreground">
                   {isInscriptionOnly ? "¿Querés inscribirte?" : "¿Querés reservar tu lugar?"}
                 </h3>
-                <p className="text-xs text-muted-foreground">Elegí cómo continuar</p>
+                <p className="text-xs text-muted-foreground">
+                  {isOpenAudience
+                    ? "Elegí tu paquete y completá tus datos para reservar."
+                    : "Iniciá sesión con tu cuenta de alumno para continuar."}
+                </p>
               </div>
+              {isOpenAudience && (
+                <Button
+                  variant="gold"
+                  className="w-full h-12 text-sm"
+                  onClick={() => setShowGuestDrawer(true)}
+                >
+                  <CreditCard className="w-4 h-4 mr-2" />
+                  {isInscriptionOnly ? "INSCRIBIRME" : "RESERVAR MI LUGAR"}
+                </Button>
+              )}
               <Button
-                variant="gold"
-                className="w-full h-12 text-sm"
-                onClick={() => setShowGuestDrawer(true)}
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                {isInscriptionOnly ? "Anotarme como invitado" : "Reservar como invitado"}
-              </Button>
-              <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                <span className="flex-1 border-t border-border/50" />
-                <span>o</span>
-                <span className="flex-1 border-t border-border/50" />
-              </div>
-              <Button
-                variant="outline"
-                className="w-full"
+                variant={isOpenAudience ? "link" : "outline"}
+                className={isOpenAudience ? "w-full h-auto text-xs text-muted-foreground" : "w-full"}
                 onClick={() => navigate(`/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`)}
               >
-                Ya soy alumno · Iniciar sesión
+                {isOpenAudience ? "¿Ya tenés cuenta en Reybaud? Iniciar sesión" : "Iniciar sesión"}
               </Button>
-              <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
-                Como invitado no necesitás cuenta. Te enviamos un enlace privado por email para gestionar tu reserva.
-              </p>
+              {isOpenAudience && (
+                <p className="text-[11px] text-muted-foreground text-center leading-relaxed">
+                  No necesitás ser alumno de Ciclismo Reybaud para participar. Después de reservar te enviamos por email un enlace privado para gestionar tu viaje, pagos y datos.
+                </p>
+              )}
             </div>
           )}
 
