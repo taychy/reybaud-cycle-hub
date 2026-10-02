@@ -315,6 +315,24 @@ const AdminLiquidaciones = () => {
     downloadBlob(blob, `liquidaciones-${mes}${selectedCoach === "all" ? "" : `-${label.replace(/\s+/g, "-").toLowerCase()}`}.xlsx`);
   };
 
+  /* ---------- navegación ---------- */
+
+  const handleIrARevisar = () => {
+    setTab("revisar");
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", "revisar");
+      window.history.replaceState(null, "", url.toString());
+    } catch { /* noop */ }
+    // Esperar al re-render para que el contenido de Revisar exista antes de scrollear.
+    window.setTimeout(() => {
+      const el = document.getElementById("liquidaciones-tabs");
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 72;
+      window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+    }, 80);
+  };
+
   /* ---------- render ---------- */
 
   const renderDetalleTabla = (movs: any[]) => (
@@ -424,7 +442,7 @@ const AdminLiquidaciones = () => {
                 </p>
               </div>
             </div>
-            <Button size="sm" onClick={() => setTab("revisar")}>Ir a Revisar</Button>
+            <Button size="sm" onClick={handleIrARevisar}>Ir a Revisar</Button>
           </CardContent>
         </Card>
       )}
@@ -441,7 +459,7 @@ const AdminLiquidaciones = () => {
         </Card>
       )}
 
-      <Tabs value={tab} onValueChange={setTab}>
+      <Tabs id="liquidaciones-tabs" value={tab} onValueChange={setTab}>
         <TabsList className="flex-wrap h-auto">
           <TabsTrigger value="resumen">Resumen</TabsTrigger>
           <TabsTrigger value="revisar">
@@ -547,6 +565,9 @@ const AdminLiquidaciones = () => {
           <p className="text-sm text-muted-foreground">
             Movimientos que no suman al confirmado hasta que los apruebes. Confirmá para que se liquiden o excluilos.
           </p>
+          {pendientes.length > 0 && (
+            <p className="text-xs text-muted-foreground md:hidden">Deslizá la tabla hacia los costados para ver las acciones.</p>
+          )}
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
