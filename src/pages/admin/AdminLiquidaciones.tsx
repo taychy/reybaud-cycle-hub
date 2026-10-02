@@ -38,7 +38,6 @@ type Coach = { id: string; nombre: string };
 const money = (n: number) => `$${Number(n || 0).toLocaleString("es-AR")}`;
 
 const AdminLiquidaciones = () => {
-  const revisarRef = useRef<HTMLDivElement | null>(null);
   const [tab, setTab] = useState(() => new URLSearchParams(window.location.search).get("tab") || "resumen");
   const [coaches, setCoaches] = useState<Coach[]>([]);
   const [selectedCoach, setSelectedCoach] = useState<string>("all");
@@ -327,7 +326,7 @@ const AdminLiquidaciones = () => {
     } catch { /* noop */ }
     // Esperar al re-render para que el contenido de Revisar exista antes de scrollear.
     window.setTimeout(() => {
-      const el = revisarRef.current;
+      const el = document.getElementById("liquidaciones-tabs");
       if (!el) return;
       const top = el.getBoundingClientRect().top + window.scrollY - 72;
       window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
