@@ -572,7 +572,7 @@ const AdminLiquidaciones = () => {
         {/* ------- REVISAR ------- */}
         <TabsContent value="revisar" className="mt-4 space-y-3">
           <p className="text-sm text-muted-foreground">
-            Pendientes de revisión de todos los meses{selectedCoach !== "all" ? ` de ${coachName(selectedCoach)}` : ""}. No suman al confirmado hasta que los apruebes.
+            Pendientes de todos los meses{selectedCoach !== "all" ? ` de ${coachName(selectedCoach)}` : ""}. Confirmá para que se liquiden o excluilos.
           </p>
           {pendientes.length > 0 && (
             <p className="text-xs text-muted-foreground">
@@ -606,7 +606,7 @@ const AdminLiquidaciones = () => {
                       {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { month: "short", year: "numeric" })}
                     </TableCell>
                     <TableCell className="text-xs font-mono">
-                      {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}
+                      {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
                     </TableCell>
                     <TableCell className="text-xs">{coachName(m.coach_id)}</TableCell>
                     <TableCell><Badge variant="outline" className="text-[10px]">{ORIGEN_LABELS[m.origen] || m.origen}</Badge></TableCell>
