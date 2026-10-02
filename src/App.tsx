@@ -102,6 +102,7 @@ import Portal from "./pages/Portal";
 import UpdatePrompt from "./components/UpdatePrompt";
 import VersionBadge from "./components/VersionBadge";
 import AdminLiquidaciones from "./pages/admin/AdminLiquidaciones";
+import LiquidacionCargar from "./pages/LiquidacionCargar";
 import AdminTurnera from "./pages/admin/AdminTurnera";
 import AdminAgenda from "./pages/admin/AdminAgenda";
 import AdminBajas from "./pages/admin/AdminBajas";
@@ -154,6 +155,7 @@ const App = () => (
           <Route path="/pago-resultado" element={<PaymentResult />} />
           <Route path="/interes/:eventId" element={<EventInterest />} />
           <Route path="/encuesta/:token" element={<EventSurvey />} />
+          <Route path="/liquidacion/cargar/:token" element={<LiquidacionCargar />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />
           <Route path="/tienda" element={<PublicStore />} />
           <Route path="/tienda/producto/:id" element={<PublicProduct />} />
