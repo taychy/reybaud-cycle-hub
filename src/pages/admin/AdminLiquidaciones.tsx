@@ -316,6 +316,24 @@ const AdminLiquidaciones = () => {
     downloadBlob(blob, `liquidaciones-${mes}${selectedCoach === "all" ? "" : `-${label.replace(/\s+/g, "-").toLowerCase()}`}.xlsx`);
   };
 
+  /* ---------- navegación ---------- */
+
+  const handleIrARevisar = () => {
+    setTab("revisar");
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("tab", "revisar");
+      window.history.replaceState(null, "", url.toString());
+    } catch { /* noop */ }
+    // Esperar al re-render para que el contenido de Revisar exista antes de scrollear.
+    window.setTimeout(() => {
+      const el = revisarRef.current;
+      if (!el) return;
+      const top = el.getBoundingClientRect().top + window.scrollY - 72;
+      window.scrollTo({ top: Math.max(top, 0), behavior: "smooth" });
+    }, 80);
+  };
+
   /* ---------- render ---------- */
 
   const renderDetalleTabla = (movs: any[]) => (
