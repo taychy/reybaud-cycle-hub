@@ -7313,6 +7313,193 @@ export type Database = {
         }
         Relationships: []
       }
+      liquidacion_links: {
+        Row: {
+          activo: boolean
+          coach_id: string
+          created_at: string
+          created_by: string | null
+          expires_at: string
+          id: string
+          last_opened_at: string | null
+          mes: string
+          submitted_at: string | null
+          token: string
+        }
+        Insert: {
+          activo?: boolean
+          coach_id: string
+          created_at?: string
+          created_by?: string | null
+          expires_at: string
+          id?: string
+          last_opened_at?: string | null
+          mes: string
+          submitted_at?: string | null
+          token?: string
+        }
+        Update: {
+          activo?: boolean
+          coach_id?: string
+          created_at?: string
+          created_by?: string | null
+          expires_at?: string
+          id?: string
+          last_opened_at?: string | null
+          mes?: string
+          submitted_at?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidacion_links_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_links_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_links_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+        ]
+      }
+      liquidacion_reminder_log: {
+        Row: {
+          coach_id: string
+          created_at: string
+          email: string
+          error: string | null
+          id: string
+          mes: string
+          message_id: string | null
+          status: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          email: string
+          error?: string | null
+          id?: string
+          mes: string
+          message_id?: string | null
+          status?: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          email?: string
+          error?: string | null
+          id?: string
+          mes?: string
+          message_id?: string | null
+          status?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidacion_reminder_log_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_reminder_log_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_reminder_log_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+        ]
+      }
+      liquidacion_submissions: {
+        Row: {
+          coach_id: string
+          id: string
+          items_count: number
+          link_id: string | null
+          mes: string
+          observaciones: string | null
+          submitted_at: string
+          submitted_by: string
+          submitted_by_user: string | null
+        }
+        Insert: {
+          coach_id: string
+          id?: string
+          items_count?: number
+          link_id?: string | null
+          mes: string
+          observaciones?: string | null
+          submitted_at?: string
+          submitted_by: string
+          submitted_by_user?: string | null
+        }
+        Update: {
+          coach_id?: string
+          id?: string
+          items_count?: number
+          link_id?: string | null
+          mes?: string
+          observaciones?: string | null
+          submitted_at?: string
+          submitted_by?: string
+          submitted_by_user?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidacion_submissions_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_submissions_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "coaches_public"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidacion_submissions_coach_id_fkey"
+            columns: ["coach_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_clases_estado"
+            referencedColumns: ["agenda_coach_id"]
+          },
+          {
+            foreignKeyName: "liquidacion_submissions_link_id_fkey"
+            columns: ["link_id"]
+            isOneToOne: false
+            referencedRelation: "liquidacion_links"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       liquidaciones_mensuales: {
         Row: {
           coach_id: string
@@ -7585,6 +7772,7 @@ export type Database = {
           duracion: number | null
           entrada: number
           entrenamiento_id: string | null
+          estacionamiento: number
           estado_economico: string
           estado_operativo: string
           evento: string | null
@@ -7611,6 +7799,7 @@ export type Database = {
           duracion?: number | null
           entrada?: number
           entrenamiento_id?: string | null
+          estacionamiento?: number
           estado_economico?: string
           estado_operativo?: string
           evento?: string | null
@@ -7637,6 +7826,7 @@ export type Database = {
           duracion?: number | null
           entrada?: number
           entrenamiento_id?: string | null
+          estacionamiento?: number
           estado_economico?: string
           estado_operativo?: string
           evento?: string | null
@@ -15507,6 +15697,25 @@ export type Database = {
         Returns: Json
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _liq_context: {
+        Args: { p_coach_id: string; p_mes: string }
+        Returns: Json
+      }
+      _liq_derivar_tipo: { Args: { p_nombre: string }; Returns: string }
+      _liq_insert_items: {
+        Args: {
+          p_coach_id: string
+          p_items: Json
+          p_mes: string
+          p_origen_obs: string
+        }
+        Returns: number
+      }
+      _liq_link_get_or_create: {
+        Args: { p_coach_id: string; p_mes: string; p_user?: string }
+        Returns: string
+      }
+      _liq_mes_ok: { Args: { p_mes: string }; Returns: boolean }
       _programa_admin_ok: { Args: never; Returns: boolean }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
@@ -15554,6 +15763,16 @@ export type Database = {
           p_user_id?: string
         }
         Returns: string
+      }
+      admin_cargar_liquidacion: {
+        Args: {
+          p_coach_id: string
+          p_confirmar?: boolean
+          p_items: Json
+          p_mes: string
+          p_observaciones?: string
+        }
+        Returns: Json
       }
       admin_create_cambio_indumentaria: {
         Args: {
@@ -15606,6 +15825,14 @@ export type Database = {
           p_sede_id: string
           p_servicio_id: string
         }
+        Returns: string
+      }
+      admin_get_liquidacion_context: {
+        Args: { p_coach_id: string; p_mes: string }
+        Returns: Json
+      }
+      admin_get_liquidacion_link: {
+        Args: { p_coach_id: string; p_mes: string }
         Returns: string
       }
       admin_get_or_create_cuenta_token: {
@@ -16548,6 +16775,7 @@ export type Database = {
         Args: { _token: string }
         Returns: Json
       }
+      get_liquidacion_by_token: { Args: { p_token: string }; Returns: Json }
       get_liquidaciones_alertas: {
         Args: never
         Returns: {
@@ -17720,6 +17948,10 @@ export type Database = {
           test: number
         }[]
       }
+      service_liquidacion_link: {
+        Args: { p_coach_id: string; p_mes: string }
+        Returns: string
+      }
       set_alumno_sedes: {
         Args: {
           _alumno_id: string
@@ -17802,6 +18034,10 @@ export type Database = {
         Returns: boolean
       }
       store_order_estados_comprometidos: { Args: never; Returns: string[] }
+      submit_liquidacion_by_token: {
+        Args: { p_items: Json; p_observaciones?: string; p_token: string }
+        Returns: Json
+      }
       submit_survey_response: {
         Args: { _nps?: number; _respuestas: Json; _token: string }
         Returns: string
