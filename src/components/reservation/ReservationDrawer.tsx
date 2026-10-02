@@ -21,6 +21,8 @@ import { calculatePlan, type PlanTemplate, type InstallmentTemplate } from "@/li
 import { fetchPriceStages, resolveActivePrice } from "@/lib/priceStages";
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
 import { WaitlistRequestDialog } from "@/components/event/WaitlistRequestDialog";
+import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
+import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
 
 
 type Alumno = Tables<"alumnos">;
@@ -106,6 +108,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     installments: Array<{ numero: number; installment_type: "sena" | "cuota"; descripcion: string; monto: number; due_date: string }>;
   } | null>(null);
   const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
+  const paymentPolicy = parsePaymentPolicy(event.metadata);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
@@ -1187,6 +1190,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   </span>
                 </label>
               )}
+
+              {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
 
               <div className="flex gap-2">
                 <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>

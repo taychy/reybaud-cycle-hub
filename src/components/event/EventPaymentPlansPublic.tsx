@@ -6,7 +6,6 @@ import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage 
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
 import { Button } from "@/components/ui/button";
 import { WaitlistRequestDialog } from "./WaitlistRequestDialog";
-import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
 
 interface PlanInstallment {
   numero: number;
@@ -73,21 +72,15 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
   const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
   const [loading, setLoading] = useState(true);
-  const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
 
   useEffect(() => {
     (async () => {
-      const [{ data: eventData }, { data: pkgs }] = await Promise.all([
-        supabase.from("events" as any).select("metadata").eq("id", eventId).maybeSingle(),
-        supabase
+      const { data: pkgs } = await supabase
         .from("event_packages" as any)
         .select("id, nombre, descripcion, precio, currency")
         .eq("event_id", eventId)
         .eq("activo", true)
-        .order("sort_order", { ascending: true }),
-      ]);
-
-      setPaymentPolicy(parsePaymentPolicy((eventData as any)?.metadata));
+          .order("sort_order", { ascending: true });
 
       const pkgList = (pkgs as any[]) || [];
       if (pkgList.length === 0) { setLoading(false); return; }
@@ -303,11 +296,7 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           );
         })}
       </div>
-      <p className="text-[11px] text-muted-foreground">
-        {paymentPolicy
-          ? `Saldo contractual en ${paymentPolicy.balance_currency}. ${paymentPolicy.contract_currency} en efectivo sin recargo o transferencia en ARS con cotización vigente + ${paymentPolicy.ars_transfer_surcharge_pct}%. La seña confirma tu lugar.`
-          : "Podés pagar con Mercado Pago, transferencia o efectivo. La seña confirma tu lugar."}
-      </p>
+      <p className="text-[11px] text-muted-foreground">La seña confirma tu lugar.</p>
       {waitlistPkg && (
         <WaitlistRequestDialog
           open={!!waitlistPkg}

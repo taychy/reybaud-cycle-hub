@@ -10,6 +10,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
+import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
+import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
 
 const BANK_INFO = {
   titular: "Scarlett Tayna Barros Silva",
@@ -49,16 +51,21 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
   const [metodo, setMetodo] = useState<"mp" | "transferencia">("mp");
   const [terms, setTerms] = useState(false);
   const [comprobante, setComprobante] = useState<File | null>(null);
+  const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
 
   useEffect(() => {
     if (!open) { setStep(1); setPkgId(""); setComprobante(null); setTerms(false); return; }
     (async () => {
-      const { data } = await supabase
-        .from("event_packages")
-        .select("id, nombre, descripcion, precio, currency, activo, sort_order")
-        .eq("event_id", eventId)
-        .eq("activo", true)
-        .order("sort_order", { ascending: true });
+      const [{ data }, { data: eventData }] = await Promise.all([
+        supabase
+          .from("event_packages")
+          .select("id, nombre, descripcion, precio, currency, activo, sort_order")
+          .eq("event_id", eventId)
+          .eq("activo", true)
+          .order("sort_order", { ascending: true }),
+        supabase.from("events").select("metadata").eq("id", eventId).maybeSingle(),
+      ]);
+      setPaymentPolicy(parsePaymentPolicy((eventData as any)?.metadata));
       const list = (data as Pkg[]) || [];
       setPackages(list);
       if (list.length > 0) {
@@ -196,6 +203,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
                   </label>
                 </RadioGroup>
               </div>
+              {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
               {metodo === "transferencia" && (
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl border bg-muted/30 space-y-3">
