@@ -52,6 +52,7 @@ const AdminLiquidaciones = () => {
   const [sedes, setSedes] = useState<any[]>([]);
   const [servicios, setServicios] = useState<any[]>([]);
   const [alertas, setAlertas] = useState<any>(null);
+  const [pendientesGlobales, setPendientesGlobales] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -102,10 +103,12 @@ const AdminLiquidaciones = () => {
 
     let movQuery = supabase.from("movimientos_liquidacion").select("*").gte("fecha", startDate).lte("fecha", endDate).order("fecha");
     if (selectedCoach !== "all") movQuery = movQuery.eq("coach_id", selectedCoach);
+    let pendQuery = supabase.from("movimientos_liquidacion").select("*").eq("estado_economico", "pendiente_revision").order("fecha", { ascending: false }).limit(5000);
+    if (selectedCoach !== "all") pendQuery = pendQuery.eq("coach_id", selectedCoach);
     let liqQuery = supabase.from("liquidaciones_mensuales").select("*").eq("mes", mes);
     if (selectedCoach !== "all") liqQuery = liqQuery.eq("coach_id", selectedCoach);
 
-    const [coachesRes, honRes, reglasRes, sedesRes, servRes, movs, liqs, alertRes] = await Promise.all([
+    const [coachesRes, honRes, reglasRes, sedesRes, servRes, movs, liqs, alertRes, pendRes] = await Promise.all([
       supabase.from("coaches").select("id, nombre").eq("estado", "activo").order("nombre"),
       supabase.from("honorarios").select("*").order("nombre_concepto"),
       supabase.from("reglas_liquidacion").select("*").order("tipo_actividad"),
@@ -114,6 +117,7 @@ const AdminLiquidaciones = () => {
       movQuery,
       liqQuery,
       supabase.rpc("get_liquidaciones_alertas" as any),
+      pendQuery,
     ]);
 
     setCoaches((coachesRes.data as any[]) || []);
@@ -124,6 +128,7 @@ const AdminLiquidaciones = () => {
     setMovimientos((movs.data as any[]) || []);
     setLiquidaciones((liqs.data as any[]) || []);
     setAlertas(Array.isArray(alertRes.data) ? alertRes.data[0] : alertRes.data);
+    setPendientesGlobales((pendRes.data as any[]) || []);
     setLoading(false);
   };
 
@@ -136,10 +141,14 @@ const AdminLiquidaciones = () => {
     return new Date(Number(y), Number(mo) - 1).toLocaleDateString("es-AR", { month: "long", year: "numeric" });
   };
 
-  const pendientes = useMemo(
-    () => movimientos.filter((m) => m.estado_economico === "pendiente_revision"),
-    [movimientos],
-  );
+  // Backlog global de revisión (todos los meses); alimenta la alerta y la pestaña Revisar.
+  const pendientes = pendientesGlobales;
+  const pendientesResumen = useMemo(() => ({
+    count: pendientesGlobales.length,
+    monto: pendientesGlobales.reduce((s, m) => s + Number(m.total || 0), 0),
+    cargaCoach: pendientesGlobales.filter((m) => m.origen === "carga_coach").length,
+    sinHonorario: pendientesGlobales.filter((m) => Number(m.total || 0) === 0).length,
+  }), [pendientesGlobales]);
 
   const motivoPendiente = (m: any) => {
     if (m.origen === "carga_coach") return "Carga manual del coach";
@@ -427,18 +436,18 @@ const AdminLiquidaciones = () => {
         </Card>
       )}
 
-      {alertas?.pendientes_count > 0 && (
+      {pendientesResumen.count > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5">
           <CardContent className="p-4 flex items-center justify-between flex-wrap gap-3">
             <div className="flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-500 mt-0.5 shrink-0" />
               <div>
                 <p className="font-medium text-foreground">
-                  {alertas.pendientes_count} movimiento{alertas.pendientes_count === 1 ? "" : "s"} requiere{alertas.pendientes_count === 1 ? "" : "n"} revisión
+                  {pendientesResumen.count} movimiento{pendientesResumen.count === 1 ? "" : "s"} requiere{pendientesResumen.count === 1 ? "" : "n"} revisión
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {alertas.pendientes_carga_coach} carga{alertas.pendientes_carga_coach === 1 ? "" : "s"} manual{alertas.pendientes_carga_coach === 1 ? "" : "es"} ·{" "}
-                  {alertas.pendientes_sin_honorario} sin honorario configurado · {money(Number(alertas.pendientes_monto || 0))} en juego
+                  {pendientesResumen.cargaCoach} carga{pendientesResumen.cargaCoach === 1 ? "" : "s"} manual{pendientesResumen.cargaCoach === 1 ? "" : "es"} ·{" "}
+                  {pendientesResumen.sinHonorario} sin honorario configurado · {money(pendientesResumen.monto)} en juego
                 </p>
               </div>
             </div>
@@ -563,8 +572,13 @@ const AdminLiquidaciones = () => {
         {/* ------- REVISAR ------- */}
         <TabsContent value="revisar" className="mt-4 space-y-3">
           <p className="text-sm text-muted-foreground">
-            Movimientos que no suman al confirmado hasta que los apruebes. Confirmá para que se liquiden o excluilos.
+            Pendientes de revisión de todos los meses{selectedCoach !== "all" ? ` de ${coachName(selectedCoach)}` : ""}. No suman al confirmado hasta que los apruebes.
           </p>
+          {pendientes.length > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {pendientes.length} pendiente{pendientes.length === 1 ? "" : "s"} · {money(pendientesResumen.monto)}
+            </p>
+          )}
           {pendientes.length > 0 && (
             <p className="text-xs text-muted-foreground md:hidden">Deslizá la tabla hacia los costados para ver las acciones.</p>
           )}
@@ -572,6 +586,7 @@ const AdminLiquidaciones = () => {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Mes</TableHead>
                   <TableHead>Fecha</TableHead>
                   <TableHead>Coach</TableHead>
                   <TableHead>Origen</TableHead>
@@ -584,9 +599,12 @@ const AdminLiquidaciones = () => {
               </TableHeader>
               <TableBody>
                 {pendientes.length === 0 ? (
-                  <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Nada pendiente de revisión 🎉</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Nada pendiente de revisión 🎉</TableCell></TableRow>
                 ) : pendientes.map((m) => (
                   <TableRow key={m.id}>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { month: "short", year: "numeric" })}
+                    </TableCell>
                     <TableCell className="text-xs font-mono">
                       {new Date(m.fecha + "T12:00:00").toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit" })}
                     </TableCell>
