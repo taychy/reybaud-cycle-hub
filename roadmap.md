@@ -122,4 +122,5 @@
 - [x] Mostrarlo una sola vez antes de confirmar/pagar en el flujo reusable de reserva, según metadata.payment_policy.
 - [x] Verificar flujo, compilación y publicar junto con la mejora del Resumen de Liquidaciones.
 
-- [ ] Actualizar comunicación de reserva pública, configurar Emilia Romagna como audiencia abierta, validar desktop/mobile y publicar.
+- [x] Actualizar comunicación de reserva pública, configurar Emilia Romagna como audiencia abierta y validar desktop/mobile.
+- [ ] Publicar la nueva comunicación de reserva pública.
