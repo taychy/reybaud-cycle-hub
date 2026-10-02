@@ -27,7 +27,7 @@ export const REGLAMENTO_DEFAULTS_CAMP_VIAJE = {
     "• Respetar los horarios de salida y el ritmo del grupo asignado.\n" +
     "• Seguir las indicaciones de coaches y guías en todo momento.\n" +
     "• Respetar a compañeros/as, staff, alojamiento y entorno natural.\n" +
-    "• Está prohibido el consumo de alcohol durante las salidas en bici.\n\n" +
+    "• Durante las salidas en bicicleta se prioriza la seguridad y el consumo responsable. Las degustaciones de vino previstas en el programa se realizan en los momentos y lugares organizados para esa actividad.\n\n" +
     "ALOJAMIENTO Y CONVIVENCIA\n" +
     "• Cuidar el alojamiento y los espacios comunes.\n" +
     "• Respetar los horarios de descanso del grupo.\n" +
