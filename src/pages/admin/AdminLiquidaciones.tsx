@@ -14,13 +14,11 @@ import {
   AlertTriangle, CheckCircle, ChevronDown, ChevronRight, Download, Plus, Loader2, Info,
 } from "lucide-react";
 import CoachAgendaGrupal from "@/components/admin/CoachAgendaGrupal";
+import LiquidacionCargaRapidaDialog from "@/components/admin/LiquidacionCargaRapidaDialog";
+import { LIQ_TIPO_LABELS } from "@/lib/liquidacionCarga";
 import { buildLiquidacionesWorkbook, downloadBlob, type LiqDetalleRow, type LiqResumenRow } from "@/lib/liquidacionesExcel";
 
-const TIPO_LABELS: Record<string, string> = {
-  grupal_1h30: "Grupal 1h30", grupal_2h: "Grupal 2h", fondo_salida: "Fondo/Salida",
-  tecnica: "Técnica", evento_escuela: "Evento Escuela", evaluatoria: "Evaluatoria",
-  personalizada: "Personalizada", ajuste: "Ajuste",
-};
+const TIPO_LABELS: Record<string, string> = LIQ_TIPO_LABELS;
 
 const ESTADO_OP_LABELS: Record<string, string> = {
   programada: "Programada", reservada: "Reservada", realizada: "Realizada",
@@ -64,6 +62,36 @@ const AdminLiquidaciones = () => {
   const [honForm, setHonForm] = useState({ nombre_concepto: "", categoria: "clase", valor: "", coach_id: "" });
   const [showAjusteForm, setShowAjusteForm] = useState(false);
   const [ajusteForm, setAjusteForm] = useState({ coach_id: "", valor_base: "", observaciones: "" });
+
+  const [showCargaRapida, setShowCargaRapida] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [testEmail, setTestEmail] = useState("");
+  const [sendingTest, setSendingTest] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      const { data: ok } = await supabase.rpc("is_super_admin" as any, { _user_id: data.user.id });
+      setIsSuperAdmin(!!ok);
+    });
+  }, []);
+
+  const enviarRecordatorioPrueba = async () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(testEmail.trim())) {
+      toast({ title: "Email inválido", variant: "destructive" });
+      return;
+    }
+    setSendingTest(true);
+    const { data, error } = await supabase.functions.invoke("send-liquidacion-reminders", {
+      body: { test_email: testEmail.trim(), mes },
+    });
+    setSendingTest(false);
+    if (error || (data as any)?.error) {
+      toast({ title: "No se pudo enviar", description: (data as any)?.error || error?.message, variant: "destructive" });
+      return;
+    }
+    toast({ title: (data as any)?.sent ? "Recordatorio de prueba enviado" : "No enviado", description: (data as any)?.reason || testEmail });
+  };
 
   useEffect(() => { loadData(); /* eslint-disable-next-line */ }, [mes, selectedCoach]);
 
@@ -351,11 +379,35 @@ const AdminLiquidaciones = () => {
               {coaches.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Button onClick={() => setShowCargaRapida(true)}>
+            <Plus className="w-4 h-4 mr-2" /> Carga rápida de profesor
+          </Button>
           <Button variant="outline" onClick={exportExcel}>
             <Download className="w-4 h-4 mr-2" /> Descargar Excel
           </Button>
         </div>
       </div>
+
+      <LiquidacionCargaRapidaDialog
+        open={showCargaRapida}
+        onOpenChange={setShowCargaRapida}
+        coaches={coaches}
+        mesInicial={mes}
+        monthOptions={monthOptions}
+        onSaved={loadData}
+      />
+
+      {isSuperAdmin && (
+        <Card className="border-border bg-card/50">
+          <CardContent className="p-3 flex items-center gap-2 flex-wrap">
+            <p className="text-xs text-muted-foreground mr-auto">Super admin · probar el recordatorio de liquidación (no afecta envíos reales)</p>
+            <Input className="w-[240px] h-9" type="email" placeholder="email@ejemplo.com" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} />
+            <Button size="sm" variant="outline" disabled={sendingTest} onClick={enviarRecordatorioPrueba}>
+              {sendingTest && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Enviar recordatorio de prueba
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {alertas?.pendientes_count > 0 && (
         <Card className="border-amber-500/40 bg-amber-500/5">
