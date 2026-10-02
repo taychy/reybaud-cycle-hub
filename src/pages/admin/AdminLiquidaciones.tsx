@@ -447,9 +447,11 @@ const AdminLiquidaciones = () => {
           <TabsTrigger value="revisar">
             Revisar {pendientes.length > 0 && <Badge variant="secondary" className="ml-2 text-[10px]">{pendientes.length}</Badge>}
           </TabsTrigger>
-          <TabsTrigger value="agenda">Agenda y honorarios</TabsTrigger>
+          <TabsTrigger value="honorarios">Honorarios</TabsTrigger>
+          <TabsTrigger value="agenda">Agenda</TabsTrigger>
           <TabsTrigger value="reglas">Reglas</TabsTrigger>
         </TabsList>
+
 
         {/* ------- RESUMEN ------- */}
         <TabsContent value="resumen" className="space-y-4 mt-4">
@@ -586,12 +588,12 @@ const AdminLiquidaciones = () => {
           </div>
         </TabsContent>
 
-        {/* ------- AGENDA Y HONORARIOS ------- */}
-        <TabsContent value="agenda" className="mt-4 space-y-6">
+        {/* ------- HONORARIOS ------- */}
+        <TabsContent value="honorarios" className="mt-4 space-y-4">
           <Card className="bg-card/50 border-border">
             <CardContent className="p-4 text-sm text-muted-foreground space-y-1">
               <p><span className="font-medium text-foreground">1.</span> Definí cuánto se paga por cada tipo de clase.</p>
-              <p><span className="font-medium text-foreground">2.</span> Asigná ese honorario a la agenda grupal del profesor o al servicio de Turnera.</p>
+              <p><span className="font-medium text-foreground">2.</span> Asigná ese honorario a la agenda grupal del profesor o al servicio de Turnera (pestaña Agenda).</p>
             </CardContent>
           </Card>
 
@@ -630,6 +632,11 @@ const AdminLiquidaciones = () => {
               </TableBody>
             </Table>
           </div>
+        </TabsContent>
+
+        {/* ------- AGENDA ------- */}
+        <TabsContent value="agenda" className="mt-4 space-y-6">
+
 
           <div className="space-y-3">
             <h2 className="font-heading font-semibold">Agenda grupal por profesor</h2>
@@ -691,34 +698,8 @@ const AdminLiquidaciones = () => {
               </TableBody>
             </Table>
           </div>
-
-          <Dialog open={showHonForm} onOpenChange={(open) => { setShowHonForm(open); if (!open) setEditingHon(null); }}>
-            <DialogContent>
-              <DialogHeader><DialogTitle>{editingHon ? "Editar honorario" : "Nuevo honorario"}</DialogTitle></DialogHeader>
-              <div className="space-y-3">
-                <Input placeholder="Nombre del concepto" value={honForm.nombre_concepto} onChange={(e) => setHonForm({ ...honForm, nombre_concepto: e.target.value })} />
-                <Select value={honForm.categoria} onValueChange={(v) => setHonForm({ ...honForm, categoria: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="clase">Clase</SelectItem>
-                    <SelectItem value="evento">Evento</SelectItem>
-                    <SelectItem value="evaluacion">Evaluación</SelectItem>
-                    <SelectItem value="otro">Otro</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input type="number" placeholder="Valor ($)" value={honForm.valor} onChange={(e) => setHonForm({ ...honForm, valor: e.target.value })} />
-                <Select value={honForm.coach_id || "none"} onValueChange={(v) => setHonForm({ ...honForm, coach_id: v === "none" ? "" : v })}>
-                  <SelectTrigger><SelectValue placeholder="Profesor asignado (opcional)" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Sin profesor fijo</SelectItem>
-                    {coaches.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Button onClick={saveHonorario} className="w-full">{editingHon ? "Guardar cambios" : "Crear"}</Button>
-              </div>
-            </DialogContent>
-          </Dialog>
         </TabsContent>
+
 
         {/* ------- REGLAS ------- */}
         <TabsContent value="reglas" className="mt-4">
@@ -747,7 +728,35 @@ const AdminLiquidaciones = () => {
           </Table>
         </TabsContent>
       </Tabs>
+
+      <Dialog open={showHonForm} onOpenChange={(open) => { setShowHonForm(open); if (!open) setEditingHon(null); }}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>{editingHon ? "Editar honorario" : "Nuevo honorario"}</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <Input placeholder="Nombre del concepto" value={honForm.nombre_concepto} onChange={(e) => setHonForm({ ...honForm, nombre_concepto: e.target.value })} />
+            <Select value={honForm.categoria} onValueChange={(v) => setHonForm({ ...honForm, categoria: v })}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="clase">Clase</SelectItem>
+                <SelectItem value="evento">Evento</SelectItem>
+                <SelectItem value="evaluacion">Evaluación</SelectItem>
+                <SelectItem value="otro">Otro</SelectItem>
+              </SelectContent>
+            </Select>
+            <Input type="number" placeholder="Valor ($)" value={honForm.valor} onChange={(e) => setHonForm({ ...honForm, valor: e.target.value })} />
+            <Select value={honForm.coach_id || "none"} onValueChange={(v) => setHonForm({ ...honForm, coach_id: v === "none" ? "" : v })}>
+              <SelectTrigger><SelectValue placeholder="Profesor asignado (opcional)" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Sin profesor fijo</SelectItem>
+                {coaches.map((c) => <SelectItem key={c.id} value={c.id}>{c.nombre}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button onClick={saveHonorario} className="w-full">{editingHon ? "Guardar cambios" : "Crear"}</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
+
   );
 };
 
