@@ -12,8 +12,10 @@ DECLARE
   v_fecha date := (now() AT TIME ZONE 'America/Argentina/Buenos_Aires')::date;
   v_out text := '';
 BEGIN
-  INSERT INTO public.coaches (nombre, email, estado) VALUES ('ZZ Liq Link 1', 'zz.liq1@example.invalid', 'activo') RETURNING id INTO v_c1;
-  INSERT INTO public.coaches (nombre, email, estado) VALUES ('ZZ Liq Link 2', 'zz.liq2@example.invalid', 'activo') RETURNING id INTO v_c2;
+  -- Usa dos profesores existentes; todo se revierte al final.
+  SELECT id INTO v_c1 FROM public.coaches ORDER BY created_at LIMIT 1;
+  SELECT id INTO v_c2 FROM public.coaches WHERE id <> v_c1 ORDER BY created_at LIMIT 1;
+  DELETE FROM public.liquidacion_submissions WHERE coach_id IN (v_c1, v_c2) AND mes = v_mes;
   INSERT INTO public.honorarios (nombre_concepto, categoria, valor) VALUES ('ZZ Planillas test', 'otro', 27500) RETURNING id INTO v_hon;
   INSERT INTO public.movimientos_liquidacion (coach_id, fecha, tipo_actividad, origen, total, estado_economico)
   VALUES (v_c2, v_fecha, 'grupal_1h30', 'agenda_admin', 22500, 'liquidable');
@@ -27,7 +29,9 @@ BEGIN
   v_tok2 := public._liq_link_get_or_create(v_c1, v_mes);
   IF v_tok <> v_tok2 THEN RAISE EXCEPTION 'T2 FAIL: token no reutilizado'; END IF;
   v_ctx := public.get_liquidacion_by_token(v_tok);
-  IF jsonb_array_length(v_ctx->'movimientos') <> 0 OR v_ctx->>'coach_nombre' <> 'ZZ Liq Link 1' THEN
+  IF EXISTS (SELECT 1 FROM jsonb_array_elements(v_ctx->'movimientos') e
+             JOIN public.movimientos_liquidacion m ON m.id = (e->>'id')::uuid WHERE m.coach_id <> v_c1)
+     OR v_ctx->>'coach_nombre' IS DISTINCT FROM (SELECT nombre FROM public.coaches WHERE id = v_c1) THEN
     RAISE EXCEPTION 'T2 FAIL: contexto filtra otro coach %', v_ctx->'movimientos';
   END IF;
   v_out := v_out || E'\nT2 PASS token reutilizado + aislamiento';
@@ -36,7 +40,7 @@ BEGIN
   PERFORM public.submit_liquidacion_by_token(v_tok, jsonb_build_array(
     jsonb_build_object('fecha', v_fecha, 'honorario_id', v_hon, 'valor_base', 999999, 'viaticos', 6000, 'estacionamiento', 1500)), NULL);
   SELECT count(*) INTO v_n FROM public.movimientos_liquidacion
-   WHERE coach_id = v_c1 AND valor_base = 27500 AND total = 35000 AND tipo_actividad = 'planilla'
+   WHERE coach_id = v_c1 AND observaciones LIKE 'Carga por link%' AND valor_base = 27500 AND total = 35000 AND tipo_actividad = 'planilla'
      AND estado_economico = 'pendiente_revision' AND origen = 'carga_coach';
   IF v_n <> 1 THEN RAISE EXCEPTION 'T3 FAIL: valor no resuelto en servidor'; END IF;
   v_out := v_out || E'\nT3 PASS honorario server-side';
@@ -63,6 +67,7 @@ BEGIN
   v_out := v_out || E'\nT5 PASS token vencido';
 
   -- T6 idempotencia de recordatorio
+  DELETE FROM public.liquidacion_reminder_log WHERE coach_id = v_c1 AND mes = v_mes;
   INSERT INTO public.liquidacion_reminder_log (coach_id, mes, tipo, email) VALUES (v_c1, v_mes, 'pre_cierre', 'zz@example.invalid');
   BEGIN
     INSERT INTO public.liquidacion_reminder_log (coach_id, mes, tipo, email) VALUES (v_c1, v_mes, 'pre_cierre', 'zz@example.invalid');
