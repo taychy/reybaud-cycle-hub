@@ -123,4 +123,4 @@
 - [x] Verificar flujo, compilación y publicar junto con la mejora del Resumen de Liquidaciones.
 
 - [x] Actualizar comunicación de reserva pública, configurar Emilia Romagna como audiencia abierta y validar desktop/mobile.
-- [ ] Publicar la nueva comunicación de reserva pública.
+- [x] Publicar la nueva comunicación de reserva pública.
