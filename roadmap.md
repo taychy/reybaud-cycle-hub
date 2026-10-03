@@ -124,3 +124,4 @@
 
 - [x] Actualizar comunicación de reserva pública, configurar Emilia Romagna como audiencia abierta y validar desktop/mobile.
 - [x] Publicar la nueva comunicación de reserva pública.
+- [x] Máquina de estados comerciales de programas (fases, sedes con cupo, lista de espera por sede, playbook) — sin emails

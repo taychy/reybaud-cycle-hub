@@ -23,6 +23,7 @@ interface EnrollPayload {
   comprobante_base64?: string | null;
   comprobante_filename?: string | null;
   comprobante_mime?: string | null;
+  sede_id?: string | null;
 }
 
 function jsonResp(body: unknown, status = 200) {
@@ -211,7 +212,7 @@ Deno.serve(async (req) => {
     // 1) Plan
     const { data: plan, error: planErr } = await admin
       .from("planes")
-      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, es_programa_cerrado, fecha_inicio_programa, fecha_fin_programa")
+      .select("id, nombre, moneda, max_inscripciones, inscripciones_actuales, fecha_cierre_inscripcion, landing_public, activo, es_programa_cerrado, fecha_inicio_programa, fecha_fin_programa, fecha_inicio_preinscripcion, fecha_fin_preinscripcion, fecha_inicio_inscripcion, fecha_fin_inscripcion")
       .eq("cohort_slug", cohort_slug)
       .maybeSingle();
 
@@ -222,7 +223,38 @@ Deno.serve(async (req) => {
     if (plan.fecha_cierre_inscripcion && today > plan.fecha_cierre_inscripcion) {
       return jsonResp({ error: "Las inscripciones a este programa están cerradas." }, 400);
     }
-    if (plan.max_inscripciones != null && (plan.inscripciones_actuales ?? 0) >= plan.max_inscripciones) {
+    // Fase comercial: sólo se exige cuando el programa tiene fechas comerciales nuevas (compat legacy).
+    const hasCommercialDates = !!(plan.fecha_inicio_preinscripcion || plan.fecha_fin_preinscripcion || plan.fecha_inicio_inscripcion || plan.fecha_fin_inscripcion);
+    if (hasCommercialDates) {
+      const { data: fase } = await admin.rpc("program_commercial_phase", { _plan_id: plan.id });
+      if (fase !== "inscripcion") {
+        return jsonResp({ error: "La inscripción a este programa no está abierta en este momento", code: "FASE_" + String(fase ?? "").toUpperCase() }, 409);
+      }
+    }
+
+    // Sedes: si el programa tiene sedes activas, la sede es obligatoria y el cupo es por sede.
+    const { data: sedesActivas } = await admin
+      .from("planes_sedes")
+      .select("sede_id, cupo_maximo")
+      .eq("plan_id", plan.id)
+      .eq("activa", true);
+    const sedeId = raw.sede_id ? String(raw.sede_id) : null;
+    const usaSedes = (sedesActivas ?? []).length > 0;
+    if (usaSedes) {
+      const sede = (sedesActivas ?? []).find((s: any) => s.sede_id === sedeId);
+      if (!sede) return jsonResp({ error: "Elegí una sede para inscribirte", code: "SEDE_REQUERIDA" }, 400);
+      if (sede.cupo_maximo != null) {
+        const { count } = await admin
+          .from("suscripciones")
+          .select("id", { count: "exact", head: true })
+          .eq("plan_id", plan.id)
+          .eq("programa_sede_id", sedeId)
+          .in("estado", ["activa", "pendiente_pago", "pendiente_verificacion"]);
+        if ((count ?? 0) >= sede.cupo_maximo) {
+          return jsonResp({ error: "Esta sede no tiene cupos. Podés sumarte a la lista de espera.", code: "SEDE_SIN_CUPO" }, 409);
+        }
+      }
+    } else if (plan.max_inscripciones != null && (plan.inscripciones_actuales ?? 0) >= plan.max_inscripciones) {
       return jsonResp({ error: "No quedan cupos disponibles" }, 409);
     }
 
@@ -355,6 +387,7 @@ Deno.serve(async (req) => {
           metodo_pago: metodoLabel,
           origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
           notas: notasSub,
+          ...(usaSedes ? { programa_sede_id: sedeId } : {}),
           ...(progInicio && progFin ? { fecha_inicio: progInicio, fecha_fin: progFin } : {}),
         })
         .eq("id", suscripcionId);
@@ -370,10 +403,14 @@ Deno.serve(async (req) => {
           metodo_pago: metodoLabel,
           origen_registro: metodo_pago_inicial === "transferencia" ? "informado_alumno" : "landing_publica",
           notas: notasSub,
+          ...(usaSedes ? { programa_sede_id: sedeId } : {}),
           ...(progInicio && progFin ? { fecha_inicio: progInicio, fecha_fin: progFin } : {}),
         })
         .select("id")
         .single();
+      if (subErr && String(subErr.message || "").includes("SEDE_SIN_CUPO")) {
+        return jsonResp({ error: "Esta sede no tiene cupos. Podés sumarte a la lista de espera.", code: "SEDE_SIN_CUPO" }, 409);
+      }
       if (subErr || !nuevaSub) {
         console.error("[enroll-programa] insert suscripcion", subErr);
         return jsonResp({ error: "No se pudo crear la inscripción" }, 500);
