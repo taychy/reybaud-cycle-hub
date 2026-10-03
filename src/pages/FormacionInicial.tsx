@@ -328,7 +328,7 @@ export default function FormacionInicial() {
                     ? `Inscripciones desde el ${fmtDiaMesAR(program.fecha_inicio_inscripcion)}`
                     : listaEspera
                     ? "Sumarme a la lista de espera"
-                    : cerrado ? "Inscripciones cerradas" : "Inscribirme"}
+                    : cerrado ? "Inscripciones cerradas" : commercialMode ? "Inscribirme" : "Quiero anotarme"}
                 </Button>
               )}
               <Button size="lg" variant="outline" onClick={() => scrollTo("que-es")}>
