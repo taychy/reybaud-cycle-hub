@@ -17,6 +17,16 @@ import {
   semanasEntre,
   todayISO,
 } from "@/lib/programEnrollment";
+import {
+  fmtSedeHorario,
+  hasCommercialDates,
+  resolveCommercialPhase,
+  sedeCuposLibres,
+  sedePhase,
+  type CommercialPhase,
+  type ProgramSedeLike,
+} from "@/lib/programCommercialPhase";
+import ProgramWaitlistForm from "@/components/program/ProgramWaitlistForm";
 const heroImg = heroAsset.url;
 
 const DEFAULT_COHORT = "formacion_inicial_2026_2";
@@ -49,6 +59,12 @@ interface Program {
   features: string[];
   stages: Stage[];
   stage_vigente: Stage | null;
+  fecha_inicio_preinscripcion?: string | null;
+  fecha_fin_preinscripcion?: string | null;
+  fecha_inicio_inscripcion?: string | null;
+  fecha_fin_inscripcion?: string | null;
+  preinscripcion_slug?: string | null;
+  sedes?: (ProgramSedeLike & { nombre: string })[];
 }
 
 const formSchema = z.object({
@@ -95,6 +111,7 @@ export default function FormacionInicial() {
   const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "" });
   const [comprobante, setComprobante] = useState<File | null>(null);
   const [transferSent, setTransferSent] = useState(false);
+  const [sedeId, setSedeId] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Permite previsualizar/servir otra cohorte desde el link de admin (?cohort=slug)
@@ -123,7 +140,10 @@ export default function FormacionInicial() {
 
   const stageVigente = program?.stage_vigente;
   // Misma lógica que usa el panel admin (src/lib/programEnrollment.ts)
-  const inscripcionesAbiertas = useMemo(() => {
+  const sedes = program?.sedes || [];
+  const commercialMode = hasCommercialDates(program);
+  const phase: CommercialPhase | null = program && commercialMode ? resolveCommercialPhase(program) : null;
+  const legacyAbiertas = useMemo(() => {
     if (!program) return false;
     return computeEnrollmentStatus(
       {
@@ -136,6 +156,10 @@ export default function FormacionInicial() {
       program.stages,
     ).abiertas;
   }, [program]);
+  const sedesConCupo = sedes.filter((s) => sedeCuposLibres(s) > 0);
+  const inscripcionesAbiertas = commercialMode
+    ? phase === "inscripcion" && !!stageVigente && (sedes.length === 0 ? (program?.cupos_libres ?? 0) > 0 || !program?.max_inscripciones : sedesConCupo.length > 0)
+    : legacyAbiertas;
 
   const cuotaAmount = stageVigente?.precio_cuota ? Number(stageVigente.precio_cuota) : 0;
   const totalAmount = stageVigente ? Number(stageVigente.precio) : 0;
@@ -172,6 +196,11 @@ export default function FormacionInicial() {
       return;
     }
 
+    if (sedes.length > 0 && !sedeId) {
+      toast.error("Elegí una sede para inscribirte.");
+      return;
+    }
+
     if (metodoPago === "transferencia" && !comprobante) {
       toast.error("Subí el comprobante de transferencia para continuar.");
       return;
@@ -195,9 +224,14 @@ export default function FormacionInicial() {
           comprobante_base64,
           comprobante_filename,
           comprobante_mime,
+          sede_id: sedeId,
         },
       });
       if (error || !data?.ok) {
+        if (data?.code === "SEDE_SIN_CUPO") {
+          setProgram((p) => p && ({ ...p, sedes: (p.sedes || []).map((s) => s.sede_id === sedeId ? { ...s, inscriptos: s.cupo_maximo ?? s.inscriptos } : s) }));
+          setSedeId(null);
+        }
         toast.error(data?.error || error?.message || "No se pudo procesar la inscripción");
         return;
       }
@@ -241,7 +275,16 @@ export default function FormacionInicial() {
   }
 
   const cerrado = !inscripcionesAbiertas;
-  const waitlistMode = program.fecha_inicio_programa?.startsWith("2026-10") || /2026[_-]3$/.test(program.cohort_slug || "");
+  // Con fechas comerciales manda la máquina de estados; sin ellas se conserva el comportamiento legacy.
+  const waitlistMode = commercialMode
+    ? phase === "preinscripcion"
+    : program.fecha_inicio_programa?.startsWith("2026-10") || /2026[_-]3$/.test(program.cohort_slug || "");
+  const preinscripcionUrl = program.preinscripcion_slug ? `/preinscripcion/${program.preinscripcion_slug}` : WAITLIST_URL;
+  const esperaApertura = phase === "espera_apertura";
+  const listaEspera = commercialMode && !waitlistMode && !esperaApertura && !inscripcionesAbiertas;
+  const totalCupoSedes = sedes.reduce((a, s) => a + (Number(s.cupo_maximo) || 0), 0);
+  const totalInscSedes = sedes.reduce((a, s) => a + (Number(s.inscriptos) || 0), 0);
+  const sedeSel = sedes.find((s) => s.sede_id === sedeId) || null;
 
   // Todo derivado de la configuración del programa (nada hardcodeado)
   const semanas = semanasEntre(program.fecha_inicio_programa, program.fecha_fin_programa);
@@ -277,18 +320,22 @@ export default function FormacionInicial() {
             <div className="flex flex-wrap gap-3">
               {waitlistMode ? (
                 <Button size="lg" asChild>
-                  <a href={WAITLIST_URL}>Quiero preinscribirme</a>
+                  <a href={preinscripcionUrl}>Quiero preinscribirme</a>
                 </Button>
               ) : (
-                <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado}>
-                  {cerrado ? "Inscripciones cerradas" : "Quiero anotarme"}
+                <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado && !commercialMode}>
+                  {esperaApertura
+                    ? `Inscripciones desde el ${fmtDiaMesAR(program.fecha_inicio_inscripcion)}`
+                    : listaEspera
+                    ? "Sumarme a la lista de espera"
+                    : cerrado ? "Inscripciones cerradas" : "Inscribirme"}
                 </Button>
               )}
               <Button size="lg" variant="outline" onClick={() => scrollTo("que-es")}>
                 Ver más
               </Button>
             </div>
-            {!waitlistMode && inscripcionesAbiertas && (
+            {!waitlistMode && inscripcionesAbiertas && sedes.length === 0 && (
               <p className="mt-4 text-sm text-cyan font-medium">
                 {program.cupos_libres === 1
                   ? "¡Solo queda 1 lugar!"
@@ -396,6 +443,16 @@ export default function FormacionInicial() {
             <div className="p-5 rounded-xl border border-border bg-card">
               <MapPin className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cuándo y dónde</p>
+              {sedes.length > 0 ? (
+                <div className="mt-1 space-y-3">
+                  {sedes.map((s) => (
+                    <div key={s.sede_id}>
+                      <p className="font-semibold">{s.nombre}</p>
+                      <p className="text-sm text-muted-foreground">{fmtSedeHorario(s)}</p>
+                    </div>
+                  ))}
+                </div>
+              ) : (<>
               <p className="text-xl font-heading">Horario: A definir según sede elegida</p>
               <div className="mt-3 space-y-3">
                 <div>
@@ -407,17 +464,24 @@ export default function FormacionInicial() {
                   <p className="text-sm text-muted-foreground">Saavedra, Buenos Aires</p>
                 </div>
               </div>
+              </>)}
             </div>
             <div className="p-5 rounded-xl border border-border bg-card">
               <Users className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cupos</p>
-              <p className="text-xl font-heading">{program.cupos_libres} de {program.max_inscripciones} disponibles</p>
-              <p className="text-sm text-muted-foreground mt-2">Grupo único, coaches rotando por temática</p>
+              <p className="text-xl font-heading">
+                {sedes.length > 0
+                  ? `${Math.max(0, totalCupoSedes - totalInscSedes)} de ${totalCupoSedes} disponibles`
+                  : `${program.cupos_libres} de ${program.max_inscripciones} disponibles`}
+              </p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {sedes.length > 1 ? "Cupos independientes por sede" : "Grupo único, coaches rotando por temática"}
+              </p>
             </div>
             <div className="p-5 rounded-xl border border-border bg-card">
               <Calendar className="w-6 h-6 text-primary mb-3" />
               <p className="text-sm text-muted-foreground uppercase tracking-wide font-semibold mb-1">Cierre de inscripciones</p>
-              <p className="text-xl font-heading">{fmtDiaSemanaAR(program.fecha_cierre_inscripcion)}</p>
+              <p className="text-xl font-heading">{fmtDiaSemanaAR(program.fecha_fin_inscripcion || program.fecha_cierre_inscripcion)}</p>
               <p className="text-sm text-muted-foreground mt-2">O antes si se llenan los cupos.</p>
             </div>
           </div>
@@ -474,8 +538,42 @@ export default function FormacionInicial() {
                 La preinscripción no confirma la vacante. Una vez definida la sede y el horario, contactaremos a las personas preinscriptas para confirmar su lugar.
               </p>
               <Button size="lg" asChild>
-                <a href={WAITLIST_URL}>Quiero preinscribirme</a>
+                <a href={preinscripcionUrl}>Quiero preinscribirme</a>
               </Button>
+            </div>
+          ) : esperaApertura ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-primary/30 bg-primary/5 text-center mb-8">
+              <h3 className="font-heading text-2xl mb-2">
+                Las inscripciones abren el {fmtDiaSemanaAR(program.fecha_inicio_inscripcion)}
+              </h3>
+              <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                Ese día vas a poder ver el precio, elegir tu sede y confirmar tu lugar desde esta misma página.
+              </p>
+            </div>
+          ) : listaEspera ? (
+            <div className="p-6 sm:p-8 rounded-2xl border border-border bg-card mb-8 space-y-5">
+              <div className="text-center">
+                <h3 className="font-heading text-2xl mb-2">Lista de espera</h3>
+                <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
+                  {phase === "lista_espera"
+                    ? "Las inscripciones de esta edición están cerradas. Sumate a la lista de espera y te avisamos."
+                    : "No quedan cupos disponibles. Sumate a la lista de espera de tu sede."}
+                </p>
+              </div>
+              {sedes.length > 0 && (
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {sedes.map((s) => (
+                    <button key={s.sede_id} type="button" onClick={() => setSedeId(s.sede_id)}
+                      className={`p-4 rounded-xl border text-left transition ${sedeId === s.sede_id ? "border-primary bg-primary/5" : "border-border"}`}>
+                      <p className="font-semibold">{s.nombre}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{fmtSedeHorario(s)}</p>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {(sedes.length === 0 || sedeSel) && (
+                <ProgramWaitlistForm key={sedeId || "general"} cohortSlug={cohortSlug} sedeId={sedeId} sedeNombre={sedeSel?.nombre} />
+              )}
             </div>
           ) : stageVigente ? (
             <div className="grid sm:grid-cols-3 gap-3 mb-8">
@@ -520,6 +618,35 @@ export default function FormacionInicial() {
                 Elegí modalidad y método de pago. Una vez acreditado, recibís por email toda la información de inicio.
               </p>
 
+              {sedes.length > 0 && (
+                <div className="mb-6">
+                  <Label>Elegí tu sede *</Label>
+                  <div className="grid sm:grid-cols-2 gap-3 mt-2">
+                    {sedes.map((s) => {
+                      const llena = sedePhase("inscripcion", s) === "lista_espera";
+                      const libres = sedeCuposLibres(s);
+                      return (
+                        <button key={s.sede_id} type="button" onClick={() => setSedeId(s.sede_id)}
+                          className={`p-4 rounded-xl border text-left transition ${sedeId === s.sede_id ? "border-primary bg-primary/5" : "border-border"}`}>
+                          <p className="font-semibold flex items-center gap-2"><MapPin className="w-4 h-4 text-primary" /> {s.nombre}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{fmtSedeHorario(s)}</p>
+                          <p className={`text-xs mt-2 font-medium ${llena ? "text-destructive" : "text-cyan"}`}>
+                            {llena ? "Sin cupos · lista de espera" : Number.isFinite(libres) ? `Quedan ${libres} lugares` : "Cupos disponibles"}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {sedeSel && sedePhase("inscripcion", sedeSel) === "lista_espera" && (
+                    <div className="mt-4 p-4 rounded-xl border border-border bg-background/60">
+                      <p className="text-sm mb-3">{sedeSel.nombre} no tiene cupos. Dejanos tus datos y te avisamos si se libera un lugar.</p>
+                      <ProgramWaitlistForm key={sedeSel.sede_id} cohortSlug={cohortSlug} sedeId={sedeSel.sede_id} sedeNombre={sedeSel.nombre} />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {(sedes.length === 0 || (sedeSel && sedePhase("inscripcion", sedeSel) !== "lista_espera")) && (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
@@ -702,6 +829,7 @@ export default function FormacionInicial() {
                   Al inscribirte aceptás los <Link to="/politica-privacidad" className="underline">términos y política de privacidad</Link>.
                 </p>
               </form>
+              )}
             </div>
           )}
 
