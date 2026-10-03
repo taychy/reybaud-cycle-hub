@@ -8690,7 +8690,11 @@ export type Database = {
           es_programa_cerrado: boolean
           features: Json
           fecha_cierre_inscripcion: string | null
+          fecha_fin_inscripcion: string | null
+          fecha_fin_preinscripcion: string | null
           fecha_fin_programa: string | null
+          fecha_inicio_inscripcion: string | null
+          fecha_inicio_preinscripcion: string | null
           fecha_inicio_programa: string | null
           frecuencia: string
           id: string
@@ -8703,6 +8707,7 @@ export type Database = {
           permite_auto_cobro: boolean
           precio: number
           precio_promocional: number | null
+          preinscripcion_slug: string | null
           renovacion_auto_permitida: boolean
           tipo: string
           tipo_consumo: string
@@ -8729,7 +8734,11 @@ export type Database = {
           es_programa_cerrado?: boolean
           features?: Json
           fecha_cierre_inscripcion?: string | null
+          fecha_fin_inscripcion?: string | null
+          fecha_fin_preinscripcion?: string | null
           fecha_fin_programa?: string | null
+          fecha_inicio_inscripcion?: string | null
+          fecha_inicio_preinscripcion?: string | null
           fecha_inicio_programa?: string | null
           frecuencia: string
           id?: string
@@ -8742,6 +8751,7 @@ export type Database = {
           permite_auto_cobro?: boolean
           precio: number
           precio_promocional?: number | null
+          preinscripcion_slug?: string | null
           renovacion_auto_permitida?: boolean
           tipo?: string
           tipo_consumo?: string
@@ -8768,7 +8778,11 @@ export type Database = {
           es_programa_cerrado?: boolean
           features?: Json
           fecha_cierre_inscripcion?: string | null
+          fecha_fin_inscripcion?: string | null
+          fecha_fin_preinscripcion?: string | null
           fecha_fin_programa?: string | null
+          fecha_inicio_inscripcion?: string | null
+          fecha_inicio_preinscripcion?: string | null
           fecha_inicio_programa?: string | null
           frecuencia?: string
           id?: string
@@ -8781,6 +8795,7 @@ export type Database = {
           permite_auto_cobro?: boolean
           precio?: number
           precio_promocional?: number | null
+          preinscripcion_slug?: string | null
           renovacion_auto_permitida?: boolean
           tipo?: string
           tipo_consumo?: string
@@ -8793,19 +8808,37 @@ export type Database = {
       }
       planes_sedes: {
         Row: {
+          activa: boolean
+          cupo_maximo: number | null
+          dia_semana: number | null
+          hora_fin: string | null
+          hora_inicio: string | null
           id: string
           plan_id: string
           sede_id: string
+          updated_at: string
         }
         Insert: {
+          activa?: boolean
+          cupo_maximo?: number | null
+          dia_semana?: number | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
           id?: string
           plan_id: string
           sede_id: string
+          updated_at?: string
         }
         Update: {
+          activa?: boolean
+          cupo_maximo?: number | null
+          dia_semana?: number | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
           id?: string
           plan_id?: string
           sede_id?: string
+          updated_at?: string
         }
         Relationships: [
           {
@@ -9296,6 +9329,70 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: true
             referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      program_waitlist_entries: {
+        Row: {
+          created_at: string
+          email: string
+          estado: string
+          id: string
+          nombre: string
+          notas: string | null
+          origen: string
+          plan_id: string
+          sede_id: string | null
+          telefono: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          estado?: string
+          id?: string
+          nombre: string
+          notas?: string | null
+          origen?: string
+          plan_id: string
+          sede_id?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          estado?: string
+          id?: string
+          nombre?: string
+          notas?: string | null
+          origen?: string
+          plan_id?: string
+          sede_id?: string | null
+          telefono?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_waitlist_entries_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_waitlist_entries_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_waitlist_entries_sede_id_fkey"
+            columns: ["sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
@@ -13162,6 +13259,7 @@ export type Database = {
           precio_excepcion_valor: number | null
           precio_excepcion_vigencia_hasta: string | null
           precio_final: number | null
+          programa_sede_id: string | null
           ultimo_intento_cobro_at: string | null
           updated_at: string
         }
@@ -13214,6 +13312,7 @@ export type Database = {
           precio_excepcion_valor?: number | null
           precio_excepcion_vigencia_hasta?: string | null
           precio_final?: number | null
+          programa_sede_id?: string | null
           ultimo_intento_cobro_at?: string | null
           updated_at?: string
         }
@@ -13266,6 +13365,7 @@ export type Database = {
           precio_excepcion_valor?: number | null
           precio_excepcion_vigencia_hasta?: string | null
           precio_final?: number | null
+          programa_sede_id?: string | null
           ultimo_intento_cobro_at?: string | null
           updated_at?: string
         }
@@ -13317,6 +13417,13 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "suscripciones_programa_sede_id_fkey"
+            columns: ["programa_sede_id"]
+            isOneToOne: false
+            referencedRelation: "sedes"
             referencedColumns: ["id"]
           },
         ]
@@ -17161,6 +17268,16 @@ export type Database = {
             Returns: boolean
           }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      join_program_waitlist: {
+        Args: {
+          _cohort_slug: string
+          _email: string
+          _nombre: string
+          _sede_id: string
+          _telefono: string
+        }
+        Returns: Json
+      }
       link_mp_viajes_outflow_to_event: {
         Args: {
           p_categoria?: string
@@ -17412,6 +17529,10 @@ export type Database = {
           p_nuevo_grupo: string
         }
         Returns: Json
+      }
+      program_commercial_phase: {
+        Args: { _day?: string; _plan_id: string }
+        Returns: string
       }
       programa_clase_confirmar_docente: {
         Args: {
