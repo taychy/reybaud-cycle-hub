@@ -11,79 +11,20 @@ import type { ProcessTemplate, ProcessTemplateStage } from "@/hooks/useProcesses
 const sb: any = supabase;
 
 // 8 etapas base para el playbook de Formación Inicial
+// Playbook comercial de programas de formación (máquina de estados preinscripción → inscripción).
+// Ninguna etapa dispara emails automáticos: accion_final = "none". El punto de integración
+// para comunicaciones futuras es `accion_final` de cada etapa (p. ej. "send_cohort_email").
 const SEED_STAGES: Omit<ProcessTemplateStage, "id" | "template_id">[] = [
-  {
-    orden: 1,
-    titulo: "Publicar landing y abrir inscripciones",
-    instrucciones: "Verificá que la landing esté publicada, el precio y las fechas correctos, y el botón de inscripción activo.",
-    requiere_foto: false,
-    requiere_nota: true,
-    entidad_control: "cohort_kpi",
-    accion_final: "none",
-  },
-  {
-    orden: 2,
-    titulo: "Difusión inicial (redes / WhatsApp / email)",
-    instrucciones: "Coordinar publicación en redes y envío inicial de novedad. Generar tarea al equipo de contenido.",
-    requiere_foto: false,
-    requiere_nota: true,
-    entidad_control: "cohort_task",
-    accion_final: "none",
-  },
-  {
-    orden: 3,
-    titulo: "Cierre de inscripciones",
-    instrucciones: "Confirmar que se alcanzó el cupo o que se llegó a la fecha de cierre. Cerrar landing pública.",
-    requiere_foto: false,
-    requiere_nota: true,
-    entidad_control: "cohort_kpi",
-    accion_final: "none",
-  },
-  {
-    orden: 4,
-    titulo: "Mail de bienvenida a la cohorte",
-    instrucciones: "Enviar bienvenida con lugar, día, hora y qué llevar a la primera clase.",
-    requiere_foto: false,
-    requiere_nota: false,
-    entidad_control: "none",
-    accion_final: "send_cohort_email",
-  },
-  {
-    orden: 5,
-    titulo: "Primera clase realizada",
-    instrucciones: "Registrar asistencia, foto grupal opcional y observaciones del coach.",
-    requiere_foto: true,
-    requiere_nota: true,
-    entidad_control: "cohort_task",
-    accion_final: "none",
-  },
-  {
-    orden: 6,
-    titulo: "Check-in intermedio (mitad del programa)",
-    instrucciones: "Revisar avance de cada alumno con el coach. Detectar riesgos de abandono.",
-    requiere_foto: false,
-    requiere_nota: true,
-    entidad_control: "cohort_task",
-    accion_final: "none",
-  },
-  {
-    orden: 7,
-    titulo: "Graduación y cierre del programa",
-    instrucciones: "Última clase, feedback final y foto grupal. Enviar mail de graduación con siguientes pasos.",
-    requiere_foto: true,
-    requiere_nota: true,
-    entidad_control: "none",
-    accion_final: "send_cohort_email",
-  },
-  {
-    orden: 8,
-    titulo: "Oferta de continuidad G4 y seguimiento 90 días",
-    instrucciones: "Ofrecer plan regular G4 con descuento de cohort. Generar tareas de contacto semanal por egresado durante 90 días.",
-    requiere_foto: false,
-    requiere_nota: true,
-    entidad_control: "cohort_task",
-    accion_final: "none",
-  },
+  { orden: 1, titulo: "Preparar landing", instrucciones: "Revisar textos, imagen y fechas de preinscripción e inscripción en la pestaña Comercial del programa.", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_kpi", accion_final: "none" },
+  { orden: 2, titulo: "Abrir preinscripción", instrucciones: "Configurar inicio/fin de preinscripción y el formulario de preinscripción. La landing muestra la preinscripción sin precio ni checkout.", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_kpi", accion_final: "none" },
+  { orden: 3, titulo: "Revisar preinscriptos", instrucciones: "Revisar las respuestas del formulario de preinscripción y la demanda por sede.", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_task", accion_final: "none" },
+  { orden: 4, titulo: "Preparar inscripción (precio, cupos, cuotas, sedes, horarios)", instrucciones: "Validar en Comercial: fechas de inscripción válidas, al menos una sede activa, cada sede con día/horario y cupo > 0, etapa de precio vigente para la ventana, landing pública activa y checkout disponible.", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_kpi", accion_final: "none" },
+  { orden: 5, titulo: "Abrir inscripción", instrucciones: "Confirmar que todos los chequeos de 'Antes de abrir la inscripción' estén en verde. La landing pasa sola a inscripción en la fecha de inicio. Aviso a preinscriptos: pendiente de integración (sin envío automático).", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_kpi", accion_final: "none" },
+  { orden: 6, titulo: "Difusión", instrucciones: "Coordinar publicación en redes y WhatsApp. Seguir inscriptos por sede.", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_task", accion_final: "none" },
+  { orden: 7, titulo: "Cierre de inscripción", instrucciones: "Al terminar la ventana o completarse los cupos, la landing pasa a lista de espera por sede. Revisar lista de espera.", requiere_foto: false, requiere_nota: true, entidad_control: "cohort_kpi", accion_final: "none" },
+  { orden: 8, titulo: "Bienvenida", instrucciones: "Preparar bienvenida con sede, día, hora y qué llevar. Envío manual (sin envío automático por ahora).", requiere_foto: false, requiere_nota: true, entidad_control: "none", accion_final: "none" },
+  { orden: 9, titulo: "Programa", instrucciones: "Primera clase, check-in intermedio y seguimiento de asistencia por sede.", requiere_foto: true, requiere_nota: true, entidad_control: "cohort_task", accion_final: "none" },
+  { orden: 10, titulo: "Graduación y continuidad", instrucciones: "Última clase, feedback y oferta de continuidad. Comunicación manual por ahora.", requiere_foto: true, requiere_nota: true, entidad_control: "none", accion_final: "none" },
 ];
 
 const PlanPlaybookEditor = () => {

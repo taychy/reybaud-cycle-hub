@@ -22,6 +22,8 @@ import EditProgramaDialog from "@/components/admin/EditProgramaDialog";
 import DarDeBajaProgramaDialog from "@/components/admin/DarDeBajaProgramaDialog";
 import ProgramaClasesBloque from "@/components/admin/ProgramaClasesBloque";
 import ProgramBudgetPanel from "@/components/admin/ProgramBudgetPanel";
+import ProgramCommercialPanel from "@/components/admin/ProgramCommercialPanel";
+import { PHASE_LABELS, resolveCommercialPhase } from "@/lib/programCommercialPhase";
 import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
 
 
@@ -610,6 +612,7 @@ const AdminProgramaDetalle = () => {
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="inscriptos">Inscriptos activos ({activos.length})</TabsTrigger>
           <TabsTrigger value="bajas">Bajas ({bajas.length})</TabsTrigger>
+          <TabsTrigger value="comercial">Comercial · {PHASE_LABELS[resolveCommercialPhase(plan as any)]}</TabsTrigger>
           <TabsTrigger value="playbook">Playbook</TabsTrigger>
           <TabsTrigger value="presupuesto"><Calculator className="w-3.5 h-3.5 mr-1" /> Presupuesto</TabsTrigger>
           <TabsTrigger value="comunicaciones">Comunicaciones ({emails.length})</TabsTrigger>
@@ -632,6 +635,10 @@ const AdminProgramaDetalle = () => {
           {renderTable(filteredBajas, false)}
         </TabsContent>
 
+
+        <TabsContent value="comercial" className="space-y-4">
+          <ProgramCommercialPanel plan={plan} priceStages={priceStages} onSaved={() => setReloadKey((k) => k + 1)} />
+        </TabsContent>
 
         <TabsContent value="playbook" className="space-y-4">
           <Card>
