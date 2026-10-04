@@ -60,7 +60,10 @@ Deno.serve(async (req) => {
       .from("reservation_payments")
       .select("id,status")
       .eq("reservation_id", reservationId)
-      .eq("payment_reference", String(payment.id))
+      .or(`payment_reference.eq.${String(payment.id)},mp_payment_id.eq.${String(payment.id)}`)
+      .is("anulado_at", null)
+      .order("created_at", { ascending: true })
+      .limit(1)
       .maybeSingle();
     if (existing?.status === "validado" || (existing && mpStatus !== "approved")) {
       return json({ ok: true, duplicate: true });
@@ -95,15 +98,26 @@ Deno.serve(async (req) => {
       payment_date: today,
       payment_method: "mercadopago",
       payment_reference: String(payment.id),
+      mp_payment_id: String(payment.id),
       notes: `Pago Mercado Pago en ARS (${mpStatus}). Cotización Reybaud venta: ${snapshotFx || (paidArs / eventAmount)}`,
       status: payStatus,
       installment_number: installmentNumber,
     } as any;
 
+    let rpId: string | null = existing?.id ?? null;
     if (existing?.id) {
       await supabaseAdmin.from("reservation_payments").update(paymentRow).eq("id", existing.id);
     } else {
-      await supabaseAdmin.from("reservation_payments").insert(paymentRow);
+      const { data: ins } = await supabaseAdmin.from("reservation_payments").insert(paymentRow).select("id").single();
+      rpId = ins?.id ?? null;
+    }
+    // Vincular el movimiento MP (idempotente: sólo si todavía no tiene vínculo).
+    if (rpId) {
+      await supabaseAdmin.from("mp_account_movements")
+        .update({ reservation_payment_id: rpId })
+        .eq("mp_payment_id", String(payment.id))
+        .is("reservation_payment_id", null)
+        .is("suscripcion_id", null);
     }
 
     if (mpStatus === "approved") {

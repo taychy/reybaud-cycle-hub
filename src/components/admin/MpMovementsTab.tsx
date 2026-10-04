@@ -13,7 +13,7 @@ import { RefreshCw, Search, UserPlus, ExternalLink, Link2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
-import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS } from "@/lib/mpConciliacion";
+import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS, classifyMpUnidad, MP_UNIDAD_LABEL, canOfferGenericImputation, imputadoDestinoLabel } from "@/lib/mpConciliacion";
 
 
 type Movement = {
@@ -40,6 +40,8 @@ type Movement = {
   assigned_manually: boolean;
   assign_notes: string | null;
   cuentas_mp?: { nombre: string; slug: string } | null;
+  rp_existente?: { id: string; evento?: string | null } | null;
+  tienda_existente?: boolean | null;
   alumnos?: {
     id: string;
     nombre: string;
@@ -212,9 +214,63 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     if (error) {
       toast({ title: "Error", description: error.message, variant: "destructive" });
     } else {
-      setMovements((data as any) ?? []);
+      setMovements(await enrichMovements(((data as any) ?? []) as Movement[]));
     }
     setLoading(false);
+  }
+
+  /**
+   * Detecta destinos ya existentes para no ofrecer una imputación genérica duplicada:
+   * - pago de reserva activo por mp_payment_id o payment_reference (pagos de eventos históricos);
+   * - orden/preventa de tienda con el mismo mp_payment_id.
+   * Sólo lectura: no escribe vínculos (sin backfill).
+   */
+  async function enrichMovements(rows: Movement[]): Promise<Movement[]> {
+    const ids = [...new Set(rows.map((r) => r.mp_payment_id).filter(Boolean))];
+    const linkedRpIds = [...new Set(rows.map((r) => r.reservation_payment_id).filter(Boolean) as string[])];
+    if (ids.length === 0) return rows;
+    const chunk = <T,>(a: T[], n = 150) => Array.from({ length: Math.ceil(a.length / n) }, (_, i) => a.slice(i * n, i * n + n));
+    const rpSel = "id, mp_payment_id, payment_reference, status, event_reservations:reservation_id ( events:event_id ( title ) )";
+    const rpByMp = new Map<string, { id: string; evento: string | null }>();
+    const rpById = new Map<string, string | null>();
+    const tienda = new Set<string>();
+    try {
+      for (const c of chunk(ids)) {
+        const list = c.join(",");
+        const [rpRes, soRes, spRes] = await Promise.all([
+          supabase.from("reservation_payments").select(rpSel)
+            .or(`mp_payment_id.in.(${list}),payment_reference.in.(${list})`)
+            .is("anulado_at", null).neq("status", "rechazado"),
+          supabase.from("store_orders").select("mp_payment_id").in("mp_payment_id", c),
+          supabase.from("store_preorders").select("mp_payment_id").in("mp_payment_id", c),
+        ]);
+        for (const rp of (rpRes.data as any[]) ?? []) {
+          const evento = rp.event_reservations?.events?.title ?? null;
+          rpById.set(rp.id, evento);
+          for (const k of [rp.mp_payment_id, rp.payment_reference]) {
+            if (k && !rpByMp.has(String(k))) rpByMp.set(String(k), { id: rp.id, evento });
+          }
+        }
+        for (const o of [...((soRes.data as any[]) ?? []), ...((spRes.data as any[]) ?? [])]) {
+          if (o.mp_payment_id) tienda.add(String(o.mp_payment_id));
+        }
+      }
+      const missing = linkedRpIds.filter((id) => !rpById.has(id));
+      for (const c of chunk(missing)) {
+        const { data } = await supabase.from("reservation_payments").select(rpSel).in("id", c);
+        for (const rp of (data as any[]) ?? []) rpById.set(rp.id, rp.event_reservations?.events?.title ?? null);
+      }
+    } catch (e) {
+      console.warn("[MpMovementsTab] no se pudieron cruzar pagos existentes", e);
+      return rows;
+    }
+    return rows.map((r) => {
+      const found = rpByMp.get(String(r.mp_payment_id)) ?? null;
+      const rp_existente = r.reservation_payment_id
+        ? { id: r.reservation_payment_id, evento: rpById.get(r.reservation_payment_id) ?? found?.evento ?? null }
+        : found;
+      return { ...r, rp_existente, tienda_existente: tienda.has(String(r.mp_payment_id)) };
+    });
   }
 
   async function handleSync() {
@@ -625,7 +681,17 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                   return (
                     <TableRow key={m.id} className={estado === "sin_identificar" ? "bg-orange-500/5" : estado === "identificado_sin_imputar" ? "bg-yellow-500/5" : ""}>
                       <TableCell className="text-xs">{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</TableCell>
-                      <TableCell><Badge variant="outline">{m.cuentas_mp?.nombre ?? "—"}</Badge></TableCell>
+                      <TableCell>
+                        <Badge variant="outline">{m.cuentas_mp?.nombre ?? "—"}</Badge>
+                        {(() => {
+                          const u = classifyMpUnidad(m);
+                          return (
+                            <div className={`mt-1 text-[10px] font-semibold uppercase tracking-wide ${u === "sin_clasificar" ? "text-muted-foreground" : "text-primary"}`}>
+                              {MP_UNIDAD_LABEL[u]}
+                            </div>
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell className="text-xs">
                         {(() => {
                           const isTransfer = ["account_money", "cvu", "bank_transfer"].includes(m.payment_method ?? "");
@@ -742,15 +808,20 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                             <span>{m.alumnos.nombre} {m.alumnos.apellido ?? ""}</span>
                           </div>
                         ) : null}
-                        <Badge variant="outline" className={`${MP_ESTADO_CLASS[estado]} mt-1 text-[10px]`}>{MP_ESTADO_LABEL[estado]}</Badge>
-                        {m.reservation_payment_id && <div className="text-muted-foreground">Evento</div>}
-                        {m.suscripcion_id && <div className="text-muted-foreground">Suscripción</div>}
+                        <Badge variant="outline" className={`${MP_ESTADO_CLASS[estado]} mt-1 text-[10px]`}>
+                          {(estado === "imputado" && imputadoDestinoLabel(m)) || MP_ESTADO_LABEL[estado]}
+                        </Badge>
+                        {classifyMpUnidad(m) === "tienda" && m.reservation_payment_id && (
+                          <div className="text-[10px] text-destructive mt-1">Cobro de tienda también vinculado a un pago de reserva · revisar</div>
+                        )}
                       </TableCell>
                       <TableCell className="text-xs">{m.payment_type || m.payment_method || "—"}</TableCell>
                       <TableCell className="text-xs font-mono">{m.mp_payment_id}</TableCell>
                       <TableCell className={`text-right whitespace-nowrap sticky right-0 shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.5)] ${!assigned ? "bg-[hsl(var(--card))]" : "bg-card"}`}>
-                        {estado === "imputado" ? (
+                        {estado === "imputado" && (m.reservation_payment_id || m.suscripcion_id) ? (
                           <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
+                        ) : !canOfferGenericImputation(m) ? (
+                          <span className="text-xs text-muted-foreground">—</span>
                         ) : (
                           <div className="flex flex-col items-end gap-1">
                             <Button size="sm" variant={estado === "identificado_sin_imputar" ? "default" : "outline"} onClick={() => { setAssignDialog(m); setSelectedAlumno(m.alumno_id ?? null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
