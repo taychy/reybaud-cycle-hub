@@ -146,13 +146,40 @@ const UpdatePrompt = () => {
       const hash = await fetchHash();
       if (cancelled || !hash) return;
 
-      if (storedHash && storedHash !== hash) {
-        // Detección inmediata: ya teníamos un hash de una sesión anterior
-        // y no coincide con el actual → hay versión nueva deployada.
-        initialHtmlHashRef.current = hash;
+      // Huella de la versión que REALMENTE está corriendo (scripts/estilos
+      // cargados en este documento). Si el SW sirvió un index.html viejo,
+      // no coincide con el del servidor → recarga automática, una sola vez
+      // por versión destino (guard en sessionStorage evita loops).
+      const RELOAD_GUARD_KEY = "app:reloaded-for-hash";
+      let runningHash: string | null = null;
+      try {
+        const srcs = Array.from(document.querySelectorAll<HTMLScriptElement | HTMLLinkElement>(
+          'script[src], link[rel="stylesheet"][href], link[rel="modulepreload"][href]',
+        ))
+          .map((el) => (el as HTMLScriptElement).src || (el as HTMLLinkElement).href)
+          .join(" ");
+        const fp = extractAssetFingerprint(srcs);
+        if (fp) runningHash = await computeHash(fp);
+      } catch {
+        /* noop */
+      }
+      let alreadyReloadedFor: string | null = null;
+      try {
+        alreadyReloadedFor = sessionStorage.getItem(RELOAD_GUARD_KEY);
+      } catch {
+        /* noop */
+      }
+
+      const staleRunning = runningHash !== null && runningHash !== hash;
+      const staleStored = !!storedHash && storedHash !== hash;
+      initialHtmlHashRef.current = hash;
+      if ((staleRunning || staleStored) && alreadyReloadedFor !== hash) {
+        try {
+          sessionStorage.setItem(RELOAD_GUARD_KEY, hash);
+        } catch {
+          /* noop */
+        }
         setNeedRefresh(true);
-      } else {
-        initialHtmlHashRef.current = hash;
       }
 
       try {
