@@ -130,6 +130,7 @@ import FormacionInicial from "./pages/FormacionInicial";
 
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DeepLinkLaunchHandler from "./components/DeepLinkLaunchHandler";
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -141,6 +142,7 @@ const App = () => (
       <UpdatePrompt />
       <VersionBadge />
       <BrowserRouter>
+        <DeepLinkLaunchHandler />
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />

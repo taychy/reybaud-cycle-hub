@@ -6,3 +6,5 @@
 - Política de pago internacional en viajes: ocultar el aviso de la landing y mostrarlo una sola vez en la confirmación de reserva desde `metadata.payment_policy`. Why: informar moneda y recargo justo antes de confirmar sin duplicaciones.
 - Audiencia pública de eventos: resolver `metadata.public_audience` (`open` o `students_only`) con compatibilidad para `active_students_only`; el flujo invitado sigue interno. Why: comunicar participación abierta sin cambiar la reserva técnica.
 - Programas de formación: fase comercial con `src/lib/programCommercialPhase.ts` (espejo de SQL `program_commercial_phase`); cupo por sede en `planes_sedes` validado por trigger en `suscripciones.programa_sede_id`; lista de espera en `program_waitlist_entries` solo vía RPC `join_program_waitlist`. Why: una sola URL por programa y sin sobrecupo por sede.
+
+- Deep links públicos prioritarios (landing de programas, preinscripción) se preservan con `src/lib/deepLinkLaunch.ts` (launchQueue + URL pendiente consumida por Login en modo app instalada) y `launch_handler` en el manifest. Why: la app instalada no debe reemplazar el link del mail por el dashboard.

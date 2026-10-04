@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
 import { lovable } from "@/integrations/lovable/index";
 import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest, saveOAuthReturnTo, loadOAuthReturnTo, clearOAuthReturnTo } from "@/lib/pendingOtp";
+import { consumePendingDeepLink } from "@/lib/deepLinkLaunch";
 
 /**
  * Helper: check roles and redirect accordingly.
@@ -86,6 +87,15 @@ const Login = () => {
         }
         localStorage.removeItem("alumno");
         setCheckingSession(false);
+        return;
+      }
+
+      // App instalada relanzada en "/" justo después de abrir un link público
+      // prioritario (p. ej. landing del programa con beneficio): volver a esa
+      // URL completa en lugar de mandar al dashboard por tener sesión.
+      const pendingDeepLink = consumePendingDeepLink();
+      if (pendingDeepLink) {
+        navigate(pendingDeepLink, { replace: true });
         return;
       }
 
