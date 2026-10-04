@@ -149,7 +149,7 @@ export type Database = {
       agenda_grupal: {
         Row: {
           activo: boolean
-          coach_id: string
+          coach_id: string | null
           created_at: string
           dia_semana: number
           fecha: string | null
@@ -169,7 +169,7 @@ export type Database = {
         }
         Insert: {
           activo?: boolean
-          coach_id: string
+          coach_id?: string | null
           created_at?: string
           dia_semana: number
           fecha?: string | null
@@ -189,7 +189,7 @@ export type Database = {
         }
         Update: {
           activo?: boolean
-          coach_id?: string
+          coach_id?: string | null
           created_at?: string
           dia_semana?: number
           fecha?: string | null
@@ -17710,6 +17710,17 @@ export type Database = {
           p_nota?: string
         }
         Returns: undefined
+      }
+      programa_sync_clases_agenda: {
+        Args: {
+          p_fechas: string[]
+          p_hora_fin: string
+          p_hora_inicio: string
+          p_nota?: string
+          p_plan_id: string
+          p_sede_id: string
+        }
+        Returns: Json
       }
       prueba_convertir_en_venta: {
         Args: { p_cambio_id: string; p_nota?: string; p_precio: number }

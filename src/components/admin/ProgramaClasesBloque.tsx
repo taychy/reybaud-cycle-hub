@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from "@/components/ui/dialog";
@@ -40,6 +42,9 @@ const ProgramaClasesBloque = ({ planId }: { planId: string }) => {
   const [notaTarget, setNotaTarget] = useState<{ clase: ProgramaClaseEstado; estado: "aprobada" | "observada" } | null>(null);
   const [nota, setNota] = useState("");
   const [saving, setSaving] = useState(false);
+  const [syncOpen, setSyncOpen] = useState(false);
+  const [sedes, setSedes] = useState<{ id: string; nombre: string }[]>([]);
+  const [sync, setSync] = useState({ sede_id: "", hora_inicio: "11:00", hora_fin: "12:30", primera: "" });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +134,38 @@ const ProgramaClasesBloque = ({ planId }: { planId: string }) => {
     }
   };
 
+  const sinVincular = clases.filter((c) => !c.agenda_grupal_id);
+
+  const openSync = async () => {
+    const { data } = await sb.from("sedes").select("id, nombre").eq("activa", true).order("nombre");
+    setSedes(data || []);
+    setSyncOpen(true);
+  };
+
+  /** Fechas semanales a partir de la primera, una por clase (por orden). */
+  const fechasSync = (() => {
+    if (!sync.primera) return [] as string[];
+    const [y, m, d] = sync.primera.split("-").map(Number);
+    return clases.map((_, i) => {
+      const dt = new Date(y, m - 1, d + i * 7);
+      return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(dt.getDate()).padStart(2, "0")}`;
+    });
+  })();
+
+  const runSync = async () => {
+    if (!sync.sede_id || !sync.primera) { toast({ title: "Elegí sede y primera fecha", variant: "destructive" }); return; }
+    setSaving(true);
+    const { data, error } = await sb.rpc("programa_sync_clases_agenda", {
+      p_plan_id: planId, p_sede_id: sync.sede_id, p_hora_inicio: sync.hora_inicio, p_hora_fin: sync.hora_fin,
+      p_fechas: fechasSync, p_nota: null,
+    });
+    setSaving(false);
+    if (error) { toast({ title: "No se pudieron crear", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Clases en Agenda listas", description: `${data?.creadas ?? 0} creadas · ${data?.vinculadas_existentes ?? 0} vinculadas a existentes · ${data?.ya_vinculadas ?? 0} ya estaban` });
+    setSyncOpen(false);
+    load();
+  };
+
   if (loading) {
     return <p className="text-sm text-muted-foreground animate-pulse">Cargando clases del programa…</p>;
   }
@@ -145,6 +182,16 @@ const ProgramaClasesBloque = ({ planId }: { planId: string }) => {
           La Agenda es la fuente oficial de fecha, hora, sede y profesor. Liquidaciones es la fuente
           oficial de honorarios. Acá sólo se referencian.
         </p>
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Badge variant="outline" className={sinVincular.length === 0 ? "border-emerald-500/40 text-emerald-400" : ""}>
+            {clases.length - sinVincular.length}/{clases.length} vinculadas a Agenda
+          </Badge>
+          {sinVincular.length > 0 && (
+            <Button size="sm" variant="outline" onClick={openSync}>
+              <CalendarClock className="w-3.5 h-3.5 mr-1" /> Crear clases en Agenda
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent className="space-y-3">
         {clases.map((c) => {
@@ -170,7 +217,9 @@ const ProgramaClasesBloque = ({ planId }: { planId: string }) => {
               <p className="text-xs">
                 <span className="text-muted-foreground">Agenda: </span>
                 {agendaLabel(c)}
-                {c.agenda_coach_nombre && <> · {c.agenda_coach_nombre}</>}
+                {c.agenda_grupal_id && (c.agenda_coach_nombre
+                  ? <> · {c.agenda_coach_nombre}</>
+                  : <Badge variant="outline" className="ml-1 text-[10px] border-primary/40 text-primary">Profesor pendiente</Badge>)}
               </p>
 
               <div className="flex flex-wrap gap-1.5">
@@ -205,9 +254,12 @@ const ProgramaClasesBloque = ({ planId }: { planId: string }) => {
               )}
 
               <div className="flex flex-wrap gap-2 pt-1">
-                <Link to="/admin/agenda">
+                <Link to={c.agenda_grupal_id
+                  ? `/admin/agenda?clase=${c.agenda_grupal_id}${(c.agenda_fecha || c.agenda_fecha_puntual) ? `&fecha=${c.agenda_fecha || c.agenda_fecha_puntual}` : ""}`
+                  : "/admin/agenda"}>
                   <Button size="sm" variant="outline">
-                    <CalendarClock className="w-3.5 h-3.5 mr-1" /> Ver en Agenda
+                    <CalendarClock className="w-3.5 h-3.5 mr-1" />
+                    {c.agenda_grupal_id && !c.agenda_coach_nombre ? "Asignar profesor" : c.agenda_grupal_id ? "Abrir en Agenda" : "Ver en Agenda"}
                   </Button>
                 </Link>
                 <Button
@@ -254,6 +306,36 @@ const ProgramaClasesBloque = ({ planId }: { planId: string }) => {
             <Button onClick={vincular} disabled={saving}>
               {saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Guardar
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={syncOpen} onOpenChange={setSyncOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Crear clases en Agenda</DialogTitle></DialogHeader>
+          <p className="text-xs text-muted-foreground">
+            Se crea una clase puntual semanal por cada clase sin vincular, con profesor pendiente. No se duplican las que ya existen
+            y no se generan liquidaciones.
+          </p>
+          <div className="space-y-2">
+            <div>
+              <Label>Sede</Label>
+              <Select value={sync.sede_id} onValueChange={(v) => setSync({ ...sync, sede_id: v })}>
+                <SelectTrigger><SelectValue placeholder="Elegí la sede" /></SelectTrigger>
+                <SelectContent>{sedes.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div><Label>Primera clase</Label><Input type="date" value={sync.primera} onChange={(e) => setSync({ ...sync, primera: e.target.value })} /></div>
+              <div><Label>Desde</Label><Input type="time" value={sync.hora_inicio} onChange={(e) => setSync({ ...sync, hora_inicio: e.target.value })} /></div>
+              <div><Label>Hasta</Label><Input type="time" value={sync.hora_fin} onChange={(e) => setSync({ ...sync, hora_fin: e.target.value })} /></div>
+            </div>
+            {fechasSync.length > 0 && (
+              <p className="text-[11px] text-muted-foreground">Fechas: {fechasSync.map((f) => f.split("-").reverse().slice(0, 2).join("/")).join(" · ")}. Si alguna se reprograma, ajustala luego en Agenda.</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button onClick={runSync} disabled={saving}>{saving && <Loader2 className="w-4 h-4 mr-1 animate-spin" />} Crear</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
