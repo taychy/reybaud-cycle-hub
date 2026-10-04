@@ -29,6 +29,10 @@
 // Excluídos:
 //   - Alumnos con baja_solicitud abierta (estado='solicitada')
 //   - Alumnos con pausa vigente (plan categoria='pausa' activa a hoy)
+//   - Planes no renovables: renovacion_auto_permitida=false, frecuencia='unico' o
+//     es_programa_cerrado=true. Un programa/cohorte es una inscripción de pago único,
+//     no una mensualidad; renovarlo genera cargos ('renovacion_pendiente') que el
+//     alumno nunca contrató.
 //   - Cambios de plan pendientes: NO. Regla del negocio: usar el plan de la ÚLTIMA sub.
 //     Los cambios programados se aplican por otras vías.
 //
