@@ -17118,6 +17118,27 @@ export type Database = {
           plan_id: string
         }[]
       }
+      get_program_preinscriptos: {
+        Args: { p_plan_id: string }
+        Returns: {
+          alumno_ids: string[]
+          benefit_cuotas: number
+          benefit_id: string
+          benefit_precio_cuota: number
+          benefit_precio_total: number
+          benefit_suscripcion_id: string
+          benefit_valid_until: string
+          created_at: string
+          email: string
+          entry_estado: string
+          entry_id: string
+          nombre: string
+          preguntas: Json
+          respuestas: Json
+          suscripciones: Json
+          telefono: string
+        }[]
+      }
       get_promo_code: {
         Args: { _codigo: string; _evento_id: string }
         Returns: Json
