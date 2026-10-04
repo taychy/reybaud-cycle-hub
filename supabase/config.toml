@@ -139,3 +139,6 @@ verify_jwt = false
 
 [functions.send-liquidacion-reminders]
 verify_jwt = false
+
+[functions.send-program-preinscripcion-opening]
+verify_jwt = false

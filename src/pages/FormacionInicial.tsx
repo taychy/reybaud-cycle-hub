@@ -119,6 +119,15 @@ export default function FormacionInicial() {
     const p = new URLSearchParams(window.location.search).get("cohort");
     return p && /^[a-z0-9_-]+$/i.test(p) ? p : DEFAULT_COHORT;
   }, []);
+  // Link personal de preinscripción (?beneficio=token). El precio se valida en servidor.
+  const benefitToken = useMemo(() => {
+    const t = new URLSearchParams(window.location.search).get("beneficio");
+    return t && /^[a-f0-9]{32,128}$/i.test(t) ? t : null;
+  }, []);
+  const [benefit, setBenefit] = useState<{
+    valid: boolean; used?: boolean; expired?: boolean; cohort_slug?: string;
+    precio_total?: number; precio_cuota?: number | null; cuotas_cantidad?: number; valid_until?: string;
+  } | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -128,9 +137,13 @@ export default function FormacionInicial() {
       } else {
         setProgram(data as unknown as Program);
       }
+      if (benefitToken) {
+        const { data: b } = await (supabase.rpc as any)("get_program_benefit", { _token: benefitToken });
+        if (b) setBenefit(b);
+      }
       setLoading(false);
     })();
-  }, [cohortSlug]);
+  }, [cohortSlug, benefitToken]);
 
   useEffect(() => {
     document.title = program?.nombre
@@ -138,7 +151,16 @@ export default function FormacionInicial() {
       : "Programa de Formación Inicial — Ciclismo Reybaud";
   }, [program?.nombre]);
 
-  const stageVigente = program?.stage_vigente;
+  const benefitActive = !!(benefit?.valid && benefit.cohort_slug === cohortSlug);
+  const stageVigente = benefitActive && program?.stage_vigente
+    ? {
+        ...program.stage_vigente,
+        nombre: "Precio preinscripción",
+        precio: Number(benefit!.precio_total),
+        precio_cuota: benefit!.precio_cuota ?? null,
+        cuotas_cantidad: benefit!.cuotas_cantidad ?? 1,
+      }
+    : program?.stage_vigente;
   // Misma lógica que usa el panel admin (src/lib/programEnrollment.ts)
   const sedes = program?.sedes || [];
   const commercialMode = hasCommercialDates(program);
@@ -225,6 +247,7 @@ export default function FormacionInicial() {
           comprobante_filename,
           comprobante_mime,
           sede_id: sedeId,
+          benefit_token: benefitActive ? benefitToken : null,
         },
       });
       if (error || !data?.ok) {
@@ -574,6 +597,15 @@ export default function FormacionInicial() {
               {(sedes.length === 0 || sedeSel) && (
                 <ProgramWaitlistForm key={sedeId || "general"} cohortSlug={cohortSlug} sedeId={sedeId} sedeNombre={sedeSel?.nombre} />
               )}
+            </div>
+          ) : benefitActive && stageVigente ? (
+            <div className="p-5 rounded-xl border border-primary bg-primary/5 shadow-lg mb-8">
+              <p className="text-xs uppercase tracking-wide font-semibold text-primary mb-2">Tu precio exclusivo por preinscripción</p>
+              <p className="text-3xl font-heading">{fmtMoney(Number(stageVigente.precio))}</p>
+              {stageVigente.precio_cuota && (stageVigente.cuotas_cantidad ?? 1) > 1 && (
+                <p className="text-sm text-muted-foreground mt-1">ó {stageVigente.cuotas_cantidad} cuotas de {fmtMoney(Number(stageVigente.precio_cuota))}</p>
+              )}
+              {benefit?.valid_until && <p className="text-xs text-muted-foreground mt-2">Disponible hasta el {fmtDate(benefit.valid_until)}.</p>}
             </div>
           ) : stageVigente ? (
             <div className="grid sm:grid-cols-3 gap-3 mb-8">

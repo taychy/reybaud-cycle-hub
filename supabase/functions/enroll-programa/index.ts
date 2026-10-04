@@ -24,6 +24,7 @@ interface EnrollPayload {
   comprobante_filename?: string | null;
   comprobante_mime?: string | null;
   sede_id?: string | null;
+  benefit_token?: string | null;
 }
 
 function jsonResp(body: unknown, status = 200) {
@@ -258,10 +259,26 @@ Deno.serve(async (req) => {
       return jsonResp({ error: "No quedan cupos disponibles" }, 409);
     }
 
+    // 2.a) Beneficio de preinscripción (token personal resuelto en servidor)
+    let benefit: any = null;
+    const benefitToken = typeof raw.benefit_token === "string" ? raw.benefit_token.trim() : "";
+    if (benefitToken) {
+      const { data: b } = await admin
+        .from("program_preinscripcion_benefits")
+        .select("id, plan_id, activo, used_at, valid_until, precio_total, precio_cuota, cuotas_cantidad")
+        .eq("token", benefitToken)
+        .maybeSingle();
+      const hoyAR = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
+      if (b && b.plan_id === plan.id && b.activo && !b.used_at && hoyAR <= b.valid_until) benefit = b;
+      else return jsonResp({ error: "Tu enlace de precio especial no es válido o ya venció.", code: "BENEFICIO_INVALIDO" }, 409);
+    }
+
     // 2) Precio vigente
     const { data: stage, error: stageErr } = await admin.rpc("get_plan_current_price", { _plan_id: plan.id });
-    const currentStage = Array.isArray(stage) ? stage[0] : null;
-    if (stageErr || !currentStage) return jsonResp({ error: "No hay un tramo de precio vigente hoy" }, 400);
+    const currentStage = benefit
+      ? { stage_nombre: "Beneficio preinscripción", precio: benefit.precio_total, precio_cuota: benefit.precio_cuota, cuotas_cantidad: benefit.cuotas_cantidad }
+      : Array.isArray(stage) ? stage[0] : null;
+    if ((!benefit && stageErr) || !currentStage) return jsonResp({ error: "No hay un tramo de precio vigente hoy" }, 400);
 
     const precioContado = Number(currentStage.precio);
     const precioCuota = currentStage.precio_cuota ? Number(currentStage.precio_cuota) : null;
@@ -416,6 +433,14 @@ Deno.serve(async (req) => {
         return jsonResp({ error: "No se pudo crear la inscripción" }, 500);
       }
       suscripcionId = nuevaSub.id;
+    }
+
+    // 4.b) Trazabilidad del beneficio de preinscripción (conversión).
+    if (benefit) {
+      await admin.from("program_preinscripcion_benefits")
+        .update({ used_at: new Date().toISOString(), suscripcion_id: suscripcionId, updated_at: new Date().toISOString() })
+        .eq("id", benefit.id).is("used_at", null);
+      await admin.from("suscripciones").update({ notas: `${notasSub} | Beneficio preinscripción ${benefit.id}` }).eq("id", suscripcionId);
     }
 
     // 5) Deuda de la cuota 2.
