@@ -73,7 +73,14 @@ export default defineConfig(({ mode }) => ({
         background_color: "#121212",
         display: "standalone",
         orientation: "portrait",
+        id: "/",
         start_url: "/",
+        scope: "/",
+        // Deep links dentro del scope (p. ej. link del mail a la landing del
+        // programa) deben abrir la URL pedida, no el dashboard: si la app ya
+        // está abierta, el navegador navega esa ventana a la URL del link.
+        launch_handler: { client_mode: ["navigate-existing", "auto"] },
+        handle_links: "preferred",
         icons: [
           {
             src: "/pwa-192x192.png",
