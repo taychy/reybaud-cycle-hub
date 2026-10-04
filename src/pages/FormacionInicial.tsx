@@ -247,6 +247,7 @@ export default function FormacionInicial() {
           comprobante_filename,
           comprobante_mime,
           sede_id: sedeId,
+          benefit_token: benefitActive ? benefitToken : null,
         },
       });
       if (error || !data?.ok) {
@@ -596,6 +597,15 @@ export default function FormacionInicial() {
               {(sedes.length === 0 || sedeSel) && (
                 <ProgramWaitlistForm key={sedeId || "general"} cohortSlug={cohortSlug} sedeId={sedeId} sedeNombre={sedeSel?.nombre} />
               )}
+            </div>
+          ) : benefitActive && stageVigente ? (
+            <div className="p-5 rounded-xl border border-primary bg-primary/5 shadow-lg mb-8">
+              <p className="text-xs uppercase tracking-wide font-semibold text-primary mb-2">Tu precio exclusivo por preinscripción</p>
+              <p className="text-3xl font-heading">{fmtMoney(Number(stageVigente.precio))}</p>
+              {stageVigente.precio_cuota && (stageVigente.cuotas_cantidad ?? 1) > 1 && (
+                <p className="text-sm text-muted-foreground mt-1">ó {stageVigente.cuotas_cantidad} cuotas de {fmtMoney(Number(stageVigente.precio_cuota))}</p>
+              )}
+              {benefit?.valid_until && <p className="text-xs text-muted-foreground mt-2">Disponible hasta el {fmtDate(benefit.valid_until)}.</p>}
             </div>
           ) : stageVigente ? (
             <div className="grid sm:grid-cols-3 gap-3 mb-8">
