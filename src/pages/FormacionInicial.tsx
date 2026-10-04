@@ -299,12 +299,21 @@ export default function FormacionInicial() {
 
   const cerrado = !inscripcionesAbiertas;
   // Con fechas comerciales manda la máquina de estados; sin ellas se conserva el comportamiento legacy.
-  const waitlistMode = commercialMode
+  const preinscripcionMode = commercialMode
     ? phase === "preinscripcion"
     : program.fecha_inicio_programa?.startsWith("2026-10") || /2026[_-]3$/.test(program.cohort_slug || "");
   const preinscripcionUrl = program.preinscripcion_slug ? `/preinscripcion/${program.preinscripcion_slug}` : WAITLIST_URL;
   const esperaApertura = phase === "espera_apertura";
-  const listaEspera = commercialMode && !waitlistMode && !esperaApertura && !inscripcionesAbiertas;
+  const listaEspera = commercialMode && !preinscripcionMode && !esperaApertura && !inscripcionesAbiertas;
+  const heroCtaLabel = preinscripcionMode
+    ? "Quiero preinscribirme"
+    : esperaApertura
+      ? `Inscripciones desde el ${fmtDiaMesAR(program.fecha_inicio_inscripcion)}`
+      : listaEspera
+        ? "Sumarme a la lista de espera"
+        : inscripcionesAbiertas
+          ? "Inscribirme"
+          : "Inscripciones cerradas";
   const totalCupoSedes = sedes.reduce((a, s) => a + (Number(s.cupo_maximo) || 0), 0);
   const totalInscSedes = sedes.reduce((a, s) => a + (Number(s.inscriptos) || 0), 0);
   const sedeSel = sedes.find((s) => s.sede_id === sedeId) || null;
@@ -341,24 +350,24 @@ export default function FormacionInicial() {
                 `Un programa de ${duracionTxt} para adultos que ya pedalean y quieren evolucionar con método y seguridad.`}
             </p>
             <div className="flex flex-wrap gap-3">
-              {waitlistMode ? (
+              {preinscripcionMode ? (
                 <Button size="lg" asChild>
-                  <a href={preinscripcionUrl}>Quiero preinscribirme</a>
+                  <a href={preinscripcionUrl}>{heroCtaLabel}</a>
                 </Button>
               ) : (
-                <Button size="lg" onClick={() => scrollTo("inscripcion")} disabled={cerrado && !commercialMode}>
-                  {esperaApertura
-                    ? `Inscripciones desde el ${fmtDiaMesAR(program.fecha_inicio_inscripcion)}`
-                    : listaEspera
-                    ? "Sumarme a la lista de espera"
-                    : cerrado ? "Inscripciones cerradas" : commercialMode ? "Inscribirme" : "Quiero anotarme"}
+                <Button
+                  size="lg"
+                  onClick={() => scrollTo("inscripcion")}
+                  disabled={esperaApertura || (cerrado && !commercialMode)}
+                >
+                  {heroCtaLabel}
                 </Button>
               )}
               <Button size="lg" variant="outline" onClick={() => scrollTo("que-es")}>
                 Ver más
               </Button>
             </div>
-            {!waitlistMode && inscripcionesAbiertas && sedes.length === 0 && (
+            {!preinscripcionMode && inscripcionesAbiertas && sedes.length === 0 && (
               <p className="mt-4 text-sm text-cyan font-medium">
                 {program.cupos_libres === 1
                   ? "¡Solo queda 1 lugar!"
@@ -548,13 +557,13 @@ export default function FormacionInicial() {
       </section>
 
       {/* PRECIO + INSCRIPCIÓN */}
-      <section id="inscripcion" className="py-16">
+      <section id="inscripcion" className="scroll-mt-4 py-16">
         <div className="container mx-auto px-4 sm:px-6 max-w-4xl">
           <h2 className="font-heading text-3xl sm:text-4xl text-primary mb-8">
-            {waitlistMode ? "Preinscripción" : "Precio"}
+            {preinscripcionMode ? "Preinscripción" : "Precio"}
           </h2>
 
-          {waitlistMode ? (
+          {preinscripcionMode ? (
             <div className="p-6 sm:p-8 rounded-2xl border border-primary/30 bg-primary/5 text-center mb-8">
               <h3 className="font-heading text-2xl mb-2">Preinscripción abierta</h3>
               <p className="text-sm text-muted-foreground mb-5 max-w-2xl mx-auto">
@@ -643,7 +652,7 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {!waitlistMode && inscripcionesAbiertas && !transferSent && (
+          {!preinscripcionMode && inscripcionesAbiertas && !transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-border bg-card">
               <h3 className="font-heading text-2xl mb-2">Completá el formulario y confirmá tu inscripción</h3>
               <p className="text-sm text-muted-foreground mb-6">
@@ -865,7 +874,7 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {!waitlistMode && transferSent && (
+          {!preinscripcionMode && transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-cyan/40 bg-cyan/5 text-center">
               <CheckCircle2 className="w-12 h-12 text-cyan mx-auto mb-3" />
               <h3 className="font-heading text-2xl mb-2">¡Recibimos tu comprobante!</h3>
