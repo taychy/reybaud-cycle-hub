@@ -299,6 +299,15 @@ const AdminAgenda = () => {
     loadAll();
   };
 
+  // Deep link desde Programas: /admin/agenda?fecha=YYYY-MM-DD&clase=<agenda_id> abre la clase para asignar profesor.
+  const [claseAbierta, setClaseAbierta] = useState(false);
+  useEffect(() => {
+    if (!claseParam || claseAbierta || grupal.length === 0) return;
+    const serie = grupal.find((g: any) => g.id === claseParam);
+    if (serie) { setClaseAbierta(true); openEditSerie(serie, serie.fecha || undefined); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [claseParam, grupal, claseAbierta]);
+
   const openEditDisponibilidad = (bloque: any) => {
     setEditSerie(null);
     setEditBloque(bloque);
