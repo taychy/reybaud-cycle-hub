@@ -29,6 +29,10 @@
 // Excluídos:
 //   - Alumnos con baja_solicitud abierta (estado='solicitada')
 //   - Alumnos con pausa vigente (plan categoria='pausa' activa a hoy)
+//   - Planes no renovables: renovacion_auto_permitida=false, frecuencia='unico' o
+//     es_programa_cerrado=true. Un programa/cohorte es una inscripción de pago único,
+//     no una mensualidad; renovarlo genera cargos ('renovacion_pendiente') que el
+//     alumno nunca contrató.
 //   - Cambios de plan pendientes: NO. Regla del negocio: usar el plan de la ÚLTIMA sub.
 //     Los cambios programados se aplican por otras vías.
 //
@@ -99,7 +103,7 @@ Deno.serve(async (req) => {
   //    'vencida' = impaga marcada; 'finalizada' = paga y vencida. Todas pueden necesitar renovación.
   const { data: candidates, error: candErr } = await supabase
     .from("suscripciones")
-    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda), descuentos(id, valor, tipo, categoria, vigencia_hasta, activo)")
+    .select("id, alumno_id, plan_id, fecha_inicio, fecha_fin, estado, origen_registro, mp_status, auto_renovacion, descuento_id, precio_base, precio_final, planes(id, nombre, categoria, precio, moneda, renovacion_auto_permitida, frecuencia, tipo, es_programa_cerrado), descuentos(id, valor, tipo, categoria, vigencia_hasta, activo)")
     .in("estado", ["activa", "vencida", "finalizada"])
     .lt("fecha_fin", target)
     .gte("fecha_fin", cutoffISO)
@@ -110,6 +114,22 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: candErr.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 
+  // Planes que NO se renuevan. Los programas/cohortes son una inscripción de pago
+  // único (una cohorte cerrada), no una mensualidad recurrente: renovarlos crea
+  // suscripciones 'renovacion_pendiente' que son cargos falsos, porque el alumno ya
+  // pagó su programa completo.
+  //   - renovacion_auto_permitida = false → regla explícita y general del plan.
+  //   - frecuencia = 'unico'              → defensa adicional (no es recurrente).
+  //   - es_programa_cerrado = true        → defensa adicional (cohorte terminada).
+  // Todo plan mensual renovable (renovacion_auto_permitida = true) sigue exactamente igual.
+  const nonRenewableReason = (plan: any): string | null => {
+    if (!plan) return null; // sin datos del plan: no bloquear (comportamiento previo)
+    if (plan.renovacion_auto_permitida === false) return "renovacion_auto_permitida=false";
+    if (plan.frecuencia === "unico") return "frecuencia=unico";
+    if (plan.es_programa_cerrado === true) return "es_programa_cerrado=true";
+    return null;
+  };
+
   const paidCandidates = (candidates || []).filter((s: any) => {
     // Sólo pagadas
     const paid = s.mp_status === "approved" || PAID_ORIGENES.includes(s.origen_registro);
@@ -117,6 +137,14 @@ Deno.serve(async (req) => {
     // Excluir categorías que no auto-renuevan
     const cat = s.planes?.categoria;
     if (cat === "pausa" || cat === "asesoria") return false;
+    // Excluir planes de pago único / programas cerrados / no renovables
+    const reason = nonRenewableReason(s.planes);
+    if (reason) {
+      console.log("[renew-monthly-subs] plan no renovable, excluido", {
+        sub_id: s.id, plan_id: s.plan_id, plan_nombre: s.planes?.nombre, reason,
+      });
+      return false;
+    }
     return true;
   });
 
