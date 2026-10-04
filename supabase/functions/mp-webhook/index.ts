@@ -156,10 +156,24 @@ async function persistMpAccountMovement(
     .from("reservation_payments")
     .select("id, alumno_id")
     .eq("mp_payment_id", mpId)
+    .is("anulado_at", null)
+    .limit(1)
     .maybeSingle();
-  if (rp) {
-    reservationPaymentId = rp.id;
-    alumnoId = rp.alumno_id ?? null;
+  // Fallback: pagos de eventos históricos guardaban el ID sólo en payment_reference.
+  let rpMatch = rp;
+  if (!rpMatch && String(payment?.external_reference ?? "").startsWith("event:")) {
+    const { data: rpRef } = await supabaseAdmin
+      .from("reservation_payments")
+      .select("id, alumno_id")
+      .eq("payment_reference", mpId)
+      .is("anulado_at", null)
+      .limit(1)
+      .maybeSingle();
+    rpMatch = rpRef;
+  }
+  if (rpMatch) {
+    reservationPaymentId = rpMatch.id;
+    alumnoId = rpMatch.alumno_id ?? null;
   } else {
     const { data: sub } = await supabaseAdmin
       .from("suscripciones")
@@ -882,7 +896,9 @@ Deno.serve(async (req) => {
         .from("reservation_payments")
         .select("id")
         .eq("reservation_id", reservationId)
-        .eq("payment_reference", String(payment.id))
+        .or(`payment_reference.eq.${String(payment.id)},mp_payment_id.eq.${String(payment.id)}`)
+        .is("anulado_at", null)
+        .limit(1)
         .maybeSingle();
 
       if (existing) {
@@ -902,7 +918,7 @@ Deno.serve(async (req) => {
       else if (payment.status === "rejected" || payment.status === "cancelled") payStatus = "rechazado";
 
       // Insertar siempre el registro del pago (trazabilidad)
-      await supabaseAdmin.from("reservation_payments").insert({
+      const { data: insertedRp } = await supabaseAdmin.from("reservation_payments").insert({
         reservation_id: reservationId,
         alumno_id: reservation.alumno_id,
         amount: paidAmount,
@@ -910,9 +926,19 @@ Deno.serve(async (req) => {
         payment_date: today,
         payment_method: "mercadopago",
         payment_reference: String(payment.id),
+        mp_payment_id: String(payment.id),
         notes: `Pago Mercado Pago (${payment.status})`,
         status: payStatus,
-      } as any);
+      } as any).select("id").single();
+
+      // Vincular el movimiento MP (idempotente: sólo si todavía no tiene vínculo).
+      if (insertedRp?.id) {
+        await supabaseAdmin.from("mp_account_movements")
+          .update({ reservation_payment_id: insertedRp.id })
+          .eq("mp_payment_id", String(payment.id))
+          .is("reservation_payment_id", null)
+          .is("suscripcion_id", null);
+      }
 
       // Sólo movemos saldos cuando MP aprobó
       if (payment.status === "approved") {
