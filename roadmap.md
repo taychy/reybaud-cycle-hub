@@ -128,6 +128,7 @@
 
 ## Programas de pago único · Renovaciones falsas
 - [x] `renew-monthly-subscriptions`: excluir planes no renovables (`renovacion_auto_permitida=false`, `frecuencia='unico'`, `es_programa_cerrado=true`); la mensualidad renovable sigue igual
+- [x] `renew-monthly-subscriptions`: cerrar la sub anterior como `finalizada` (paga) en vez de `vencida`; `vencida` queda sólo para impagos que marcan otras rutinas
 - [ ] Limpieza manual de los cargos ya creados en "Programa Iniciación 2026/2": Gerardo Adrian Vlceck (01/09 cancelada, 01/10 pendiente $175.000) y Ludmila Carballo (01/10 pendiente $175.000)
 
 ## Programa Iniciación 2026/3 · inscripción productiva
