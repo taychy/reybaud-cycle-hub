@@ -9333,6 +9333,135 @@ export type Database = {
           },
         ]
       }
+      program_preinscripcion_benefits: {
+        Row: {
+          activo: boolean
+          created_at: string
+          cuotas_cantidad: number
+          email: string
+          email_message_id: string | null
+          email_sent_at: string | null
+          email_status: string | null
+          es_prueba: boolean
+          id: string
+          nombre: string | null
+          open_count: number
+          opened_at: string | null
+          plan_id: string
+          precio_cuota: number | null
+          precio_total: number
+          suscripcion_id: string | null
+          token: string
+          updated_at: string
+          used_at: string | null
+          valid_until: string
+          waitlist_entry_id: string | null
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          cuotas_cantidad?: number
+          email: string
+          email_message_id?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
+          es_prueba?: boolean
+          id?: string
+          nombre?: string | null
+          open_count?: number
+          opened_at?: string | null
+          plan_id: string
+          precio_cuota?: number | null
+          precio_total: number
+          suscripcion_id?: string | null
+          token?: string
+          updated_at?: string
+          used_at?: string | null
+          valid_until: string
+          waitlist_entry_id?: string | null
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          cuotas_cantidad?: number
+          email?: string
+          email_message_id?: string | null
+          email_sent_at?: string | null
+          email_status?: string | null
+          es_prueba?: boolean
+          id?: string
+          nombre?: string | null
+          open_count?: number
+          opened_at?: string | null
+          plan_id?: string
+          precio_cuota?: number | null
+          precio_total?: number
+          suscripcion_id?: string | null
+          token?: string
+          updated_at?: string
+          used_at?: string | null
+          valid_until?: string
+          waitlist_entry_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "program_preinscripcion_benefits_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "planes_con_inscriptos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "suscripciones"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["obligacion_id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_inconsistencias_early_renewal"
+            referencedColumns: ["pago_id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_1_id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_suscripcion_id_fkey"
+            columns: ["suscripcion_id"]
+            isOneToOne: false
+            referencedRelation: "vw_programa_posibles_duplicados"
+            referencedColumns: ["suscripcion_2_id"]
+          },
+          {
+            foreignKeyName: "program_preinscripcion_benefits_waitlist_entry_id_fkey"
+            columns: ["waitlist_entry_id"]
+            isOneToOne: false
+            referencedRelation: "waitlist_template_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       program_waitlist_entries: {
         Row: {
           created_at: string
@@ -16981,6 +17110,7 @@ export type Database = {
         Args: { p_product_id: string }
         Returns: number
       }
+      get_program_benefit: { Args: { _token: string }; Returns: Json }
       get_program_inscriptions_count: {
         Args: { p_plan_ids: string[] }
         Returns: {
