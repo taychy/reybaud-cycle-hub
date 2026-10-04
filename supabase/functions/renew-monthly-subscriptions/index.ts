@@ -110,6 +110,22 @@ Deno.serve(async (req) => {
     return new Response(JSON.stringify({ error: candErr.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   }
 
+  // Planes que NO se renuevan. Los programas/cohortes son una inscripción de pago
+  // único (una cohorte cerrada), no una mensualidad recurrente: renovarlos crea
+  // suscripciones 'renovacion_pendiente' que son cargos falsos, porque el alumno ya
+  // pagó su programa completo.
+  //   - renovacion_auto_permitida = false → regla explícita y general del plan.
+  //   - frecuencia = 'unico'              → defensa adicional (no es recurrente).
+  //   - es_programa_cerrado = true        → defensa adicional (cohorte terminada).
+  // Todo plan mensual renovable (renovacion_auto_permitida = true) sigue exactamente igual.
+  const nonRenewableReason = (plan: any): string | null => {
+    if (!plan) return null; // sin datos del plan: no bloquear (comportamiento previo)
+    if (plan.renovacion_auto_permitida === false) return "renovacion_auto_permitida=false";
+    if (plan.frecuencia === "unico") return "frecuencia=unico";
+    if (plan.es_programa_cerrado === true) return "es_programa_cerrado=true";
+    return null;
+  };
+
   const paidCandidates = (candidates || []).filter((s: any) => {
     // Sólo pagadas
     const paid = s.mp_status === "approved" || PAID_ORIGENES.includes(s.origen_registro);
@@ -117,6 +133,14 @@ Deno.serve(async (req) => {
     // Excluir categorías que no auto-renuevan
     const cat = s.planes?.categoria;
     if (cat === "pausa" || cat === "asesoria") return false;
+    // Excluir planes de pago único / programas cerrados / no renovables
+    const reason = nonRenewableReason(s.planes);
+    if (reason) {
+      console.log("[renew-monthly-subs] plan no renovable, excluido", {
+        sub_id: s.id, plan_id: s.plan_id, plan_nombre: s.planes?.nombre, reason,
+      });
+      return false;
+    }
     return true;
   });
 
