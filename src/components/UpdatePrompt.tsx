@@ -62,6 +62,7 @@ const UpdatePrompt = () => {
   // index.html con una URL que NO pasa por el SW (denylist) y comparamos
   // su hash. Si cambió → hay una nueva versión deployada.
   const initialHtmlHashRef = useRef<string | null>(null);
+  const serverEntryRef = useRef<string | null>(null);
 
   useEffect(() => {
     const computeHash = async (text: string) => {
@@ -98,6 +99,8 @@ const UpdatePrompt = () => {
         });
         if (!res.ok) return null;
         const text = await res.text();
+        const entry = text.match(/<script[^>]+type="module"[^>]+src="([^"]*\/assets\/[^"]+\.js)"/);
+        serverEntryRef.current = entry ? entry[1] : null;
         const fingerprint = extractAssetFingerprint(text);
         if (!fingerprint) return null;
         return await computeHash(fingerprint);
@@ -151,18 +154,13 @@ const UpdatePrompt = () => {
       // no coincide con el del servidor → recarga automática, una sola vez
       // por versión destino (guard en sessionStorage evita loops).
       const RELOAD_GUARD_KEY = "app:reloaded-for-hash";
-      let runningHash: string | null = null;
-      try {
-        const srcs = Array.from(document.querySelectorAll<HTMLScriptElement | HTMLLinkElement>(
-          'script[src], link[rel="stylesheet"][href], link[rel="modulepreload"][href]',
-        ))
-          .map((el) => (el as HTMLScriptElement).src || (el as HTMLLinkElement).href)
-          .join(" ");
-        const fp = extractAssetFingerprint(srcs);
-        if (fp) runningHash = await computeHash(fp);
-      } catch {
-        /* noop */
-      }
+      // Comparamos SOLO el script de entrada (index-XXXX.js): los chunks
+      // lazy agregan modulepreloads en runtime y darían falsos positivos.
+      const runningEntryEl = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]');
+      const runningEntry = runningEntryEl ? new URL(runningEntryEl.src).pathname : null;
+      const serverEntry = serverEntryRef.current
+        ? new URL(serverEntryRef.current, window.location.origin).pathname
+        : null;
       let alreadyReloadedFor: string | null = null;
       try {
         alreadyReloadedFor = sessionStorage.getItem(RELOAD_GUARD_KEY);
@@ -170,7 +168,7 @@ const UpdatePrompt = () => {
         /* noop */
       }
 
-      const staleRunning = runningHash !== null && runningHash !== hash;
+      const staleRunning = !!runningEntry && !!serverEntry && runningEntry !== serverEntry;
       const staleStored = !!storedHash && storedHash !== hash;
       initialHtmlHashRef.current = hash;
       if ((staleRunning || staleStored) && alreadyReloadedFor !== hash) {
