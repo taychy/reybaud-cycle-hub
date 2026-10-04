@@ -74,6 +74,8 @@ export default defineConfig(({ mode }) => ({
         display: "standalone",
         orientation: "portrait",
         start_url: "/",
+        scope: "/",
+        launch_handler: { client_mode: "focus-existing" },
         icons: [
           {
             src: "/pwa-192x192.png",
