@@ -64,6 +64,20 @@ const UpdatePrompt = () => {
   const initialHtmlHashRef = useRef<string | null>(null);
   const serverEntryRef = useRef<string | null>(null);
 
+  // Tras una recarga automática, quitamos solo el parámetro técnico `_v`
+  // conservando ruta, cohort, beneficio y demás query params.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("_v")) {
+        url.searchParams.delete("_v");
+        window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      }
+    } catch {
+      /* noop */
+    }
+  }, []);
+
   useEffect(() => {
     const computeHash = async (text: string) => {
       const buf = new TextEncoder().encode(text);
