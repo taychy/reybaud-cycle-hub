@@ -131,7 +131,7 @@
 - [ ] Limpieza manual de los cargos ya creados en "Programa Iniciación 2026/2": Gerardo Adrian Vlceck (01/09 cancelada, 01/10 pendiente $175.000) y Ludmila Carballo (01/10 pendiente $175.000)
 
 ## Programa Iniciación 2026/3 · inscripción productiva
-- [ ] CTA del hero según fase y ancla al formulario en inscripción/lista de espera
-- [ ] Verificar beneficio personal, sedes/cupos y checkout en desktop/mobile
-- [ ] Reenviar solo la prueba de apertura a scarlettbonatto@gmail.com con el beneficio existente
+- [x] CTA del hero según fase y ancla al formulario en inscripción/lista de espera
+- [x] Verificar beneficio personal, sedes/cupos y checkout en desktop/mobile
+- [x] Reenviar solo la prueba de apertura a scarlettbonatto@gmail.com con el beneficio existente
 - [ ] Publicar frontend y confirmar reybaud-app.com
