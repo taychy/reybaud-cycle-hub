@@ -40,7 +40,7 @@ export function classifyMpUnidad(m: MpMovementLike): MpUnidadNegocio {
   if (isTiendaMovement(m)) return "tienda";
   const ref = String(m.external_reference ?? "");
   if (m.reservation_payment_id || m.rp_existente || ref.startsWith("event:")) return "viajes";
-  if (m.suscripcion_id || m.credito_aplicado) return "escuela";
+  if (m.suscripcion_id || m.credito_aplicado || ref.startsWith("turnera:")) return "escuela";
   return "sin_clasificar";
 }
 
