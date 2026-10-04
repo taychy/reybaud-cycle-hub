@@ -874,7 +874,7 @@ export default function FormacionInicial() {
             </div>
           )}
 
-          {!waitlistMode && transferSent && (
+          {!preinscripcionMode && transferSent && (
             <div className="p-6 sm:p-8 rounded-2xl border border-cyan/40 bg-cyan/5 text-center">
               <CheckCircle2 className="w-12 h-12 text-cyan mx-auto mb-3" />
               <h3 className="font-heading text-2xl mb-2">¡Recibimos tu comprobante!</h3>
