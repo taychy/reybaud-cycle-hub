@@ -1,17 +1,19 @@
-# Comunicación de reserva para eventos públicos
+# Dejar Programa Iniciación 2026/3 listo para inscripción
 
-## Implementación
-- Definir una resolución reutilizable de audiencia desde `events.metadata.public_audience` con valores `open` y `students_only`.
-- Mantener el comportamiento vigente como fallback: viajes/camps reservables serán abiertos; los demás eventos conservarán la comunicación restringida existente.
-- Actualizar el bloque público para audiencia abierta con el título, subtítulo, CTA, acceso secundario y aclaración solicitados, sin cambiar el flujo técnico de reserva invitada.
-- Mantener una comunicación diferenciada para eventos exclusivos de alumnos y evitar el mensaje de participación abierta.
-- Exponer la audiencia en la edición administrativa del evento y configurar Emilia Romagna 2027 como `open` sin migración.
+## Resultado
+- Corregir el botón principal para que dependa de la fase comercial: preinscripción, inscripción o lista de espera.
+- En inscripción, llevar al formulario de esta misma página sin perder el beneficio personal de la URL.
+- Confirmar que el precio especial, las dos sedes y sus cupos se presentan correctamente y que el servidor sigue validando el beneficio.
 
-## Validación
-- Verificar la landing de Emilia Romagna en escritorio y móvil, incluyendo apertura del flujo de reserva.
-- Comprobar el fallback de un evento sin configuración y la presentación de un evento `students_only`.
-- Ejecutar pruebas relevantes y confirmar que la compilación queda sin errores.
-- Publicar la versión validada al finalizar.
+## Verificación
+- Revisar en la base que la ventana 03/10–16/10, KDT y Parque Sarmiento, horarios y cupos estén configurados.
+- Probar la página pública en escritorio y móvil, incluyendo el enlace personal de prueba sin exponer su código.
+- Validar que no se envíen emails ni se modifiquen precios, preinscriptos o suscripciones.
 
-## Alcance técnico
-- Solo cambia texto visible y configuración de audiencia en metadata; no se modifican precios, pagos, cupos ni lógica de reserva.
+## Publicación
+- Revisar el estado de seguridad requerido para publicar.
+- Publicar el frontend y confirmar la URL esperada `https://reybaud-app.com`.
+
+## Detalles técnicos
+- El cambio queda limitado a la página pública del programa y, solo si falta configuración imprescindible, a los datos comerciales del Programa Iniciación 2026/3 autorizados en este pedido.
+- El checkout seguirá enviando `benefit_token` y el servidor resolverá los importes, sin confiar en valores del navegador.
