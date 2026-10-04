@@ -130,6 +130,7 @@ import FormacionInicial from "./pages/FormacionInicial";
 
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+import DeepLinkLaunchHandler from "./components/DeepLinkLaunchHandler";
 const queryClient = new QueryClient();
 
 const App = () => (
