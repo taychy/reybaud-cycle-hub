@@ -435,6 +435,14 @@ Deno.serve(async (req) => {
       suscripcionId = nuevaSub.id;
     }
 
+    // 4.b) Trazabilidad del beneficio de preinscripción (conversión).
+    if (benefit) {
+      await admin.from("program_preinscripcion_benefits")
+        .update({ used_at: new Date().toISOString(), suscripcion_id: suscripcionId, updated_at: new Date().toISOString() })
+        .eq("id", benefit.id).is("used_at", null);
+      await admin.from("suscripciones").update({ notas: `${notasSub} | Beneficio preinscripción ${benefit.id}` }).eq("id", suscripcionId);
+    }
+
     // 5) Deuda de la cuota 2.
     // NO se crea un ajuste en cuenta_ajustes: la deuda del programa ya se calcula
     // como (suscripciones.precio_final − pagos imputados a la suscripción), y
