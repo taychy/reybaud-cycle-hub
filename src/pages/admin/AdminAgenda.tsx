@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSearchParams } from "react-router-dom";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -51,7 +54,13 @@ const TIPO_LABEL: Record<string, string> = {
 };
 
 const AdminAgenda = () => {
-  const [monday, setMonday] = useState<Date>(() => startOfWeek(new Date()));
+  const [searchParams] = useSearchParams();
+  const fechaParam = searchParams.get("fecha");
+  const claseParam = searchParams.get("clase");
+  const [monday, setMonday] = useState<Date>(() =>
+    startOfWeek(fechaParam && /^\d{4}-\d{2}-\d{2}$/.test(fechaParam) ? parseIso(fechaParam) : new Date()),
+  );
+  const [calOpen, setCalOpen] = useState(false);
   const [sedeFiltro, setSedeFiltro] = useState("all");
   const [coachFiltro, setCoachFiltro] = useState("all");
   const [tipoFiltro, setTipoFiltro] = useState<TipoFiltro>("todos");
@@ -235,7 +244,7 @@ const AdminAgenda = () => {
     setEditSerie(serie);
     const puntual = (serie.tipo_clase ?? "recurrente") === "puntual";
     setForm({
-      coach_id: serie.coach_id,
+      coach_id: serie.coach_id || "",
       sede_id: serie.sede_id || "none",
       dia_semana: String(serie.dia_semana),
       hora_inicio: hhmm(serie.hora_inicio),
@@ -526,6 +535,22 @@ const AdminAgenda = () => {
             <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setMonday((m) => addDays(m, 7))}>
               <ChevronRight className="w-4 h-4" />
             </Button>
+            <Popover open={calOpen} onOpenChange={setCalOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-8">
+                  <CalendarDays className="w-4 h-4 mr-1" /> Ir a fecha
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={monday}
+                  onSelect={(d) => { if (d) { setMonday(startOfWeek(d)); setCalOpen(false); } }}
+                  initialFocus
+                  className="p-3 pointer-events-auto"
+                />
+              </PopoverContent>
+            </Popover>
             <span className="text-sm font-medium text-foreground ml-1">{rangoLabel}</span>
           </div>
 
@@ -656,7 +681,11 @@ const AdminAgenda = () => {
                           </div>
                           <p className="text-[13px] text-foreground">{e.titulo}</p>
                           <div className="flex items-center gap-3 flex-wrap text-[11px] text-muted-foreground">
-                            <span className="flex items-center gap-1"><Users className="w-3 h-3" />{e.coach_nombre}</span>
+                            {e.coach_id ? (
+                              <span className="flex items-center gap-1"><Users className="w-3 h-3" />{e.coach_nombre}</span>
+                            ) : (
+                              <Badge variant="outline" className="text-[10px] border-primary/40 text-primary">Profesor pendiente</Badge>
+                            )}
                             {e.sede_nombre && (
                               <span className="flex items-center gap-1"><MapPin className="w-3 h-3" />{e.sede_nombre}</span>
                             )}
