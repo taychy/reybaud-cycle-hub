@@ -5,8 +5,10 @@
 //    tomamos toda sub 'activa' pagada cuyo fecha_fin ya pasó y NO fue cancelada,
 //    NO tiene baja en trámite, NO es de categoría pausa/asesoria, y NO tiene ya
 //    una renovación creada para el período siguiente.
-//  - Marcamos la vieja como estado='vencida' (UI la muestra como "Finalizada"
-//    gracias a getEffectiveSubStatus + origen pagado).
+//  - Marcamos la vieja como estado='finalizada': el período llegó acá sólo si
+//    estaba PAGADO (filtro de pagadas), así que es un mes cobrado y cerrado.
+//    'vencida' queda reservado para períodos realmente IMPAGOS, que marcan otras
+//    rutinas del sistema; escribir 'vencida' acá pisaba meses ya cobrados.
 //  - Insertamos una NUEVA sub para el mes siguiente:
 //       plan_id = old.plan_id
 //       fecha_inicio = old.fecha_fin + 1 día
@@ -318,7 +320,7 @@ Deno.serve(async (req) => {
     }, null, 2), { headers: { ...cors, "Content-Type": "application/json" } });
   }
 
-  // 4) Ejecutar: marcar vieja 'vencida' + insertar nueva + encolar mail
+  // 4) Ejecutar: marcar vieja 'finalizada' (paga y cerrada) + insertar nueva + encolar mail
   // Precargar plantilla renewal_pending (una sola vez) para wiring desde DB
   const { data: tplRow } = await supabase
     .from("email_templates")
@@ -395,10 +397,12 @@ Deno.serve(async (req) => {
       console.warn("[renew-monthly-subs] audit_log insert failed", e);
     }
 
-    // marcar vieja como vencida (finalizada)
+    // Cerrar la vieja como 'finalizada' (paga + vencida). Llegó acá sólo si estaba
+    // pagada, así que el período es cobrado: 'vencida' queda sólo para impagos,
+    // que marcan las otras rutinas del sistema.
     const { error: updErr } = await supabase
       .from("suscripciones")
-      .update({ estado: "vencida" })
+      .update({ estado: "finalizada" })
       .eq("id", r.old_sub_id);
 
     if (updErr) {
