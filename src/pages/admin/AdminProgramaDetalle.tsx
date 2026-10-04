@@ -25,6 +25,7 @@ import ProgramBudgetPanel from "@/components/admin/ProgramBudgetPanel";
 import ProgramCommercialPanel from "@/components/admin/ProgramCommercialPanel";
 import { PHASE_LABELS, resolveCommercialPhase } from "@/lib/programCommercialPhase";
 import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
+import ProgramPreinscriptosTab from "@/components/admin/ProgramPreinscriptosTab";
 
 
 const sb: any = supabase;
@@ -124,6 +125,7 @@ const AdminProgramaDetalle = () => {
   const [reloadKey, setReloadKey] = useState(0);
   const [duplicados, setDuplicados] = useState<any[]>([]);
   const [bajaSubId, setBajaSubId] = useState<string | null>(null);
+  const [preinscCount, setPreinscCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!cohortId) return;
@@ -611,6 +613,7 @@ const AdminProgramaDetalle = () => {
       <Tabs defaultValue="inscriptos">
         <TabsList className="h-auto flex-wrap justify-start">
           <TabsTrigger value="inscriptos">Inscriptos activos ({activos.length})</TabsTrigger>
+          <TabsTrigger value="preinscriptos">Preinscriptos ({preinscCount ?? "…"})</TabsTrigger>
           <TabsTrigger value="bajas">Bajas ({bajas.length})</TabsTrigger>
           <TabsTrigger value="comercial">Comercial · {PHASE_LABELS[resolveCommercialPhase(plan as any)]}</TabsTrigger>
           <TabsTrigger value="playbook">Playbook</TabsTrigger>
@@ -626,6 +629,16 @@ const AdminProgramaDetalle = () => {
             className="max-w-md"
           />
           {renderTable(filteredActivos, true)}
+        </TabsContent>
+
+        <TabsContent value="preinscriptos" forceMount className="space-y-3 data-[state=inactive]:hidden">
+          <ProgramPreinscriptosTab
+            planId={cohortId!}
+            moneda={(plan as any).moneda}
+            hasSlug={!!(plan as any).preinscripcion_slug}
+            reloadKey={reloadKey}
+            onCount={setPreinscCount}
+          />
         </TabsContent>
 
         <TabsContent value="bajas" className="space-y-3">
