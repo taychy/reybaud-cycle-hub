@@ -141,6 +141,7 @@ const App = () => (
       <UpdatePrompt />
       <VersionBadge />
       <BrowserRouter>
+        <DeepLinkLaunchHandler />
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
