@@ -136,3 +136,4 @@
 - [x] Verificar beneficio personal, sedes/cupos y checkout en desktop/mobile
 - [x] Reenviar solo la prueba de apertura a scarlettbonatto@gmail.com con el beneficio existente
 - [ ] Publicar frontend y confirmar reybaud-app.com
+- [ ] Clases de programa → Agenda puntual (profesor pendiente, idempotente) + backfill Iniciación 2026/2 (KDT 11:00–12:30, 8ª el 10/10) + calendario en Agenda
