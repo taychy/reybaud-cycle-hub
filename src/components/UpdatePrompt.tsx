@@ -62,6 +62,21 @@ const UpdatePrompt = () => {
   // index.html con una URL que NO pasa por el SW (denylist) y comparamos
   // su hash. Si cambió → hay una nueva versión deployada.
   const initialHtmlHashRef = useRef<string | null>(null);
+  const serverEntryRef = useRef<string | null>(null);
+
+  // Tras una recarga automática, quitamos solo el parámetro técnico `_v`
+  // conservando ruta, cohort, beneficio y demás query params.
+  useEffect(() => {
+    try {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has("_v")) {
+        url.searchParams.delete("_v");
+        window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+      }
+    } catch {
+      /* noop */
+    }
+  }, []);
 
   useEffect(() => {
     const computeHash = async (text: string) => {
@@ -98,6 +113,8 @@ const UpdatePrompt = () => {
         });
         if (!res.ok) return null;
         const text = await res.text();
+        const entry = text.match(/<script[^>]+type="module"[^>]+src="([^"]*\/assets\/[^"]+\.js)"/);
+        serverEntryRef.current = entry ? entry[1] : null;
         const fingerprint = extractAssetFingerprint(text);
         if (!fingerprint) return null;
         return await computeHash(fingerprint);
@@ -146,13 +163,35 @@ const UpdatePrompt = () => {
       const hash = await fetchHash();
       if (cancelled || !hash) return;
 
-      if (storedHash && storedHash !== hash) {
-        // Detección inmediata: ya teníamos un hash de una sesión anterior
-        // y no coincide con el actual → hay versión nueva deployada.
-        initialHtmlHashRef.current = hash;
+      // Huella de la versión que REALMENTE está corriendo (scripts/estilos
+      // cargados en este documento). Si el SW sirvió un index.html viejo,
+      // no coincide con el del servidor → recarga automática, una sola vez
+      // por versión destino (guard en sessionStorage evita loops).
+      const RELOAD_GUARD_KEY = "app:reloaded-for-hash";
+      // Comparamos SOLO el script de entrada (index-XXXX.js): los chunks
+      // lazy agregan modulepreloads en runtime y darían falsos positivos.
+      const runningEntryEl = document.querySelector<HTMLScriptElement>('script[type="module"][src*="/assets/"]');
+      const runningEntry = runningEntryEl ? new URL(runningEntryEl.src).pathname : null;
+      const serverEntry = serverEntryRef.current
+        ? new URL(serverEntryRef.current, window.location.origin).pathname
+        : null;
+      let alreadyReloadedFor: string | null = null;
+      try {
+        alreadyReloadedFor = sessionStorage.getItem(RELOAD_GUARD_KEY);
+      } catch {
+        /* noop */
+      }
+
+      const staleRunning = !!runningEntry && !!serverEntry && runningEntry !== serverEntry;
+      const staleStored = !!storedHash && storedHash !== hash;
+      initialHtmlHashRef.current = hash;
+      if ((staleRunning || staleStored) && alreadyReloadedFor !== hash) {
+        try {
+          sessionStorage.setItem(RELOAD_GUARD_KEY, hash);
+        } catch {
+          /* noop */
+        }
         setNeedRefresh(true);
-      } else {
-        initialHtmlHashRef.current = hash;
       }
 
       try {
