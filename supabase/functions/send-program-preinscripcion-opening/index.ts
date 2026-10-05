@@ -1,7 +1,7 @@
 // Email "Ya abrimos las inscripciones" para preinscriptos de un programa.
 // Envía UN email a UN beneficio (program_preinscripcion_benefits) con su link personal.
 // - Beneficios de prueba (es_prueba=true): se pueden enviar una sola vez sin sesión.
-// - Beneficios reales: sólo super_admin. No hay envío masivo en esta función.
+// - Beneficios reales: sólo admin/super_admin. No hay envío masivo en esta función.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendLegacyEmailPayload } from "../_shared/send-managed-email.ts";
 
@@ -38,7 +38,8 @@ Deno.serve(async (req) => {
       const { data: u } = await sb.auth.getUser(token);
       const uid = u?.user?.id;
       const { data: isSuper } = uid ? await sb.rpc("is_super_admin", { _user_id: uid }) : { data: false };
-      if (!isSuper) return json({ error: "Sólo super_admin puede enviar a preinscriptos reales" }, 403);
+      const { data: isAdmin } = uid && !isSuper ? await sb.rpc("has_role", { _user_id: uid, _role: "admin" }) : { data: false };
+      if (!isSuper && !isAdmin) return json({ error: "Sólo administradores pueden enviar a preinscriptos reales" }, 403);
     }
     if (b.email_sent_at && !body?.resend) return json({ error: "Ya enviado", sent_at: b.email_sent_at }, 409);
 
