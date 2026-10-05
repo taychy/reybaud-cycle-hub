@@ -169,6 +169,13 @@
       "when": 1791222458483,
       "tag": "0023_vincular_devolucion_mp",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1791222713453,
+      "tag": "0024_vincular_devolucion_mp_por_referencia",
+      "breakpoints": true
     }
   ]
 }
