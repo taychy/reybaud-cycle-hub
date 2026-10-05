@@ -167,10 +167,19 @@ Deno.serve(async (req) => {
     if (facturacion_cola_id) {
       const { data } = await adminClient
         .from("facturacion_cola")
-        .select("emisor_resuelto_id, auto_motivo, cuenta_mp_id, servicio_desde, servicio_hasta, fecha_comprobante")
+        .select("emisor_resuelto_id, auto_motivo, cuenta_mp_id, servicio_desde, servicio_hasta, fecha_comprobante, auto_estado, auto_lock_at")
         .eq("id", facturacion_cola_id)
         .maybeSingle();
       colaRow = data;
+    }
+    // Bloqueo de emisión en curso: si el worker (u otro admin) ya está emitiendo
+    // este cobro, no disparar una segunda emisión concurrente.
+    if (colaRow?.auto_estado === "emitiendo" && colaRow?.auto_lock_at &&
+        Date.now() - new Date(colaRow.auto_lock_at).getTime() < 30 * 60 * 1000) {
+      return new Response(
+        JSON.stringify({ error: "Este cobro ya se está emitiendo. Esperá unos minutos y revisá el resultado." }),
+        { status: 409, headers: { "Content-Type": "application/json" } },
+      );
     }
     let emisorId: string | null = colaRow?.emisor_resuelto_id ?? null;
     let motivoEmisor: string | null = colaRow?.auto_motivo ?? null;
