@@ -218,6 +218,13 @@
       "when": 1791225197334,
       "tag": "0030_reservation_refund_obligations",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1791226301699,
+      "tag": "0031_facturacion_auto_master_manual_pago",
+      "breakpoints": true
     }
   ]
 }
