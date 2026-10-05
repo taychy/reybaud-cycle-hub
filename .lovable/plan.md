@@ -1,60 +1,77 @@
-# Auditoría: Programa Iniciación 2026/2, Agenda y Clase Evaluatoria (solo lectura)
+# Auditoría WhatsApp — inventario y plan por etapas
 
-No se modificó nada. Abajo, lo que existe hoy y una propuesta para crear las clases sin duplicar (solo si la aprobás).
+Solo lectura. No se cambió código, base, secretos ni producción, y no se envió nada.
 
-## 1. Programa Iniciación 2026/2
+## 1. Qué existe hoy
 
-- Plan `c1e21518-5bc0-47a7-9342-eee8fa6a9854`: pago único, cohorte cerrada, del 15/08 al 03/10/2026. Cupo 15; cierre de inscripción el 22/08.
-- Horario y sede: solo figuran como texto en la descripción ("Sábados 12:00 a 13:30 hs en el Circuito KDT"). El plan no guarda horario en ningún campo propio.
-- Sede: una sola fila en `planes_sedes` (KDT), sin día, horario ni cupo cargados.
-- Participantes: 12 suscripciones `finalizada` (pagaron y el programa terminó) y 7 `cancelada`.
-- Las 8 clases existen en `programa_clases` (orden 1–8, 90 min cada una):
-  1 Diagnóstica y Base Técnica · 2 Destrezas Básicas y Cadencia · 3 Introducción al Pelotón · 4 Técnica de Relevos · 5 Pararse en los Pedales · 6 Base Física Aplicada · 7 Autonomía del Ciclista · 8 Integración y Evaluación Final.
-- Ninguna clase tiene fecha ni vínculo con Agenda (`agenda_fecha` y `agenda_grupal_id` vacíos). Todas están en `admin_estado = pendiente` y no tienen historial.
-- Docentes planificados (`programa_clase_docentes`, todos sin confirmar):
-  - Clase 1: Claudio, Scarlett y Daniela.
-  - Clase 6: Claudio y Daniela.
-  - Las otras 6 clases tienen un docente cada una (Claudio o Daniela).
-- Las 8 fechas no están guardadas en ningún lado. Se deducen como sábados consecutivos desde el inicio:
-  15/08, 22/08, 29/08, 05/09, 12/09, 19/09, 26/09 y la 8ª reprogramada del 03/10 al 10/10 por lluvia. Esto deja `fecha_fin_programa` (03/10) desactualizada.
+**Envío automático desde el servidor: ninguno funcionando.**
+- `supabase/functions/_shared/turneraWhatsapp.ts`: es un envío por Twilio ya escrito (pasa por el gateway de conectores, usa `ContentSid` y `TWILIO_WHATSAPP_FROM`). Lo llama `process-turnera-reminders` (recordatorios a alumno y coach), con registro en `_shared/turneraNotifLog.ts`. Nunca se activó:
+  - El conector Twilio ("Scarlett's Twilio") existe en el workspace pero **no está vinculado** al proyecto, así que falta `TWILIO_API_KEY`.
+  - Falta el secreto `TWILIO_WHATSAPP_FROM`.
+  - No hay claves `turnera_wa_content_sid_*` en `app_config`.
+  - `turnera_notificaciones` tiene 0 filas de WhatsApp (solo email: 20 sent, 40 queued, 2 error).
+- Otras funciones solo mencionan WhatsApp en textos o links (notify-reservation, process-installment-reminders, send-delivery-ready-pickup, etc.).
 
-## 2. Agenda y clases
+**Receptor de mensajes entrantes: está preparado, pero sin uso.**
+- `supabase/functions/whatsapp-webhook` (Meta Cloud API, `verify_jwt=false`): responde la verificación con `WHATSAPP_VERIFY_TOKEN`, valida la firma con `META_APP_SECRET` y guarda los mensajes en `whatsapp_conversations` / `whatsapp_messages`.
+  - Faltan los dos secretos, así que la verificación de Meta hoy fallaría.
+  - **Riesgo:** sin `META_APP_SECRET` la firma no se valida y cualquiera podría escribir en esas tablas.
+  - Las tablas tienen 0 filas: nunca llegó nada.
 
-- **Agenda (`agenda_grupal`):** es la fuente oficial de fecha, hora, sede y profesor. Admite dos tipos de clase:
-  - `recurrente`: día de la semana + vigencia + `fechas_excluidas`.
-  - `puntual`: con `fecha`.
-  - Además tiene `serie_origen_id` para mover una fecha de una serie.
-- **Sábados en KDT hoy:** solo grupos G1–G4 (Jorge, Claudio, Daniela). No hay ninguna fila del Programa de Iniciación, ni a las 12:00 ni con nombre de grupo o nota de iniciación.
-- **Clases dictadas (`clases_dictadas`) → liquidación (`movimientos_liquidacion`):** son la fuente de honorarios. No hay clases dictadas en KDT de 11:30 en adelante entre el 15/08 y el 10/10, y ningún movimiento de liquidación menciona iniciación, programa o formación.
-- **Vínculo con el programa:** ya existe la RPC de admin `programa_clase_vincular_agenda(clase, agenda, fecha, nota)`, que vincula y deja historial. La vista `vw_programa_clases_estado` cruza clase del programa → Agenda → clase dictada → liquidación.
-- **En pantalla:** Admin → Programas → detalle → Playbook → "Clases del programa", con el botón "Vincular". Lo vincula a mano, de a una clase.
+**Tablas:** `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_pending_tasks` (0 filas); `whatsapp_check_runs/items/extras` (44 corridas, se usan para el chequeo manual de grupos); `turnera_notificaciones` (bitácora multicanal).
 
-## 3. Clase Evaluatoria (Turnera → Agenda)
+**Secretos configurados:** ninguno de Twilio ni de Meta/WhatsApp. Solo hay Mercado Pago, Brevo, Resend, Google Calendar, `CRON_SECRET` y `LOVABLE_API_KEY`.
 
-- Es el servicio de Turnera `clase-evaluatoria`. Cada reserva vive en `reservas_turnera`, con fecha, hora, profesor, sede y estado (`estado_operativo`: reservada, realizada o cancelada).
-- La Agenda semanal no copia esas reservas: las lee en vivo de `reservas_turnera` y las muestra como turnos junto a las clases grupales. Por eso no se pueden duplicar.
-- `grupoOperativo.ts` usa la evaluatoria (no cancelada) para clasificar al alumno; un programa de formación tiene prioridad sobre la evaluatoria.
-- Hay 27 reservas de evaluatoria. Las de KDT del 05/09 y del 19/09 (Jorge, 11:30–13:30) son turnos individuales y no tienen relación con el programa.
+**Flujos manuales con links wa.me (lo único que funciona hoy):**
+- Admin → Programas → Preinscriptos (`ProgramPreinscriptosTab.tsx`, `whatsappPreinscripto.ts`)
+- Deudores (`DeudoresTab.tsx`), cuenta corriente (`CuentaPublicLinkDialog.tsx`), cumpleaños (`BirthdayWidget.tsx`)
+- Reservas de viajes y lista de espera (`AdminEventReservations.tsx`, `AdminEventWaitlist.tsx`)
+- Turnera (`TurneraComunicacionesCell.tsx`, `whatsappReminderTemplates.ts`)
+- Depósito y camioneta (`DeliveryClientNotify.tsx`, `camionetaAviso.ts`, `DepositoCamioneta/Pedidos`)
+- Grupos (`WhatsAppGrupoTareas.tsx`, `whatsappGroupSync.ts`, `CoachChequeoAlumnos.tsx`)
+- `/admin/comunicaciones?tab=whatsapp` (conciliador) y `/admin/whatsapp-historial`
+- Botones de contacto en páginas públicas (`contactInfo.ts`)
+- Normalización de teléfonos: `phoneNormalize.ts` y una copia propia en `register-whatsapp-contact`
 
-## Conclusión: ¿se pueden crear automáticamente sin duplicar?
+## 2. Recomendación: Twilio o Meta directo
 
-Sí. El modelo ya lo permite sin cambiar la estructura de la base. La garantía contra duplicados es que cada clase del programa tiene un único `agenda_grupal_id`.
+Recomiendo **el conector directo WhatsApp Business (Meta)**, no Twilio:
+- El receptor y las tablas ya están hechos para el formato de Meta.
+- No cobra un costo extra por mensaje como Twilio.
+- Las plantillas se gestionan desde la app.
+- Las respuestas dentro de las 24 h son gratis.
 
-## Propuesta (no ejecutada; requiere tu aprobación)
+Twilio solo tiene a favor el código de recordatorios ya escrito, pero nunca se probó y sería fácil de adaptar.
 
-1. **Crear 8 clases puntuales en Agenda**, una por fecha. La 8ª va el 10/10, no el 03/10.
-   - Datos: KDT, 12:00–13:30, grupo "Iniciación 2026/2".
-   - Profesor: el primer docente planificado de cada clase.
-   - Nota: "Programa Iniciación 2026/2 · Clase N". En la 8ª se agrega "reprogramada por lluvia desde 03/10".
-2. **Vincular cada clase** con `programa_clase_vincular_agenda`, que deja el historial. En la 8ª se carga también la nota de excepción.
-3. **Evitar duplicados:**
-   - Saltear las clases que ya tengan `agenda_grupal_id`.
-   - Antes de crear, buscar una clase puntual existente en la misma sede, fecha y hora; si la hay, vincularla en lugar de crear otra.
-4. **Lo que no se toca:** no se crean `clases_dictadas` ni liquidaciones. Se siguen cargando por el flujo actual de confirmación y liquidación, así que no se generan honorarios automáticos ni dobles con lo ya importado de Drive.
-5. **Opcional:** actualizar `fecha_fin_programa` al 10/10/2026.
+**Limitación a validar:** en este tipo de proyecto, la recepción de mensajes por el conector requiere la versión moderna de la plataforma. Hay dos caminos:
+- **(a)** Usar el webhook propio `whatsapp-webhook` con una app de Meta propia: requiere `WHATSAPP_VERIFY_TOKEN` y `META_APP_SECRET`.
+- **(b)** Migrar el proyecto.
 
-## A confirmar antes de ejecutar
+Hay que decidirlo antes de la Etapa 3.
 
-- En las clases 1 y 6 hay varios docentes. ¿Se crea una fila de Agenda por docente (cada uno liquida) o una sola con el docente principal?
-- ¿El horario real fue 12:00–13:30 en todas las fechas?
-- ¿Se ajusta la fecha de fin del programa al 10/10?
+## 3. Arquitectura mínima
+
+```text
+Evento en la app (pago, reserva, link) -> cola whatsapp_outbox (idempotency_key)
+   -> función send-whatsapp (de a uno, plantilla aprobada) -> proveedor
+   -> estado queued / sent / delivered / read / failed (por callback real)
+Mensaje entrante -> whatsapp-webhook (firma obligatoria) -> whatsapp_messages
+   -> reglas simples (palabras clave / menú) -> respuesta automática en 24 h
+   -> sin coincidencia o pide humano -> whatsapp_pending_tasks + aviso admin
+Bandeja admin (/admin/whatsapp-historial) para leer, responder y cerrar casos
+```
+
+## 4. Plan por etapas
+
+1. **Credenciales:** conectar WhatsApp Business. Hacer obligatoria la firma en el webhook (rechazar si falta el secreto) y cargar los secretos. Probar con el número propio.
+2. **Plantillas:** crear plantillas UTILITY (link de pago, recordatorio de turno, preinscripción) y esperar la aprobación de Meta (hasta 48 h).
+3. **Envío transaccional:** una tabla de salida con clave de idempotencia y una función de envío de a uno, solo para admin y tareas programadas. Un mensaje solo se marca "enviado" cuando el proveedor lo confirma. Empezar por los recordatorios de Turnera.
+4. **Entrantes y bandeja:** activar el receptor, armar la bandeja con respuesta manual y asignar conversaciones a alumnos por teléfono normalizado.
+5. **Respuestas automáticas simples:** horarios, sedes, link de pago; con IA opcional y siempre con opción de derivar.
+6. **Derivación a humano y trazabilidad:** tareas pendientes, auditoría y métricas.
+
+## Decisiones que necesito de vos
+
+- ¿Meta directo (recomendado) o Twilio?
+- ¿Qué número va a usar el negocio, y ya está en la app WhatsApp Business?
+- Para recibir mensajes: ¿webhook propio con app de Meta propia, o migrar el proyecto?
