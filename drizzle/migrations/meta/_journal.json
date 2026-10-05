@@ -204,6 +204,13 @@
       "when": 1791224779804,
       "tag": "0028_ruteo_mapa_normal_override_josilene",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1791224824936,
+      "tag": "0029_cola_suscripcion_sin_inferir_cuenta",
+      "breakpoints": true
     }
   ]
 }
