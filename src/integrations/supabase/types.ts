@@ -16279,6 +16279,7 @@ export type Database = {
       }
       _liq_mes_ok: { Args: { p_mes: string }; Returns: boolean }
       _programa_admin_ok: { Args: never; Returns: boolean }
+      _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
         Returns: number
