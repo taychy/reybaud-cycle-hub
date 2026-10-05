@@ -65,10 +65,16 @@ describe("getMpMovementDetail — beneficiario de egresos", () => {
 
   it("no usa payer_name / raw.payer (emisor) como beneficiario", () => {
     const d = getMpMovementDetail({
-      raw: { ...rawTransferenciaConBeneficiario, transaction_details: { bank_info: { collector: {} } } },
+      raw: {
+        operation_type: "money_transfer",
+        point_of_interaction: {
+          transaction_data: { bank_info: { collector: {}, payer: { account_holder_name: "CUENTA PROPIA" } } },
+        },
+        transaction_details: { bank_info: { collector: {} } },
+      },
       payer_name: "Claudio Reybaud",
     });
     expect(d.beneficiario).toBeNull();
-    expect(d.contraparte).toBeNull();
+    expect(d.beneficiario_doc).toBeNull();
   });
 });
