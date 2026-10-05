@@ -418,7 +418,21 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                           <button type="button" className="underline font-medium" onClick={() => setOverrideRow(r)}>
                             Cambiar emisor
                           </button>
-                        )}
+                         )}
+                         {!emitida && ["requiere_datos_fiscales", "requiere_revision_emisor", "error_manual"].includes(r.auto_estado ?? "") && (
+                           <button
+                             type="button"
+                             className="underline font-medium text-primary"
+                             title="Después de corregir DNI/CUIT o condición fiscal en la ficha, volvé a evaluar este cobro"
+                             onClick={async () => {
+                               const { error } = await supabase.rpc("reevaluar_facturacion_cola" as any, { p_ids: [r.id] });
+                               if (error) toast({ title: "No se pudo reprocesar", description: error.message, variant: "destructive" });
+                               else { toast({ title: "Cobro reevaluado", description: "Se revisaron de nuevo los datos fiscales y el emisor." }); load(); }
+                             }}
+                           >
+                             Reprocesar
+                           </button>
+                         )}
                       </div>
                     );
                   })()}
