@@ -3839,6 +3839,7 @@ export type Database = {
           email_contacto: string | null
           es_predeterminado: boolean
           facturacion_automatica: boolean
+          facturacion_automatica_desde: string | null
           id: string
           ingresos_brutos: string | null
           inicio_actividades: string | null
@@ -3864,6 +3865,7 @@ export type Database = {
           email_contacto?: string | null
           es_predeterminado?: boolean
           facturacion_automatica?: boolean
+          facturacion_automatica_desde?: string | null
           id?: string
           ingresos_brutos?: string | null
           inicio_actividades?: string | null
@@ -3889,6 +3891,7 @@ export type Database = {
           email_contacto?: string | null
           es_predeterminado?: boolean
           facturacion_automatica?: boolean
+          facturacion_automatica_desde?: string | null
           id?: string
           ingresos_brutos?: string | null
           inicio_actividades?: string | null
@@ -13666,6 +13669,8 @@ export type Database = {
           notas: string | null
           origen_registro: string
           otros_fees: number | null
+          pago_confirmado_at: string | null
+          pago_confirmado_por: string | null
           plan_id: string
           precio_base: number | null
           precio_excepcion_at: string | null
@@ -13719,6 +13724,8 @@ export type Database = {
           notas?: string | null
           origen_registro?: string
           otros_fees?: number | null
+          pago_confirmado_at?: string | null
+          pago_confirmado_por?: string | null
           plan_id: string
           precio_base?: number | null
           precio_excepcion_at?: string | null
@@ -13772,6 +13779,8 @@ export type Database = {
           notas?: string | null
           origen_registro?: string
           otros_fees?: number | null
+          pago_confirmado_at?: string | null
+          pago_confirmado_por?: string | null
           plan_id?: string
           precio_base?: number | null
           precio_excepcion_at?: string | null
@@ -16917,6 +16926,10 @@ export type Database = {
           p_notas?: string
         }
         Returns: string
+      }
+      confirmar_pago_mensualidad_manual: {
+        Args: { p_pagado_at: string; p_suscripcion_id: string }
+        Returns: Json
       }
       consume_survey_token: { Args: { _token: string }; Returns: boolean }
       consumir_clase_bono: {
