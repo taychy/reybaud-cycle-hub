@@ -13,6 +13,7 @@ import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as Li
 import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
 import { collectorIdDeMovimiento, matchCoachPorContraparte, type ContraparteCoach } from "@/lib/gastoReglas";
 import RegistrarDevolucionDialog, { type DevolucionMpMovement } from "@/components/admin/RegistrarDevolucionDialog";
+import VincularDevolucionMpDialog from "@/components/admin/VincularDevolucionMpDialog";
 
 
 type AiSugerencia = {
@@ -53,6 +54,7 @@ type MpEgreso = {
   fecha_movimiento: string;
   direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
+  tipo?: string | null;
   gastos?: { categoria: string | null; subcategoria: string | null; descripcion: string | null; proveedor: string | null } | null;
   cuenta_mp_id: string | null;
   cuentas_mp?: { nombre: string; slug: string };
@@ -121,6 +123,7 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
   const [devoluciones, setDevoluciones] = useState<Record<string, DevolucionMov>>({});
   const [devolucionMov, setDevolucionMov] = useState<DevolucionMpMovement | null>(null);
   const [busqueda, setBusqueda] = useState("");
+  const [vincularRefundId, setVincularRefundId] = useState<string | null>(null);
 
 
 
@@ -133,7 +136,7 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
       .select(`
         id, mp_payment_id, amount, currency, description, payment_type,
         payment_method, payer_name, payer_email, external_reference, raw,
-        fecha_movimiento, direccion, gasto_id, cuenta_mp_id,
+        fecha_movimiento, direccion, gasto_id, cuenta_mp_id, tipo,
         gastos:gasto_id ( categoria, subcategoria, descripcion, proveedor ),
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
@@ -631,9 +634,10 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
                   <div className="text-[10px] text-muted-foreground">{m.currency}</div>
                 </div>
-                {m.direccion === "egreso" && !m.gasto_id && !devoluciones[m.id] && (
+                {m.tipo === "refund" && !devoluciones[m.id] ? (
+                  <Button size="sm" variant="outline" onClick={() => setVincularRefundId(m.id)}>Vincular devolución</Button>
+                ) : m.direccion === "egreso" && !m.gasto_id && !devoluciones[m.id] && (
                   <Button size="sm" onClick={() => openDialog(m)}>Categorizar</Button>
-
                 )}
               </CardContent>
             </Card>
@@ -852,6 +856,11 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
         onOpenChange={(o) => { if (!o) setDevolucionMov(null); }}
         mpMovement={devolucionMov}
         onDone={() => { setDevolucionMov(null); load(); }}
+      />
+      <VincularDevolucionMpDialog
+        movementId={vincularRefundId}
+        onClose={() => setVincularRefundId(null)}
+        onDone={() => { setVincularRefundId(null); load(); }}
       />
 
 
