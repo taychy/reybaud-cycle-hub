@@ -63,7 +63,7 @@ describe("getMpMovementDetail — beneficiario de egresos", () => {
     expect(d.beneficiario).toBe("MARIA GOMEZ");
     expect(d.beneficiario_doc).toBe("27234567894");
     expect(d.beneficiario_cuenta).toBe("micuenta.mpago.me/destino");
-et  });
+  });
 
   it("no usa payer_name / raw.payer (emisor) como beneficiario", () => {
     const d = getMpMovementDetail({
