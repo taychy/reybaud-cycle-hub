@@ -11362,6 +11362,75 @@ export type Database = {
           },
         ]
       }
+      reservation_refund_obligations: {
+        Row: {
+          ajustado_manual: boolean
+          created_at: string
+          created_by: string | null
+          estado: string
+          fuente: string | null
+          id: string
+          moneda: string
+          monto_bruto: number
+          monto_devuelto: number
+          monto_retenido: number
+          monto_sugerido: number
+          politica_texto: string | null
+          regla_aplicada: string | null
+          reservation_id: string
+          updated_at: string
+        }
+        Insert: {
+          ajustado_manual?: boolean
+          created_at?: string
+          created_by?: string | null
+          estado: string
+          fuente?: string | null
+          id?: string
+          moneda?: string
+          monto_bruto?: number
+          monto_devuelto?: number
+          monto_retenido?: number
+          monto_sugerido?: number
+          politica_texto?: string | null
+          regla_aplicada?: string | null
+          reservation_id: string
+          updated_at?: string
+        }
+        Update: {
+          ajustado_manual?: boolean
+          created_at?: string
+          created_by?: string | null
+          estado?: string
+          fuente?: string | null
+          id?: string
+          moneda?: string
+          monto_bruto?: number
+          monto_devuelto?: number
+          monto_retenido?: number
+          monto_sugerido?: number
+          politica_texto?: string | null
+          regla_aplicada?: string | null
+          reservation_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_refund_obligations_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_refund_obligations_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       reservation_roommates: {
         Row: {
           alumno_id: string | null
@@ -16279,6 +16348,10 @@ export type Database = {
       }
       _liq_mes_ok: { Args: { p_mes: string }; Returns: boolean }
       _programa_admin_ok: { Args: never; Returns: boolean }
+      _refund_estado: {
+        Args: { p_actual: string; p_devuelto: number; p_sugerido: number }
+        Returns: string
+      }
       _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
@@ -16457,6 +16530,10 @@ export type Database = {
           p_vigente_hasta: string
         }
         Returns: boolean
+      }
+      ajustar_obligacion_devolucion: {
+        Args: { p_monto: number; p_motivo: string; p_reservation_id: string }
+        Returns: Json
       }
       alumno_puede_ver_entrenamientos: {
         Args: { _alumno_id: string }
@@ -18331,6 +18408,18 @@ export type Database = {
           p_suscripcion_id?: string
         }
         Returns: string
+      }
+      registrar_obligacion_devolucion: {
+        Args: {
+          p_estado: string
+          p_fuente: string
+          p_politica_texto: string
+          p_regla: string
+          p_reservation_id: string
+          p_retenido: number
+          p_sugerido: number
+        }
+        Returns: Json
       }
       registrar_seleccion_reingreso: {
         Args: {
