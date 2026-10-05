@@ -149,3 +149,4 @@
 - [ ] Fix pendiente: v_event.nature en admin_create_event_reservation
 - [ ] Devoluciones: botón "Vincular devolución" en Gastos > MP (refund → reservation_payments/store_orders, RPC admin idempotente, "Revisión manual" si no hay match)
 - [ ] Viajes: Pagos recibidos / Devoluciones / Cobrado neto; pagos "Devuelto"/"Devuelto parcialmente"; deuda exigible 0 si cancelada
+- [x] Ruteo manual de cobros por unidad (Escuela a Josilene) + auto-facturación segura. Sin emitir reales.

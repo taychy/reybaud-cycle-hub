@@ -14,6 +14,7 @@ import { isFacturaEmitida, edgeFunctionErrorMessage } from "@/lib/billingInvoice
 import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { FacturacionAutoConfigCard } from "@/components/admin/FacturacionAutoConfigCard";
+import { RuteoUnidadCard } from "@/components/admin/RuteoUnidadCard";
 import { ColaEmisorOverrideDialog } from "@/components/admin/ColaEmisorOverrideDialog";
 import { autoEstadoUi, emisorOrigenLabel, periodoLabel } from "@/lib/facturacionAuto";
 
@@ -300,6 +301,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <div className="space-y-4">
+      <RuteoUnidadCard onChanged={load} />
       <FacturacionAutoConfigCard onChanged={load} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
