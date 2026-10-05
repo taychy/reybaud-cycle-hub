@@ -2942,6 +2942,18 @@ const AdminEventReservations = ({
 
       {/* Cancelar reserva con habitación asignada */}
 
+      <CancelRefundDialog
+        open={!!refundDialogFor}
+        reservationId={refundDialogFor}
+        onCancel={() => setRefundDialogFor(null)}
+        onConfirm={(s) => {
+          const id = refundDialogFor!;
+          refundSugRef.current = { resId: id, s };
+          setRefundDialogFor(null);
+          updateReservationStatus(id, "reservation_status", "cancelada", true);
+        }}
+      />
+
       <Dialog open={!!pendingCancel} onOpenChange={(o) => { if (!o) setPendingCancel(null); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
