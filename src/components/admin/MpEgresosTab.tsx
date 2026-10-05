@@ -512,7 +512,23 @@ export default function MpEgresosTab() {
                       <Badge className="bg-blue-500/20 text-blue-300 border-blue-500/30 text-[10px]">Posible pago a profesor</Badge>
                     )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2">
+                  <div className="text-xs mt-1 flex flex-wrap items-center gap-x-1.5">
+                    <span className="text-muted-foreground">Beneficiario:</span>
+                    {det.beneficiario ? (
+                      <span className="font-medium">
+                        {det.beneficiario}
+                        {det.beneficiario_doc && (
+                          <span className="text-muted-foreground font-normal"> · {det.beneficiario_doc}</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="italic text-muted-foreground">no identificado</span>
+                    )}
+                    {!det.beneficiario && det.beneficiario_cuenta && (
+                      <span className="text-muted-foreground font-mono">· {det.beneficiario_cuenta}</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-2">
                     <span>{new Date(m.fecha_movimiento).toLocaleString("es-AR")}</span>
                     {det.operacion && <span className="text-cyan-400/80">· {det.operacion}</span>}
                     {det.contraparte && det.contraparte !== det.concepto && <span>· {det.contraparte}</span>}

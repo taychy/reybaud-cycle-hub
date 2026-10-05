@@ -9,6 +9,10 @@ export interface MpMovementDetail {
   medio: string | null;
   referencia: string | null;
   concepto: string | null;
+  /** Destinatario real de la transferencia/egreso (solo datos de MP, nunca el emisor). */
+  beneficiario: string | null;
+  beneficiario_doc: string | null;
+  beneficiario_cuenta: string | null;
 }
 
 const BRANCH_LABELS: Record<string, string> = {
@@ -81,7 +85,29 @@ export function getMpMovementDetail(m: {
 
   const concepto = firstString(m.description, raw?.description, raw?.additional_info?.items?.[0]?.title);
 
-  return { contraparte, operacion, medio, referencia, concepto };
+  // Beneficiario de un egreso: MP expone al destinatario en
+  // point_of_interaction.transaction_data.bank_info.collector (nombre, CUIT/CUIL,
+  // alias/CVU). Ojo: payer_name / raw.payer son el EMISOR (nuestra cuenta), no el
+  // destinatario — no se usan como beneficiario.
+  const beneficiaryBank =
+    poi?.transaction_data?.bank_info?.collector ??
+    raw?.transaction_details?.bank_info?.collector ??
+    {};
+  const beneficiario = firstString(
+    beneficiaryBank?.account_holder_name,
+    beneficiaryBank?.long_name,
+  );
+  const beneficiario_doc = firstString(
+    beneficiaryBank?.identification?.number,
+    beneficiaryBank?.identification_number,
+  );
+  const beneficiario_cuenta = firstString(
+    beneficiaryBank?.account_alias,
+    beneficiaryBank?.account_id,
+    beneficiaryBank?.transfer_account_id,
+  );
+
+  return { contraparte, operacion, medio, referencia, concepto, beneficiario, beneficiario_doc, beneficiario_cuenta };
 }
 
 /** Nombre sugerido para el gasto a crear. */
