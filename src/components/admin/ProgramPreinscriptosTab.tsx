@@ -292,8 +292,27 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                       <div><div className="text-primary font-medium">Precio asignado</div>{formatPrice(Number(r.benefit_precio_total), moneda || "ARS")}</div>
                     ) : "—"}
                   </TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">{emailCell(r)}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    {emailCell(r)}
+                    {waStarted[r.entry_id] && (
+                      <div className="text-muted-foreground mt-0.5">WhatsApp iniciado · {fmtDate(waStarted[r.entry_id])}</div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
+                    {(() => {
+                      const phone = normalizePhoneAr(r.telefono);
+                      return (
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs mr-1"
+                          disabled={!phone || waBusyId === r.entry_id}
+                          title={phone ? "Abrir WhatsApp con mensaje precargado" : "Teléfono inválido"}
+                          onClick={() => openWhatsApp(r)}
+                        >
+                          {waBusyId === r.entry_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5 mr-1" />}
+                          WhatsApp
+                        </Button>
+                      );
+                    })()}
                     {canSend(r) && (
                       <Button size="sm" variant="outline" className="h-7 text-xs mr-1" disabled={sendingId === r.benefit_id} onClick={() => setSendRow(r)}>
                         {sendingId === r.benefit_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : r.benefit_email_status ? <RotateCcw className="w-3.5 h-3.5 mr-1" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
@@ -354,6 +373,9 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                     : detail.suscripciones.map((s) => <div key={s.id}>Inscripción: {s.estado}</div>)}
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
+                  <Button size="sm" variant="outline" disabled={waBusyId === detail.entry_id} onClick={() => copyWaMessage(detail)}>
+                    {waBusyId === detail.entry_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-1" />} Copiar mensaje WhatsApp
+                  </Button>
                   {detail.entry_estado === NO_CONTINUA_ENTRY_STATE ? (
                     <Button size="sm" variant="outline" disabled={busy} onClick={() => setEntryEstado(detail, "nuevo")}>
                       <Undo2 className="w-3.5 h-3.5 mr-1" /> Reactivar
