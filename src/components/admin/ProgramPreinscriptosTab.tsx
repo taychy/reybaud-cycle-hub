@@ -9,7 +9,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, RefreshCw, Eye, UserX, Undo2 } from "lucide-react";
+import { Loader2, RefreshCw, Eye, UserX, Undo2, Tag, Mail, RotateCcw, Copy } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import {
@@ -18,6 +18,12 @@ import {
 } from "@/lib/programPreinscriptos";
 
 const sb: any = supabase;
+
+/** Precio de preinscripción sugerido por plan (editable antes de asignar). */
+const DEFAULT_PRICE: Record<string, { total: number; cuota: number; cuotas: number; hasta: string }> = {
+  "fa1a2399-3904-4620-8156-9b43fd84806a": { total: 153000, cuota: 82500, cuotas: 2, hasta: "2026-10-16" },
+};
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" });
 
 interface Row {
   entry_id: string;
@@ -35,6 +41,8 @@ interface Row {
   benefit_precio_cuota: number | null;
   benefit_cuotas: number | null;
   benefit_valid_until: string | null;
+  benefit_email_sent_at: string | null;
+  benefit_email_status: string | null;
   status: PreinscriptoStatus;
   sede: string | null;
 }
@@ -71,6 +79,56 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
   const [detail, setDetail] = useState<Row | null>(null);
   const [confirmRow, setConfirmRow] = useState<Row | null>(null);
   const [busy, setBusy] = useState(false);
+  const def = DEFAULT_PRICE[planId];
+  const [pTotal, setPTotal] = useState(def ? String(def.total) : "");
+  const [pCuota, setPCuota] = useState(def ? String(def.cuota) : "");
+  const [pCuotas, setPCuotas] = useState(def ? String(def.cuotas) : "1");
+  const [pHasta, setPHasta] = useState(def?.hasta ?? "");
+  const [assigning, setAssigning] = useState(false);
+  const [sendRow, setSendRow] = useState<Row | null>(null);
+  const [sendingId, setSendingId] = useState<string | null>(null);
+
+  const assign = async () => {
+    setAssigning(true);
+    const { data, error } = await sb.rpc("assign_program_preinscripcion_benefits", {
+      p_plan_id: planId, p_precio_total: Number(pTotal), p_precio_cuota: pCuota ? Number(pCuota) : null,
+      p_cuotas: Number(pCuotas) || 1, p_valid_until: pHasta,
+    });
+    setAssigning(false);
+    if (error) { toast({ title: "No se pudo asignar el precio", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Precio asignado", description: `${data.created} nuevos · ${data.existing} ya tenían · ${data.skipped} excluidos` });
+    load();
+  };
+
+  const sendOne = async (row: Row) => {
+    if (!row.benefit_id) return;
+    setSendingId(row.benefit_id);
+    const { data, error } = await sb.functions.invoke("send-program-preinscripcion-opening", { body: { benefit_id: row.benefit_id } });
+    setSendingId(null);
+    setSendRow(null);
+    const msg = error ? (await (error as any)?.context?.json?.().catch(() => null))?.error || error.message : data?.ok ? null : data?.error || data?.status;
+    if (msg) toast({ title: `No se pudo enviar a ${row.nombre}`, description: String(msg), variant: "destructive" });
+    else toast({ title: `Mail enviado a ${row.nombre}` });
+    load();
+  };
+
+  const copyLink = async (row: Row) => {
+    if (!row.benefit_id) return;
+    const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", row.benefit_id).single();
+    const { data: plan } = await sb.from("planes").select("cohort_slug").eq("id", planId).single();
+    if (!data?.token) return;
+    const link = `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+    await navigator.clipboard.writeText(link);
+    toast({ title: "Link personal copiado" });
+  };
+
+  const emailCell = (r: Row) => {
+    if (!r.benefit_id) return <span className="text-muted-foreground">—</span>;
+    if (r.benefit_email_sent_at) return <Badge variant="outline" className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30">Mail enviado · {fmtDate(r.benefit_email_sent_at)}</Badge>;
+    if (r.benefit_email_status) return <Badge variant="outline" className="bg-destructive/15 text-destructive border-destructive/30">Error: {r.benefit_email_status}</Badge>;
+    return <span className="text-muted-foreground">Sin enviar</span>;
+  };
+  const canSend = (r: Row) => !!r.benefit_id && !r.benefit_email_sent_at && r.status !== "no_continua";
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -130,8 +188,26 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
     return <p className="text-sm text-muted-foreground">Este programa no tiene un formulario de preinscripción vinculado.</p>;
   }
 
+  const withBenefit = rows.filter((r) => r.benefit_id).length;
   return (
     <div className="space-y-3">
+      <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 space-y-2">
+        <p className="text-sm font-medium flex items-center gap-1.5"><Tag className="w-4 h-4 text-primary" />
+          Precio de preinscripción: {pTotal ? formatPrice(Number(pTotal), moneda || "ARS") : "—"}
+          {Number(pCuotas) > 1 && pCuota ? ` o ${pCuotas} × ${formatPrice(Number(pCuota), moneda || "ARS")}` : ""}
+          {pHasta ? ` · válido hasta ${pHasta.split("-").reverse().slice(0, 2).join("/")}` : ""}
+        </p>
+        <div className="flex flex-wrap items-end gap-2 text-xs">
+          <label className="space-y-0.5"><span className="text-muted-foreground">Total</span><Input className="h-8 w-28" type="number" value={pTotal} onChange={(e) => setPTotal(e.target.value)} /></label>
+          <label className="space-y-0.5"><span className="text-muted-foreground">Cuotas</span><Input className="h-8 w-16" type="number" value={pCuotas} onChange={(e) => setPCuotas(e.target.value)} /></label>
+          <label className="space-y-0.5"><span className="text-muted-foreground">Valor cuota</span><Input className="h-8 w-28" type="number" value={pCuota} onChange={(e) => setPCuota(e.target.value)} /></label>
+          <label className="space-y-0.5"><span className="text-muted-foreground">Válido hasta</span><Input className="h-8 w-36" type="date" value={pHasta} onChange={(e) => setPHasta(e.target.value)} /></label>
+          <Button size="sm" className="h-8" disabled={assigning || !pTotal || !pHasta} onClick={assign}>
+            {assigning ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Tag className="w-3.5 h-3.5 mr-1" />} Asignar precio a preinscriptos
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground">{withBenefit} de {rows.length} con precio asignado. Quienes ya lo tienen no se duplican; se excluyen "No continúa" y emails inválidos. El mail de apertura se envía de a una persona desde cada fila.</p>
+      </div>
       <div className="flex flex-wrap items-center gap-2">
         {FILTERS.map((f) => (
           <Button key={f.v} size="sm" variant={filter === f.v ? "default" : "outline"} className="h-8 text-xs" onClick={() => setFilter(f.v)}>
@@ -160,6 +236,7 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                 <TableHead>Preinscripción</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Beneficio</TableHead>
+                <TableHead>Email apertura</TableHead>
                 <TableHead className="text-right">Acción</TableHead>
               </TableRow>
             </TableHeader>
@@ -179,9 +256,21 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                     <Badge variant="outline" className={STATUS_CLASS[r.status]}>{PREINSCRIPTO_STATUS_LABEL[r.status]}</Badge>
                   </TableCell>
                   <TableCell className="text-xs whitespace-nowrap">
-                    {r.benefit_id && r.benefit_precio_total != null ? formatPrice(Number(r.benefit_precio_total), moneda || "ARS") : "—"}
+                    {r.benefit_id && r.benefit_precio_total != null ? (
+                      <div><div className="text-primary font-medium">Precio asignado</div>{formatPrice(Number(r.benefit_precio_total), moneda || "ARS")}</div>
+                    ) : "—"}
                   </TableCell>
-                  <TableCell className="text-right">
+                  <TableCell className="text-xs whitespace-nowrap">{emailCell(r)}</TableCell>
+                  <TableCell className="text-right whitespace-nowrap">
+                    {canSend(r) && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs mr-1" disabled={sendingId === r.benefit_id} onClick={() => setSendRow(r)}>
+                        {sendingId === r.benefit_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : r.benefit_email_status ? <RotateCcw className="w-3.5 h-3.5 mr-1" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
+                        {r.benefit_email_status ? "Reintentar" : "Enviar mail"}
+                      </Button>
+                    )}
+                    {r.benefit_id && (
+                      <Button size="sm" variant="ghost" className="h-7 text-xs" title="Copiar link personal" onClick={() => copyLink(r)}><Copy className="w-3.5 h-3.5" /></Button>
+                    )}
                     <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setDetail(r)}>
                       <Eye className="w-3.5 h-3.5 mr-1" /> Ver
                     </Button>
@@ -248,6 +337,21 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
           )}
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!sendRow} onOpenChange={(o) => !o && setSendRow(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Enviar mail de apertura?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Vas a enviar 1 email a {sendRow?.nombre} ({sendRow?.email}) con su precio y su link personal.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction disabled={!!sendingId} onClick={() => sendRow && sendOne(sendRow)}>Enviar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog open={!!confirmRow} onOpenChange={(o) => !o && setConfirmRow(null)}>
         <AlertDialogContent>
