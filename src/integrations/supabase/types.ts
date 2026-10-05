@@ -16593,6 +16593,10 @@ export type Database = {
       }
       delete_gasto_deuda_mov: { Args: { p_id: string }; Returns: undefined }
       delete_gasto_pago: { Args: { p_pago_id: string }; Returns: undefined }
+      delete_liquidacion_mensual: {
+        Args: { p_liquidacion_id: string }
+        Returns: undefined
+      }
       delivery_add_payment_by_token: {
         Args: {
           p_cargado_por_nombre?: string

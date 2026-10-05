@@ -148,6 +148,13 @@
       "when": 1791166259714,
       "tag": "0020_assign_benefit_single_entry",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1791206306633,
+      "tag": "0021_delete_liquidacion_mensual",
+      "breakpoints": true
     }
   ]
 }
