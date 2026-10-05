@@ -434,6 +434,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
           politica_pagos: reglamento.politica_pagos || "",
           reglamento_texto: reglamento.reglamento_texto || "",
           reglamento_url: reglamento.reglamento_url || "",
+          // Regla estructurada vigente al aceptar (si el viaje la tiene): se usa al cancelar.
+          ...((event.metadata as any)?.cancellation_rules ? { cancellation_rules: (event.metadata as any).cancellation_rules } : {}),
           version: acceptedVersion,
           aceptado_at: acceptedAt,
         }
