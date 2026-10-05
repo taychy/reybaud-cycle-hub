@@ -419,7 +419,9 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
               <TrendingDown className="w-4 h-4" /> Egresos pendientes de categorizar
             </div>
             <div className="text-2xl font-bold mt-1">$ {totalEgresosPendientes.toLocaleString("es-AR")}</div>
-            <div className="text-xs text-muted-foreground">{egresos.length} movimientos</div>
+            <div className="text-xs text-muted-foreground">
+              {egresos.length} movimientos{filtroPendientes === "mes" && mes ? ` · ${mes}` : " · todos los meses"}
+            </div>
           </CardContent>
         </Card>
         <Card className="border-cyan-500/30 bg-cyan-500/5">
@@ -442,7 +444,7 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
         </Card>
       </div>
 
-      <div className="flex gap-2 border-b border-border">
+      <div className="flex gap-2 border-b border-border items-center flex-wrap">
         {(["egresos","internos","categorizados"] as const).map(t => (
           <button
             key={t}
@@ -456,6 +458,23 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
             {t === "categorizados" && `Categorizados (${categorizados.length})`}
           </button>
           ))}
+        {tab === "egresos" && (
+          <div className="ml-auto flex gap-1 pb-1">
+            {(["mes", "todos"] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFiltroPendientes(f)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  filtroPendientes === f
+                    ? "border-orange-500 bg-orange-500/10 text-orange-400"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {f === "mes" ? "Este mes" : "Todos los pendientes"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="relative">
