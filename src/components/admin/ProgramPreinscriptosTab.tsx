@@ -9,9 +9,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, RefreshCw, Eye, UserX, Undo2, Tag, Mail, RotateCcw, Copy } from "lucide-react";
+import { Loader2, RefreshCw, Eye, UserX, Undo2, Tag, Mail, RotateCcw, Copy, MessageCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { normalizePhoneAr, buildWaLink, buildPreinscriptoWaMessage } from "@/lib/whatsappPreinscripto";
 import {
   resolvePreinscriptoStatus, findSedeAnswer, PREINSCRIPTO_STATUS_LABEL, NO_CONTINUA_ENTRY_STATE,
   type PreinscriptoStatus, type PreinscriptoSub,
@@ -87,6 +88,8 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
   const [assigning, setAssigning] = useState(false);
   const [sendRow, setSendRow] = useState<Row | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [waStarted, setWaStarted] = useState<Record<string, string>>({});
+  const [waBusyId, setWaBusyId] = useState<string | null>(null);
 
   const assign = async () => {
     setAssigning(true);
@@ -112,14 +115,43 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
     load();
   };
 
-  const copyLink = async (row: Row) => {
-    if (!row.benefit_id) return;
+  const getPersonalLink = async (row: Row): Promise<string | null> => {
+    if (!row.benefit_id) return null;
     const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", row.benefit_id).single();
     const { data: plan } = await sb.from("planes").select("cohort_slug").eq("id", planId).single();
-    if (!data?.token) return;
-    const link = `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+    if (!data?.token) return null;
+    return `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+  };
+
+  const copyLink = async (row: Row) => {
+    const link = await getPersonalLink(row);
+    if (!link) return;
     await navigator.clipboard.writeText(link);
     toast({ title: "Link personal copiado" });
+  };
+
+  const buildWaMessage = async (row: Row): Promise<string> => {
+    const link = row.benefit_id ? await getPersonalLink(row) : null;
+    return buildPreinscriptoWaMessage({ nombre: row.nombre, linkPersonal: link });
+  };
+
+  const openWhatsApp = async (row: Row) => {
+    const phone = normalizePhoneAr(row.telefono);
+    if (!phone) return;
+    setWaBusyId(row.entry_id);
+    const msg = await buildWaMessage(row);
+    setWaBusyId(null);
+    window.open(buildWaLink(phone, msg), "_blank", "noopener,noreferrer");
+    // Solo se registra que se inició la conversación; el envío real lo confirma Natalia en WhatsApp.
+    setWaStarted((m) => ({ ...m, [row.entry_id]: new Date().toISOString() }));
+  };
+
+  const copyWaMessage = async (row: Row) => {
+    setWaBusyId(row.entry_id);
+    const msg = await buildWaMessage(row);
+    setWaBusyId(null);
+    await navigator.clipboard.writeText(msg);
+    toast({ title: "Mensaje de WhatsApp copiado" });
   };
 
   const emailCell = (r: Row) => {
