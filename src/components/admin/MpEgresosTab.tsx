@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
-import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2, RotateCcw } from "lucide-react";
+import { Loader2, AlertCircle, CheckCircle2, TrendingDown, PiggyBank, Link as LinkIcon, Sparkles, Wand2, RotateCcw, Search, X } from "lucide-react";
 import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDetails";
 import { collectorIdDeMovimiento, matchCoachPorContraparte, type ContraparteCoach } from "@/lib/gastoReglas";
 import RegistrarDevolucionDialog, { type DevolucionMpMovement } from "@/components/admin/RegistrarDevolucionDialog";
@@ -53,6 +53,7 @@ type MpEgreso = {
   fecha_movimiento: string;
   direccion: "egreso" | "reserva_tecnica" | "interno";
   gasto_id: string | null;
+  gastos?: { categoria: string | null; subcategoria: string | null; descripcion: string | null; proveedor: string | null } | null;
   cuenta_mp_id: string | null;
   cuentas_mp?: { nombre: string; slug: string };
 };
@@ -118,6 +119,7 @@ export default function MpEgresosTab() {
   const [coachId, setCoachId] = useState<string>("");
   const [devoluciones, setDevoluciones] = useState<Record<string, DevolucionMov>>({});
   const [devolucionMov, setDevolucionMov] = useState<DevolucionMpMovement | null>(null);
+  const [busqueda, setBusqueda] = useState("");
 
 
 
@@ -131,6 +133,7 @@ export default function MpEgresosTab() {
         id, mp_payment_id, amount, currency, description, payment_type,
         payment_method, payer_name, payer_email, external_reference, raw,
         fecha_movimiento, direccion, gasto_id, cuenta_mp_id,
+        gastos:gasto_id ( categoria, subcategoria, descripcion, proveedor ),
         cuentas_mp:cuentas_mp!cuenta_mp_id ( nombre, slug )
       `)
       .in("direccion", ["egreso", "reserva_tecnica", "interno"])
@@ -357,6 +360,34 @@ export default function MpEgresosTab() {
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
   const categorizados = items.filter(i => i.gasto_id || devoluciones[i.id]);
 
+  const term = busqueda.trim().toLowerCase();
+  const termDigits = term.replace(/\D/g, "");
+  const matchesSearch = (m: MpEgreso) => {
+    if (!term) return true;
+    const det = getMpMovementDetail(m);
+    const amountStr = Number(m.amount).toLocaleString("es-AR");
+    const fechaStr = new Date(m.fecha_movimiento).toLocaleString("es-AR");
+    const hay = [
+      det.beneficiario, det.beneficiario_doc, det.beneficiario_cuenta,
+      det.contraparte, det.concepto, det.operacion, det.medio, det.referencia,
+      m.description, m.cuentas_mp?.nombre, m.mp_payment_id,
+      m.gastos?.categoria, m.gastos?.subcategoria, m.gastos?.descripcion, m.gastos?.proveedor,
+      devoluciones[m.id]?.motivo,
+      devoluciones[m.id]?.alumnos?.nombre, devoluciones[m.id]?.alumnos?.apellido,
+      fechaStr,
+    ].filter(Boolean).join(" ").toLowerCase();
+    if (hay.includes(term)) return true;
+    // Monto: permitir buscar 250000 o 250.000
+    if (termDigits.length >= 2 && amountStr.replace(/\D/g, "").includes(termDigits)) return true;
+    return false;
+  };
+
+  const egresosVisibles = egresos.filter(matchesSearch);
+  const internosVisibles = internos.filter(matchesSearch);
+  const categorizadosVisibles = categorizados.filter(matchesSearch);
+  const listaVisible = tab === "egresos" ? egresosVisibles : tab === "internos" ? internosVisibles : categorizadosVisibles;
+
+
 
   const filteredEjecuciones = ejecuciones.filter((e) => {
     if (!incluirPagados && e.estado === "pagado") return false;
@@ -420,7 +451,27 @@ export default function MpEgresosTab() {
             {t === "internos" && `Internos MP (${internos.length})`}
             {t === "categorizados" && `Categorizados (${categorizados.length})`}
           </button>
-        ))}
+          ))}
+      </div>
+
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por beneficiario, concepto, referencia, monto..."
+          className="pl-9 pr-9"
+        />
+        {busqueda && (
+          <button
+            type="button"
+            aria-label="Limpiar búsqueda"
+            onClick={() => setBusqueda("")}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground hover:text-foreground"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {tab === "egresos" && (
@@ -481,7 +532,7 @@ export default function MpEgresosTab() {
         <div className="flex items-center justify-center py-12"><Loader2 className="w-6 h-6 animate-spin" /></div>
       ) : (
         <div className="space-y-2">
-          {(tab === "egresos" ? egresos : tab === "internos" ? internos : categorizados).map(m => {
+          {listaVisible.map(m => {
             const det = getMpMovementDetail(m);
             const sug = aiSug[m.id];
             const sugEjec = sug?.ejecucion_id ? ejecuciones.find(e => e.id === sug.ejecucion_id) : null;
@@ -565,7 +616,10 @@ export default function MpEgresosTab() {
             </Card>
             );
           })}
-          {tab === "egresos" && egresos.length === 0 && (
+          {listaVisible.length === 0 && term && (
+            <div className="text-center py-12 text-muted-foreground">Sin resultados para esta búsqueda</div>
+          )}
+          {tab === "egresos" && egresosVisibles.length === 0 && !term && (
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-green-400" />
               No hay egresos pendientes de categorizar
