@@ -9,6 +9,10 @@ export interface MpMovementDetail {
   medio: string | null;
   referencia: string | null;
   concepto: string | null;
+  /** Destinatario real de la transferencia/egreso (solo datos de MP, nunca el emisor). */
+  beneficiario: string | null;
+  beneficiario_doc: string | null;
+  beneficiario_cuenta: string | null;
 }
 
 const BRANCH_LABELS: Record<string, string> = {
