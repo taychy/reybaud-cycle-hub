@@ -115,12 +115,25 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
     load();
   };
 
-  const getPersonalLink = async (row: Row): Promise<string | null> => {
-    if (!row.benefit_id) return null;
-    const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", row.benefit_id).single();
+  const getPersonalLink = async (row: Row, benefitId = row.benefit_id): Promise<string | null> => {
+    if (!benefitId) return null;
+    const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", benefitId).single();
     const { data: plan } = await sb.from("planes").select("cohort_slug").eq("id", planId).single();
     if (!data?.token) return null;
     return `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+  };
+
+  /** Reutiliza el beneficio de la fila o lo crea (idempotente, servidor) con el precio de la tarjeta. */
+  const ensureBenefit = async (row: Row): Promise<string | null> => {
+    if (row.benefit_id) return row.benefit_id;
+    if (row.status === "no_continua" || !pTotal || !pHasta) return null;
+    const { data, error } = await sb.rpc("assign_program_preinscripcion_benefits", {
+      p_plan_id: planId, p_precio_total: Number(pTotal), p_precio_cuota: pCuota ? Number(pCuota) : null,
+      p_cuotas: Number(pCuotas) || 1, p_valid_until: pHasta, p_entry_id: row.entry_id,
+    });
+    if (error) return null;
+    if (data?.benefit_id) load();
+    return data?.benefit_id ?? null;
   };
 
   const copyLink = async (row: Row) => {
@@ -131,17 +144,22 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
   };
 
   const buildWaMessage = async (row: Row): Promise<string> => {
-    const link = row.benefit_id ? await getPersonalLink(row) : null;
+    const benefitId = await ensureBenefit(row);
+    const link = benefitId ? await getPersonalLink(row, benefitId) : null;
+    if (!link) toast({ title: "Mensaje sin link personal", description: "No se pudo generar el link (No continúa o email inválido)." });
     return buildPreinscriptoWaMessage({ nombre: row.nombre, linkPersonal: link });
   };
 
   const openWhatsApp = async (row: Row) => {
     const phone = normalizePhoneAr(row.telefono);
     if (!phone) return;
+    // Abrir la pestaña ya en el click (evita bloqueo de popups) y cargar la URL al tener el mensaje.
+    const win = window.open("about:blank", "_blank");
     setWaBusyId(row.entry_id);
     const msg = await buildWaMessage(row);
     setWaBusyId(null);
-    window.open(buildWaLink(phone, msg), "_blank", "noopener,noreferrer");
+    const url = buildWaLink(phone, msg);
+    if (win) { win.opener = null; win.location.href = url; } else window.open(url, "_blank", "noopener,noreferrer");
     // Solo se registra que se inició la conversación; el envío real lo confirma Natalia en WhatsApp.
     setWaStarted((m) => ({ ...m, [row.entry_id]: new Date().toISOString() }));
   };
@@ -259,51 +277,52 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
         <p className="text-sm text-muted-foreground">Sin preinscriptos en este filtro.</p>
       ) : (
         <div className="overflow-x-auto rounded-md border border-border">
-          <Table>
+          <Table className="text-xs [&_th]:px-2 [&_td]:px-2 [&_td]:py-2 [&_th]:h-9">
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
                 <TableHead>Contacto</TableHead>
-                <TableHead>Sede preferida</TableHead>
-                <TableHead>Preinscripción</TableHead>
+                <TableHead>Sede</TableHead>
+                <TableHead>Preinscr.</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead>Beneficio</TableHead>
                 <TableHead>Email apertura</TableHead>
-                <TableHead className="text-right">Acción</TableHead>
+                <TableHead className="text-right w-[1%]">Acción</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {visible.map((r) => (
                 <TableRow key={r.entry_id}>
-                  <TableCell className="font-medium">{r.nombre}</TableCell>
-                  <TableCell className="text-xs">
-                    <div>{r.email}</div>
+                  <TableCell className="font-medium text-sm min-w-[110px]">{r.nombre}</TableCell>
+                  <TableCell className="max-w-[190px]">
+                    <div className="break-all">{r.email}</div>
                     {r.telefono && <div className="text-muted-foreground">{r.telefono}</div>}
                   </TableCell>
-                  <TableCell className="text-xs">{r.sede || "—"}</TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">
-                    {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short", year: "numeric" })}
+                  <TableCell className="max-w-[110px]">{r.sede || "—"}</TableCell>
+                  <TableCell className="whitespace-nowrap">
+                    {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline" className={STATUS_CLASS[r.status]}>{PREINSCRIPTO_STATUS_LABEL[r.status]}</Badge>
+                    <Badge variant="outline" className={`${STATUS_CLASS[r.status]} text-[11px] px-1.5 leading-tight`}>{PREINSCRIPTO_STATUS_LABEL[r.status]}</Badge>
                   </TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">
+                  <TableCell className="min-w-[90px]">
                     {r.benefit_id && r.benefit_precio_total != null ? (
-                      <div><div className="text-primary font-medium">Precio asignado</div>{formatPrice(Number(r.benefit_precio_total), moneda || "ARS")}</div>
+                      <div><div className="text-primary font-medium leading-tight">Precio asignado</div>{formatPrice(Number(r.benefit_precio_total), moneda || "ARS")}</div>
                     ) : "—"}
                   </TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">
+                  <TableCell className="min-w-[100px] max-w-[160px]">
                     {emailCell(r)}
                     {waStarted[r.entry_id] && (
                       <div className="text-muted-foreground mt-0.5">WhatsApp iniciado · {fmtDate(waStarted[r.entry_id])}</div>
                     )}
                   </TableCell>
-                  <TableCell className="text-right whitespace-nowrap">
+                  <TableCell className="text-right">
+                    <div className="flex flex-wrap justify-end gap-1 min-w-[150px]">
                     {(() => {
                       const phone = normalizePhoneAr(r.telefono);
                       return (
                         <Button
-                          size="sm" variant="outline" className="h-7 text-xs mr-1"
+                          size="sm" variant="outline" className="h-7 px-2 text-xs"
                           disabled={!phone || waBusyId === r.entry_id}
                           title={phone ? "Abrir WhatsApp con mensaje precargado" : "Teléfono inválido"}
                           onClick={() => openWhatsApp(r)}
@@ -314,17 +333,18 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                       );
                     })()}
                     {canSend(r) && (
-                      <Button size="sm" variant="outline" className="h-7 text-xs mr-1" disabled={sendingId === r.benefit_id} onClick={() => setSendRow(r)}>
+                      <Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled={sendingId === r.benefit_id} onClick={() => setSendRow(r)}>
                         {sendingId === r.benefit_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : r.benefit_email_status ? <RotateCcw className="w-3.5 h-3.5 mr-1" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
-                        {r.benefit_email_status ? "Reintentar" : "Enviar mail"}
+                        {r.benefit_email_status ? "Reintentar" : "Mail"}
                       </Button>
                     )}
                     {r.benefit_id && (
-                      <Button size="sm" variant="ghost" className="h-7 text-xs" title="Copiar link personal" onClick={() => copyLink(r)}><Copy className="w-3.5 h-3.5" /></Button>
+                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Copiar link personal" onClick={() => copyLink(r)}><Copy className="w-3.5 h-3.5" /></Button>
                     )}
-                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setDetail(r)}>
-                      <Eye className="w-3.5 h-3.5 mr-1" /> Ver
+                    <Button size="sm" variant="ghost" className="h-7 w-7 p-0" title="Ver detalle" onClick={() => setDetail(r)}>
+                      <Eye className="w-3.5 h-3.5" />
                     </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
