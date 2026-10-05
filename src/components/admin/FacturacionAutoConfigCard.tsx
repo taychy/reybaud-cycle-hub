@@ -34,9 +34,27 @@ export function FacturacionAutoConfigCard({ onChanged }: { onChanged?: () => voi
   const toggle = async (r: Row, value: boolean) => {
     const key = `${r.emisor_id}:${r.segmento}`;
     setBusy(key);
+    // Al activar, también se enciende el interruptor general del emisor;
+    // al apagar el último tipo de cobro activo, se apaga el general.
+    if (value && !r.emisores_fiscales?.facturacion_automatica) {
+      const { error: e2 } = await supabase.rpc("set_facturacion_automatica_emisor" as any, {
+        p_emisor_id: r.emisor_id, p_activa: true,
+      });
+      if (e2) {
+        setBusy(null);
+        toast({ title: "No se pudo activar el emisor", description: e2.message, variant: "destructive" });
+        return;
+      }
+    }
     const { error } = await supabase.rpc("set_facturacion_auto_config" as any, {
       p_emisor_id: r.emisor_id, p_segmento: r.segmento, p_habilitado: value,
     });
+    if (!error && !value) {
+      const quedan = rows.some((o) => o.emisor_id === r.emisor_id && o.segmento !== r.segmento && o.auto_habilitado);
+      if (!quedan && r.emisores_fiscales?.facturacion_automatica) {
+        await supabase.rpc("set_facturacion_automatica_emisor" as any, { p_emisor_id: r.emisor_id, p_activa: false });
+      }
+    }
     setBusy(null);
     if (error) {
       toast({ title: "No se pudo cambiar", description: error.message, variant: "destructive" });
