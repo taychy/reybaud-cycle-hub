@@ -7,6 +7,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
@@ -304,6 +307,20 @@ const AdminLiquidaciones = () => {
     loadData();
   };
 
+  const [liqToDelete, setLiqToDelete] = useState<null | { id: string; nombre: string; estado: string; movs: number; confirmado: number; estimado: number }>(null);
+  const [deletingLiq, setDeletingLiq] = useState(false);
+
+  const confirmDeleteLiq = async () => {
+    if (!liqToDelete) return;
+    setDeletingLiq(true);
+    const { error } = await supabase.rpc("delete_liquidacion_mensual" as any, { p_liquidacion_id: liqToDelete.id });
+    setDeletingLiq(false);
+    if (error) { toast({ title: "No se pudo eliminar la liquidación", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Liquidación eliminada", description: `${liqToDelete.nombre} · ${formatMes(mes)}. Los movimientos del mes se conservan.` });
+    setLiqToDelete(null);
+    loadData();
+  };
+
   const updateMovEstado = async (movId: string, nuevoEstado: string) => {
     const { error } = await supabase.from("movimientos_liquidacion").update({ estado_economico: nuevoEstado } as any).eq("id", movId);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
@@ -551,6 +568,12 @@ const AdminLiquidaciones = () => {
                                 {ESTADO_LIQ.map((e) => <SelectItem key={e} value={e} className="text-xs capitalize">{e.replace("_", " ")}</SelectItem>)}
                               </SelectContent>
                             </Select>
+                            <Button size="sm" variant="ghost" className="text-destructive" onClick={() => setLiqToDelete({
+                              id: c.liq.id, nombre: c.nombre, estado: String(c.liq.estado), movs: c.movs.length,
+                              confirmado: Number(c.liq.total_confirmado || 0), estimado: Number(c.liq.total_estimado || 0),
+                            })}>
+                              Eliminar
+                            </Button>
                           </>
                         )}
                       </div>
@@ -590,6 +613,34 @@ const AdminLiquidaciones = () => {
           <Button variant="outline" size="sm" onClick={() => setShowAjusteForm(true)}>
             <Plus className="w-4 h-4 mr-2" /> Ajuste manual
           </Button>
+
+          <AlertDialog open={!!liqToDelete} onOpenChange={(o) => { if (!o && !deletingLiq) setLiqToDelete(null); }}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Eliminar esta liquidación?</AlertDialogTitle>
+                <AlertDialogDescription asChild>
+                  <div className="space-y-2 text-sm">
+                    {liqToDelete && (
+                      <ul className="space-y-1 text-foreground">
+                        <li><span className="text-muted-foreground">Profesor:</span> {liqToDelete.nombre}</li>
+                        <li className="capitalize"><span className="text-muted-foreground normal-case">Mes:</span> {formatMes(mes)}</li>
+                        <li className="capitalize"><span className="text-muted-foreground normal-case">Estado:</span> {liqToDelete.estado.replace("_", " ")}</li>
+                        <li><span className="text-muted-foreground">Confirmado / estimado:</span> {money(liqToDelete.confirmado)} / {money(liqToDelete.estimado)}</li>
+                        <li><span className="text-muted-foreground">Movimientos del mes:</span> {liqToDelete.movs}</li>
+                      </ul>
+                    )}
+                    <p className="text-muted-foreground">Se borra solo la liquidación. Los movimientos (clases, turnos, ajustes) se conservan y podés volver a prepararla. No se puede eliminar si está pagada o ya tiene un gasto registrado.</p>
+                  </div>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deletingLiq}>Cancelar</AlertDialogCancel>
+                <Button variant="destructive" disabled={deletingLiq} onClick={confirmDeleteLiq}>
+                  {deletingLiq ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Confirmar eliminación
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
 
           <Dialog open={showAjusteForm} onOpenChange={setShowAjusteForm}>
             <DialogContent>
