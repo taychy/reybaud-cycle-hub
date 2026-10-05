@@ -63,15 +63,27 @@ export async function resolveCuentaMP(
     return legacyFallback("flag_disabled");
   }
 
-  // 1) Buscar ruta activa para la unidad de negocio (menor prioridad gana)
-  const { data: routing } = await supabaseAdmin
-    .from("cuenta_mp_routing")
-    .select("emisor_fiscal_id, cuenta_mp_id, cuentas_mp:cuenta_mp_id(*)")
-    .eq("unidad_negocio", opts.unidad_negocio)
-    .eq("activa", true)
-    .order("prioridad", { ascending: true })
-    .limit(1)
-    .maybeSingle();
+  // 0) Override manual (Josilene) vigente para la unidad: cuenta y emisor cambian juntos
+  let routing: any = null;
+  const { data: ov } = await supabaseAdmin.rpc("ruta_unidad_activa", { p_unidad: opts.unidad_negocio });
+  const ovRow = Array.isArray(ov) ? ov[0] : ov;
+  if (ovRow?.cuenta_mp_id && ovRow?.emisor_fiscal_id) {
+    const { data: c } = await supabaseAdmin.from("cuentas_mp").select("*").eq("id", ovRow.cuenta_mp_id).maybeSingle();
+    if (c) routing = { emisor_fiscal_id: ovRow.emisor_fiscal_id, cuenta_mp_id: c.id, cuentas_mp: c };
+  }
+
+  // 1) Ruta normal de la unidad de negocio (menor prioridad gana)
+  if (!routing) {
+    const { data } = await supabaseAdmin
+      .from("cuenta_mp_routing")
+      .select("emisor_fiscal_id, cuenta_mp_id, cuentas_mp:cuenta_mp_id(*)")
+      .eq("unidad_negocio", opts.unidad_negocio)
+      .eq("activa", true)
+      .order("prioridad", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    routing = data;
+  }
 
   let cuenta: any = null;
   let emisorOverride: string | null = null;
