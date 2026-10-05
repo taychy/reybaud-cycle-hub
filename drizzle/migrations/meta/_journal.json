@@ -141,6 +141,13 @@
       "when": 1791164778196,
       "tag": "0019_fix_assign_benefits_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1791166259714,
+      "tag": "0020_assign_benefit_single_entry",
+      "breakpoints": true
     }
   ]
 }

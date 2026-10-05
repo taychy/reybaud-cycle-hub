@@ -16268,6 +16268,7 @@ export type Database = {
       assign_program_preinscripcion_benefits: {
         Args: {
           p_cuotas: number
+          p_entry_id?: string
           p_plan_id: string
           p_precio_cuota: number
           p_precio_total: number
