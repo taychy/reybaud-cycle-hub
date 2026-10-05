@@ -142,3 +142,9 @@ verify_jwt = false
 
 [functions.send-program-preinscripcion-opening]
 verify_jwt = false
+
+[functions.emit-factura-afip]
+verify_jwt = false
+
+[functions.facturacion-auto-worker]
+verify_jwt = false

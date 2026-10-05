@@ -162,7 +162,37 @@ Deno.serve(async (req) => {
     // ============================================================
     // RUTEO: elegir el mejor emisor para este segmento
     // ============================================================
-    const emisorElegido = await elegirEmisor(adminClient, segmentoNormalizado, monto);
+    // Emisor por cuenta receptora / configuración del flujo. Nunca un emisor "por defecto".
+    let colaRow: any = null;
+    if (facturacion_cola_id) {
+      const { data } = await adminClient
+        .from("facturacion_cola")
+        .select("emisor_resuelto_id, auto_motivo, cuenta_mp_id, servicio_desde, servicio_hasta, fecha_comprobante")
+        .eq("id", facturacion_cola_id)
+        .maybeSingle();
+      colaRow = data;
+    }
+    let emisorId: string | null = colaRow?.emisor_resuelto_id ?? null;
+    let motivoEmisor: string | null = colaRow?.auto_motivo ?? null;
+    if (!colaRow) {
+      const { data: res } = await adminClient.rpc("resolver_emisor_facturacion", {
+        p_segmento: segmentoNormalizado, p_metodo_pago: resolvedMetodo, p_cuenta_mp_id: null,
+        p_emisor_explicito: null, p_override: null,
+      });
+      emisorId = (res as any)?.emisor_id ?? null;
+      motivoEmisor = (res as any)?.motivo ?? null;
+    }
+    let emisorElegido: any = null;
+    if (emisorId) {
+      const { data } = await adminClient.from("emisores_fiscales").select("*").eq("id", emisorId).eq("activo", true).maybeSingle();
+      emisorElegido = data;
+    }
+    const extraFechas = {
+      cuenta_mp_id: colaRow?.cuenta_mp_id ?? null,
+      servicio_desde: colaRow?.servicio_desde ?? null,
+      servicio_hasta: colaRow?.servicio_hasta ?? null,
+      fecha_comprobante: colaRow?.fecha_comprobante ?? null,
+    };
 
     if (!emisorElegido) {
       // No hay emisor disponible -> crear factura sin emitir
@@ -181,6 +211,8 @@ Deno.serve(async (req) => {
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
         facturacion_cola_id: facturacion_cola_id || null,
+        error_detalle: motivoEmisor ? `requiere_revision_emisor: ${motivoEmisor}` : "requiere_revision_emisor",
+        ...extraFechas,
       });
 
 
@@ -197,7 +229,8 @@ Deno.serve(async (req) => {
           success: true,
           created: true,
           emitted: false,
-          message: `Sin emisor disponible para "${segmentoNormalizado}". Configurá uno habilitado con cupo y certificado en Configuración → Finanzas → Emisores fiscales.`,
+          requiere_revision_emisor: true,
+          message: `No se pudo determinar el emisor fiscal: ${motivoEmisor || "sin cuenta receptora identificable"}. Elegilo a mano antes de emitir.`,
         }),
         { headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
@@ -222,6 +255,7 @@ Deno.serve(async (req) => {
         metodo_pago: resolvedMetodo,
         origen_registro: resolvedOrigen,
         facturacion_cola_id: facturacion_cola_id || null,
+        ...extraFechas,
       })
       .select("id")
       .single();
@@ -262,6 +296,7 @@ Deno.serve(async (req) => {
 
     const canAutoEmit =
       emisorElegido.facturacion_automatica &&
+      String(moneda || "ARS").toUpperCase() === "ARS" &&
       emisorElegido.cert_pem &&
       emisorElegido.key_pem &&
       origenPermitido;
