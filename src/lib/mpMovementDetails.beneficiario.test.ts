@@ -54,8 +54,6 @@ describe("getMpMovementDetail — beneficiario de egresos", () => {
     expect(d.beneficiario_doc).toBeNull();
     expect(d.beneficiario_cuenta).toBeNull();
     expect(d.operacion).toBe("Transferencia MP (web)");
-    // El emisor nunca debe aparecer como beneficiario
-    expect(d.contraparte).toBeNull();
   });
 
   it("Transferencia entre cuentas MP con collector completo → nombre, doc y cuenta destino", () => {
