@@ -115,12 +115,25 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
     load();
   };
 
-  const getPersonalLink = async (row: Row): Promise<string | null> => {
-    if (!row.benefit_id) return null;
-    const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", row.benefit_id).single();
+  const getPersonalLink = async (row: Row, benefitId = row.benefit_id): Promise<string | null> => {
+    if (!benefitId) return null;
+    const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", benefitId).single();
     const { data: plan } = await sb.from("planes").select("cohort_slug").eq("id", planId).single();
     if (!data?.token) return null;
     return `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+  };
+
+  /** Reutiliza el beneficio de la fila o lo crea (idempotente, servidor) con el precio de la tarjeta. */
+  const ensureBenefit = async (row: Row): Promise<string | null> => {
+    if (row.benefit_id) return row.benefit_id;
+    if (row.status === "no_continua" || !pTotal || !pHasta) return null;
+    const { data, error } = await sb.rpc("assign_program_preinscripcion_benefits", {
+      p_plan_id: planId, p_precio_total: Number(pTotal), p_precio_cuota: pCuota ? Number(pCuota) : null,
+      p_cuotas: Number(pCuotas) || 1, p_valid_until: pHasta, p_entry_id: row.entry_id,
+    });
+    if (error) return null;
+    if (data?.benefit_id) load();
+    return data?.benefit_id ?? null;
   };
 
   const copyLink = async (row: Row) => {
@@ -131,17 +144,22 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
   };
 
   const buildWaMessage = async (row: Row): Promise<string> => {
-    const link = row.benefit_id ? await getPersonalLink(row) : null;
+    const benefitId = await ensureBenefit(row);
+    const link = benefitId ? await getPersonalLink(row, benefitId) : null;
+    if (!link) toast({ title: "Mensaje sin link personal", description: "No se pudo generar el link (No continúa o email inválido)." });
     return buildPreinscriptoWaMessage({ nombre: row.nombre, linkPersonal: link });
   };
 
   const openWhatsApp = async (row: Row) => {
     const phone = normalizePhoneAr(row.telefono);
     if (!phone) return;
+    // Abrir la pestaña ya en el click (evita bloqueo de popups) y cargar la URL al tener el mensaje.
+    const win = window.open("about:blank", "_blank");
     setWaBusyId(row.entry_id);
     const msg = await buildWaMessage(row);
     setWaBusyId(null);
-    window.open(buildWaLink(phone, msg), "_blank", "noopener,noreferrer");
+    const url = buildWaLink(phone, msg);
+    if (win) { win.opener = null; win.location.href = url; } else window.open(url, "_blank", "noopener,noreferrer");
     // Solo se registra que se inició la conversación; el envío real lo confirma Natalia en WhatsApp.
     setWaStarted((m) => ({ ...m, [row.entry_id]: new Date().toISOString() }));
   };
