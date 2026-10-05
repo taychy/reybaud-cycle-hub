@@ -90,11 +90,12 @@ const UNIDADES = [
 ];
 
 
-export default function MpEgresosTab() {
+export default function MpEgresosTab({ mes }: { mes?: string }) {
   const { toast } = useToast();
   const [items, setItems] = useState<MpEgreso[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"egresos" | "internos" | "categorizados">("egresos");
+  const [filtroPendientes, setFiltroPendientes] = useState<"mes" | "todos">("mes");
   const [dialog, setDialog] = useState<MpEgreso | null>(null);
   const [form, setForm] = useState({
     categoria: "MP - Egresos",
@@ -138,7 +139,7 @@ export default function MpEgresosTab() {
       `)
       .in("direccion", ["egreso", "reserva_tecnica", "interno"])
       .order("fecha_movimiento", { ascending: false })
-      .limit(300);
+      .limit(5000);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setItems((data as any) ?? []);
 
@@ -356,7 +357,10 @@ export default function MpEgresosTab() {
 
   }
 
-  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id && !devoluciones[i.id]);
+  const egresosTodos = items.filter(i => i.direccion === "egreso" && !i.gasto_id && !devoluciones[i.id]);
+  const egresos = filtroPendientes === "mes" && mes
+    ? egresosTodos.filter(i => String(i.fecha_movimiento).slice(0, 7) === mes)
+    : egresosTodos;
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
   const categorizados = items.filter(i => i.gasto_id || devoluciones[i.id]);
 
