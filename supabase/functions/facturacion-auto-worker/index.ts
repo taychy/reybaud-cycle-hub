@@ -46,7 +46,27 @@ Deno.serve(async (req) => {
     return { status: r.status, body };
   };
 
-  const resumen = { conciliadas: 0, procesadas: 0, facturadas: 0, errores: 0, inciertas: 0 };
+  // 0) Inerte si ningún emisor tiene el interruptor maestro + algún tipo de cobro encendidos
+  const { data: activos } = await admin
+    .from("emisor_segmento_config")
+    .select("emisor_id, emisores_fiscales!inner(facturacion_automatica, activo)")
+    .eq("auto_habilitado", true)
+    .eq("emisores_fiscales.facturacion_automatica", true)
+    .eq("emisores_fiscales.activo", true)
+    .limit(1);
+  if (!activos || activos.length === 0) return json({ ok: true, inerte: true });
+
+  const resumen = { conciliadas: 0, procesadas: 0, facturadas: 0, errores: 0, inciertas: 0, sin_cae: 0 };
+
+  // 0b) Persistencia incompleta: marcadas emitidas sin CAE -> se concilian con ARCA, nunca se reemiten a ciegas
+  const { data: sinCae } = await admin
+    .from("facturas").select("id").eq("estado", "emitida").is("cae", null)
+    .is("recuperacion_estado", null).not("facturacion_cola_id", "is", null).limit(BATCH);
+  for (const f of sinCae ?? []) {
+    await admin.from("facturas").update({ estado: "emitiendo", recuperacion_estado: "incierta" } as any)
+      .eq("id", f.id).eq("estado", "emitida").is("cae", null);
+    resumen.sin_cae++;
+  }
 
   // 1) Conciliación: emisiones inciertas o bloqueos viejos
   const limite = new Date(Date.now() - 10 * 60 * 1000).toISOString();
