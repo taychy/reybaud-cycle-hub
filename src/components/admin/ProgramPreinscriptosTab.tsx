@@ -9,9 +9,10 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Loader2, RefreshCw, Eye, UserX, Undo2, Tag, Mail, RotateCcw, Copy } from "lucide-react";
+import { Loader2, RefreshCw, Eye, UserX, Undo2, Tag, Mail, RotateCcw, Copy, MessageCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { normalizePhoneAr, buildWaLink, buildPreinscriptoWaMessage } from "@/lib/whatsappPreinscripto";
 import {
   resolvePreinscriptoStatus, findSedeAnswer, PREINSCRIPTO_STATUS_LABEL, NO_CONTINUA_ENTRY_STATE,
   type PreinscriptoStatus, type PreinscriptoSub,
@@ -87,6 +88,8 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
   const [assigning, setAssigning] = useState(false);
   const [sendRow, setSendRow] = useState<Row | null>(null);
   const [sendingId, setSendingId] = useState<string | null>(null);
+  const [waStarted, setWaStarted] = useState<Record<string, string>>({});
+  const [waBusyId, setWaBusyId] = useState<string | null>(null);
 
   const assign = async () => {
     setAssigning(true);
@@ -112,14 +115,43 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
     load();
   };
 
-  const copyLink = async (row: Row) => {
-    if (!row.benefit_id) return;
+  const getPersonalLink = async (row: Row): Promise<string | null> => {
+    if (!row.benefit_id) return null;
     const { data } = await sb.from("program_preinscripcion_benefits").select("token").eq("id", row.benefit_id).single();
     const { data: plan } = await sb.from("planes").select("cohort_slug").eq("id", planId).single();
-    if (!data?.token) return;
-    const link = `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+    if (!data?.token) return null;
+    return `https://reybaud-app.com/formacion-inicial?cohort=${encodeURIComponent(plan?.cohort_slug || "")}&beneficio=${data.token}`;
+  };
+
+  const copyLink = async (row: Row) => {
+    const link = await getPersonalLink(row);
+    if (!link) return;
     await navigator.clipboard.writeText(link);
     toast({ title: "Link personal copiado" });
+  };
+
+  const buildWaMessage = async (row: Row): Promise<string> => {
+    const link = row.benefit_id ? await getPersonalLink(row) : null;
+    return buildPreinscriptoWaMessage({ nombre: row.nombre, linkPersonal: link });
+  };
+
+  const openWhatsApp = async (row: Row) => {
+    const phone = normalizePhoneAr(row.telefono);
+    if (!phone) return;
+    setWaBusyId(row.entry_id);
+    const msg = await buildWaMessage(row);
+    setWaBusyId(null);
+    window.open(buildWaLink(phone, msg), "_blank", "noopener,noreferrer");
+    // Solo se registra que se inició la conversación; el envío real lo confirma Natalia en WhatsApp.
+    setWaStarted((m) => ({ ...m, [row.entry_id]: new Date().toISOString() }));
+  };
+
+  const copyWaMessage = async (row: Row) => {
+    setWaBusyId(row.entry_id);
+    const msg = await buildWaMessage(row);
+    setWaBusyId(null);
+    await navigator.clipboard.writeText(msg);
+    toast({ title: "Mensaje de WhatsApp copiado" });
   };
 
   const emailCell = (r: Row) => {
@@ -260,8 +292,27 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                       <div><div className="text-primary font-medium">Precio asignado</div>{formatPrice(Number(r.benefit_precio_total), moneda || "ARS")}</div>
                     ) : "—"}
                   </TableCell>
-                  <TableCell className="text-xs whitespace-nowrap">{emailCell(r)}</TableCell>
+                  <TableCell className="text-xs whitespace-nowrap">
+                    {emailCell(r)}
+                    {waStarted[r.entry_id] && (
+                      <div className="text-muted-foreground mt-0.5">WhatsApp iniciado · {fmtDate(waStarted[r.entry_id])}</div>
+                    )}
+                  </TableCell>
                   <TableCell className="text-right whitespace-nowrap">
+                    {(() => {
+                      const phone = normalizePhoneAr(r.telefono);
+                      return (
+                        <Button
+                          size="sm" variant="outline" className="h-7 text-xs mr-1"
+                          disabled={!phone || waBusyId === r.entry_id}
+                          title={phone ? "Abrir WhatsApp con mensaje precargado" : "Teléfono inválido"}
+                          onClick={() => openWhatsApp(r)}
+                        >
+                          {waBusyId === r.entry_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <MessageCircle className="w-3.5 h-3.5 mr-1" />}
+                          WhatsApp
+                        </Button>
+                      );
+                    })()}
                     {canSend(r) && (
                       <Button size="sm" variant="outline" className="h-7 text-xs mr-1" disabled={sendingId === r.benefit_id} onClick={() => setSendRow(r)}>
                         {sendingId === r.benefit_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : r.benefit_email_status ? <RotateCcw className="w-3.5 h-3.5 mr-1" /> : <Mail className="w-3.5 h-3.5 mr-1" />}
@@ -322,6 +373,9 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                     : detail.suscripciones.map((s) => <div key={s.id}>Inscripción: {s.estado}</div>)}
                 </div>
                 <div className="flex justify-end gap-2 pt-1">
+                  <Button size="sm" variant="outline" disabled={waBusyId === detail.entry_id} onClick={() => copyWaMessage(detail)}>
+                    {waBusyId === detail.entry_id ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Copy className="w-3.5 h-3.5 mr-1" />} Copiar mensaje WhatsApp
+                  </Button>
                   {detail.entry_estado === NO_CONTINUA_ENTRY_STATE ? (
                     <Button size="sm" variant="outline" disabled={busy} onClick={() => setEntryEstado(detail, "nuevo")}>
                       <Undo2 className="w-3.5 h-3.5 mr-1" /> Reactivar
