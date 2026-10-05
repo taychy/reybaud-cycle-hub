@@ -1028,7 +1028,7 @@ const SuperAdminGastos = () => {
 
         {/* MP EGRESOS + RESERVAS TÉCNICAS */}
         <TabsContent value="mp" className="mt-4">
-          <MpEgresosTab />
+          <MpEgresosTab mes={mes} />
         </TabsContent>
 
         {/* AGENDA */}

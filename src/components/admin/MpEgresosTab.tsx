@@ -90,11 +90,12 @@ const UNIDADES = [
 ];
 
 
-export default function MpEgresosTab() {
+export default function MpEgresosTab({ mes }: { mes?: string }) {
   const { toast } = useToast();
   const [items, setItems] = useState<MpEgreso[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"egresos" | "internos" | "categorizados">("egresos");
+  const [filtroPendientes, setFiltroPendientes] = useState<"mes" | "todos">("mes");
   const [dialog, setDialog] = useState<MpEgreso | null>(null);
   const [form, setForm] = useState({
     categoria: "MP - Egresos",
@@ -138,7 +139,7 @@ export default function MpEgresosTab() {
       `)
       .in("direccion", ["egreso", "reserva_tecnica", "interno"])
       .order("fecha_movimiento", { ascending: false })
-      .limit(300);
+      .limit(5000);
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setItems((data as any) ?? []);
 
@@ -356,7 +357,10 @@ export default function MpEgresosTab() {
 
   }
 
-  const egresos = items.filter(i => i.direccion === "egreso" && !i.gasto_id && !devoluciones[i.id]);
+  const egresosTodos = items.filter(i => i.direccion === "egreso" && !i.gasto_id && !devoluciones[i.id]);
+  const egresos = filtroPendientes === "mes" && mes
+    ? egresosTodos.filter(i => String(i.fecha_movimiento).slice(0, 7) === mes)
+    : egresosTodos;
   const internos = items.filter(i => i.direccion === "interno" || i.direccion === "reserva_tecnica");
   const categorizados = items.filter(i => i.gasto_id || devoluciones[i.id]);
 
@@ -415,7 +419,9 @@ export default function MpEgresosTab() {
               <TrendingDown className="w-4 h-4" /> Egresos pendientes de categorizar
             </div>
             <div className="text-2xl font-bold mt-1">$ {totalEgresosPendientes.toLocaleString("es-AR")}</div>
-            <div className="text-xs text-muted-foreground">{egresos.length} movimientos</div>
+            <div className="text-xs text-muted-foreground">
+              {egresos.length} movimientos{filtroPendientes === "mes" && mes ? ` · ${mes}` : " · todos los meses"}
+            </div>
           </CardContent>
         </Card>
         <Card className="border-cyan-500/30 bg-cyan-500/5">
@@ -438,7 +444,7 @@ export default function MpEgresosTab() {
         </Card>
       </div>
 
-      <div className="flex gap-2 border-b border-border">
+      <div className="flex gap-2 border-b border-border items-center flex-wrap">
         {(["egresos","internos","categorizados"] as const).map(t => (
           <button
             key={t}
@@ -452,6 +458,23 @@ export default function MpEgresosTab() {
             {t === "categorizados" && `Categorizados (${categorizados.length})`}
           </button>
           ))}
+        {tab === "egresos" && (
+          <div className="ml-auto flex gap-1 pb-1">
+            {(["mes", "todos"] as const).map(f => (
+              <button
+                key={f}
+                onClick={() => setFiltroPendientes(f)}
+                className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+                  filtroPendientes === f
+                    ? "border-orange-500 bg-orange-500/10 text-orange-400"
+                    : "border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {f === "mes" ? "Este mes" : "Todos los pendientes"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="relative">
