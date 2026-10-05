@@ -138,3 +138,12 @@
 - [ ] Publicar frontend y confirmar reybaud-app.com
 - [x] Clases de programa → Agenda puntual (profesor pendiente, idempotente) + backfill Iniciación 2026/2 (KDT 11:00–12:30, 8ª el 10/10) + calendario en Agenda
 - [x] Natalia no ve Liquidaciones: auditado, sin bug de permisos (Finanzas → Contabilidad); falta confirmar con captura de la usuaria
+
+## Facturación automática Fase 1 (2026-10-05)
+- [ ] Resolución de emisor por cuenta receptora/segmento, sin fallback a Claudio
+- [ ] Lock "emitiendo", recuperación CAE, conciliación
+- [ ] Período desde el cobro, solo ARS, estados nuevos
+- [ ] Ingreso automático a cola (mensualidades, eventos, tienda)
+- [ ] Interruptor por emisor/segmento con fecha de activación (apagado por default)
+- [ ] UI bandeja: emisor, cuenta, motivo, período, moneda, estado
+- [ ] Fix pendiente: v_event.nature en admin_create_event_reservation

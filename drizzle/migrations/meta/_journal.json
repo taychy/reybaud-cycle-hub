@@ -155,6 +155,13 @@
       "when": 1791206306633,
       "tag": "0021_delete_liquidacion_mensual",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1791221558853,
+      "tag": "0022_facturacion_auto_fase1",
+      "breakpoints": true
     }
   ]
 }

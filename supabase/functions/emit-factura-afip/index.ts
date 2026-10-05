@@ -2,6 +2,10 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import forge from "https://esm.sh/node-forge@1.3.1";
 import { resolveClienteFiscal } from "../_shared/fiscal-identity.ts";
+import {
+  resolverFechasEmision, decidirReconciliacion, esErrorTransitorio,
+  type OrigenEmision, type FechasEmision, type ConsultaComprobante,
+} from "../_shared/facturacion-emision.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -22,7 +26,7 @@ interface ComprobanteAfip {
   ivaIncluido21: boolean;
 }
 
-type EmitAfipResult = { cae?: string; caeVto?: string; error?: string };
+type EmitAfipResult = { cae?: string; caeVto?: string; error?: string; uncertain?: boolean };
 
 function normalizeFiscal(value: string | null | undefined): string {
   return (value || "")
@@ -58,10 +62,35 @@ function round2(value: number): number {
 }
 
 interface EmitRequest {
+  action?: "emitir" | "reconciliar";
   factura_id: string;
-  emisor_id: string;
-  cliente_cuit: string | null;
-  condicion_fiscal: string;
+  emisor_id?: string;
+  cliente_cuit?: string | null;
+  condicion_fiscal?: string;
+}
+
+const LOCKABLE = ["sin_factura", "error", "requiere_datos_fiscales"];
+const LOCK_STALE_MS = 10 * 60 * 1000;
+
+function json(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
+function hoyArgentina(): Date {
+  const ar = new Date(Date.now() - 3 * 3600 * 1000);
+  return new Date(Date.UTC(ar.getUTCFullYear(), ar.getUTCMonth(), ar.getUTCDate()));
+}
+
+// deno-lint-ignore no-explicit-any
+async function logAuto(admin: any, facturaId: string, colaId: string | null, evento: string, detalle: unknown) {
+  try {
+    await admin.from("facturacion_auto_log").insert({ factura_id: facturaId, cola_id: colaId, evento, detalle });
+  } catch (e) {
+    console.error("[emit-factura-afip] log error", (e as Error).message);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -70,322 +99,327 @@ Deno.serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const callerUserId = claimsData.claims.sub as string | undefined;
-    // Verify caller has admin role via service-role client (RLS-bypassing check).
-    const roleClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
-    const { data: isAdmin, error: roleErr } = await roleClient.rpc("has_role", {
-      _user_id: callerUserId,
-      _role: "admin",
-    });
-    if (roleErr || !isAdmin) {
-      return new Response(JSON.stringify({ error: "Forbidden: admin role required" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const body: EmitRequest = await req.json();
-    const { factura_id, emisor_id, cliente_cuit, condicion_fiscal } = body;
-
-    if (!factura_id || !emisor_id) {
-      return new Response(
-        JSON.stringify({ error: "factura_id y emisor_id son requeridos" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Use service role to read cert/key securely
     const adminClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Get emisor with cert/key
-    const { data: emisor, error: emisorErr } = await adminClient
-      .from("emisores_fiscales")
-      .select("*")
-      .eq("id", emisor_id)
-      .single();
-
-    if (emisorErr || !emisor) {
-      return new Response(
-        JSON.stringify({ error: "Emisor no encontrado" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    // ---- Autenticación: admin logueado o worker interno con token ----
+    let origen: OrigenEmision = "manual";
+    const workerToken = req.headers.get("x-worker-token");
+    if (workerToken) {
+      const { data: cfg } = await adminClient
+        .from("facturacion_worker_config").select("token").eq("id", 1).maybeSingle();
+      if (!cfg?.token || cfg.token !== workerToken) return json({ error: "Unauthorized" }, 401);
+      origen = "auto";
+    } else {
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader?.startsWith("Bearer ")) return json({ error: "Unauthorized" }, 401);
+      const supabase = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
       );
+      const token = authHeader.replace("Bearer ", "");
+      const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+      if (claimsError || !claimsData?.claims) return json({ error: "Unauthorized" }, 401);
+      const { data: isAdmin, error: roleErr } = await adminClient.rpc("has_role", {
+        _user_id: claimsData.claims.sub as string,
+        _role: "admin",
+      });
+      if (roleErr || !isAdmin) return json({ error: "Forbidden: admin role required" }, 403);
     }
 
-    if (!emisor.cert_pem || !emisor.key_pem) {
-      return new Response(
-        JSON.stringify({ error: "El emisor no tiene certificado AFIP configurado" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    const body: EmitRequest = await req.json();
+    const action = body.action ?? "emitir";
+    const { factura_id } = body;
+    if (!factura_id) return json({ error: "factura_id es requerido" }, 400);
 
-    // Get factura
     const { data: factura, error: facturaErr } = await adminClient
-      .from("facturas")
-      .select("*")
-      .eq("id", factura_id)
-      .single();
+      .from("facturas").select("*").eq("id", factura_id).single();
+    if (facturaErr || !factura) return json({ error: "Factura no encontrada" }, 404);
 
-    if (facturaErr || !factura) {
-      return new Response(
-        JSON.stringify({ error: "Factura no encontrada" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (factura.estado === "emitida" && factura.cae) {
+      return json({
+        success: true, already: true, numero_comprobante: factura.numero_comprobante,
+        cae: factura.cae, cae_vencimiento: factura.cae_vencimiento,
+      });
     }
 
-    // ==========================================================
-    // Step 0: identidad fiscal ACTUAL del cliente (fuente canónica).
-    // Nunca se emite contra ARCA sin documento válido.
-    // ==========================================================
+    const emisorId = body.emisor_id || factura.emisor_id;
+    if (!emisorId) return json({ error: "La factura no tiene emisor fiscal asignado" }, 400);
+    const { data: emisor } = await adminClient
+      .from("emisores_fiscales").select("*").eq("id", emisorId).single();
+    if (!emisor) return json({ error: "Emisor no encontrado" }, 404);
+    if (!emisor.cert_pem || !emisor.key_pem) {
+      return json({ error: "El emisor no tiene certificado AFIP configurado" }, 400);
+    }
+    const cuitClean = String(emisor.cuit).replace(/-/g, "");
+
+    // ---- Emisión en curso o incierta: conciliar contra ARCA antes de hacer nada ----
+    const lockViejo = factura.emision_lock_at
+      ? Date.now() - new Date(factura.emision_lock_at).getTime() > LOCK_STALE_MS
+      : true;
+    if (action === "reconciliar" || (factura.estado === "emitiendo" && (lockViejo || factura.recuperacion_estado === "incierta"))) {
+      return await reconciliar(adminClient, factura, emisor, cuitClean);
+    }
+    if (factura.estado === "emitiendo") {
+      return json({ error: "Esta factura ya se está emitiendo. Esperá unos minutos." }, 409);
+    }
+
+    // ---- Bloqueo atómico: solo un proceso puede pasar a 'emitiendo' ----
+    const { data: claimed } = await adminClient
+      .from("facturas")
+      .update({
+        estado: "emitiendo",
+        emision_lock_at: new Date().toISOString(),
+        emision_intentos: (factura.emision_intentos ?? 0) + 1,
+        emisor_id: emisorId,
+        cbte_esperado_tipo: null, cbte_esperado_pto: null, cbte_esperado_nro: null,
+        recuperacion_estado: null,
+      } as any)
+      .eq("id", factura_id)
+      .in("estado", LOCKABLE)
+      .is("cae", null)
+      .select("id")
+      .maybeSingle();
+    if (!claimed) {
+      return json({ error: "Otra emisión tomó esta factura. Recargá para ver el estado." }, 409);
+    }
+
+    const fallar = async (estado: string, detalle: string, status: number, extra: Record<string, unknown> = {}) => {
+      await adminClient.from("facturas")
+        .update({ estado, error_detalle: detalle, emision_lock_at: null } as any)
+        .eq("id", factura_id);
+      await logAuto(adminClient, factura_id, factura.facturacion_cola_id, estado, { detalle, origen });
+      return json({ error: detalle, estado, retryable: esErrorTransitorio(detalle), ...extra }, status);
+    };
+
+    // ---- Moneda: nunca mandar USD/EUR como pesos ----
+    if (String(factura.moneda || "ARS").toUpperCase() !== "ARS") {
+      return await fallar("error", `moneda_no_soportada_automaticamente: la factura está en ${factura.moneda}`, 422);
+    }
+
+    // ---- Identidad fiscal actual del cliente ----
     const cliente = await resolveClienteFiscal(adminClient as any, {
       alumnoId: factura.alumno_id ?? null,
       snapshotNombre: factura.cliente_nombre ?? null,
-      snapshotDocumento: cliente_cuit ?? factura.cliente_cuit ?? null,
-      snapshotCondicion: condicion_fiscal ?? factura.condicion_fiscal ?? null,
+      snapshotDocumento: body.cliente_cuit ?? factura.cliente_cuit ?? null,
+      snapshotCondicion: body.condicion_fiscal ?? factura.condicion_fiscal ?? null,
     });
-
     if (cliente.identity.clase !== "ok" || !cliente.identity.docNro) {
-      const detalle =
-        cliente.identity.mensaje || "Falta completar/validar DNI o CUIT en la ficha del cliente";
-      await adminClient
-        .from("facturas")
-        .update({
-          estado: "requiere_datos_fiscales",
-          error_detalle: detalle,
-          cliente_nombre: cliente.nombre || factura.cliente_nombre,
-        } as any)
-        .eq("id", factura_id);
-      return new Response(
-        JSON.stringify({ error: `Datos fiscales incompletos: ${detalle}` }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      const detalle = cliente.identity.mensaje || "Falta completar/validar DNI o CUIT en la ficha del cliente";
+      return await fallar("requiere_datos_fiscales", `Datos fiscales incompletos: ${detalle}`, 422);
     }
-
-    // Sincronizar el snapshot de la factura con los datos fiscales vigentes.
-    const condicionEfectiva = cliente.condicionFiscal || condicion_fiscal || "consumidor_final";
-    await adminClient
-      .from("facturas")
-      .update({
-        cliente_nombre: cliente.nombre || factura.cliente_nombre,
-        cliente_cuit: cliente.identity.docNro,
-        condicion_fiscal: condicionEfectiva,
-      } as any)
-      .eq("id", factura_id);
-
-    // Step 1: WSAA Authentication
-    const wsaaResult = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
-    if (wsaaResult.error) {
-      await adminClient
-        .from("facturas")
-        .update({ estado: "error", error_detalle: `WSAA: ${wsaaResult.error}` } as any)
-        .eq("id", factura_id);
-      return new Response(
-        JSON.stringify({ error: `Error de autenticación AFIP: ${wsaaResult.error}` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const cuitClean = emisor.cuit.replace(/-/g, "");
+    const condicionEfectiva = cliente.condicionFiscal || body.condicion_fiscal || "consumidor_final";
     const clienteCuitClean = cliente.identity.docNro;
+    await adminClient.from("facturas").update({
+      cliente_nombre: cliente.nombre || factura.cliente_nombre,
+      cliente_cuit: clienteCuitClean,
+      condicion_fiscal: condicionEfectiva,
+    } as any).eq("id", factura_id);
+
+    // ---- Fechas desde el cobro, no "hoy" ----
+    const fechas = resolverFechasEmision({
+      hoy: hoyArgentina(),
+      fechaComprobante: factura.fecha_comprobante,
+      servicioDesde: factura.servicio_desde,
+      servicioHasta: factura.servicio_hasta,
+      segmento: factura.segmento,
+      origen,
+    });
+    if ("error" in fechas) return await fallar("error", fechas.error, 422);
+
+    // ---- ARCA ----
+    const wsaaResult = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
+    if (wsaaResult.error) return await fallar("error", `WSAA: ${wsaaResult.error}`, 500);
+
     let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicionEfectiva, clienteCuitClean);
 
-    const emitirConTipo = async (
-      tipo: ComprobanteAfip,
-      docOverride?: { clienteCuit: string; condicionFiscal: string }
-    ): Promise<{ cbteNro: number | null; result: EmitAfipResult }> => {
-      const lastNum = await getUltimoComprobante(
-        wsaaResult.token || "",
-        wsaaResult.sign || "",
-        cuitClean,
-        emisor.punto_venta,
-        tipo.tipo
-      );
-
+    const emitirConTipo = async (tipo: ComprobanteAfip) => {
+      const lastNum = await getUltimoComprobante(wsaaResult.token || "", wsaaResult.sign || "", cuitClean, emisor.punto_venta, tipo.tipo);
       if (lastNum.error || lastNum.number === undefined) {
-        return {
-          cbteNro: null,
-          result: { error: `FECompUltimoAutorizado: ${lastNum.error || "sin número"}` },
-        };
+        return { cbteNro: null as number | null, result: { error: `FECompUltimoAutorizado: ${lastNum.error || "sin número"}` } as EmitAfipResult };
       }
-
       const cbteNro = lastNum.number + 1;
+      // Registrar el número esperado ANTES de pedir CAE: permite conciliar si algo falla después.
+      const { error: preErr } = await adminClient.from("facturas").update({
+        cbte_esperado_tipo: tipo.tipo, cbte_esperado_pto: emisor.punto_venta, cbte_esperado_nro: cbteNro,
+      } as any).eq("id", factura_id).eq("estado", "emitiendo");
+      if (preErr) {
+        return { cbteNro: null, result: { error: `No se pudo registrar el número esperado: ${preErr.message}` } as EmitAfipResult };
+      }
       const result = await emitirFacturaAfip({
-        token: wsaaResult.token || "",
-        sign: wsaaResult.sign || "",
-        cuit: cuitClean,
-        puntoVenta: emisor.punto_venta,
-        cbteNro,
-        cbteTipo: tipo.tipo,
-        monto: factura.monto,
-        concepto: 2, // Servicios
-        clienteCuit: docOverride?.clienteCuit ?? clienteCuitClean,
-        condicionFiscal: docOverride?.condicionFiscal ?? condicionEfectiva,
-        ivaIncluido21: tipo.ivaIncluido21,
+        token: wsaaResult.token || "", sign: wsaaResult.sign || "", cuit: cuitClean,
+        puntoVenta: emisor.punto_venta, cbteNro, cbteTipo: tipo.tipo, monto: factura.monto, concepto: 2,
+        clienteCuit: clienteCuitClean, condicionFiscal: condicionEfectiva, ivaIncluido21: tipo.ivaIncluido21,
+        fechas,
       });
-
       return { cbteNro, result };
     };
 
-    // Step 2 + 3: elegir tipo de comprobante y emitir.
     let { cbteNro, result: emitResult } = await emitirConTipo(comprobante);
 
-    if (emitResult.error?.startsWith("FECompUltimoAutorizado:")) {
-      await adminClient
-        .from("facturas")
-        .update({ estado: "error", error_detalle: emitResult.error } as any)
-        .eq("id", factura_id);
-      return new Response(
-        JSON.stringify({ error: `Error al consultar AFIP: ${emitResult.error.replace("FECompUltimoAutorizado: ", "")}` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+    if (emitResult.uncertain) {
+      await adminClient.from("facturas").update({
+        recuperacion_estado: "incierta",
+        error_detalle: `Emisión incierta: ${emitResult.error}. Queda para conciliación con ARCA.`,
+      } as any).eq("id", factura_id);
+      await logAuto(adminClient, factura_id, factura.facturacion_cola_id, "incierta", { detalle: emitResult.error, cbteNro, origen });
+      return json({ error: "No hubo respuesta clara de ARCA. La factura quedó para conciliación; no se va a duplicar.", estado: "incierta", recoverable: true }, 202);
+    }
+
+    if (emitResult.error?.startsWith("FECompUltimoAutorizado:") || emitResult.error?.startsWith("No se pudo registrar")) {
+      return await fallar("error", emitResult.error, 500);
     }
 
     const emisorNoMonotributoRejected =
-      comprobante.tipo === 11 &&
-      emitResult.error &&
+      comprobante.tipo === 11 && emitResult.error &&
       /NO AUTORIZADO A EMITIR COMPROBANTES|NO CORRESPONDE A RESPONS(?:A|BA)LE MONOTRIBUTO|RESPONS(?:A|BA)LE MONOTRIBUTO/i.test(emitResult.error);
-
     if (emisorNoMonotributoRejected) {
-      console.warn(
-        `[emit-factura] AFIP rechazó Factura C para CUIT ${cuitClean}. Reintentando con comprobante de Responsable Inscripto.`
-      );
+      console.warn(`[emit-factura-afip] Factura C rechazada para ${cuitClean}; reintento como RI.`);
       comprobante = resolveComprobanteAfip("Responsable Inscripto", condicionEfectiva, clienteCuitClean);
       ({ cbteNro, result: emitResult } = await emitirConTipo(comprobante));
+      if (emitResult.uncertain) {
+        await adminClient.from("facturas").update({ recuperacion_estado: "incierta", error_detalle: `Emisión incierta: ${emitResult.error}` } as any).eq("id", factura_id);
+        return json({ error: "No hubo respuesta clara de ARCA. Quedó para conciliación.", estado: "incierta", recoverable: true }, 202);
+      }
     }
 
-    // NO hay reintento silencioso como Consumidor Final (DocTipo 99): si ARCA
-    // rechaza el documento del cliente identificado, el comprobante queda sin
-    // emitir para que alguien corrija la ficha.
-    const padronRejected =
-      emitResult.error &&
+    const padronRejected = emitResult.error &&
       /no se encuentra registrado en los padrones|no corresponde a una cuit|DocNro|DocTipo/i.test(emitResult.error);
-
     if (padronRejected) {
-      await adminClient
-        .from("facturas")
-        .update({
-          estado: "requiere_datos_fiscales",
-          error_detalle: `ARCA rechazó el documento del cliente: ${emitResult.error}`,
-        } as any)
-        .eq("id", factura_id);
-      return new Response(
-        JSON.stringify({
-          error: `ARCA rechazó el documento del cliente (${clienteCuitClean}). Revisá y corregí el DNI o CUIT en la ficha. Detalle: ${emitResult.error}`,
-        }),
-        { status: 422, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      return await fallar("requiere_datos_fiscales",
+        `ARCA rechazó el documento del cliente (${clienteCuitClean}). Corregí el DNI o CUIT. Detalle: ${emitResult.error}`, 422);
     }
-
-    if (emitResult.error) {
-      await adminClient
-        .from("facturas")
-        .update({ estado: "error", error_detalle: `FECAESolicitar: ${emitResult.error}` } as any)
-        .eq("id", factura_id);
-      return new Response(
-        JSON.stringify({ error: `Error al emitir factura: ${emitResult.error}` }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Step 4: Update factura with AFIP data
-    if (cbteNro === null) {
-      return new Response(
-        JSON.stringify({ error: "AFIP no devolvió número de comprobante" }),
-        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    if (emitResult.error) return await fallar("error", `FECAESolicitar: ${emitResult.error}`, 500);
+    if (cbteNro === null || !emitResult.cae) return await fallar("error", "AFIP no devolvió número/CAE", 500);
 
     const nroComprobante = `${String(emisor.punto_venta).padStart(5, "0")}-${String(cbteNro).padStart(8, "0")}`;
-
-    const { error: updateErr } = await adminClient
-      .from("facturas")
-      .update({
-        emisor_id: emisor_id,
-        cliente_cuit: clienteCuitClean,
-        condicion_fiscal: condicionEfectiva,
-        estado: "emitida",
-        numero_comprobante: nroComprobante,
-        tipo_comprobante: comprobante.tipo,
-        letra_comprobante: comprobante.letra,
-        cae: emitResult.cae,
-        cae_vencimiento: emitResult.caeVto,
-        fecha_emision: new Date().toISOString(),
-        error_detalle: null,
-      } as any)
-      .eq("id", factura_id);
-
-    if (updateErr) {
-      console.error("Error updating factura:", updateErr);
+    const persisted = await persistirEmitida(adminClient, factura_id, {
+      emisor_id: emisorId, nroComprobante, tipo: comprobante.tipo, letra: comprobante.letra,
+      cae: emitResult.cae, caeVto: emitResult.caeVto ?? null, recuperada: false,
+    });
+    if (!persisted.ok) {
+      await logAuto(adminClient, factura_id, factura.facturacion_cola_id, "cae_sin_persistir", {
+        numero_comprobante: nroComprobante, cae: emitResult.cae, error: persisted.error,
+      });
+      return json({
+        error: "ARCA autorizó la factura pero no se pudo guardar. Quedó en recuperación: se reconstruye desde ARCA sin duplicar.",
+        recoverable: true, numero_comprobante: nroComprobante, cae: emitResult.cae,
+      }, 500);
     }
 
-    // Auto-dispatch: generar PDF y enviar email al alumno (fire-and-forget)
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const dispatch = async () => {
-      try {
-        await fetch(`${supabaseUrl}/functions/v1/generate-factura-pdf`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ factura_id, force: true }),
-        });
-        await fetch(`${supabaseUrl}/functions/v1/send-factura-email`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
-          body: JSON.stringify({ factura_id }),
-        });
-      } catch (e) { console.error("auto-dispatch error", e); }
-    };
-    // @ts-ignore EdgeRuntime is available in Supabase edge runtime
-    if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(dispatch());
-    else dispatch();
+    dispatchPdfEmail(factura_id);
+    await logAuto(adminClient, factura_id, factura.facturacion_cola_id, "emitida", { numero_comprobante: nroComprobante, origen });
 
-    return new Response(
-      JSON.stringify({
-        success: true,
-        numero_comprobante: nroComprobante,
-        tipo_comprobante: comprobante.tipo,
-        letra_comprobante: comprobante.letra,
-        cae: emitResult.cae,
-        cae_vencimiento: emitResult.caeVto,
-      }),
-      { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({
+      success: true,
+      numero_comprobante: nroComprobante,
+      tipo_comprobante: comprobante.tipo,
+      letra_comprobante: comprobante.letra,
+      cae: emitResult.cae,
+      cae_vencimiento: emitResult.caeVto,
+    });
   } catch (err) {
     console.error("Unexpected error:", err);
-    return new Response(
-      JSON.stringify({ error: `Error inesperado: ${(err as Error).message}` }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return json({ error: `Error inesperado: ${(err as Error).message}` }, 500);
   }
 });
+
+// deno-lint-ignore no-explicit-any
+async function persistirEmitida(admin: any, facturaId: string, d: {
+  emisor_id: string; nroComprobante: string; tipo: number; letra: string; cae: string; caeVto: string | null; recuperada: boolean;
+}): Promise<{ ok: boolean; error?: string }> {
+  let lastErr = "";
+  for (let i = 0; i < 3; i++) {
+    const { error } = await admin.from("facturas").update({
+      emisor_id: d.emisor_id,
+      estado: "emitida",
+      numero_comprobante: d.nroComprobante,
+      tipo_comprobante: d.tipo,
+      letra_comprobante: d.letra,
+      cae: d.cae,
+      cae_vencimiento: d.caeVto,
+      fecha_emision: new Date().toISOString(),
+      error_detalle: null,
+      emision_lock_at: null,
+      recuperacion_estado: d.recuperada ? "recuperada" : null,
+    }).eq("id", facturaId);
+    if (!error) return { ok: true };
+    lastErr = error.message;
+    await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+  }
+  // Marcar al menos como incierta para que la conciliación la recupere.
+  await admin.from("facturas").update({ recuperacion_estado: "incierta" }).eq("id", facturaId);
+  return { ok: false, error: lastErr };
+}
+
+function dispatchPdfEmail(factura_id: string) {
+  const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+  const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+  const dispatch = async () => {
+    try {
+      await fetch(`${supabaseUrl}/functions/v1/generate-factura-pdf`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({ factura_id, force: true }),
+      });
+      await fetch(`${supabaseUrl}/functions/v1/send-factura-email`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${serviceKey}` },
+        body: JSON.stringify({ factura_id }),
+      });
+    } catch (e) { console.error("auto-dispatch error", e); }
+  };
+  // @ts-ignore EdgeRuntime is available in Supabase edge runtime
+  if (typeof EdgeRuntime !== "undefined") EdgeRuntime.waitUntil(dispatch());
+  else dispatch();
+}
+
+// deno-lint-ignore no-explicit-any
+async function reconciliar(admin: any, factura: any, emisor: any, cuitClean: string): Promise<Response> {
+  const esperadoNro: number | null = factura.cbte_esperado_nro ?? null;
+  const tipo: number | null = factura.cbte_esperado_tipo ?? null;
+  const pto: number = factura.cbte_esperado_pto ?? emisor.punto_venta;
+
+  let consulta: ConsultaComprobante | null = null;
+  let ultimo: number | null = null;
+  if (esperadoNro != null && tipo != null) {
+    const wsaa = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
+    if (!wsaa.error) {
+      consulta = await consultarComprobante(wsaa.token || "", wsaa.sign || "", cuitClean, pto, tipo, esperadoNro);
+      const u = await getUltimoComprobante(wsaa.token || "", wsaa.sign || "", cuitClean, pto, tipo);
+      ultimo = u.number ?? null;
+    }
+  }
+
+  const decision = decidirReconciliacion({
+    esperadoNro, consulta, ultimoAutorizado: ultimo, monto: Number(factura.monto), docNro: factura.cliente_cuit,
+  });
+
+  if (decision.accion === "recuperar") {
+    const nro = `${String(pto).padStart(5, "0")}-${String(esperadoNro).padStart(8, "0")}`;
+    const letra = tipo === 1 ? "A" : tipo === 6 ? "B" : "C";
+    const p = await persistirEmitida(admin, factura.id, {
+      emisor_id: emisor.id, nroComprobante: nro, tipo: tipo!, letra, cae: decision.cae, caeVto: decision.caeVto, recuperada: true,
+    });
+    await logAuto(admin, factura.id, factura.facturacion_cola_id, "recuperada", { numero_comprobante: nro, ok: p.ok });
+    if (p.ok) dispatchPdfEmail(factura.id);
+    return json({ success: p.ok, recovered: true, numero_comprobante: nro, cae: decision.cae }, p.ok ? 200 : 500);
+  }
+  if (decision.accion === "liberar") {
+    await admin.from("facturas").update({
+      estado: "error", emision_lock_at: null, recuperacion_estado: esperadoNro != null ? "sin_comprobante" : null,
+      error_detalle: decision.motivo,
+    }).eq("id", factura.id);
+    await logAuto(admin, factura.id, factura.facturacion_cola_id, "liberada", { motivo: decision.motivo });
+    return json({ success: false, released: true, motivo: decision.motivo, retryable: true });
+  }
+  await admin.from("facturas").update({ recuperacion_estado: "incierta", error_detalle: decision.motivo }).eq("id", factura.id);
+  await logAuto(admin, factura.id, factura.facturacion_cola_id, decision.accion, { motivo: decision.motivo });
+  return json({ success: false, estado: "incierta", motivo: decision.motivo }, 202);
+}
 
 // ============================================================
 // WSAA Authentication - Sign Login Ticket Request with CMS
@@ -571,6 +605,10 @@ async function getUltimoComprobante(
 // ============================================================
 // WSFEV1: Emit factura AFIP
 // ============================================================
+
+// ============================================================
+// WSFEV1: Emit factura AFIP
+// ============================================================
 async function emitirFacturaAfip(params: {
   token: string;
   sign: string;
@@ -583,32 +621,12 @@ async function emitirFacturaAfip(params: {
   clienteCuit: string;
   condicionFiscal: string;
   ivaIncluido21: boolean;
-}): Promise<{ cae?: string; caeVto?: string; error?: string }> {
-  const { token, sign, cuit, puntoVenta, cbteNro, cbteTipo, monto, concepto, clienteCuit, ivaIncluido21 } = params;
+  fechas: FechasEmision;
+}): Promise<EmitAfipResult> {
+  const { token, sign, cuit, puntoVenta, cbteNro, cbteTipo, monto, concepto, clienteCuit, ivaIncluido21, fechas } = params;
 
-  // DocTipo: 96=DNI, 80=CUIT, 99=Consumidor Final (sin doc)
-  let docTipo = 99;
-  let docNro = "0";
-
-  if (clienteCuit && clienteCuit !== "0") {
-    if (clienteCuit.length === 11) {
-      docTipo = 80; // CUIT
-      docNro = clienteCuit;
-    } else {
-      docTipo = 96; // DNI
-      docNro = clienteCuit;
-    }
-  }
-
-  const today = new Date();
-  const fechaCbte = today.toISOString().split("T")[0].replace(/-/g, "");
-  
-  // For concepto = Servicios, need date range
-  const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastDay = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  const fchServDesde = firstDay.toISOString().split("T")[0].replace(/-/g, "");
-  const fchServHasta = lastDay.toISOString().split("T")[0].replace(/-/g, "");
-  const fchVtoPago = fechaCbte;
+  const docTipo = clienteCuit.length === 11 ? 80 : 96;
+  const docNro = clienteCuit;
 
   const total = round2(Number(monto));
   const neto = ivaIncluido21 ? round2(total / 1.21) : total;
@@ -639,7 +657,7 @@ async function emitirFacturaAfip(params: {
             <ar:DocNro>${docNro}</ar:DocNro>
             <ar:CbteDesde>${cbteNro}</ar:CbteDesde>
             <ar:CbteHasta>${cbteNro}</ar:CbteHasta>
-            <ar:CbteFch>${fechaCbte}</ar:CbteFch>
+            <ar:CbteFch>${fechas.cbteFch}</ar:CbteFch>
             <ar:ImpTotal>${total.toFixed(2)}</ar:ImpTotal>
             <ar:ImpTotConc>0</ar:ImpTotConc>
             <ar:ImpNeto>${neto.toFixed(2)}</ar:ImpNeto>
@@ -647,9 +665,9 @@ async function emitirFacturaAfip(params: {
             <ar:ImpIVA>${iva.toFixed(2)}</ar:ImpIVA>
             <ar:ImpTrib>0</ar:ImpTrib>
             ${ivaXml}
-            <ar:FchServDesde>${fchServDesde}</ar:FchServDesde>
-            <ar:FchServHasta>${fchServHasta}</ar:FchServHasta>
-            <ar:FchVtoPago>${fchVtoPago}</ar:FchVtoPago>
+            <ar:FchServDesde>${fechas.servDesde}</ar:FchServDesde>
+            <ar:FchServHasta>${fechas.servHasta}</ar:FchServHasta>
+            <ar:FchVtoPago>${fechas.vtoPago}</ar:FchVtoPago>
             <ar:MonId>PES</ar:MonId>
             <ar:MonCotiz>1</ar:MonCotiz>
           </ar:FECAEDetRequest>
@@ -659,6 +677,7 @@ async function emitirFacturaAfip(params: {
   </soapenv:Body>
 </soapenv:Envelope>`;
 
+  let text: string;
   try {
     const resp = await fetch(WSFEV1_URL, {
       method: "POST",
@@ -668,35 +687,86 @@ async function emitirFacturaAfip(params: {
       },
       body: soapBody,
     });
-
-    const text = await resp.text();
-
+    text = await resp.text();
     if (!resp.ok) {
-      return { error: `HTTP ${resp.status}` };
+      // El pedido llegó a ARCA pero no sabemos si se autorizó: queda incierto.
+      return { error: `HTTP ${resp.status}`, uncertain: true };
     }
-
-    // Check for result
-    const resultMatch = text.match(/<Resultado>([^<]+)<\/Resultado>/);
-    if (resultMatch && resultMatch[1] === "A") {
-      const caeMatch = text.match(/<CAE>(\d+)<\/CAE>/);
-      const caeVtoMatch = text.match(/<CAEFchVto>(\d+)<\/CAEFchVto>/);
-      
-      if (caeMatch) {
-        const caeVto = caeVtoMatch
-          ? `${caeVtoMatch[1].substring(0, 4)}-${caeVtoMatch[1].substring(4, 6)}-${caeVtoMatch[1].substring(6, 8)}`
-          : null;
-        return { cae: caeMatch[1], caeVto: caeVto || undefined };
-      }
-    }
-
-    // Check for errors
-    const obsMatch = text.match(/<Msg>([^<]+)<\/Msg>/);
-    const errMatch = text.match(/<Err>.*?<Msg>([^<]+)<\/Msg>/s);
-    const obsMsg = text.match(/<Observaciones>.*?<Msg>([^<]+)<\/Msg>/s);
-    
-    const errorMsg = errMatch?.[1] || obsMsg?.[1] || obsMatch?.[1] || "Factura rechazada por AFIP";
-    return { error: errorMsg };
   } catch (err) {
-    return { error: (err as Error).message };
+    return { error: (err as Error).message, uncertain: true };
+  }
+
+  const resultMatch = text.match(/<Resultado>([^<]+)<\/Resultado>/);
+  if (resultMatch && resultMatch[1] === "A") {
+    const caeMatch = text.match(/<CAE>(\d+)<\/CAE>/);
+    const caeVtoMatch = text.match(/<CAEFchVto>(\d+)<\/CAEFchVto>/);
+    if (caeMatch) {
+      const caeVto = caeVtoMatch
+        ? `${caeVtoMatch[1].substring(0, 4)}-${caeVtoMatch[1].substring(4, 6)}-${caeVtoMatch[1].substring(6, 8)}`
+        : null;
+      return { cae: caeMatch[1], caeVto: caeVto || undefined };
+    }
+    return { error: "ARCA aprobó sin CAE legible", uncertain: true };
+  }
+  if (!resultMatch) {
+    return { error: "Respuesta de ARCA sin resultado", uncertain: true };
+  }
+
+  const obsMatch = text.match(/<Msg>([^<]+)<\/Msg>/);
+  const errMatch = text.match(/<Err>.*?<Msg>([^<]+)<\/Msg>/s);
+  const obsMsg = text.match(/<Observaciones>.*?<Msg>([^<]+)<\/Msg>/s);
+  const errorMsg = errMatch?.[1] || obsMsg?.[1] || obsMatch?.[1] || "Factura rechazada por AFIP";
+  return { error: errorMsg };
+}
+
+// ============================================================
+// WSFEV1: consultar un comprobante ya emitido (para conciliación)
+// ============================================================
+async function consultarComprobante(
+  token: string, sign: string, cuit: string, puntoVenta: number, cbteTipo: number, cbteNro: number,
+): Promise<ConsultaComprobante | null> {
+  const soapBody = `<?xml version="1.0" encoding="UTF-8"?>
+<soapenv:Envelope xmlns:soapenv="http://schemas.xmlsoap.org/soap/envelope/" xmlns:ar="http://ar.gov.afip.dif.FEV1/">
+  <soapenv:Body>
+    <ar:FECompConsultar>
+      <ar:Auth>
+        <ar:Token>${token}</ar:Token>
+        <ar:Sign>${sign}</ar:Sign>
+        <ar:Cuit>${cuit}</ar:Cuit>
+      </ar:Auth>
+      <ar:FeCompConsReq>
+        <ar:CbteTipo>${cbteTipo}</ar:CbteTipo>
+        <ar:CbteNro>${cbteNro}</ar:CbteNro>
+        <ar:PtoVta>${puntoVenta}</ar:PtoVta>
+      </ar:FeCompConsReq>
+    </ar:FECompConsultar>
+  </soapenv:Body>
+</soapenv:Envelope>`;
+  try {
+    const resp = await fetch(WSFEV1_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/xml; charset=utf-8", SOAPAction: "http://ar.gov.afip.dif.FEV1/FECompConsultar" },
+      body: soapBody,
+    });
+    if (!resp.ok) return null;
+    const text = await resp.text();
+    const cae = text.match(/<CodAutorizacion>(\d+)<\/CodAutorizacion>/)?.[1] ?? null;
+    if (cae) {
+      const vto = text.match(/<FchVto>(\d{8})<\/FchVto>/)?.[1] ?? null;
+      const imp = text.match(/<ImpTotal>([\d.]+)<\/ImpTotal>/)?.[1];
+      const doc = text.match(/<DocNro>(\d+)<\/DocNro>/)?.[1] ?? null;
+      return {
+        encontrado: true,
+        cae,
+        caeVto: vto ? `${vto.slice(0, 4)}-${vto.slice(4, 6)}-${vto.slice(6, 8)}` : null,
+        impTotal: imp != null ? Number(imp) : null,
+        docNro: doc,
+      };
+    }
+    // Código 602: "No existen datos en nuestros registros para los parámetros ingresados"
+    if (/<Code>602<\/Code>/.test(text) || /No existen datos/i.test(text)) return { encontrado: false };
+    return null;
+  } catch {
+    return null;
   }
 }

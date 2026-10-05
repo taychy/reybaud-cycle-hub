@@ -3774,6 +3774,10 @@ export type Database = {
       }
       emisor_segmento_config: {
         Row: {
+          auto_actualizado_at: string | null
+          auto_actualizado_por: string | null
+          auto_desde: string | null
+          auto_habilitado: boolean
           created_at: string
           emisor_id: string
           habilitado: boolean
@@ -3782,6 +3786,10 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          auto_actualizado_at?: string | null
+          auto_actualizado_por?: string | null
+          auto_desde?: string | null
+          auto_habilitado?: boolean
           created_at?: string
           emisor_id: string
           habilitado?: boolean
@@ -3790,6 +3798,10 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          auto_actualizado_at?: string | null
+          auto_actualizado_por?: string | null
+          auto_desde?: string | null
+          auto_habilitado?: boolean
           created_at?: string
           emisor_id?: string
           habilitado?: boolean
@@ -6002,17 +6014,61 @@ export type Database = {
         }
         Relationships: []
       }
+      facturacion_auto_log: {
+        Row: {
+          cola_id: string | null
+          created_at: string
+          detalle: Json | null
+          evento: string
+          factura_id: string | null
+          id: string
+        }
+        Insert: {
+          cola_id?: string | null
+          created_at?: string
+          detalle?: Json | null
+          evento: string
+          factura_id?: string | null
+          id?: string
+        }
+        Update: {
+          cola_id?: string | null
+          created_at?: string
+          detalle?: Json | null
+          evento?: string
+          factura_id?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
       facturacion_cola: {
         Row: {
           alumno_id: string | null
+          auto_estado: string
+          auto_intentos: number
+          auto_lock_at: string | null
+          auto_motivo: string | null
+          auto_proximo_intento_at: string | null
+          auto_reevaluar_at: string | null
+          auto_ultimo_error: string | null
+          auto_ultimo_intento_at: string | null
           cliente_cuit: string | null
           cliente_nombre: string | null
           concepto: string
           created_at: string
+          cuenta_mp_id: string | null
           emisor_id: string | null
+          emisor_origen: string | null
+          emisor_override_at: string | null
+          emisor_override_id: string | null
+          emisor_override_motivo: string | null
+          emisor_override_por: string | null
+          emisor_resuelto_id: string | null
           estado: string
           factura_id: string | null
+          fecha_comprobante: string | null
           id: string
+          ingreso: string
           metodo_pago: string | null
           moneda: string
           monto: number
@@ -6026,19 +6082,38 @@ export type Database = {
           referencia_id: string
           referencia_tipo: string
           segmento: string | null
+          servicio_desde: string | null
+          servicio_hasta: string | null
           source: string
           updated_at: string
         }
         Insert: {
           alumno_id?: string | null
+          auto_estado?: string
+          auto_intentos?: number
+          auto_lock_at?: string | null
+          auto_motivo?: string | null
+          auto_proximo_intento_at?: string | null
+          auto_reevaluar_at?: string | null
+          auto_ultimo_error?: string | null
+          auto_ultimo_intento_at?: string | null
           cliente_cuit?: string | null
           cliente_nombre?: string | null
           concepto: string
           created_at?: string
+          cuenta_mp_id?: string | null
           emisor_id?: string | null
+          emisor_origen?: string | null
+          emisor_override_at?: string | null
+          emisor_override_id?: string | null
+          emisor_override_motivo?: string | null
+          emisor_override_por?: string | null
+          emisor_resuelto_id?: string | null
           estado?: string
           factura_id?: string | null
+          fecha_comprobante?: string | null
           id?: string
+          ingreso?: string
           metodo_pago?: string | null
           moneda?: string
           monto: number
@@ -6052,19 +6127,38 @@ export type Database = {
           referencia_id: string
           referencia_tipo: string
           segmento?: string | null
+          servicio_desde?: string | null
+          servicio_hasta?: string | null
           source: string
           updated_at?: string
         }
         Update: {
           alumno_id?: string | null
+          auto_estado?: string
+          auto_intentos?: number
+          auto_lock_at?: string | null
+          auto_motivo?: string | null
+          auto_proximo_intento_at?: string | null
+          auto_reevaluar_at?: string | null
+          auto_ultimo_error?: string | null
+          auto_ultimo_intento_at?: string | null
           cliente_cuit?: string | null
           cliente_nombre?: string | null
           concepto?: string
           created_at?: string
+          cuenta_mp_id?: string | null
           emisor_id?: string | null
+          emisor_origen?: string | null
+          emisor_override_at?: string | null
+          emisor_override_id?: string | null
+          emisor_override_motivo?: string | null
+          emisor_override_por?: string | null
+          emisor_resuelto_id?: string | null
           estado?: string
           factura_id?: string | null
+          fecha_comprobante?: string | null
           id?: string
+          ingreso?: string
           metodo_pago?: string | null
           moneda?: string
           monto?: number
@@ -6078,6 +6172,8 @@ export type Database = {
           referencia_id?: string
           referencia_tipo?: string
           segmento?: string | null
+          servicio_desde?: string | null
+          servicio_hasta?: string | null
           source?: string
           updated_at?: string
         }
@@ -6097,6 +6193,34 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "facturacion_cola_emisor_override_id_fkey"
+            columns: ["emisor_override_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "facturacion_cola_emisor_override_id_fkey"
+            columns: ["emisor_override_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturacion_cola_emisor_resuelto_id_fkey"
+            columns: ["emisor_resuelto_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "facturacion_cola_emisor_resuelto_id_fkey"
+            columns: ["emisor_resuelto_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "facturacion_cola_factura_id_fkey"
             columns: ["factura_id"]
             isOneToOne: false
@@ -6105,11 +6229,81 @@ export type Database = {
           },
         ]
       }
+      facturacion_medio_cuenta: {
+        Row: {
+          created_at: string
+          cuenta_mp_id: string | null
+          emisor_fiscal_id: string | null
+          metodo_pago: string
+          notas: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          cuenta_mp_id?: string | null
+          emisor_fiscal_id?: string | null
+          metodo_pago: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          cuenta_mp_id?: string | null
+          emisor_fiscal_id?: string | null
+          metodo_pago?: string
+          notas?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturacion_medio_cuenta_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "facturacion_medio_cuenta_emisor_fiscal_id_fkey"
+            columns: ["emisor_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "facturacion_medio_cuenta_emisor_fiscal_id_fkey"
+            columns: ["emisor_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facturacion_worker_config: {
+        Row: {
+          created_at: string
+          id: number
+          token: string
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          token?: string
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          token?: string
+        }
+        Relationships: []
+      }
       facturas: {
         Row: {
           alumno_id: string | null
           cae: string | null
           cae_vencimiento: string | null
+          cbte_esperado_nro: number | null
+          cbte_esperado_pto: number | null
+          cbte_esperado_tipo: number | null
           cliente_cuit: string | null
           cliente_nombre: string
           concepto: string
@@ -6117,10 +6311,13 @@ export type Database = {
           created_at: string
           cuenta_mp_id: string | null
           email_enviado_at: string | null
+          emision_intentos: number
+          emision_lock_at: string | null
           emisor_id: string | null
           error_detalle: string | null
           estado: string
           facturacion_cola_id: string | null
+          fecha_comprobante: string | null
           fecha_emision: string | null
           id: string
           letra_comprobante: string | null
@@ -6131,9 +6328,12 @@ export type Database = {
           origen_registro: string | null
           pdf_generated_at: string | null
           pdf_path: string | null
+          recuperacion_estado: string | null
           referencia_id: string | null
           referencia_tipo: string
           segmento: string | null
+          servicio_desde: string | null
+          servicio_hasta: string | null
           tipo_comprobante: number | null
           updated_at: string
         }
@@ -6141,6 +6341,9 @@ export type Database = {
           alumno_id?: string | null
           cae?: string | null
           cae_vencimiento?: string | null
+          cbte_esperado_nro?: number | null
+          cbte_esperado_pto?: number | null
+          cbte_esperado_tipo?: number | null
           cliente_cuit?: string | null
           cliente_nombre: string
           concepto: string
@@ -6148,10 +6351,13 @@ export type Database = {
           created_at?: string
           cuenta_mp_id?: string | null
           email_enviado_at?: string | null
+          emision_intentos?: number
+          emision_lock_at?: string | null
           emisor_id?: string | null
           error_detalle?: string | null
           estado?: string
           facturacion_cola_id?: string | null
+          fecha_comprobante?: string | null
           fecha_emision?: string | null
           id?: string
           letra_comprobante?: string | null
@@ -6162,9 +6368,12 @@ export type Database = {
           origen_registro?: string | null
           pdf_generated_at?: string | null
           pdf_path?: string | null
+          recuperacion_estado?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
+          servicio_desde?: string | null
+          servicio_hasta?: string | null
           tipo_comprobante?: number | null
           updated_at?: string
         }
@@ -6172,6 +6381,9 @@ export type Database = {
           alumno_id?: string | null
           cae?: string | null
           cae_vencimiento?: string | null
+          cbte_esperado_nro?: number | null
+          cbte_esperado_pto?: number | null
+          cbte_esperado_tipo?: number | null
           cliente_cuit?: string | null
           cliente_nombre?: string
           concepto?: string
@@ -6179,10 +6391,13 @@ export type Database = {
           created_at?: string
           cuenta_mp_id?: string | null
           email_enviado_at?: string | null
+          emision_intentos?: number
+          emision_lock_at?: string | null
           emisor_id?: string | null
           error_detalle?: string | null
           estado?: string
           facturacion_cola_id?: string | null
+          fecha_comprobante?: string | null
           fecha_emision?: string | null
           id?: string
           letra_comprobante?: string | null
@@ -6193,9 +6408,12 @@ export type Database = {
           origen_registro?: string | null
           pdf_generated_at?: string | null
           pdf_path?: string | null
+          recuperacion_estado?: string | null
           referencia_id?: string | null
           referencia_tipo?: string
           segmento?: string | null
+          servicio_desde?: string | null
+          servicio_hasta?: string | null
           tipo_comprobante?: number | null
           updated_at?: string
         }
@@ -15933,6 +16151,62 @@ export type Database = {
         Returns: Json
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _fact_cola_evaluar: {
+        Args: { r: Database["public"]["Tables"]["facturacion_cola"]["Row"] }
+        Returns: {
+          alumno_id: string | null
+          auto_estado: string
+          auto_intentos: number
+          auto_lock_at: string | null
+          auto_motivo: string | null
+          auto_proximo_intento_at: string | null
+          auto_reevaluar_at: string | null
+          auto_ultimo_error: string | null
+          auto_ultimo_intento_at: string | null
+          cliente_cuit: string | null
+          cliente_nombre: string | null
+          concepto: string
+          created_at: string
+          cuenta_mp_id: string | null
+          emisor_id: string | null
+          emisor_origen: string | null
+          emisor_override_at: string | null
+          emisor_override_id: string | null
+          emisor_override_motivo: string | null
+          emisor_override_por: string | null
+          emisor_resuelto_id: string | null
+          estado: string
+          factura_id: string | null
+          fecha_comprobante: string | null
+          id: string
+          ingreso: string
+          metodo_pago: string | null
+          moneda: string
+          monto: number
+          motivo_arrastre: string | null
+          notas: string | null
+          origen_registro: string | null
+          pagado_at: string
+          pago_id: string
+          periodo_operativo: string
+          periodo_pago: string
+          referencia_id: string
+          referencia_tipo: string
+          segmento: string | null
+          servicio_desde: string | null
+          servicio_hasta: string | null
+          source: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "facturacion_cola"
+          to: "facturacion_cola"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      _fact_segmento_norm: { Args: { p: string }; Returns: string }
+      _fact_unidades: { Args: { p_seg: string }; Returns: string[] }
       _liq_context: {
         Args: { p_coach_id: string; p_mes: string }
         Returns: Json
@@ -16367,6 +16641,60 @@ export type Database = {
         Args: { _alumno_id: string; _plan_id: string }
         Returns: Json
       }
+      claim_facturacion_auto: {
+        Args: { p_limit?: number }
+        Returns: {
+          alumno_id: string | null
+          auto_estado: string
+          auto_intentos: number
+          auto_lock_at: string | null
+          auto_motivo: string | null
+          auto_proximo_intento_at: string | null
+          auto_reevaluar_at: string | null
+          auto_ultimo_error: string | null
+          auto_ultimo_intento_at: string | null
+          cliente_cuit: string | null
+          cliente_nombre: string | null
+          concepto: string
+          created_at: string
+          cuenta_mp_id: string | null
+          emisor_id: string | null
+          emisor_origen: string | null
+          emisor_override_at: string | null
+          emisor_override_id: string | null
+          emisor_override_motivo: string | null
+          emisor_override_por: string | null
+          emisor_resuelto_id: string | null
+          estado: string
+          factura_id: string | null
+          fecha_comprobante: string | null
+          id: string
+          ingreso: string
+          metodo_pago: string | null
+          moneda: string
+          monto: number
+          motivo_arrastre: string | null
+          notas: string | null
+          origen_registro: string | null
+          pagado_at: string
+          pago_id: string
+          periodo_operativo: string
+          periodo_pago: string
+          referencia_id: string
+          referencia_tipo: string
+          segmento: string | null
+          servicio_desde: string | null
+          servicio_hasta: string | null
+          source: string
+          updated_at: string
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "facturacion_cola"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       clasificar_documento_fiscal: {
         Args: { p_doc: string; p_tipo_documento?: string }
         Returns: Json
@@ -16747,6 +17075,16 @@ export type Database = {
           fecha_nacimiento: string
           nombre: string
         }[]
+      }
+      finish_facturacion_auto: {
+        Args: {
+          p_cola_id: string
+          p_error?: string
+          p_factura_id?: string
+          p_resultado: string
+          p_retryable?: boolean
+        }
+        Returns: string
       }
       fiscal_cuit_valido: { Args: { p_doc: string }; Returns: boolean }
       fiscal_doc_digits: { Args: { p_doc: string }; Returns: string }
@@ -17808,6 +18146,7 @@ export type Database = {
         Args: { _alumno_id: string; _codigo: string; _evento_id: string }
         Returns: Json
       }
+      reevaluar_facturacion_cola: { Args: { p_ids: string[] }; Returns: number }
       refresh_backfill_preview: { Args: never; Returns: string }
       refresh_combo_stock: { Args: { p_combo_id: string }; Returns: undefined }
       register_cash_box_manual_movement:
@@ -18103,6 +18442,16 @@ export type Database = {
         Args: { p_product_id: string; p_variante: string }
         Returns: string
       }
+      resolver_emisor_facturacion: {
+        Args: {
+          p_cuenta_mp_id: string
+          p_emisor_explicito?: string
+          p_metodo_pago: string
+          p_override?: string
+          p_segmento: string
+        }
+        Returns: Json
+      }
       resolver_falta_stock: {
         Args: {
           p_comentario?: string
@@ -18262,6 +18611,14 @@ export type Database = {
           es_principal: boolean
           sede_id: string
         }[]
+      }
+      set_cola_emisor_override: {
+        Args: { p_cola_id: string; p_emisor_id: string; p_motivo: string }
+        Returns: Json
+      }
+      set_facturacion_auto_config: {
+        Args: { p_emisor_id: string; p_habilitado: boolean; p_segmento: string }
+        Returns: Json
       }
       set_gasto_categoria: {
         Args: {

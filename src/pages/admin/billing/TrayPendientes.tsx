@@ -13,6 +13,9 @@ import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 import { isFacturaEmitida, edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
 import { AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { FacturacionAutoConfigCard } from "@/components/admin/FacturacionAutoConfigCard";
+import { ColaEmisorOverrideDialog } from "@/components/admin/ColaEmisorOverrideDialog";
+import { autoEstadoUi, emisorOrigenLabel, periodoLabel } from "@/lib/facturacionAuto";
 
 interface PreflightRow {
   cola_id: string;
@@ -46,7 +49,7 @@ const GROUP_SOURCES: Record<string, SourceKind[]> = {
 };
 
 const COLS =
-  "id, source, referencia_tipo, referencia_id, alumno_id, cliente_nombre, cliente_cuit, concepto, monto, moneda, segmento, metodo_pago, origen_registro, pagado_at, estado, factura_id";
+  "id, source, referencia_tipo, referencia_id, alumno_id, cliente_nombre, cliente_cuit, concepto, monto, moneda, segmento, metodo_pago, origen_registro, pagado_at, estado, factura_id, emisor_resuelto_id, emisor_origen, cuenta_mp_id, servicio_desde, servicio_hasta, auto_estado, auto_motivo";
 
 interface ColaRow {
   id: string;
@@ -67,6 +70,13 @@ interface ColaRow {
   factura_id: string | null;
   factura_estado?: string | null;
   factura_cae?: string | null;
+  emisor_resuelto_id?: string | null;
+  emisor_origen?: string | null;
+  cuenta_mp_id?: string | null;
+  servicio_desde?: string | null;
+  servicio_hasta?: string | null;
+  auto_estado?: string | null;
+  auto_motivo?: string | null;
 }
 
 export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
@@ -84,6 +94,8 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   const [preparing, setPreparing] = useState(false);
   const [rebuilding, setRebuilding] = useState(false);
   const [preflight, setPreflight] = useState<Map<string, PreflightRow>>(new Map());
+  const [cuentas, setCuentas] = useState<Map<string, string>>(new Map());
+  const [overrideRow, setOverrideRow] = useState<ColaRow | null>(null);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -134,6 +146,8 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
           .eq("activo", true),
         supabase.rpc("preflight_facturacion_cola" as any, {}),
       ]);
+      const { data: cts } = await supabase.from("cuentas_mp" as any).select("id, nombre");
+      setCuentas(new Map(((cts as any[]) || []).map((c) => [c.id, c.nombre])));
       setEmisores((emisoresRes.data as any[]) || []);
       setPreflight(
         new Map(((preflightRes.data as any[]) || []).map((p: PreflightRow) => [p.cola_id, p])),
@@ -286,6 +300,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <div className="space-y-4">
+      <FacturacionAutoConfigCard onChanged={load} />
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -379,7 +394,32 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                   <div className="flex items-center gap-3 text-xs text-muted-foreground flex-wrap">
                     <span>{fecha}</span>
                     {r.metodo_pago && <span className="bg-muted px-1.5 py-0.5 rounded">{r.metodo_pago}</span>}
+                    <span>Período {periodoLabel(r.servicio_desde, r.servicio_hasta)}</span>
+                    <span>{r.moneda}</span>
                   </div>
+                  {(() => {
+                    const est = autoEstadoUi(r.auto_estado);
+                    const emisorNombre = emisores.find((e) => e.id === r.emisor_resuelto_id)?.nombre_fiscal;
+                    const toneCls = est.tone === "error" ? "text-destructive border-destructive/40"
+                      : est.tone === "warn" ? "text-yellow-600 border-yellow-500/40"
+                      : est.tone === "ok" ? "text-emerald-600 border-emerald-500/40" : "text-muted-foreground";
+                    return (
+                      <div className="flex items-center gap-2 text-xs flex-wrap">
+                        <Badge variant="outline" className={`text-[10px] ${toneCls}`}>{est.label}</Badge>
+                        <span className="text-foreground">Emisor: {emisorNombre ?? "sin determinar"}</span>
+                        <span className="text-muted-foreground">
+                          · {emisorOrigenLabel(r.emisor_origen)}
+                          {r.cuenta_mp_id && ` · cuenta ${cuentas.get(r.cuenta_mp_id) ?? "MP"}`}
+                        </span>
+                        {r.auto_motivo && <span className="text-muted-foreground">· {r.auto_motivo}</span>}
+                        {!emitida && r.auto_estado !== "emitiendo" && (
+                          <button type="button" className="underline font-medium" onClick={() => setOverrideRow(r)}>
+                            Cambiar emisor
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <p className="text-sm font-bold tabular-nums">{formatPrice(r.monto, r.moneda as any)}</p>
@@ -408,6 +448,18 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
             </div>
           )}
         </div>
+      )}
+
+      {overrideRow && (
+        <ColaEmisorOverrideDialog
+          open={!!overrideRow}
+          onOpenChange={(o) => { if (!o) setOverrideRow(null); }}
+          colaId={overrideRow.id}
+          clienteNombre={overrideRow.cliente_nombre}
+          emisorActualId={overrideRow.emisor_resuelto_id ?? null}
+          emisores={emisores}
+          onDone={load}
+        />
       )}
 
       <BulkInvoiceModal
