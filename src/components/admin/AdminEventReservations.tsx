@@ -1,4 +1,7 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
+import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
+import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
+import type { RefundSuggestion } from "@/lib/cancellationRefund";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { addablePackages, requiresPackage, packageOptionLabel } from "@/lib/eventPackageAdd";
 
@@ -927,6 +930,8 @@ const AdminEventReservations = ({
 
   // Cancelación con habitación asignada → preguntar si liberar la cama
   const [pendingCancel, setPendingCancel] = useState<{ resId: string; room: string } | null>(null);
+  const [refundDialogFor, setRefundDialogFor] = useState<string | null>(null);
+  const refundSugRef = useRef<{ resId: string; s: RefundSuggestion } | null>(null);
   // Cancelación con alojamiento compartido → resolver a quienes quedan
   const [sharedCancel, setSharedCancel] = useState<
     { resId: string; room: string; name: string; occupants: SharedLodgingOccupant[] } | null
@@ -953,7 +958,14 @@ const AdminEventReservations = ({
       }));
   };
 
-  const updateReservationStatus = async (resId: string, field: string, value: string) => {
+  const updateReservationStatus = async (resId: string, field: string, value: string, refundOk = false) => {
+    if (field === "reservation_status" && value === "cancelada" && !refundOk) {
+      const res = reservations.find((r) => r.id === resId);
+      if (res && !isReservaCancelada(res.reservation_status)) {
+        setRefundDialogFor(resId);
+        return;
+      }
+    }
     if (field === "reservation_status" && value === "cancelada" && roomByRes[resId]) {
       const occupants = buildOccupants(resId);
       const res = reservations.find((r) => r.id === resId);
@@ -1047,6 +1059,15 @@ const AdminEventReservations = ({
             description: `Se avisó a los super admins para contactar la lista de espera.${extras ? ` ${extras}.` : ""}`,
           });
         }
+      }
+      const sug = refundSugRef.current;
+      if (field === "reservation_status" && value === "cancelada" && sug?.resId === resId) {
+        refundSugRef.current = null;
+        const { error: obErr } = await supabase.rpc("registrar_obligacion_devolucion" as any, {
+          p_reservation_id: resId, p_estado: sug.s.estado, p_retenido: sug.s.retenido, p_sugerido: sug.s.sugerido,
+          p_regla: sug.s.regla, p_fuente: sug.s.fuente, p_politica_texto: sug.s.politicaTexto,
+        });
+        if (obErr) toast({ title: "Reserva cancelada, pero no se registró la devolución sugerida", description: obErr.message, variant: "destructive" });
       }
       toast({ title: "Estado actualizado" });
       loadReservations();
@@ -2181,6 +2202,16 @@ const AdminEventReservations = ({
                 />
               )}
 
+              {/* Devolución sugerida / devuelto / pendiente (reservas canceladas) */}
+              {isReservaCancelada(selectedRes.reservation_status) && (
+                <ReservationRefundObligationCard
+                  key={`${selectedRes.id}-${selectedRes.reservation_status}`}
+                  reservationId={selectedRes.id}
+                  moneda={curr(selectedRes)}
+                  fallbackDevuelto={resRefunds.reduce((s, r) => s + Number(r.monto || 0), 0)}
+                />
+              )}
+
               {/* Devoluciones reales (proyección de gastos vinculados) */}
               <ReservationDevolucionesCard reservationId={selectedRes.id} />
 
@@ -2910,6 +2941,18 @@ const AdminEventReservations = ({
       )}
 
       {/* Cancelar reserva con habitación asignada */}
+
+      <CancelRefundDialog
+        open={!!refundDialogFor}
+        reservationId={refundDialogFor}
+        onCancel={() => setRefundDialogFor(null)}
+        onConfirm={(s) => {
+          const id = refundDialogFor!;
+          refundSugRef.current = { resId: id, s };
+          setRefundDialogFor(null);
+          updateReservationStatus(id, "reservation_status", "cancelada", true);
+        }}
+      />
 
       <Dialog open={!!pendingCancel} onOpenChange={(o) => { if (!o) setPendingCancel(null); }}>
         <DialogContent className="max-w-md">
