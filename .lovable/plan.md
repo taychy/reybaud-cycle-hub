@@ -1,77 +1,38 @@
-# Auditoría WhatsApp — inventario y plan por etapas
+# Training Camp San Luis: cupo de Ingrid y error "v_event has no field nature"
 
-Solo lectura. No se cambió código, base, secretos ni producción, y no se envió nada.
+## Diagnóstico (verificado, solo lectura)
 
-## 1. Qué existe hoy
+**Causa técnica (punto 4):** la función del servidor `admin_create_event_reservation` (la que usa Admin → Agregar participante) tiene esta línea:
 
-**Envío automático desde el servidor: ninguno funcionando.**
-- `supabase/functions/_shared/turneraWhatsapp.ts`: es un envío por Twilio ya escrito (pasa por el gateway de conectores, usa `ContentSid` y `TWILIO_WHATSAPP_FROM`). Lo llama `process-turnera-reminders` (recordatorios a alumno y coach), con registro en `_shared/turneraNotifLog.ts`. Nunca se activó:
-  - El conector Twilio ("Scarlett's Twilio") existe en el workspace pero **no está vinculado** al proyecto, así que falta `TWILIO_API_KEY`.
-  - Falta el secreto `TWILIO_WHATSAPP_FROM`.
-  - No hay claves `turnera_wa_content_sid_*` en `app_config`.
-  - `turnera_notificaciones` tiene 0 filas de WhatsApp (solo email: 20 sent, 40 queued, 2 error).
-- Otras funciones solo mencionan WhatsApp en textos o links (notify-reservation, process-installment-reminders, send-delivery-ready-pickup, etc.).
+`v_inscription_only := COALESCE(v_event.nature, '') = 'propio_solo_inscripcion';`
 
-**Receptor de mensajes entrantes: está preparado, pero sin uso.**
-- `supabase/functions/whatsapp-webhook` (Meta Cloud API, `verify_jwt=false`): responde la verificación con `WHATSAPP_VERIFY_TOKEN`, valida la firma con `META_APP_SECRET` y guarda los mensajes en `whatsapp_conversations` / `whatsapp_messages`.
-  - Faltan los dos secretos, así que la verificación de Meta hoy fallaría.
-  - **Riesgo:** sin `META_APP_SECRET` la firma no se valida y cualquiera podría escribir en esas tablas.
-  - Las tablas tienen 0 filas: nunca llegó nada.
+La tabla `events` **no tiene una columna `nature`**. El tipo de evento se guarda en `events.metadata->>'event_nature'` (así lo escribe el formulario de eventos y lo lee el resto de la app). Por eso falla siempre, para cualquier evento y cualquier paquete; no tiene nada que ver con la Etapa 3 ni con la habitación individual.
 
-**Tablas:** `whatsapp_conversations`, `whatsapp_messages`, `whatsapp_pending_tasks` (0 filas); `whatsapp_check_runs/items/extras` (44 corridas, se usan para el chequeo manual de grupos); `turnera_notificaciones` (bitácora multicanal).
+El mismo error está escondido en la protección `guard_reservation_package_required` (`SELECT nature FROM events`). Hoy no salta porque solo se ejecuta cuando la reserva no tiene paquete, pero fallaría igual.
 
-**Secretos configurados:** ninguno de Twilio ni de Meta/WhatsApp. Solo hay Mercado Pago, Brevo, Resend, Google Calendar, `CRON_SECRET` y `LOVABLE_API_KEY`.
+## Flujo de negocio recomendado (puntos 1 a 3)
 
-**Flujos manuales con links wa.me (lo único que funciona hoy):**
-- Admin → Programas → Preinscriptos (`ProgramPreinscriptosTab.tsx`, `whatsappPreinscripto.ts`)
-- Deudores (`DeudoresTab.tsx`), cuenta corriente (`CuentaPublicLinkDialog.tsx`), cumpleaños (`BirthdayWidget.tsx`)
-- Reservas de viajes y lista de espera (`AdminEventReservations.tsx`, `AdminEventWaitlist.tsx`)
-- Turnera (`TurneraComunicacionesCell.tsx`, `whatsappReminderTemplates.ts`)
-- Depósito y camioneta (`DeliveryClientNotify.tsx`, `camionetaAviso.ts`, `DepositoCamioneta/Pedidos`)
-- Grupos (`WhatsAppGrupoTareas.tsx`, `whatsappGroupSync.ts`, `CoachChequeoAlumnos.tsx`)
-- `/admin/comunicaciones?tab=whatsapp` (conciliador) y `/admin/whatsapp-historial`
-- Botones de contacto en páginas públicas (`contactInfo.ts`)
-- Normalización de teléfonos: `phoneNormalize.ts` y una copia propia en `register-whatsapp-contact`
+- **Cancelar a Ingrid y crear una reserva nueva** para el alumno, no "cambiar el participante" sobre la reserva de Ingrid.
+  - No existe hoy una función de transferencia de reserva entre personas; habría que construirla.
+  - La reserva de Ingrid tiene sus propios pagos, condiciones aceptadas, historial y avisos. Pasarlos a otra persona mezclaría la trazabilidad y lo que ella pagó.
+- **Capacidad:** al cancelar a Ingrid con "liberar plaza", el cupo de la habitación individual vuelve a estar disponible. La reserva nueva lo ocupa. No se duplica nada mientras la de Ingrid quede cancelada antes de crear la nueva.
+- **Paquete y precio:** el alumno nuevo entra a "Hab. individual con Pensión Completa" al precio vigente hoy (Etapa 3, $1.196.690 ARS). Esto lo resuelve el servidor, no el navegador. No hereda el precio que tenía Ingrid.
+- **Pagos y seña:** lo que pagó Ingrid queda en su reserva cancelada. Si hay que devolverlo o dejarlo como saldo a favor, se resuelve aparte, como siempre (nunca automático). El alumno nuevo arranca con su propia seña y plan de pagos.
+- **Alojamiento:** la habitación individual no tiene compañeros, así que no hay que reorganizar a nadie.
+- **Trazabilidad:** queda la cancelación de Ingrid en su historial y la reserva nueva con quién la creó. Opcionalmente, una nota en ambas: "Cupo liberado por Ingrid → reasignado a X".
 
-## 2. Recomendación: Twilio o Meta directo
+## Cambio mínimo propuesto (punto 5)
 
-Recomiendo **el conector directo WhatsApp Business (Meta)**, no Twilio:
-- El receptor y las tablas ya están hechos para el formato de Meta.
-- No cobra un costo extra por mensaje como Twilio.
-- Las plantillas se gestionan desde la app.
-- Las respuestas dentro de las 24 h son gratis.
+Una sola migración que corrige las dos funciones, sin tocar datos:
 
-Twilio solo tiene a favor el código de recordatorios ya escrito, pero nunca se probó y sería fácil de adaptar.
+1. En `admin_create_event_reservation`, leer el tipo de evento desde `metadata->>'event_nature'` en vez de `v_event.nature`.
+2. En `guard_reservation_package_required`, lo mismo.
 
-**Limitación a validar:** en este tipo de proyecto, la recepción de mensajes por el conector requiere la versión moderna de la plataforma. Hay dos caminos:
-- **(a)** Usar el webhook propio `whatsapp-webhook` con una app de Meta propia: requiere `WHATSAPP_VERIFY_TOKEN` y `META_APP_SECRET`.
-- **(b)** Migrar el proyecto.
+Nada más cambia: ni precios, ni paquetes, ni la reserva de Ingrid.
 
-Hay que decidirlo antes de la Etapa 3.
+## Verificación posterior
 
-## 3. Arquitectura mínima
-
-```text
-Evento en la app (pago, reserva, link) -> cola whatsapp_outbox (idempotency_key)
-   -> función send-whatsapp (de a uno, plantilla aprobada) -> proveedor
-   -> estado queued / sent / delivered / read / failed (por callback real)
-Mensaje entrante -> whatsapp-webhook (firma obligatoria) -> whatsapp_messages
-   -> reglas simples (palabras clave / menú) -> respuesta automática en 24 h
-   -> sin coincidencia o pide humano -> whatsapp_pending_tasks + aviso admin
-Bandeja admin (/admin/whatsapp-historial) para leer, responder y cerrar casos
-```
-
-## 4. Plan por etapas
-
-1. **Credenciales:** conectar WhatsApp Business. Hacer obligatoria la firma en el webhook (rechazar si falta el secreto) y cargar los secretos. Probar con el número propio.
-2. **Plantillas:** crear plantillas UTILITY (link de pago, recordatorio de turno, preinscripción) y esperar la aprobación de Meta (hasta 48 h).
-3. **Envío transaccional:** una tabla de salida con clave de idempotencia y una función de envío de a uno, solo para admin y tareas programadas. Un mensaje solo se marca "enviado" cuando el proveedor lo confirma. Empezar por los recordatorios de Turnera.
-4. **Entrantes y bandeja:** activar el receptor, armar la bandeja con respuesta manual y asignar conversaciones a alumnos por teléfono normalizado.
-5. **Respuestas automáticas simples:** horarios, sedes, link de pago; con IA opcional y siempre con opción de derivar.
-6. **Derivación a humano y trazabilidad:** tareas pendientes, auditoría y métricas.
-
-## Decisiones que necesito de vos
-
-- ¿Meta directo (recomendado) o Twilio?
-- ¿Qué número va a usar el negocio, y ya está en la app WhatsApp Business?
-- Para recibir mensajes: ¿webhook propio con app de Meta propia, o migrar el proyecto?
+- Confirmar que las dos funciones ya no mencionan `nature` como columna.
+- Correr las pruebas de `eventPackageAdd` (lógica espejo).
+- No crear ninguna reserva de prueba en el evento real. Natalia hace el alta.
+- Antes de que lo haga, confirmar que la reserva de Ingrid figure como cancelada y que la plaza esté libre.
