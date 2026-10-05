@@ -14002,6 +14002,58 @@ export type Database = {
           },
         ]
       }
+      unidad_routing: {
+        Row: {
+          activa: boolean
+          cambiado_at: string
+          cambiado_por: string | null
+          cambiado_por_email: string | null
+          cuenta_mp_id: string | null
+          emisor_fiscal_id: string | null
+          unidad: Database["public"]["Enums"]["unidad_negocio_mp"]
+        }
+        Insert: {
+          activa?: boolean
+          cambiado_at?: string
+          cambiado_por?: string | null
+          cambiado_por_email?: string | null
+          cuenta_mp_id?: string | null
+          emisor_fiscal_id?: string | null
+          unidad: Database["public"]["Enums"]["unidad_negocio_mp"]
+        }
+        Update: {
+          activa?: boolean
+          cambiado_at?: string
+          cambiado_por?: string | null
+          cambiado_por_email?: string | null
+          cuenta_mp_id?: string | null
+          emisor_fiscal_id?: string | null
+          unidad?: Database["public"]["Enums"]["unidad_negocio_mp"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "unidad_routing_cuenta_mp_id_fkey"
+            columns: ["cuenta_mp_id"]
+            isOneToOne: false
+            referencedRelation: "cuentas_mp"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "unidad_routing_emisor_fiscal_id_fkey"
+            columns: ["emisor_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "unidad_routing_emisor_fiscal_id_fkey"
+            columns: ["emisor_fiscal_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -18597,6 +18649,24 @@ export type Database = {
           test: number
         }[]
       }
+      ruta_unidad_activa: {
+        Args: { p_unidad: string }
+        Returns: {
+          activa: boolean
+          cambiado_at: string
+          cambiado_por: string | null
+          cambiado_por_email: string | null
+          cuenta_mp_id: string | null
+          emisor_fiscal_id: string | null
+          unidad: Database["public"]["Enums"]["unidad_negocio_mp"]
+        }
+        SetofOptions: {
+          from: "*"
+          to: "unidad_routing"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       service_liquidacion_link: {
         Args: { p_coach_id: string; p_mes: string }
         Returns: string
@@ -18620,6 +18690,10 @@ export type Database = {
         Args: { p_emisor_id: string; p_habilitado: boolean; p_segmento: string }
         Returns: Json
       }
+      set_facturacion_automatica_emisor: {
+        Args: { p_activa: boolean; p_emisor_id: string }
+        Returns: Json
+      }
       set_gasto_categoria: {
         Args: {
           _categoria_id: string
@@ -18638,6 +18712,10 @@ export type Database = {
           _plan_id?: string
           _preapproval_id: string
         }
+        Returns: Json
+      }
+      set_unidad_routing: {
+        Args: { p_activa: boolean; p_motivo?: string; p_unidad: string }
         Returns: Json
       }
       solicitar_cambio_agenda: {
