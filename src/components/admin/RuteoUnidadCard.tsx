@@ -13,25 +13,41 @@ interface RutaRow {
   cuentas_mp: { nombre: string } | null;
   emisores_fiscales: { nombre_fiscal: string } | null;
 }
+interface NormalRow {
+  unidad_negocio: string;
+  cuentas_mp: { nombre: string } | null;
+  emisores_fiscales: { nombre_fiscal: string } | null;
+}
 
-const UNIDADES: { unidad: string; label: string; rutaNormal: string }[] = [
-  { unidad: "suscripcion_escuela", label: "Escuela", rutaNormal: "Claudio" },
-  { unidad: "viaje_camp", label: "Viajes", rutaNormal: "Scarlett" },
-  { unidad: "tienda", label: "Tienda", rutaNormal: "Scarlett" },
+const UNIDADES: { unidad: string; label: string; detalle: string }[] = [
+  { unidad: "suscripcion_escuela", label: "Escuela", detalle: "Suscripciones, turnera, clases, asesorías y programas" },
+  { unidad: "viaje_camp", label: "Viajes / Eventos", detalle: "Viajes, camps y eventos" },
+  { unidad: "tienda", label: "Tienda", detalle: "Tienda y preventas" },
 ];
 
-/** Ruteo manual de cobros por unidad: define a qué cuenta (y emisor) van los cobros nuevos. */
+const fmt = (iso: string) =>
+  new Date(iso).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", dateStyle: "short", timeStyle: "short" });
+
+/** Ruteo de cobros por unidad: ruta normal u override manual a Josilene (cuenta y emisor juntos). */
 export function RuteoUnidadCard({ onChanged }: { onChanged?: () => void }) {
   const [rutas, setRutas] = useState<Record<string, RutaRow>>({});
+  const [normales, setNormales] = useState<Record<string, NormalRow>>({});
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    const { data } = await supabase
-      .from("unidad_routing" as any)
-      .select("unidad, activa, cambiado_at, cambiado_por_email, cuentas_mp(nombre), emisores_fiscales(nombre_fiscal)");
+    const [{ data }, { data: base }] = await Promise.all([
+      supabase.from("unidad_routing" as any)
+        .select("unidad, activa, cambiado_at, cambiado_por_email, cuentas_mp(nombre), emisores_fiscales(nombre_fiscal)"),
+      supabase.from("cuenta_mp_routing" as any)
+        .select("unidad_negocio, prioridad, cuentas_mp(nombre), emisores_fiscales(nombre_fiscal)")
+        .eq("activa", true).order("prioridad"),
+    ]);
     const map: Record<string, RutaRow> = {};
     for (const r of (data as any[]) || []) map[r.unidad] = r as RutaRow;
+    const nm: Record<string, NormalRow> = {};
+    for (const r of (base as any[]) || []) if (!nm[r.unidad_negocio]) nm[r.unidad_negocio] = r as NormalRow;
     setRutas(map);
+    setNormales(nm);
   }, []);
 
   useEffect(() => { load(); }, [load]);
@@ -45,10 +61,8 @@ export function RuteoUnidadCard({ onChanged }: { onChanged?: () => void }) {
       return;
     }
     toast({
-      title: activa ? `Ruteo activado en ${label}` : `${label} volvió a su ruta normal`,
-      description: activa
-        ? "Los cobros nuevos de esta unidad se facturan con la ruta alternativa."
-        : "Los cobros nuevos vuelven a la cuenta habitual. Lo ya cobrado no cambia.",
+      title: activa ? `${label} derivado a Josilene` : `${label} volvió a su ruta normal`,
+      description: "Aplica a los cobros nuevos desde ahora. Lo ya cobrado mantiene su cuenta y emisor.",
     });
     load();
     onChanged?.();
@@ -56,52 +70,43 @@ export function RuteoUnidadCard({ onChanged }: { onChanged?: () => void }) {
 
   return (
     <div className="rounded-xl border border-border bg-card p-4 space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 flex-wrap">
         <Route className="w-4 h-4 text-primary" />
         <p className="text-sm font-semibold">Ruteo de cobros</p>
         <span className="text-xs text-muted-foreground">
-          Define a qué cuenta entran los cobros nuevos de cada unidad y quién los factura. Manual, sin vencimiento.
+          Cuenta que recibe los cobros nuevos y emisor que los factura. Siempre cambian juntos.
         </span>
       </div>
       <div className="grid gap-2 sm:grid-cols-3">
-        {UNIDADES.map(({ unidad, label, rutaNormal }) => {
+        {UNIDADES.map(({ unidad, label, detalle }) => {
           const r = rutas[unidad];
-          const activa = !!r?.activa;
+          const n = normales[unidad];
+          const override = !!r?.activa;
+          const cuenta = override ? r?.cuentas_mp?.nombre : n?.cuentas_mp?.nombre;
+          const emisor = override ? r?.emisores_fiscales?.nombre_fiscal : n?.emisores_fiscales?.nombre_fiscal;
+          const normalCorta = n?.cuentas_mp?.nombre ?? "ruta normal";
           return (
-            <div key={unidad} className="rounded-lg border border-border/60 px-3 py-2 space-y-2">
-              <p className="text-sm font-medium">{label}</p>
-              {activa ? (
-                <>
-                  <p className="text-xs">
-                    Ruta actual: <span className="font-medium">{r?.emisores_fiscales?.nombre_fiscal ?? "—"}</span>{" "}
-                    <Badge variant="outline" className="text-[10px]">override manual</Badge>
-                  </p>
-                  <p className="text-[11px] text-muted-foreground">
-                    Cuenta: {r?.cuentas_mp?.nombre ?? "—"} · desde{" "}
-                    {new Date(r!.cambiado_at).toLocaleString("es-AR", { timeZone: "America/Argentina/Buenos_Aires", dateStyle: "short", timeStyle: "short" })}
-                  </p>
-                  <Button
-                    size="sm" variant="outline" className="w-full"
-                    disabled={busy === unidad}
-                    onClick={() => cambiar(unidad, label, false)}
-                  >
-                    <ArrowLeftRight className="w-3.5 h-3.5 mr-1.5" />
-                    Volver a ruta normal ({rutaNormal})
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <p className="text-xs text-muted-foreground">Ruta actual: {rutaNormal} (normal)</p>
-                  <Button
-                    size="sm" variant="outline" className="w-full"
-                    disabled={busy === unidad}
-                    onClick={() => cambiar(unidad, label, true)}
-                  >
-                    <ArrowLeftRight className="w-3.5 h-3.5 mr-1.5" />
-                    Rutear a la cuenta alternativa
-                  </Button>
-                </>
-              )}
+            <div key={unidad} className="rounded-lg border border-border/60 px-3 py-2 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-sm font-medium">{label}</p>
+                <Badge variant={override ? "default" : "outline"} className="text-[10px]">
+                  {override ? "Override Josilene" : "Ruta normal"}
+                </Badge>
+              </div>
+              <p className="text-[11px] text-muted-foreground">{detalle}</p>
+              <p className="text-xs">Cuenta MP destino: <span className="font-medium">{cuenta ?? "Sin configurar"}</span></p>
+              <p className="text-xs">Emisor fiscal: <span className="font-medium">{emisor ?? "Sin configurar"}</span></p>
+              <p className="text-[11px] text-muted-foreground">
+                {r?.cambiado_at ? `Vigente desde ${fmt(r.cambiado_at)}${r.cambiado_por_email ? ` · ${r.cambiado_por_email}` : ""}` : "Sin cambios de ruteo"}
+              </p>
+              <Button
+                size="sm" variant="outline" className="w-full"
+                disabled={busy === unidad}
+                onClick={() => cambiar(unidad, label, !override)}
+              >
+                <ArrowLeftRight className="w-3.5 h-3.5 mr-1.5" />
+                {override ? `Volver a ruta normal (${normalCorta})` : "Derivar a Josilene"}
+              </Button>
             </div>
           );
         })}
