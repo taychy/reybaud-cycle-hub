@@ -44,6 +44,7 @@ import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
 import ReservationDevolucionesCard from "@/components/admin/ReservationDevolucionesCard";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
+import { reservationNet, isReservaCancelada, paymentRefundState, refundByPayment, type RefundRow } from "@/lib/reservationRefunds";
 
 /* ─── Types ─── */
 
@@ -316,6 +317,7 @@ const AdminEventReservations = ({
   const [selectedRes, setSelectedRes] = useState<EventReservation | null>(null);
   const [changePackageFor, setChangePackageFor] = useState<EventReservation | null>(null);
   const [payments, setPayments] = useState<Payment[]>([]);
+  const [resRefunds, setResRefunds] = useState<RefundRow[]>([]);
   const [paymentToReview, setPaymentToReview] = useState<Payment | null>(null);
   const [paymentToEdit, setPaymentToEdit] = useState<Payment | null>(null);
   const [editPaymentMode, setEditPaymentMode] = useState<"edit" | "annul">("edit");
@@ -502,12 +504,19 @@ const AdminEventReservations = ({
 
 
   const loadPayments = async (reservationId: string) => {
-    const { data } = await supabase
-      .from("reservation_payments" as any)
-      .select("*")
-      .eq("reservation_id", reservationId)
-      .order("created_at", { ascending: false });
+    const [{ data }, { data: devs }] = await Promise.all([
+      supabase
+        .from("reservation_payments" as any)
+        .select("*")
+        .eq("reservation_id", reservationId)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("devoluciones" as any)
+        .select("reservation_payment_id, monto")
+        .eq("reservation_id", reservationId),
+    ]);
     if (data) setPayments(data as unknown as Payment[]);
+    setResRefunds(((devs as any[]) ?? []) as RefundRow[]);
   };
 
   const loadNotifications = async (reservationId: string) => {
@@ -1960,26 +1969,53 @@ const AdminEventReservations = ({
                 </div>
               ) : (
                 <div className="rounded-xl border border-border p-4 space-y-3">
-                  <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resumen financiero</h4>
-                  <div className="grid grid-cols-3 gap-3 text-center">
-                    <div>
-                      <p className="text-lg font-bold text-foreground">{fmtMoney(selectedRes.amount_total, curr(selectedRes))}</p>
-                      <p className="text-[10px] text-muted-foreground">Total</p>
-                    </div>
-                    <div>
-                      <p className="text-lg font-bold text-emerald-500">{fmtMoney(selectedRes.amount_paid, curr(selectedRes))}</p>
-                      <p className="text-[10px] text-muted-foreground">Abonado</p>
-                    </div>
-                    <div>
-                      <p className={`text-lg font-bold ${(selectedRes.balance_due ?? 0) > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
-                        {fmtMoney(selectedRes.balance_due ?? ((selectedRes.amount_total || 0) - (selectedRes.amount_paid || 0)), curr(selectedRes))}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground">Saldo</p>
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Método: <span className="capitalize">{selectedRes.metodo_pago?.replace(/_/g, " ")}</span>
-                  </p>
+                  {(() => {
+                    const c = curr(selectedRes);
+                    const rawBal = selectedRes.balance_due ?? ((selectedRes.amount_total || 0) - (selectedRes.amount_paid || 0));
+                    const net = reservationNet(payments as any, resRefunds, { status: selectedRes.reservation_status, balanceDue: rawBal });
+                    const cancelada = isReservaCancelada(selectedRes.reservation_status);
+                    return (
+                      <>
+                        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Resumen financiero</h4>
+                        <div className="grid grid-cols-3 gap-3 text-center">
+                          <div>
+                            <p className="text-lg font-bold text-foreground">{fmtMoney(selectedRes.amount_total, c)}</p>
+                            <p className="text-[10px] text-muted-foreground">Total</p>
+                          </div>
+                          <div>
+                            <p className="text-lg font-bold text-emerald-500">{fmtMoney(selectedRes.amount_paid, c)}</p>
+                            <p className="text-[10px] text-muted-foreground">Abonado</p>
+                          </div>
+                          <div>
+                            <p className={`text-lg font-bold ${net.deudaExigible > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                              {fmtMoney(net.deudaExigible, c)}
+                            </p>
+                            <p className="text-[10px] text-muted-foreground">{cancelada ? "Deuda exigible" : "Saldo"}</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3 text-center border-t border-border pt-3">
+                          <div>
+                            <p className="text-sm font-semibold">{fmtMoney(net.recibidos, c)}</p>
+                            <p className="text-[10px] text-muted-foreground">Pagos recibidos</p>
+                          </div>
+                          <div>
+                            <p className={`text-sm font-semibold ${net.devoluciones > 0 ? "text-destructive" : ""}`}>{fmtMoney(net.devoluciones, c)}</p>
+                            <p className="text-[10px] text-muted-foreground">Devoluciones</p>
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold">{fmtMoney(net.neto, c)}</p>
+                            <p className="text-[10px] text-muted-foreground">Cobrado neto</p>
+                          </div>
+                        </div>
+                        {cancelada && rawBal > 0 && (
+                          <p className="text-[11px] text-muted-foreground">Reserva cancelada: el saldo histórico ({fmtMoney(rawBal, c)}) no se exige.</p>
+                        )}
+                        <p className="text-xs text-muted-foreground">
+                          Método: <span className="capitalize">{selectedRes.metodo_pago?.replace(/_/g, " ")}</span>
+                        </p>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 
@@ -2469,6 +2505,14 @@ const AdminEventReservations = ({
                             <div className="min-w-0">
                               <p className={`text-sm font-semibold ${isAnulado ? "line-through" : ""}`}>
                                 {formatPrice(origAmt, origCurr)} — <span className="capitalize">{p.payment_method}</span>
+                                {(() => {
+                                  const st = paymentRefundState(p as any, refundByPayment(resRefunds)[p.id] ?? 0);
+                                  return st ? (
+                                    <Badge variant="outline" className="ml-2 text-[10px] border-destructive/40 text-destructive">
+                                      {st === "devuelto" ? "Devuelto" : "Devuelto parcialmente"}
+                                    </Badge>
+                                  ) : null;
+                                })()}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {new Date(p.payment_date + "T12:00:00").toLocaleDateString("es-AR")}

@@ -18799,6 +18799,10 @@ export type Database = {
           used_at: string
         }[]
       }
+      vincular_devolucion_mp: {
+        Args: { p_confirmar?: boolean; p_movement_id: string }
+        Returns: Json
+      }
       vincular_egreso_mp_coach: {
         Args: { _coach_id: string; _confirmar?: boolean; _movement_id: string }
         Returns: undefined
