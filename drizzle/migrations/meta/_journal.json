@@ -127,6 +127,13 @@
       "when": 1791144962885,
       "tag": "0017_agenda_programa_profesor_pendiente",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1791164736376,
+      "tag": "0018_preinscripcion_assign_benefits",
+      "breakpoints": true
     }
   ]
 }

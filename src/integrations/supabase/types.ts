@@ -16265,6 +16265,16 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_program_preinscripcion_benefits: {
+        Args: {
+          p_cuotas: number
+          p_plan_id: string
+          p_precio_cuota: number
+          p_precio_total: number
+          p_valid_until: string
+        }
+        Returns: Json
+      }
       audit_alumno_precios: {
         Args: { _alumno_id: string }
         Returns: {
@@ -17123,6 +17133,8 @@ export type Database = {
         Returns: {
           alumno_ids: string[]
           benefit_cuotas: number
+          benefit_email_sent_at: string
+          benefit_email_status: string
           benefit_id: string
           benefit_precio_cuota: number
           benefit_precio_total: number
