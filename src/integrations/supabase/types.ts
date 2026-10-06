@@ -146,6 +146,48 @@ export type Database = {
         }
         Relationships: []
       }
+      afip_wsaa_tickets: {
+        Row: {
+          emisor_id: string
+          expires_at: string
+          obtained_at: string
+          service: string
+          sign: string
+          token: string
+        }
+        Insert: {
+          emisor_id: string
+          expires_at: string
+          obtained_at?: string
+          service: string
+          sign: string
+          token: string
+        }
+        Update: {
+          emisor_id?: string
+          expires_at?: string
+          obtained_at?: string
+          service?: string
+          sign?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "afip_wsaa_tickets_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisor_facturado_anual"
+            referencedColumns: ["emisor_id"]
+          },
+          {
+            foreignKeyName: "afip_wsaa_tickets_emisor_id_fkey"
+            columns: ["emisor_id"]
+            isOneToOne: false
+            referencedRelation: "emisores_fiscales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agenda_grupal: {
         Row: {
           activo: boolean

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Loader2, AlertTriangle, CheckCircle2, XCircle, ShieldAlert } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { resolveFiscalIdentity } from "@/lib/fiscalIdentity";
+import { edgeFunctionErrorMessage } from "@/lib/edgeErrors";
+import { bloqueoEmisor, totalesPorEmisor, ordenEmision, mensajeErrorEmision } from "@/lib/bulkInvoice";
 
 interface Emisor {
   id: string;
@@ -30,6 +32,13 @@ export interface BulkFacturaRow {
   monto: number;
   referencia_tipo?: string;
   kind?: "sin_factura" | "error" | "manual";
+  /** Emisor resuelto por la cola para ESTE cobro (nunca uno global). */
+  emisor_id?: string | null;
+  emisor_nombre?: string | null;
+  cuenta_mp_id?: string | null;
+  auto_estado?: string | null;
+  /** Fecha del cobro: se emite en orden ascendente por emisor. */
+  fecha?: string | null;
 }
 
 interface DraftRow extends BulkFacturaRow {
@@ -71,8 +80,7 @@ function validateRow(d: DraftRow): string | null {
 
 export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }: Props) {
   const [drafts, setDrafts] = useState<DraftRow[]>([]);
-  const [emisorId, setEmisorId] = useState<string>("");
-  const [cupo, setCupo] = useState<{ disponible: number | null; pct: number | null } | null>(null);
+  const [cupos, setCupos] = useState<Map<string, { disponible: number | null; pct: number | null }>>(new Map());
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [overrideCupo, setOverrideCupo] = useState(false);
@@ -113,34 +121,36 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
     })();
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cargar cupo disponible cuando cambia emisor
+  // Cupo por emisor presente en el lote
+  const emisorIdsLote = useMemo(
+    () => Array.from(new Set(rows.map((r) => r.emisor_id).filter(Boolean))) as string[],
+    [rows],
+  );
   useEffect(() => {
     setOverrideCupo(false);
-    if (!emisorId) { setCupo(null); return; }
+    if (!open || emisorIdsLote.length === 0) { setCupos(new Map()); return; }
     (async () => {
       const { data } = await supabase
         .from("emisor_facturado_anual" as any)
-        .select("cupo_disponible, porcentaje_uso")
-        .eq("emisor_id", emisorId)
-        .maybeSingle();
-      setCupo({
-        disponible: (data as any)?.cupo_disponible ?? null,
-        pct: (data as any)?.porcentaje_uso ?? null,
-      });
+        .select("emisor_id, cupo_disponible, porcentaje_uso")
+        .in("emisor_id", emisorIdsLote);
+      setCupos(new Map(((data as any[]) || []).map((d) => [d.emisor_id, { disponible: d.cupo_disponible ?? null, pct: d.porcentaje_uso ?? null }])));
     })();
-  }, [emisorId]);
+  }, [open, emisorIdsLote]);
 
-  const activos = useMemo(() => emisores.filter((e) => e.activo), [emisores]);
-  const selectedEmisor = emisores.find((e) => e.id === emisorId);
-  const emisorHasCerts = selectedEmisor ? !!selectedEmisor.tiene_credenciales : false;
-  const emisorHasCuit = !!selectedEmisor?.cuit;
-  const emisorHasPV = !!selectedEmisor?.punto_venta;
-  const emisorValido = !!selectedEmisor && emisorHasCerts && emisorHasCuit && emisorHasPV;
+  const emisorNombre = (id?: string | null) =>
+    emisores.find((e) => e.id === id)?.nombre_fiscal || rows.find((r) => r.emisor_id === id)?.emisor_nombre || "—";
+  const rowError = (d: DraftRow) => bloqueoEmisor(d, emisores) || validateRow(d);
 
-  // Solo filas válidas pueden estar seleccionadas
-  const validSelected = drafts.filter((d) => d.selected && !validateRow(d));
+  // Solo filas válidas (datos + emisor propio) pueden estar seleccionadas
+  const validSelected = drafts.filter((d) => d.selected && !rowError(d));
   const totalSel = validSelected.reduce((a, b) => a + Number(b.monto || 0), 0);
-  const supera = cupo?.disponible != null && totalSel > cupo.disponible;
+  const totales = totalesPorEmisor(validSelected);
+  const excedidos = Array.from(totales.entries()).filter(([id, t]) => {
+    const c = cupos.get(id);
+    return c?.disponible != null && t > c.disponible;
+  });
+  const supera = excedidos.length > 0;
   const cupoOk = !supera || overrideCupo;
 
   const updateRow = (id: string, patch: Partial<DraftRow>) => {
@@ -148,44 +158,41 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
   };
 
   const handleEmit = async () => {
-    if (!emisorId) { toast.error("Seleccioná un emisor"); return; }
-    if (!emisorValido) { toast.error("El emisor no está completo (CUIT / Punto de venta / Certificado AFIP)"); return; }
+    if (running) return; // doble click
     if (validSelected.length === 0) { toast.error("No hay filas válidas seleccionadas"); return; }
     if (supera && !overrideCupo) { toast.error("Confirmá el override del cupo para continuar"); return; }
 
-
+    const cola = ordenEmision(validSelected);
     setRunning(true);
-    setProgress({ done: 0, total: validSelected.length });
+    setProgress({ done: 0, total: cola.length });
     let okCount = 0;
     let errCount = 0;
 
-    for (let i = 0; i < validSelected.length; i++) {
-      const row = validSelected[i];
+    for (let i = 0; i < cola.length; i++) {
+      const row = cola[i];
       try {
-        // Actualizar datos del cliente
         await supabase.from("facturas").update({
           cliente_cuit: row.cliente_cuit?.trim() || null,
           condicion_fiscal: row.condicion_fiscal,
         } as any).eq("id", row.id);
 
+        // Cada factura se emite con SU emisor resuelto.
         const { data, error } = await supabase.functions.invoke("emit-factura-afip", {
           body: {
             factura_id: row.id,
-            emisor_id: emisorId,
+            emisor_id: row.emisor_id,
             cliente_cuit: row.cliente_cuit?.trim() || null,
             condicion_fiscal: row.condicion_fiscal,
           },
         });
 
         if (error || data?.error) {
-          let detail = data?.error || error?.message || "Error";
+          let code: string | null = data?.code ?? null;
           try {
-            const resp = (error as any)?.context?.response;
-            if (resp) {
-              const body = await resp.clone().json();
-              if (body?.error) detail = body.error;
-            }
+            const ctx = (error as any)?.context;
+            if (ctx?.clone) code = (await ctx.clone().json())?.code ?? code;
           } catch { /* ignore */ }
+          const detail = mensajeErrorEmision(await edgeFunctionErrorMessage(error, data), code);
           updateRow(row.id, { result: { ok: false, error: detail } });
           errCount++;
         } else {
@@ -196,7 +203,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
         updateRow(row.id, { result: { ok: false, error: e?.message || "Error inesperado" } });
         errCount++;
       }
-      setProgress({ done: i + 1, total: validSelected.length });
+      setProgress({ done: i + 1, total: cola.length });
     }
 
     setRunning(false);
@@ -209,71 +216,38 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
     <Dialog open={open} onOpenChange={(v) => !running && onOpenChange(v)}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading">Facturación masiva en AFIP</DialogTitle>
+          <DialogTitle className="font-heading">Facturación masiva en ARCA</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Selector emisor + cupo */}
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Emisor fiscal</label>
-              <Select value={emisorId} onValueChange={setEmisorId} disabled={running}>
-                <SelectTrigger><SelectValue placeholder="Seleccionar emisor..." /></SelectTrigger>
-                <SelectContent>
-                  {activos.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>{e.nombre_fiscal} — {e.cuit}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {emisorId && !emisorHasCerts && (
-                <div className="flex items-center gap-1.5 text-yellow-500">
-                  <ShieldAlert className="w-3.5 h-3.5" />
-                  <p className="text-xs">Sin certificado AFIP</p>
+          {/* Emisor por fila: resumen de cupo por emisor (sin emisor global) */}
+          <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs space-y-1">
+            <p className="text-muted-foreground">Cada cobro se factura con su propio emisor. Para cambiarlo, usá la bandeja (queda auditado).</p>
+            {emisorIdsLote.map((id) => {
+              const c = cupos.get(id);
+              return (
+                <div key={id} className="flex flex-wrap gap-x-2">
+                  <span className="font-medium text-foreground">{emisorNombre(id)}</span>
+                  <span className="text-muted-foreground">· a emitir {formatPrice(totales.get(id) ?? 0, "ARS")}</span>
+                  <span className="text-muted-foreground">
+                    · {c?.disponible != null ? <>cupo disponible {formatPrice(c.disponible, "ARS")}{c.pct != null && ` (usado ${c.pct.toFixed(1)}%)`}</> : "sin tope configurado"}
+                  </span>
                 </div>
-              )}
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Cupo del emisor (últ. 12 m)</label>
-              <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs">
-                {cupo?.disponible != null ? (
-                  <>
-                    <span className="text-muted-foreground">Disponible: </span>
-                    <span className="font-semibold text-foreground">{formatPrice(cupo.disponible, "ARS")}</span>
-                    {cupo.pct != null && (
-                      <span className="text-muted-foreground"> · usado {cupo.pct.toFixed(1)}%</span>
-                    )}
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">Sin tope configurado</span>
-                )}
-              </div>
-            </div>
+              );
+            })}
           </div>
-
-          {/* Avisos del emisor */}
-          {emisorId && !emisorValido && (
-            <div className="rounded-lg border border-yellow-500/40 bg-yellow-500/5 p-3 flex gap-2">
-              <ShieldAlert className="w-4 h-4 text-yellow-600 mt-0.5 shrink-0" />
-              <div className="text-xs">
-                <p className="font-semibold text-yellow-700">El emisor no está listo para emitir</p>
-                <ul className="text-muted-foreground list-disc ml-4 mt-1">
-                  {!emisorHasCuit && <li>Falta CUIT</li>}
-                  {!emisorHasPV && <li>Falta punto de venta</li>}
-                  {!emisorHasCerts && <li>Falta certificado AFIP</li>}
-                </ul>
-              </div>
-            </div>
-          )}
 
           {supera && (
             <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-3 space-y-2">
               <div className="flex gap-2">
                 <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 shrink-0" />
                 <div className="text-xs">
-                  <p className="font-semibold text-destructive">El total seleccionado supera el cupo disponible</p>
-                  <p className="text-muted-foreground">
-                    Total: {formatPrice(totalSel, "ARS")} · Disponible: {formatPrice(cupo!.disponible!, "ARS")}
-                  </p>
+                  <p className="font-semibold text-destructive">El total supera el cupo disponible de: {excedidos.map(([id]) => emisorNombre(id)).join(", ")}</p>
+                  {excedidos.map(([id, t]) => (
+                    <p key={id} className="text-muted-foreground">
+                      {emisorNombre(id)} — a emitir {formatPrice(t, "ARS")} · disponible {formatPrice(cupos.get(id)!.disponible!, "ARS")}
+                    </p>
+                  ))}
                   <p className="text-muted-foreground mt-1">
                     El cupo puede estar mal cargado o no aplicar (RI sin tope). Confirmá para continuar.
                   </p>
@@ -308,6 +282,7 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                       />
                     </th>
                     <th className="p-2 text-left">Cliente</th>
+                    <th className="p-2 text-left">Emisor</th>
                     <th className="p-2 text-left">Origen</th>
                     <th className="p-2 text-left">DNI/CUIT</th>
                     <th className="p-2 text-left">Condición</th>
@@ -318,7 +293,8 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                 </thead>
                 <tbody>
                   {drafts.map((d) => {
-                    const validationErr = validateRow(d);
+                    const emisorErr = bloqueoEmisor(d, emisores);
+                    const validationErr = emisorErr || validateRow(d);
                     const isInvalid = !!validationErr;
                     const isManual = d.kind === "manual";
                     return (
@@ -339,6 +315,13 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
                           )}
                           {isManual && !isInvalid && (
                             <p className="text-[10px] text-yellow-600 mt-0.5">⚠ Posible facturado fuera del sistema</p>
+                          )}
+                        </td>
+                        <td className="p-2 align-top">
+                          {emisorErr ? (
+                            <span className="text-[10px] text-destructive font-medium">{emisorErr}</span>
+                          ) : (
+                            <span className="text-foreground">{emisorNombre(d.emisor_id)}</span>
                           )}
                         </td>
                         <td className="p-2 align-top">
@@ -410,12 +393,12 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
               </Button>
               <Button
                 onClick={handleEmit}
-                disabled={running || validSelected.length === 0 || !emisorValido || !cupoOk}
+                disabled={running || validSelected.length === 0 || !cupoOk}
               >
                 {running ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Emitiendo...</>
                 ) : (
-                  `Emitir ${validSelected.length} en AFIP`
+                  `Emitir ${validSelected.length} factura${validSelected.length === 1 ? "" : "s"}`
                 )}
               </Button>
             </div>

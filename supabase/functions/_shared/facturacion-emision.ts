@@ -86,6 +86,7 @@ export interface ConsultaComprobante {
   caeVto?: string | null;
   impTotal?: number | null;
   docNro?: string | null;
+  cbteFch?: string | null;
 }
 
 export type DecisionReconciliacion =
@@ -129,4 +130,75 @@ export function decidirReconciliacion(input: {
 export function esErrorTransitorio(msg: string | null | undefined): boolean {
   const m = (msg || "").toLowerCase();
   return /http 5\d\d|timeout|timed out|network|econn|fetch failed|service unavailable|wsaa|soap fault|ya posee un ta valido|connection/.test(m);
+}
+
+/**
+ * ARCA exige que la fecha de un comprobante no sea anterior a la del último
+ * autorizado para el mismo punto de venta y tipo. Si el cobro es más viejo,
+ * se emite con la fecha del último (el período de servicio no cambia).
+ */
+export function ajustarFechaAlUltimo(fechas: FechasEmision, ultimoCbteFch: string | null | undefined): FechasEmision & { ajustadaPorUltimo: boolean } {
+  if (!ultimoCbteFch || !/^\d{8}$/.test(ultimoCbteFch) || ultimoCbteFch <= fechas.cbteFch) {
+    return { ...fechas, ajustadaPorUltimo: false };
+  }
+  return {
+    ...fechas,
+    cbteFch: ultimoCbteFch,
+    vtoPago: fechas.vtoPago < ultimoCbteFch ? ultimoCbteFch : fechas.vtoPago,
+    usoFechaCobro: false,
+    ajustadaPorUltimo: true,
+  };
+}
+
+/** Rechazo 10016: número o fecha no corresponde con el próximo a autorizar. */
+export function esMismatchNumeracion(msg: string | null | undefined): boolean {
+  return /no se corresponde con el proximo a autorizar|10016/i.test(msg || "");
+}
+
+/** WSAA rechaza pedir un TA nuevo mientras hay uno vigente. */
+export function esTaVigente(msg: string | null | undefined): boolean {
+  return /ya posee un TA valido/i.test(msg || "");
+}
+
+/** ¿Se puede reutilizar un TA guardado? Margen de 2 minutos. */
+export function taReutilizable(expiresAt: string | null | undefined, ahoraMs: number): boolean {
+  if (!expiresAt) return false;
+  const t = Date.parse(expiresAt);
+  return Number.isFinite(t) && t - ahoraMs > 2 * 60 * 1000;
+}
+
+/**
+ * Obtiene un TA para emisor/servicio: reutiliza el guardado si está vigente;
+ * si no, hace login. Si WSAA dice que ya hay uno vigente, espera y vuelve a
+ * leer el guardado (otra invocación pudo haberlo guardado).
+ */
+export async function obtenerTicketWsaa(deps: {
+  leer: () => Promise<{ token: string; sign: string; expires_at: string } | null>;
+  guardar: (t: { token: string; sign: string; expires_at: string }) => Promise<void>;
+  login: () => Promise<{ token?: string; sign?: string; expires_at?: string; error?: string }>;
+  ahora?: () => number;
+  esperar?: (ms: number) => Promise<void>;
+}): Promise<{ token?: string; sign?: string; reutilizado?: boolean; error?: string; code?: string }> {
+  const ahora = deps.ahora ?? (() => Date.now());
+  const esperar = deps.esperar ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const g = await deps.leer();
+  if (g && taReutilizable(g.expires_at, ahora())) return { token: g.token, sign: g.sign, reutilizado: true };
+  const l = await deps.login();
+  if (l.token && l.sign) {
+    const expires_at = l.expires_at || new Date(ahora() + 11 * 3600 * 1000).toISOString();
+    await deps.guardar({ token: l.token, sign: l.sign, expires_at });
+    return { token: l.token, sign: l.sign, reutilizado: false };
+  }
+  if (esTaVigente(l.error)) {
+    for (const ms of [800, 1600, 3200]) {
+      await esperar(ms);
+      const r = await deps.leer();
+      if (r && taReutilizable(r.expires_at, ahora())) return { token: r.token, sign: r.sign, reutilizado: true };
+    }
+    return {
+      error: "Ticket WSAA vigente en ARCA pero no guardado en el sistema: se puede reintentar cuando venza (máx. 12 h desde el último login).",
+      code: "ta_vigente_no_disponible",
+    };
+  }
+  return { error: `WSAA: ${l.error || "sin token"}`, code: "wsaa_error" };
 }

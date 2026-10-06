@@ -271,6 +271,11 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
           monto: r.monto,
           referencia_tipo: r.referencia_tipo,
           kind: "sin_factura",
+          emisor_id: r.emisor_resuelto_id ?? null,
+          emisor_nombre: emisores.find((e) => e.id === r.emisor_resuelto_id)?.nombre_fiscal ?? null,
+          cuenta_mp_id: r.cuenta_mp_id ?? null,
+          auto_estado: r.auto_estado ?? null,
+          fecha: r.pagado_at ?? null,
         });
       }
 

@@ -4,6 +4,7 @@ import forge from "https://esm.sh/node-forge@1.3.1";
 import { resolveClienteFiscal } from "../_shared/fiscal-identity.ts";
 import {
   resolverFechasEmision, decidirReconciliacion, esErrorTransitorio,
+  ajustarFechaAlUltimo, esMismatchNumeracion, obtenerTicketWsaa,
   type OrigenEmision, type FechasEmision, type ConsultaComprobante,
 } from "../_shared/facturacion-emision.ts";
 
@@ -231,17 +232,30 @@ Deno.serve(async (req) => {
     if ("error" in fechas) return await fallar("error", fechas.error, 422);
 
     // ---- ARCA ----
-    const wsaaResult = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
-    if (wsaaResult.error) return await fallar("error", `WSAA: ${wsaaResult.error}`, 500);
+    const wsaaResult = await getTicket(adminClient, emisor);
+    if (wsaaResult.error) {
+      return await fallar("error", wsaaResult.error, 503, { code: wsaaResult.code });
+    }
 
     let comprobante = resolveComprobanteAfip(emisor.condicion_iva, condicionEfectiva, clienteCuitClean);
 
-    const emitirConTipo = async (tipo: ComprobanteAfip) => {
-      const lastNum = await getUltimoComprobante(wsaaResult.token || "", wsaaResult.sign || "", cuitClean, emisor.punto_venta, tipo.tipo);
-      if (lastNum.error || lastNum.number === undefined) {
-        return { cbteNro: null as number | null, result: { error: `FECompUltimoAutorizado: ${lastNum.error || "sin número"}` } as EmitAfipResult };
+    const tk = wsaaResult.token || "", sg = wsaaResult.sign || "";
+    const pedirNumeroYFecha = async (tipo: ComprobanteAfip) => {
+      // Siempre justo antes de FECAESolicitar: nunca reutilizar un número calculado antes.
+      const lastNum = await getUltimoComprobante(tk, sg, cuitClean, emisor.punto_venta, tipo.tipo);
+      if (lastNum.error || lastNum.number === undefined) return { error: `FECompUltimoAutorizado: ${lastNum.error || "sin número"}` };
+      let ultimoFch: string | null = null;
+      if (lastNum.number > 0) {
+        const ult = await consultarComprobante(tk, sg, cuitClean, emisor.punto_venta, tipo.tipo, lastNum.number);
+        ultimoFch = ult?.cbteFch ?? null;
       }
-      const cbteNro = lastNum.number + 1;
+      return { cbteNro: lastNum.number + 1, fechas: ajustarFechaAlUltimo(fechas, ultimoFch) };
+    };
+
+    const emitirConTipo = async (tipo: ComprobanteAfip, intento = 0): Promise<{ cbteNro: number | null; result: EmitAfipResult }> => {
+      const pn = await pedirNumeroYFecha(tipo);
+      if ("error" in pn) return { cbteNro: null, result: { error: pn.error } };
+      const cbteNro = pn.cbteNro;
       // Registrar el número esperado ANTES de pedir CAE: permite conciliar si algo falla después.
       const { error: preErr } = await adminClient.from("facturas").update({
         cbte_esperado_tipo: tipo.tipo, cbte_esperado_pto: emisor.punto_venta, cbte_esperado_nro: cbteNro,
@@ -249,12 +263,28 @@ Deno.serve(async (req) => {
       if (preErr) {
         return { cbteNro: null, result: { error: `No se pudo registrar el número esperado: ${preErr.message}` } as EmitAfipResult };
       }
+      if (pn.fechas.ajustadaPorUltimo) {
+        await logAuto(adminClient, factura_id, factura.facturacion_cola_id, "fecha_ajustada_al_ultimo", { cbteFch: pn.fechas.cbteFch, fecha_cobro: fechas.cbteFch });
+      }
       const result = await emitirFacturaAfip({
-        token: wsaaResult.token || "", sign: wsaaResult.sign || "", cuit: cuitClean,
+        token: tk, sign: sg, cuit: cuitClean,
         puntoVenta: emisor.punto_venta, cbteNro, cbteTipo: tipo.tipo, monto: factura.monto, concepto: 2,
         clienteCuit: clienteCuitClean, condicionFiscal: condicionEfectiva, ivaIncluido21: tipo.ivaIncluido21,
-        fechas,
+        fechas: pn.fechas,
       });
+      if (result.error && !result.uncertain && esMismatchNumeracion(result.error) && intento === 0) {
+        // Antes de reintentar: ¿ARCA ya tiene autorizado el número que pedimos para ESTA factura?
+        const c = await consultarComprobante(tk, sg, cuitClean, emisor.punto_venta, tipo.tipo, cbteNro);
+        if (c === null) return { cbteNro, result: { error: `ARCA rechazó la numeración y no se pudo verificar el número ${cbteNro}`, uncertain: true } };
+        if (c.encontrado && c.cae) {
+          const montoOk = c.impTotal == null || Math.abs(Number(c.impTotal) - Number(factura.monto)) < 0.01;
+          const docOk = !c.docNro || String(c.docNro) === String(clienteCuitClean);
+          if (montoOk && docOk) return { cbteNro, result: { cae: c.cae, caeVto: c.caeVto ?? undefined } };
+          // Ese número es de otro comprobante: reintentar con el próximo real.
+        }
+        await logAuto(adminClient, factura_id, factura.facturacion_cola_id, "reintento_numeracion", { cbteNro, detalle: result.error });
+        return await emitirConTipo(tipo, 1);
+      }
       return { cbteNro, result };
     };
 
@@ -292,7 +322,10 @@ Deno.serve(async (req) => {
       return await fallar("requiere_datos_fiscales",
         `ARCA rechazó el documento del cliente (${clienteCuitClean}). Corregí el DNI o CUIT. Detalle: ${emitResult.error}`, 422);
     }
-    if (emitResult.error) return await fallar("error", `FECAESolicitar: ${emitResult.error}`, 500);
+    if (emitResult.error) {
+      const code = esMismatchNumeracion(emitResult.error) ? "numeracion_arca" : "arca_rechazo";
+      return await fallar("error", `FECAESolicitar: ${emitResult.error}`, 422, { code });
+    }
     if (cbteNro === null || !emitResult.cae) return await fallar("error", "AFIP no devolvió número/CAE", 500);
 
     const nroComprobante = `${String(emisor.punto_venta).padStart(5, "0")}-${String(cbteNro).padStart(8, "0")}`;
@@ -386,7 +419,7 @@ async function reconciliar(admin: any, factura: any, emisor: any, cuitClean: str
   let consulta: ConsultaComprobante | null = null;
   let ultimo: number | null = null;
   if (esperadoNro != null && tipo != null) {
-    const wsaa = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
+    const wsaa = await getTicket(admin, emisor);
     if (!wsaa.error) {
       consulta = await consultarComprobante(wsaa.token || "", wsaa.sign || "", cuitClean, pto, tipo, esperadoNro);
       const u = await getUltimoComprobante(wsaa.token || "", wsaa.sign || "", cuitClean, pto, tipo);
@@ -421,13 +454,33 @@ async function reconciliar(admin: any, factura: any, emisor: any, cuitClean: str
   return json({ success: false, estado: "incierta", motivo: decision.motivo }, 202);
 }
 
+// TA (ticket WSAA) reutilizable por emisor/servicio, guardado solo en backend.
+// deno-lint-ignore no-explicit-any
+async function getTicket(admin: any, emisor: any) {
+  return await obtenerTicketWsaa({
+    leer: async () => {
+      const { data } = await admin.from("afip_wsaa_tickets").select("token, sign, expires_at")
+        .eq("emisor_id", emisor.id).eq("service", SERVICE_NAME).maybeSingle();
+      return data ?? null;
+    },
+    guardar: async (t) => {
+      const { error } = await admin.from("afip_wsaa_tickets").upsert({
+        emisor_id: emisor.id, service: SERVICE_NAME, token: t.token, sign: t.sign,
+        expires_at: t.expires_at, obtained_at: new Date().toISOString(),
+      });
+      if (error) console.error("[emit-factura-afip] no se pudo guardar TA", error.message);
+    },
+    login: () => authenticateWSAA(emisor.cert_pem, emisor.key_pem),
+  });
+}
+
 // ============================================================
 // WSAA Authentication - Sign Login Ticket Request with CMS
 // ============================================================
 async function authenticateWSAA(
   certPem: string,
   keyPem: string
-): Promise<{ token?: string; sign?: string; error?: string }> {
+): Promise<{ token?: string; sign?: string; expires_at?: string; error?: string }> {
   try {
     const now = new Date();
     const genTime = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
@@ -499,7 +552,8 @@ async function authenticateWSAA(
       const signM = decoded.match(/<sign>([^<]+)<\/sign>/);
 
       if (tokenM && signM) {
-        return { token: tokenM[1], sign: signM[1] };
+        const expM = decoded.match(/<expirationTime>([^<]+)<\/expirationTime>/);
+        return { token: tokenM[1], sign: signM[1], expires_at: expM ? new Date(expM[1]).toISOString() : undefined };
       }
     }
 
@@ -755,8 +809,10 @@ async function consultarComprobante(
       const vto = text.match(/<FchVto>(\d{8})<\/FchVto>/)?.[1] ?? null;
       const imp = text.match(/<ImpTotal>([\d.]+)<\/ImpTotal>/)?.[1];
       const doc = text.match(/<DocNro>(\d+)<\/DocNro>/)?.[1] ?? null;
+      const fch = text.match(/<CbteFch>(\d{8})<\/CbteFch>/)?.[1] ?? null;
       return {
         encontrado: true,
+        cbteFch: fch,
         cae,
         caeVto: vto ? `${vto.slice(0, 4)}-${vto.slice(4, 6)}-${vto.slice(6, 8)}` : null,
         impTotal: imp != null ? Number(imp) : null,
