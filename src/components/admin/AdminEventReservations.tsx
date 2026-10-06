@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { getShareOrigin } from "@/lib/eventLinks";
 import {
   Search, CheckCircle, XCircle, Clock, AlertCircle, Eye,
@@ -1805,6 +1806,7 @@ const AdminEventReservations = ({
                       <p className="text-sm font-medium truncate">
                         {p.nombre} {p.apellido || ""}
                         {p.isExternal && <Badge variant="outline" className="ml-1.5 text-[9px] border-violet-500/30 text-violet-500">Externo</Badge>}
+                        <TransferBadges r={r} />
                       </p>
                       <p className="text-xs text-muted-foreground truncate">{p.email}</p>
                       <RoomBadge room={roomByRes[r.id]} cancelled={r.reservation_status === "cancelada" || r.reservation_status === "rechazada"} />
@@ -2243,6 +2245,39 @@ const AdminEventReservations = ({
                   }}
                 />
               )}
+
+              {/* Transferencia / reventa de cupo */}
+              {(() => {
+                const o = transferAsOriginal(selectedRes.id);
+                const rep = transferAsReplacement(selectedRes.id);
+                const other = (id?: string | null) => reservations.find((x) => x.id === id);
+                const name = (x?: EventReservation) => x ? `${getParticipant(x).nombre} ${getParticipant(x).apellido || ""}`.trim() : "otra reserva";
+                const eligible = !o && !rep && !["cancelada", "rechazada", "expirada"].includes(selectedRes.reservation_status);
+                if (!o && !rep && !eligible) return null;
+                return (
+                  <div className="rounded-lg border border-border p-3 space-y-2">
+                    <p className="text-sm font-semibold">Transferencia de cupo</p>
+                    {o && (
+                      <div className="text-sm space-y-1">
+                        <Badge variant="outline" className="border-amber-500/40 text-amber-500">Cupo en reventa</Badge>
+                        {o.replacement_reservation_id ? (
+                          <p>Reemplazada por <button type="button" className="underline text-primary" onClick={() => { const x = other(o.replacement_reservation_id); if (x) openDetail(x); }}>{name(other(o.replacement_reservation_id))}</button></p>
+                        ) : <p className="text-muted-foreground">Esperando un nuevo comprador. El cupo está disponible en la venta normal.</p>}
+                        <p className="text-xs text-muted-foreground">Pagado por el titular original: {formatPrice(Number(o.original_paid_amount || 0), curr(selectedRes))}. Los pagos originales no se modifican.</p>
+                      </div>
+                    )}
+                    {rep && (
+                      <div className="text-sm space-y-1">
+                        <Badge variant="outline" className="border-cyan-500/40 text-cyan-500">Transferencia de reserva</Badge>
+                        <p>Ocupa el cupo de <button type="button" className="underline text-primary" onClick={() => { const x = other(rep.original_reservation_id); if (x) openDetail(x); }}>{name(other(rep.original_reservation_id))}</button></p>
+                      </div>
+                    )}
+                    {eligible && (
+                      <Button size="sm" variant="outline" onClick={() => setTransferConfirmRes(selectedRes)}>Liberar cupo para reventa</Button>
+                    )}
+                  </div>
+                );
+              })()}
 
               {/* Devolución sugerida / devuelto / pendiente (reservas canceladas) */}
               {isReservaCancelada(selectedRes.reservation_status) && (
@@ -2981,6 +3016,23 @@ const AdminEventReservations = ({
           }}
         />
       )}
+
+      <AlertDialog open={!!transferConfirmRes} onOpenChange={(o) => { if (!o) setTransferConfirmRes(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Liberar cupo para reventa?</AlertDialogTitle>
+            <AlertDialogDescription>
+              La reserva deja de ocupar lugar: se libera su cama y el cupo vuelve a la venta normal. No se registra ninguna devolución ni gasto; los pagos del titular quedan intactos. La próxima reserva de este mismo paquete quedará vinculada como reemplazo.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={transferBusy}>Volver</AlertDialogCancel>
+            <AlertDialogAction disabled={transferBusy} onClick={(e) => { e.preventDefault(); if (transferConfirmRes) startTransfer(transferConfirmRes); }}>
+              {transferBusy ? "Liberando…" : "Liberar cupo"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Cancelar reserva con habitación asignada */}
 
