@@ -594,8 +594,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos para preparar" }: 
                 </div>
               )}
               {canConfirmCashPayment(r) && (
-                <Button size="sm" className="w-full h-9" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
-                  <Banknote className="w-4 h-4 mr-1" /> Cobré el efectivo
+                <Button variant="outline" size="sm" className="h-9 text-amber-400 border-amber-500/40 hover:bg-amber-500/10" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
+                  <Banknote className="w-4 h-4 mr-1" /> Cobrar efectivo
                 </Button>
               )}
               <div className="flex items-center gap-2">

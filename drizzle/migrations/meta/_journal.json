@@ -253,6 +253,13 @@
       "when": 1791295411773,
       "tag": "0035_transfer_deferred_balance_email",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791296309371,
+      "tag": "0036_admitir_store_cambios_como_origen_de_tems_de_camioneta",
+      "breakpoints": true
     }
   ]
 }
