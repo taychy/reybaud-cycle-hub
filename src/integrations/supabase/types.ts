@@ -11609,6 +11609,8 @@ export type Database = {
           completed_at: string | null
           created_at: string
           created_by: string | null
+          deposit_amount: number
+          deposit_paid_at: string | null
           direct_payment_amount: number
           event_id: string
           id: string
@@ -11631,6 +11633,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          deposit_amount?: number
+          deposit_paid_at?: string | null
           direct_payment_amount?: number
           event_id: string
           id?: string
@@ -11653,6 +11657,8 @@ export type Database = {
           completed_at?: string | null
           created_at?: string
           created_by?: string | null
+          deposit_amount?: number
+          deposit_paid_at?: string | null
           direct_payment_amount?: number
           event_id?: string
           id?: string
@@ -16972,6 +16978,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      complete_reservation_transfer: {
+        Args: { p_transfer_id: string }
+        Returns: Json
+      }
       condone_installment: {
         Args: { p_amount: number; p_installment_id: string; p_reason: string }
         Returns: undefined
@@ -17165,6 +17175,18 @@ export type Database = {
           _motivo: string
           _suscripcion_id: string
           _tratamiento_pago?: string
+        }
+        Returns: Json
+      }
+      define_reservation_transfer_payment_agreement: {
+        Args: {
+          p_admin_contacted?: boolean
+          p_amount_to_reybaud: number
+          p_direct_payment_amount: number
+          p_notes?: string
+          p_payment_mode: string
+          p_reybaud_refund_amount: number
+          p_transfer_id: string
         }
         Returns: Json
       }
@@ -18104,6 +18126,10 @@ export type Database = {
         }
         Returns: Json
       }
+      mark_reservation_transfer_contacted: {
+        Args: { p_transfer_id: string }
+        Returns: undefined
+      }
       mark_turnera_reservations_seen: { Args: never; Returns: number }
       mark_waitlist_entries_seen: { Args: never; Returns: number }
       mark_waitlist_entries_seen_for_template: {
@@ -18671,6 +18697,10 @@ export type Database = {
           p_reason: string
         }
         Returns: undefined
+      }
+      reservation_transfer_payment_blocked: {
+        Args: { p_reservation_id: string }
+        Returns: boolean
       }
       reserve_nota_credito: {
         Args: {

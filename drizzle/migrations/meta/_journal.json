@@ -232,6 +232,13 @@
       "when": 1791293873912,
       "tag": "0032_reservation_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791294630829,
+      "tag": "0033_reservation_transfer_agreement",
+      "breakpoints": true
     }
   ]
 }
