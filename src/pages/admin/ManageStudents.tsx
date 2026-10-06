@@ -802,18 +802,7 @@ const ManageStudents = () => {
       alumno.id === updatedAlumno.id ? updatedAlumno : alumno
     )));
     setDrawerAlumno(updatedAlumno);
-    setDetailForm({
-      nombre: updatedAlumno.nombre,
-      apellido: getApellido(updatedAlumno),
-      email: updatedAlumno.email,
-      emails_adicionales: (((updatedAlumno as any).emails_adicionales as string[]) || []).join(", "),
-      telefono: updatedAlumno.telefono || "",
-      documento: updatedAlumno.documento || "",
-      fecha_nacimiento: (updatedAlumno as any).fecha_nacimiento || "",
-      fecha_ingreso_escuela: (updatedAlumno as any).fecha_ingreso_escuela || "",
-      notas: updatedAlumno.notas || "",
-      nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
-    });
+    loadDetailForm(updatedAlumno);
 
     toast.success("Datos actualizados");
     await logStudentActivity({ alumnoId: drawerAlumno.id, eventType: "edicion_datos", title: "Edición de datos", description: "Datos personales modificados desde la ficha", actorRole: isSuperAdmin ? "super_admin" : "admin" });
@@ -1822,8 +1811,6 @@ const ManageStudents = () => {
                                 )}
                               </div>
                             )}
-                          </div>
-                          <div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Fecha de nacimiento</Label>
