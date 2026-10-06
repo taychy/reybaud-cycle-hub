@@ -477,6 +477,42 @@ const AdminEventReservations = ({
     setLoading(false);
     loadRoomAssignments();
     loadOverdueInstallments(((data as any[]) || []).map((r) => r.id));
+    loadTransfers();
+  };
+
+  /* ─── Cupos en reventa / transferencias ─── */
+  const [transfers, setTransfers] = useState<any[]>([]);
+  const [transferConfirmRes, setTransferConfirmRes] = useState<EventReservation | null>(null);
+  const [transferBusy, setTransferBusy] = useState(false);
+  const loadTransfers = async () => {
+    const { data } = await supabase
+      .from("reservation_transfers" as any)
+      .select("*")
+      .eq("event_id", eventId)
+      .neq("status", "cancelled");
+    setTransfers((data as any[]) || []);
+  };
+  const transferAsOriginal = (resId: string) => transfers.find((t) => t.original_reservation_id === resId);
+  const transferAsReplacement = (resId: string) => transfers.find((t) => t.replacement_reservation_id === resId);
+  const startTransfer = async (r: EventReservation) => {
+    setTransferBusy(true);
+    const { error } = await supabase.rpc("start_reservation_transfer" as any, { p_original_reservation_id: r.id });
+    setTransferBusy(false);
+    setTransferConfirmRes(null);
+    if (error) { toast({ title: "No se pudo liberar el cupo", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Cupo en reventa", description: "Se liberó la cama y el cupo vuelve a estar disponible para la venta." });
+    setSelectedRes(null);
+    await loadReservations();
+  };
+  const TransferBadges = ({ r }: { r: EventReservation }) => {
+    const o = transferAsOriginal(r.id);
+    const rep = transferAsReplacement(r.id);
+    return (
+      <>
+        {o && <Badge variant="outline" className="ml-1.5 text-[9px] border-amber-500/40 text-amber-500">{o.replacement_reservation_id ? "Reemplazada" : "Cupo en reventa"}</Badge>}
+        {rep && <Badge variant="outline" className="ml-1.5 text-[9px] border-cyan-500/40 text-cyan-500">Transferencia de reserva</Badge>}
+      </>
+    );
   };
 
 
