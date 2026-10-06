@@ -94,8 +94,9 @@ async function getTA(admin: any, emisorId: string, certPem: string, keyPem: stri
   if (c && c.exp > Date.now() + 120_000) return c;
   const r = await obtenerTicketWsaa({
     leer: async () => {
-      const { data } = await admin.from("afip_wsaa_tickets").select("token, sign, expires_at")
+      const { data, error } = await admin.from("afip_wsaa_tickets").select("token, sign, expires_at")
         .eq("emisor_id", emisorId).eq("service", SERVICE_NAME).maybeSingle();
+      if (error) console.error("[validar-cuit-arca] no se pudo leer TA", error.message);
       return data ?? null;
     },
     guardar: async (t) => {
@@ -104,6 +105,7 @@ async function getTA(admin: any, emisorId: string, certPem: string, keyPem: stri
         expires_at: t.expires_at, obtained_at: new Date().toISOString(),
       });
       if (error) console.error("[validar-cuit-arca] no se pudo guardar TA", error.message);
+      else console.log("[validar-cuit-arca] TA nuevo guardado", { emisorId, expires_at: t.expires_at });
     },
     login: () => loginWsaa(certPem, keyPem),
   });
