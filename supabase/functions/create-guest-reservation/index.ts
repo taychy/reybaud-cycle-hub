@@ -303,6 +303,8 @@ Deno.serve(async (req) => {
       mode: "mp",
       init_point: pref.init_point || pref.sandbox_init_point,
       preference_id: pref.id,
+      amount_charged: chargeNow,
+      charge_source: charge.source,
       reservation_id: reservationId,
       participant_id: participantId,
       access_token: accessToken,
