@@ -223,6 +223,14 @@ export function BulkInvoiceModal({ open, onOpenChange, rows, emisores, onDone }:
           {/* Emisor por fila: resumen de cupo por emisor (sin emisor global) */}
           <div className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs space-y-1">
             <p className="text-muted-foreground">Cada cobro se factura con su propio emisor. Para cambiarlo, usá la bandeja (queda auditado).</p>
+            <p className="text-foreground">
+              <span className="font-medium">{drafts.length}</span> en el lote ·{" "}
+              <span className="font-medium">{drafts.filter((d) => !rowError(d)).length}</span> listas para emitir ·{" "}
+              <span className="font-medium text-destructive">{drafts.filter((d) => !d.emisor_id).length}</span> con emisor sin determinar
+              {drafts.filter((d) => d.emisor_id && rowError(d)).length > 0 && (
+                <> · <span className="font-medium">{drafts.filter((d) => d.emisor_id && rowError(d)).length}</span> con otros datos a revisar</>
+              )}
+            </p>
             {emisorIdsLote.map((id) => {
               const c = cupos.get(id);
               return (

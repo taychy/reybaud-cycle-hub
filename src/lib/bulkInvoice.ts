@@ -23,7 +23,7 @@ export interface FilaEmisor {
 /** Motivo por el que la fila no puede emitirse por su emisor, o null si está OK. */
 export function bloqueoEmisor(row: FilaEmisor, emisores: EmisorLite[]): string | null {
   if (row.auto_estado === "requiere_revision_emisor") return "Revisar emisor";
-  if (!row.emisor_id) return "Revisar emisor";
+  if (!row.emisor_id) return "Emisor sin determinar";
   const e = emisores.find((x) => x.id === row.emisor_id);
   if (!e || e.activo === false) return "Revisar emisor";
   if (!e.cuit || !e.punto_venta || !e.tiene_credenciales) return "Emisor sin CUIT, punto de venta o certificado";

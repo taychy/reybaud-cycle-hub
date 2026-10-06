@@ -23,7 +23,7 @@ describe("lote con varios emisores", () => {
     expect(ordenEmision(rows.slice(0, 3)).map((r) => [r.id, r.emisor_id])).toEqual([["c", "E1"], ["a", "E1"], ["b", "E2"]]);
   });
   it("fila sin emisor o en revisión: solo esa queda bloqueada", () => {
-    expect(rows.map((r) => bloqueoEmisor(r, emisores))).toEqual([null, null, null, "Revisar emisor"]);
+    expect(rows.map((r) => bloqueoEmisor(r, emisores))).toEqual([null, null, null, "Emisor sin determinar"]);
     expect(bloqueoEmisor({ id: "x", emisor_id: "E1", auto_estado: "requiere_revision_emisor", monto: 1 }, emisores)).toBe("Revisar emisor");
   });
 });
