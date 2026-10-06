@@ -3,6 +3,7 @@
 // external_participant_id, dispara pago MP o registra transferencia con comprobante.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
+import { resolveChargeNow } from "./chargeNow.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -242,18 +243,38 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 5) MP
+    // 5) MP — importe a cobrar ahora resuelto en servidor (nunca desde el frontend).
+    let rpcNow: any = null;
+    try {
+      const { data } = await admin.rpc("importe_a_pagar_ahora", { _reservation_id: reservationId });
+      rpcNow = data;
+    } catch (e) { console.warn("[create-guest-reservation] importe_a_pagar_ahora", e); }
+    let plan: any = null;
+    if (!(rpcNow?.installment_number != null && Number(rpcNow?.amount) > 0)) {
+      const stageId = resolvedPrice?.stage_id ?? null;
+      const base = () => admin.from("event_package_payment_plans")
+        .select("id, sena_tipo, sena_valor").eq("package_id", pkg.id)
+        .is("archived_at", null).eq("activo", true)
+        .order("version", { ascending: false }).limit(1);
+      if (stageId) plan = (await base().eq("price_stage_id", stageId).maybeSingle()).data;
+      if (!plan) plan = (await base().is("price_stage_id", null).maybeSingle()).data;
+    }
+    const charge = resolveChargeNow({ amountTotal: amount_total, rpc: rpcNow, plan, packageSena: pkg.sena });
+    const chargeNow = charge.amount;
+    if (!chargeNow || chargeNow <= 0) return jsonResp({ error: "No hay importe a cobrar" }, 400);
+
     const cuenta = await resolveCuentaMP(admin, { unidad_negocio: "evento" });
     if (!cuenta.access_token) return jsonResp({ error: "Mercado Pago no está configurado" }, 500);
 
     const origin = req.headers.get("origin") || "https://reybaud-app.com";
     const prefBody: Record<string, unknown> = {
       items: [{
-        title: `${eventRow.title} · ${pkg.nombre}`,
+        title: `${eventRow.title} · ${pkg.nombre}${charge.source !== "total" ? " — Seña" : ""}`,
         quantity: 1,
-        unit_price: amount_total,
+        unit_price: chargeNow,
         currency_id: currency,
       }],
+      metadata: { reservation_id: reservationId, charge_source: charge.source, amount_total },
       payer: { name: `${nombre} ${apellido}`.trim(), email },
       back_urls: {
         success: `${origin}/mi-reserva/${accessToken}?status=approved`,
@@ -282,6 +303,8 @@ Deno.serve(async (req) => {
       mode: "mp",
       init_point: pref.init_point || pref.sandbox_init_point,
       preference_id: pref.id,
+      amount_charged: chargeNow,
+      charge_source: charge.source,
       reservation_id: reservationId,
       participant_id: participantId,
       access_token: accessToken,
