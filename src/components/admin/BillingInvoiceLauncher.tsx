@@ -24,7 +24,7 @@ export type InvoiceSource = {
 };
 
 const FACTURA_COLS =
-  "id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id, facturacion_cola_id";
+  "id, estado, cae, cliente_nombre, cliente_cuit, condicion_fiscal, concepto, monto, emisor_id, alumno_id, facturacion_cola_id, segmento";
 
 interface Emisor {
   id: string;
