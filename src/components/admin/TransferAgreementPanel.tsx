@@ -243,3 +243,14 @@ export default function TransferAgreementPanel({ transfer: t, currency, onChange
     </div>
   );
 }
+
+/** Ficha del titular original: cuánto recibió directamente del reemplazante (no es devolución de Reybaud). */
+export function OriginalDirectReceived({ reservationId, currency }: { reservationId: string; currency: string }) {
+  const [amt, setAmt] = useState<number | null>(null);
+  useEffect(() => {
+    supabase.rpc("reservation_effective_payment_summary" as any, { p_reservation_id: reservationId })
+      .then(({ data }) => setAmt(Number((data as any)?.direct_received_as_original || 0)));
+  }, [reservationId]);
+  if (amt == null) return null;
+  return <p className="text-xs">Recibido directamente del reemplazante (confirmado): <strong>{formatPrice(amt, currency)}</strong> <span className="text-muted-foreground">(no es devolución de Reybaud · caja $0)</span></p>;
+}

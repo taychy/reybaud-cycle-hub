@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
 import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
-import TransferAgreementPanel from "@/components/admin/TransferAgreementPanel";
+import TransferAgreementPanel, { OriginalDirectReceived } from "@/components/admin/TransferAgreementPanel";
 import { transferModeLabel } from "@/lib/transferAgreement";
 import type { RefundSuggestion } from "@/lib/cancellationRefund";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
@@ -2272,6 +2272,7 @@ const AdminEventReservations = ({
                             {Number(o.reybaud_refund_amount) > 0 && <> · a devolver por Reybaud {formatPrice(Number(o.reybaud_refund_amount), curr(selectedRes))}</>}
                           </p>
                         )}
+                        <OriginalDirectReceived reservationId={o.original_reservation_id} currency={curr(selectedRes)} />
                         {o.status === "completed" && <p className="text-xs font-medium">Cancelada — reemplazada</p>}
                       </div>
                     )}
@@ -2282,7 +2283,7 @@ const AdminEventReservations = ({
                       </div>
                     )}
                     {rep && (
-                      <TransferAgreementPanel transfer={rep} currency={curr(selectedRes)} onChanged={loadTransfers} />
+                      <TransferAgreementPanel transfer={rep} currency={curr(selectedRes)} onChanged={loadTransfers} originalHolderName={name(other(rep.original_reservation_id))} />
                     )}
                     {eligible && (
                       <Button size="sm" variant="outline" onClick={() => setTransferConfirmRes(selectedRes)}>Liberar cupo para reventa</Button>
