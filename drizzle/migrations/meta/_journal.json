@@ -225,6 +225,13 @@
       "when": 1791226301699,
       "tag": "0031_facturacion_auto_master_manual_pago",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1791293873912,
+      "tag": "0032_reservation_transfers",
+      "breakpoints": true
     }
   ]
 }

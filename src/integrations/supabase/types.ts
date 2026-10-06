@@ -11600,6 +11600,104 @@ export type Database = {
           },
         ]
       }
+      reservation_transfers: {
+        Row: {
+          admin_contacted_at: string | null
+          agreement_defined_at: string | null
+          amount_to_original: number
+          amount_to_reybaud: number
+          completed_at: string | null
+          created_at: string
+          created_by: string | null
+          direct_payment_amount: number
+          event_id: string
+          id: string
+          notes: string | null
+          original_paid_amount: number
+          original_previous_status: string | null
+          original_reservation_id: string
+          package_id: string | null
+          payment_mode: string | null
+          replacement_reservation_id: string | null
+          reybaud_refund_amount: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          admin_contacted_at?: string | null
+          agreement_defined_at?: string | null
+          amount_to_original?: number
+          amount_to_reybaud?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          direct_payment_amount?: number
+          event_id: string
+          id?: string
+          notes?: string | null
+          original_paid_amount?: number
+          original_previous_status?: string | null
+          original_reservation_id: string
+          package_id?: string | null
+          payment_mode?: string | null
+          replacement_reservation_id?: string | null
+          reybaud_refund_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          admin_contacted_at?: string | null
+          agreement_defined_at?: string | null
+          amount_to_original?: number
+          amount_to_reybaud?: number
+          completed_at?: string | null
+          created_at?: string
+          created_by?: string | null
+          direct_payment_amount?: number
+          event_id?: string
+          id?: string
+          notes?: string | null
+          original_paid_amount?: number
+          original_previous_status?: string | null
+          original_reservation_id?: string
+          package_id?: string | null
+          payment_mode?: string | null
+          replacement_reservation_id?: string | null
+          reybaud_refund_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_transfers_original_reservation_id_fkey"
+            columns: ["original_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_transfers_original_reservation_id_fkey"
+            columns: ["original_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "reservation_transfers_replacement_reservation_id_fkey"
+            columns: ["replacement_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_transfers_replacement_reservation_id_fkey"
+            columns: ["replacement_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       roadbook_prospect_links: {
         Row: {
           apellido: string
@@ -16280,6 +16378,10 @@ export type Database = {
         Args: { p_order_id: string; p_reason: string; p_user_id: string }
         Returns: Json
       }
+      _claim_reservation_transfer_core: {
+        Args: { p_actor: string; p_new_reservation_id: string }
+        Returns: string
+      }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
       _fact_cola_evaluar: {
         Args: { r: Database["public"]["Tables"]["facturacion_cola"]["Row"] }
@@ -16833,6 +16935,10 @@ export type Database = {
           isOneToOne: false
           isSetofReturn: true
         }
+      }
+      claim_reservation_transfer: {
+        Args: { p_new_reservation_id: string }
+        Returns: string
       }
       clasificar_documento_fiscal: {
         Args: { p_doc: string; p_tipo_documento?: string }
@@ -18839,6 +18945,10 @@ export type Database = {
       }
       start_pausa_alumno: {
         Args: { p_alumno_id: string; p_fecha_regreso: string }
+        Returns: Json
+      }
+      start_reservation_transfer: {
+        Args: { p_notes?: string; p_original_reservation_id: string }
         Returns: Json
       }
       start_stock_count: { Args: { p_categoria: string }; Returns: Json }
