@@ -5,6 +5,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import forge from "https://esm.sh/node-forge@1.3.1";
+import { obtenerTicketWsaa } from "../_shared/facturacion-emision.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -70,7 +71,7 @@ Deno.serve(async (req) => {
     // Probar cada emisor hasta que uno esté autorizado para el servicio.
     const intentos: { emisor: string; error: string }[] = [];
     for (const e of usable) {
-      const ta = await getTA(e.id, e.cert_pem, e.key_pem);
+      const ta = await getTA(admin, e.id, e.cert_pem, e.key_pem);
       if (ta.error) { intentos.push({ emisor: e.nombre_fiscal, error: ta.error }); continue; }
       const rep = String(e.cuit || "").replace(/\D/g, "");
       const r = await getPersonaV2(ta.token!, ta.sign!, rep, cuit);
@@ -85,9 +86,40 @@ Deno.serve(async (req) => {
   }
 });
 
-async function getTA(key: string, certPem: string, keyPem: string): Promise<{ token?: string; sign?: string; error?: string }> {
-  const c = taCache.get(key);
-  if (c && c.exp > Date.now() + 60_000) return c;
+// TA reutilizable por emisor + servicio, persistido en afip_wsaa_tickets (solo service_role),
+// mismo mecanismo que la facturación (obtenerTicketWsaa). Caché en memoria como primer nivel.
+// deno-lint-ignore no-explicit-any
+async function getTA(admin: any, emisorId: string, certPem: string, keyPem: string): Promise<{ token?: string; sign?: string; error?: string }> {
+  const c = taCache.get(emisorId);
+  if (c && c.exp > Date.now() + 120_000) return c;
+  const r = await obtenerTicketWsaa({
+    leer: async () => {
+      const { data, error } = await admin.from("afip_wsaa_tickets").select("token, sign, expires_at")
+        .eq("emisor_id", emisorId).eq("service", SERVICE_NAME).maybeSingle();
+      if (error) console.error("[validar-cuit-arca] no se pudo leer TA", error.message);
+      return data ?? null;
+    },
+    guardar: async (t) => {
+      const { error } = await admin.from("afip_wsaa_tickets").upsert({
+        emisor_id: emisorId, service: SERVICE_NAME, token: t.token, sign: t.sign,
+        expires_at: t.expires_at, obtained_at: new Date().toISOString(),
+      });
+      if (error) console.error("[validar-cuit-arca] no se pudo guardar TA", error.message);
+      else console.log("[validar-cuit-arca] TA nuevo guardado", { emisorId, expires_at: t.expires_at });
+    },
+    login: () => loginWsaa(certPem, keyPem),
+  });
+  if (r.token && r.sign) {
+    const { data } = await admin.from("afip_wsaa_tickets").select("expires_at")
+      .eq("emisor_id", emisorId).eq("service", SERVICE_NAME).maybeSingle();
+    const exp = data?.expires_at ? Date.parse(data.expires_at) : Date.now() + 600_000;
+    taCache.set(emisorId, { token: r.token, sign: r.sign, exp });
+    return { token: r.token, sign: r.sign };
+  }
+  return { error: r.error?.startsWith("WSAA") ? r.error : `WSAA: ${r.error}` };
+}
+
+async function loginWsaa(certPem: string, keyPem: string): Promise<{ token?: string; sign?: string; expires_at?: string; error?: string }> {
   try {
     const now = Date.now();
     const tra = `<?xml version="1.0" encoding="UTF-8"?>
@@ -109,15 +141,14 @@ async function getTA(key: string, certPem: string, keyPem: string): Promise<{ to
       const s = d.match(/<sign>([^<]+)<\/sign>/)?.[1];
       const exp = d.match(/<expirationTime>([^<]+)<\/expirationTime>/)?.[1];
       if (t && s) {
-        const v = { token: t, sign: s, exp: exp ? Date.parse(exp) : now + 3600_000 };
-        taCache.set(key, v);
-        return v;
+        const ms = exp ? Date.parse(exp) : NaN;
+        return { token: t, sign: s, expires_at: Number.isFinite(ms) ? new Date(ms).toISOString() : undefined };
       }
     }
     const fault = text.match(/<faultstring[^>]*>([^<]+)<\/faultstring>/)?.[1];
-    return { error: `WSAA: ${fault || `HTTP ${resp.status}`}` };
+    return { error: fault || `HTTP ${resp.status}` };
   } catch (err) {
-    return { error: `WSAA: ${(err as Error).message}` };
+    return { error: (err as Error).message };
   }
 }
 
