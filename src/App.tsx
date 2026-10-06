@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -130,6 +131,16 @@ import FormacionInicial from "./pages/FormacionInicial";
 
 import { ImpersonationProvider } from "./contexts/ImpersonationContext";
 import ProtectedRoute from "./components/ProtectedRoute";
+const BONT_WHATSAPP_URL = "https://wa.me/5491167177980?text=Hola%2C%20soy%20alumno%2Fa%20de%20Ciclismo%20Reybaud%20y%20quiero%20asesoramiento%20para%20comprar%20zapatillas%20Bont%20con%20el%2015%25%20de%20descuento.";
+
+const BontRedirect = () => {
+  useEffect(() => {
+    window.location.replace(BONT_WHATSAPP_URL);
+  }, []);
+
+  return null;
+};
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -145,6 +156,7 @@ const App = () => (
           <Route path="/" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
           <Route path="/portal" element={<Portal />} />
+          <Route path="/bont" element={<BontRedirect />} />
           <Route path="/registro" element={<Register />} />
           <Route path="/completar-registro" element={<CompleteRegistration />} />
           <Route path="/pendiente-aprobacion" element={<PendingApproval />} />
