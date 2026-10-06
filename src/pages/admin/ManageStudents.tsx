@@ -56,6 +56,7 @@ import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { checkDocumento, formatDocumento, normalizeTipoDocumento, TIPO_DOCUMENTO_LABEL, type TipoDocumento } from "@/lib/documentoAlumno";
 import { ManageSubscriptionModal } from "@/components/admin/ManageSubscriptionModal";
 
 type Alumno = Tables<"alumnos">;
@@ -175,7 +176,12 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", fecha_nacimiento: "", fecha_ingreso_escuela: "", notas: "", nombres_bancarios: "" });
+  const [detailForm, setDetailForm] = useState<{ nombre: string; apellido: string; email: string; emails_adicionales: string; telefono: string; documento: string; tipo_documento: TipoDocumento; fecha_nacimiento: string; fecha_ingreso_escuela: string; notas: string; nombres_bancarios: string }>({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", tipo_documento: "dni", fecha_nacimiento: "", fecha_ingreso_escuela: "", notas: "", nombres_bancarios: "" });
+  // id del alumno con el que se cargó detailForm (null = no inicializado)
+  const [detailFormFor, setDetailFormFor] = useState<string | null>(null);
+  const docCheck = checkDocumento(detailForm.documento, detailForm.tipo_documento);
+  const [arcaLoading, setArcaLoading] = useState(false);
+  const [arcaResult, setArcaResult] = useState<{ error?: string; persona?: { nombre: string | null; apellido: string | null; razon_social: string | null; tipo_persona: string | null; estado_clave: string | null; domicilio: string | null } | null } | null>(null);
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
@@ -184,7 +190,7 @@ const ManageStudents = () => {
     if (!alumnoQueryId || alumnos.length === 0) return;
     if (drawerAlumno?.id === alumnoQueryId) return;
     const found = alumnos.find(a => a.id === alumnoQueryId);
-    if (found) setDrawerAlumno(found);
+    if (found) openDrawer(found);
   }, [alumnoQueryId, alumnos]);
 
   // Scroll a la sección solicitada cuando el drawer ya está abierto
@@ -692,9 +698,7 @@ const ManageStudents = () => {
   };
 
   // --- Drawer ---
-  const openDrawer = (alumno: Alumno) => {
-    setDrawerAlumno(alumno);
-    setEditingDetail(false);
+  const loadDetailForm = (alumno: Alumno) => {
     setDetailForm({
       nombre: alumno.nombre,
       apellido: getApellido(alumno),
@@ -702,15 +706,55 @@ const ManageStudents = () => {
       emails_adicionales: (((alumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
+      tipo_documento: normalizeTipoDocumento((alumno as any).tipo_documento),
       fecha_nacimiento: (alumno as any).fecha_nacimiento || "",
       fecha_ingreso_escuela: (alumno as any).fecha_ingreso_escuela || "",
       notas: alumno.notas || "",
-      nombres_bancarios: ((alumno as any).nombres_bancarios || []).join(", "),
+      nombres_bancarios: (((alumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
+    setDetailFormFor(alumno.id);
+    setArcaResult(null);
+  };
+
+  const openDrawer = (alumno: Alumno) => {
+    setDrawerAlumno(alumno);
+    setEditingDetail(false);
+    loadDetailForm(alumno);
+  };
+
+  const validarConArca = async () => {
+    if (!docCheck.value) return;
+    setArcaLoading(true);
+    setArcaResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("validar-cuit-arca", { body: { cuit: docCheck.value } });
+      if (error) {
+        setArcaResult({ error: "No se pudo consultar ARCA en este momento." });
+      } else if (!data?.ok) {
+        setArcaResult({
+          error: data?.code === "no_autorizado"
+            ? "La consulta a ARCA todavía no está habilitada para los certificados de facturación. El número es válido localmente."
+            : data?.error || "No se pudo consultar ARCA.",
+        });
+      } else {
+        setArcaResult({ persona: data.persona });
+      }
+    } finally {
+      setArcaLoading(false);
+    }
   };
 
   const saveDetail = async () => {
     if (!drawerAlumno) return;
+    // Nunca guardar un formulario que no se cargó para este alumno (evita borrar datos reales).
+    if (detailFormFor !== drawerAlumno.id || !detailForm.nombre.trim() || !detailForm.email.trim()) {
+      toast.error("El formulario no tiene los datos del alumno cargados. Cerrá y volvé a tocar Editar.");
+      return;
+    }
+    if (docCheck.error) {
+      toast.error(docCheck.error);
+      return;
+    }
 
     const nombresBancariosArr = detailForm.nombres_bancarios
       .split(/[,\n;]/)
@@ -731,7 +775,8 @@ const ManageStudents = () => {
       email: mainEmailLower,
       emails_adicionales: emailsAdicionalesArr,
       telefono: detailForm.telefono.trim() || null,
-      documento: detailForm.documento.trim() || null,
+      documento: docCheck.value,
+      tipo_documento: detailForm.tipo_documento,
       fecha_nacimiento: detailForm.fecha_nacimiento || null,
       fecha_ingreso_escuela: detailForm.fecha_ingreso_escuela || null,
       notas: detailForm.notas.trim() || null,
@@ -1652,7 +1697,11 @@ const ManageStudents = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-foreground">Datos personales</h3>
-                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setEditingDetail(!editingDetail)}>
+                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => {
+                          // Salvaguarda: reconstruir el formulario desde la ficha vigente antes de editar.
+                          if (!editingDetail) loadDetailForm(drawerAlumno);
+                          setEditingDetail(!editingDetail);
+                        }}>
                           <Edit2 className="w-3 h-3 mr-1" /> {editingDetail ? "Cancelar" : "Editar"}
                         </Button>
                       </div>
