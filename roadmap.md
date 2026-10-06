@@ -152,6 +152,6 @@
 - [x] Ruteo manual de cobros por unidad (Escuela a Josilene) + auto-facturación segura. Sin emitir reales.
 
 ## Ficha alumno · DNI/CUIT
-- [ ] Ficha abierta por ?alumno=ID inicializa el formulario; bloquear guardar si no está inicializado
-- [ ] Campo "Tipo de documento" (DNI / CUIT/CUIL) con validación y auto-sugerencia
-- [ ] Validar con ARCA (ws_sr_constancia_inscripcion), solo lectura, confirmación antes de sobrescribir
+- [x] Ficha abierta por ?alumno=ID inicializa el formulario; bloquear guardar si no está inicializado
+- [x] Campo "Tipo de documento" (DNI / CUIT/CUIL) con validación y auto-sugerencia
+- [ ] Validar con ARCA: código listo; bloqueado hasta asociar ws_sr_constancia_inscripcion a los certificados en ARCA
