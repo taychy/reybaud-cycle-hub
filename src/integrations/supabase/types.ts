@@ -11642,6 +11642,71 @@ export type Database = {
           },
         ]
       }
+      reservation_transfer_direct_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string | null
+          id: string
+          notes: string | null
+          original_reservation_id: string
+          paid_at: string
+          proof_path: string | null
+          replacement_reservation_id: string
+          status: string
+          transfer_id: string
+          updated_at: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          id?: string
+          notes?: string | null
+          original_reservation_id: string
+          paid_at: string
+          proof_path?: string | null
+          replacement_reservation_id: string
+          status?: string
+          transfer_id: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string | null
+          id?: string
+          notes?: string | null
+          original_reservation_id?: string
+          paid_at?: string
+          proof_path?: string | null
+          replacement_reservation_id?: string
+          status?: string
+          transfer_id?: string
+          updated_at?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_transfer_direct_payments_transfer_id_fkey"
+            columns: ["transfer_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_transfers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       reservation_transfers: {
         Row: {
           admin_contacted_at: string | null
@@ -18568,6 +18633,16 @@ export type Database = {
         }
         Returns: string
       }
+      register_reservation_transfer_direct_payment: {
+        Args: {
+          p_amount: number
+          p_notes?: string
+          p_paid_at: string
+          p_proof_path?: string
+          p_transfer_id: string
+        }
+        Returns: Json
+      }
       registrar_cambio_grupo_alumno: {
         Args: {
           p_alumno_id: string
@@ -18739,6 +18814,10 @@ export type Database = {
           p_reason: string
         }
         Returns: undefined
+      }
+      reservation_effective_payment_summary: {
+        Args: { p_reservation_id: string }
+        Returns: Json
       }
       reservation_transfer_payment_blocked: {
         Args: { p_reservation_id: string }
@@ -19179,6 +19258,10 @@ export type Database = {
           p_reservation_id?: string
         }
         Returns: string
+      }
+      void_reservation_transfer_direct_payment: {
+        Args: { p_direct_payment_id: string; p_reason: string }
+        Returns: Json
       }
     }
     Enums: {

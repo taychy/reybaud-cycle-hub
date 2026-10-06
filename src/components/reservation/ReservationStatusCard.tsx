@@ -263,9 +263,22 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 };
 
 const ReservationStatusCard = ({
-  reservation, alumnoId, eventCurrency, eventId, eventDate, eventTitle, eventType, eventMetadata,
+  reservation: rawReservation, alumnoId, eventCurrency, eventId, eventDate, eventTitle, eventType, eventMetadata,
   reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported,
 }: ReservationStatusCardProps) => {
+  // Saldo efectivo (pagos reales a Reybaud + pagos directos confirmados en transferencias de cupo).
+  const [effBalance, setEffBalance] = useState<number | null>(null);
+  useEffect(() => {
+    supabase.rpc("reservation_effective_payment_summary" as any, { p_reservation_id: rawReservation.id })
+      .then(({ data }) => {
+        const d = data as any;
+        setEffBalance(d && Number(d.direct_external_confirmed) > 0 ? Number(d.effective_balance) : null);
+      });
+  }, [rawReservation.id, rawReservation.amount_paid, rawReservation.balance_due]);
+  const reservation = useMemo(() => effBalance == null ? rawReservation : {
+    ...rawReservation,
+    balance_due: Math.min(Number(rawReservation.balance_due ?? rawReservation.amount_total ?? 0), effBalance),
+  }, [rawReservation, effBalance]);
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
   // School events (record_hora, carrera, otro) show only the confirmation banner.
   const isTripLike = eventType === "camp" || eventType === "viaje";
