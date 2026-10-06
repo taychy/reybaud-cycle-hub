@@ -4,7 +4,7 @@
 DO $$
 DECLARE
   v_admin uuid; r record; v_t uuid; v_new1 uuid; v_new2 uuid; v_c1 uuid; v_c2 uuid;
-  v_pay_before int; v_pay_after int; v_rooms_after int; v_dup_ok boolean := false; out text := '';
+  v_pay_before int; v_pay_after int; v_rooms_after int; v_dup_ok boolean := false; v_a1 uuid; v_a2 uuid; out text := '';
 BEGIN
   SELECT user_id INTO v_admin FROM user_roles WHERE role = 'admin' LIMIT 1;
   PERFORM set_config('request.jwt.claims', json_build_object('sub', v_admin, 'role', 'authenticated')::text, true);
@@ -22,10 +22,12 @@ BEGIN
   BEGIN PERFORM start_reservation_transfer(r.id); EXCEPTION WHEN others THEN v_dup_ok := true; END;
   out := out || format('2 sin doble transferencia=%s; ', v_dup_ok);
 
+  SELECT id INTO v_a1 FROM alumnos a WHERE NOT EXISTS (SELECT 1 FROM event_reservations x WHERE x.event_id = r.event_id AND x.alumno_id = a.id) LIMIT 1;
+  SELECT id INTO v_a2 FROM alumnos a WHERE a.id <> v_a1 AND NOT EXISTS (SELECT 1 FROM event_reservations x WHERE x.event_id = r.event_id AND x.alumno_id = a.id) LIMIT 1;
   INSERT INTO event_reservations (event_id, package_id, alumno_id, external_participant_id, reservation_status, payment_status, amount_total, balance_due)
-  VALUES (r.event_id, r.package_id, r.alumno_id, r.external_participant_id, 'pendiente_pago', 'pendiente', 1, 1) RETURNING id INTO v_new1;
+  VALUES (r.event_id, r.package_id, v_a1, NULL, 'pendiente_pago', 'pendiente', 1, 1) RETURNING id INTO v_new1;
   INSERT INTO event_reservations (event_id, package_id, alumno_id, external_participant_id, reservation_status, payment_status, amount_total, balance_due)
-  VALUES (r.event_id, r.package_id, r.alumno_id, r.external_participant_id, 'pendiente_pago', 'pendiente', 1, 1) RETURNING id INTO v_new2;
+  VALUES (r.event_id, r.package_id, v_a2, NULL, 'pendiente_pago', 'pendiente', 1, 1) RETURNING id INTO v_new2;
   v_c1 := claim_reservation_transfer(v_new1);
   v_c2 := claim_reservation_transfer(v_new2);
   out := out || format('3 FIFO claim=%s; 4 sin doble claim=%s; ', v_c1 = v_t, v_c2 IS NULL);
