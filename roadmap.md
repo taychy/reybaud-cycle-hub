@@ -155,3 +155,9 @@
 - [x] Ficha abierta por ?alumno=ID inicializa el formulario; bloquear guardar si no está inicializado
 - [x] Campo "Tipo de documento" (DNI / CUIT/CUIL) con validación y auto-sugerencia
 - [ ] Validar con ARCA: código listo; bloqueado hasta asociar ws_sr_constancia_inscripcion a los certificados en ARCA
+
+## Facturación masiva · emisor por fila + ARCA
+- [x] Modal sin emisor global; emisor y cupo por fila/emisor; "Revisar emisor" bloquea solo esa fila
+- [x] Número y fecha consultados a ARCA justo antes de cada emisión; reconciliación antes de reintentar
+- [x] Ticket WSAA reutilizable guardado en backend (facturas y notas de crédito)
+- [ ] Reintentar las 11 facturas fallidas del 06/10 (pendiente de OK del usuario; las 4 de WSAA pueden necesitar esperar que venza el ticket anterior)
