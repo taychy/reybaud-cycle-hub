@@ -1,6 +1,7 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { encodeBase64 } from "https://deno.land/std@0.224.0/encoding/base64.ts";
 import forge from "https://esm.sh/node-forge@1.3.1";
+import { obtenerTicketWsaa } from "../_shared/facturacion-emision.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -169,8 +170,19 @@ Deno.serve(async (req) => {
     const clienteDoc = String(factura.cliente_cuit || "").replace(/\D/g, "");
     if (!clienteDoc) throw new Error("La factura original no tiene documento fiscal del receptor");
 
-    const wsaa = await authenticateWSAA(emisor.cert_pem, emisor.key_pem);
-    if (wsaa.error || !wsaa.token || !wsaa.sign) throw new Error(`WSAA: ${wsaa.error || "sin token"}`);
+    // TA compartido con emit-factura-afip (mismo emisor/servicio wsfe), solo backend.
+    const wsaa = await obtenerTicketWsaa({
+      leer: async () => {
+        const { data } = await adminClient.from("afip_wsaa_tickets").select("token, sign, expires_at")
+          .eq("emisor_id", emisor.id).eq("service", SERVICE_NAME).maybeSingle();
+        return data ?? null;
+      },
+      guardar: async (t) => {
+        await adminClient.from("afip_wsaa_tickets").upsert({ emisor_id: emisor.id, service: SERVICE_NAME, ...t, obtained_at: new Date().toISOString() });
+      },
+      login: () => authenticateWSAA(emisor.cert_pem, emisor.key_pem),
+    });
+    if (wsaa.error || !wsaa.token || !wsaa.sign) throw new Error(wsaa.error || "WSAA: sin token");
 
     const tipoNc = Number(nota.tipo_comprobante);
     const last = await getUltimoComprobante(wsaa.token, wsaa.sign, emisorCuit, Number(emisor.punto_venta), tipoNc);
@@ -239,7 +251,7 @@ Deno.serve(async (req) => {
   }
 });
 
-async function authenticateWSAA(certPem: string, keyPem: string): Promise<{ token?: string; sign?: string; error?: string }> {
+async function authenticateWSAA(certPem: string, keyPem: string): Promise<{ token?: string; sign?: string; expires_at?: string; error?: string }> {
   try {
     const now = new Date();
     const genTime = new Date(now.getTime() - 10 * 60 * 1000).toISOString();
@@ -264,7 +276,8 @@ async function authenticateWSAA(certPem: string, keyPem: string): Promise<{ toke
     const tokenMatch = decoded.match(/<token>([^<]+)<\/token>/);
     const signMatch = decoded.match(/<sign>([^<]+)<\/sign>/);
     if (!tokenMatch || !signMatch) return { error: "No se pudo obtener token/sign de WSAA" };
-    return { token: tokenMatch[1], sign: signMatch[1] };
+    const expM = decoded.match(/<expirationTime>([^<]+)<\/expirationTime>/);
+    return { token: tokenMatch[1], sign: signMatch[1], expires_at: expM ? new Date(expM[1]).toISOString() : undefined };
   } catch (err) {
     return { error: (err as Error).message };
   }
