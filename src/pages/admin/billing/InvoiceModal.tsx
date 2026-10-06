@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { ShieldAlert, Loader2 } from "lucide-react";
+import { elegirEmisorSugerido, type EmisorSugerido } from "@/lib/invoiceEmisor";
 
 interface Emisor {
   id: string;
@@ -26,6 +27,8 @@ interface FacturaRow {
   monto: number;
   emisor_id: string | null;
   alumno_id?: string | null;
+  facturacion_cola_id?: string | null;
+  segmento?: string | null;
 }
 
 interface Props {
@@ -44,17 +47,57 @@ const CONDICIONES = [
 ];
 
 export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted }: Props) {
-  const [emisorId, setEmisorId] = useState<string>(factura?.emisor_id || "");
+  const [emisorId, setEmisorId] = useState<string>("");
+  const [sugerido, setSugerido] = useState<EmisorSugerido | null>(null);
+  const [resolviendo, setResolviendo] = useState(false);
   const [clienteCuit, setClienteCuit] = useState(factura?.cliente_cuit || "");
   const [condicion, setCondicion] = useState(factura?.condicion_fiscal || "consumidor_final");
   const [submitting, setSubmitting] = useState(false);
 
+  // Emisor según el cobro (override > resuelto en cola > regla central). Nunca un default.
+  useEffect(() => {
+    if (!factura) return;
+    let cancel = false;
+    setEmisorId("");
+    setSugerido(null);
+    setResolviendo(true);
+    (async () => {
+      const activos = emisores.filter((e) => e.activo).map((e) => e.id);
+      let cola: any = null;
+      if (factura.facturacion_cola_id) {
+        const { data } = await supabase
+          .from("facturacion_cola")
+          .select("emisor_override_id, emisor_resuelto_id, emisor_id, segmento, metodo_pago, cuenta_mp_id")
+          .eq("id", factura.facturacion_cola_id)
+          .maybeSingle();
+        cola = data;
+      }
+      let resolver: any = null;
+      if (!cola?.emisor_override_id && !cola?.emisor_resuelto_id) {
+        const { data } = await supabase.rpc("resolver_emisor_facturacion" as any, {
+          p_segmento: cola?.segmento ?? factura.segmento ?? null,
+          p_metodo_pago: cola?.metodo_pago ?? null,
+          p_cuenta_mp_id: cola?.cuenta_mp_id ?? null,
+          p_emisor_explicito: cola?.emisor_id ?? null,
+          p_override: null,
+        } as any);
+        resolver = data;
+      }
+      if (cancel) return;
+      const s = elegirEmisorSugerido(cola, resolver, activos);
+      setSugerido(s);
+      setEmisorId(s.emisorId ?? "");
+      setResolviendo(false);
+    })();
+    return () => { cancel = true; };
+  }, [factura?.id, emisores]);
+
   // Cuando cambia la factura seleccionada, resetear y precargar DNI/CUIT desde alumno si falta
   useEffect(() => {
     if (!factura) return;
-    setEmisorId(factura.emisor_id || "");
     setCondicion(factura.condicion_fiscal || "consumidor_final");
     setClienteCuit(factura.cliente_cuit || "");
+
 
     if (!factura.cliente_cuit) {
       (async () => {
