@@ -86,6 +86,7 @@ export interface ConsultaComprobante {
   caeVto?: string | null;
   impTotal?: number | null;
   docNro?: string | null;
+  cbteFch?: string | null;
 }
 
 export type DecisionReconciliacion =
