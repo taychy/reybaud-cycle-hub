@@ -185,6 +185,12 @@ Deno.serve(async (req) => {
     }
     const reservationId = reservation.id;
 
+    // Vincular a cupo en reventa compatible (FIFO, atómico en servidor).
+    try {
+      const { error: claimErr } = await admin.rpc("_claim_reservation_transfer_core", { p_new_reservation_id: reservationId, p_actor: "guest" });
+      if (claimErr) console.error("[create-guest-reservation] claim transfer", claimErr);
+    } catch (e) { console.error("[create-guest-reservation] claim transfer", e); }
+
     // 3.5) Enviar email de bienvenida/confirmación con resumen + link a /mi-reserva/:token
     try {
       await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-confirmation`, {

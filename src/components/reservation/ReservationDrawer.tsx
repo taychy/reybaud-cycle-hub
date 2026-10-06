@@ -514,6 +514,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       return;
     }
 
+    // Si hay un cupo en reventa compatible, vincular esta reserva (FIFO, atómico en servidor).
+    try {
+      await supabase.rpc("claim_reservation_transfer" as any, { p_new_reservation_id: (data as any).id });
+    } catch (e) { console.warn("[ReservationDrawer] claim transfer", e); }
+
     await supabase.from("reservation_status_history" as any).insert({
       reservation_id: (data as any).id,
       new_reservation_status: reservationStatus,

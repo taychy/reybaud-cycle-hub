@@ -848,7 +848,7 @@ const AdminEventReservations = ({
     alumnoId?: string;
     external?: { nombre: string; apellido: string; email: string; telefono: string; documento: string };
   }): Promise<{ ok: boolean; error?: string }> => {
-    const { error } = await supabase.rpc("admin_create_event_reservation" as any, {
+    const { data: created, error } = await supabase.rpc("admin_create_event_reservation" as any, {
       p_event_id: eventId,
       p_package_id: addPackageId || null,
       p_alumno_id: args.alumnoId ?? null,
@@ -856,6 +856,11 @@ const AdminEventReservations = ({
       p_note: null,
     });
     if (error) return { ok: false, error: error.message };
+    const newId = (created as any)?.reservation_id;
+    if (newId) {
+      const { data: tId } = await supabase.rpc("claim_reservation_transfer" as any, { p_new_reservation_id: newId });
+      if (tId) toast({ title: "Vinculada a cupo en reventa", description: "La nueva reserva ocupa un cupo transferido." });
+    }
     return { ok: true };
   };
 
