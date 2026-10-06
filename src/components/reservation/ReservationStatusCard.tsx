@@ -280,6 +280,11 @@ const ReservationStatusCard = ({
   const [showTransferDrawer, setShowTransferDrawer] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const [mpLoading, setMpLoading] = useState(false);
+  const [transferBlocked, setTransferBlocked] = useState(false);
+  useEffect(() => {
+    supabase.rpc("reservation_transfer_payment_blocked" as any, { p_reservation_id: reservation.id })
+      .then(({ data }) => setTransferBlocked(data === true));
+  }, [reservation.id, reservation.amount_paid]);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
@@ -817,7 +822,12 @@ const ReservationStatusCard = ({
             </button>
           </div>
         )}
-        {canPayWithMP && (
+        {transferBlocked && (reservation.balance_due ?? 0) > 0 && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
+            Administración se pondrá en contacto para coordinar el saldo.
+          </div>
+        )}
+        {canPayWithMP && !transferBlocked && (
           <Button
             variant="gold"
             className="w-full h-12 text-sm"
@@ -837,7 +847,7 @@ const ReservationStatusCard = ({
           </Button>
         )}
         {/* Pagar por transferencia — visible siempre que haya saldo */}
-        {(reservation.balance_due ?? 0) > 0 && (
+        {(reservation.balance_due ?? 0) > 0 && !transferBlocked && (
           <Button
             variant="outline"
             className="w-full h-12 text-sm"
