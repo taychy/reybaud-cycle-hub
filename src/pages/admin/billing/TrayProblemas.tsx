@@ -9,6 +9,8 @@ import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { InvoiceModal } from "./InvoiceModal";
 import { describeFacturaProblem } from "@/lib/billingInvoiceLink";
+import { BulkInvoiceModal, type BulkFacturaRow } from "./BulkInvoiceModal";
+import { resolverEmisoresCobros } from "@/lib/invoiceEmisorResolver";
 
 const PAGE_SIZE = 50;
 const COLS =
@@ -28,6 +30,7 @@ interface Row {
   alumno_id: string | null;
   segmento: string | null;
   created_at: string;
+  facturacion_cola_id?: string | null;
 }
 
 const SEGMENTO_LABEL: Record<string, string> = { escuela: "Escuela", viajes: "Viajes", tienda: "Tienda" };
@@ -41,6 +44,47 @@ export function TrayProblemas({ emisores, onChanged }: { emisores: any[]; onChan
   const [debounced, setDebounced] = useState("");
   const [origen, setOrigen] = useState<"todos" | "escuela" | "viajes" | "tienda">("todos");
   const [target, setTarget] = useState<Row | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [preparing, setPreparing] = useState(false);
+  const [bulkRows, setBulkRows] = useState<BulkFacturaRow[]>([]);
+  const [bulkOpen, setBulkOpen] = useState(false);
+
+  const toggle = (id: string) =>
+    setSelected((prev) => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  // Cada factura resuelve SU emisor con la regla compartida; nunca facturas.emisor_id ni un global.
+  const openBulk = async () => {
+    const targets = rows.filter((r) => selected.has(r.id));
+    if (targets.length === 0) return;
+    setPreparing(true);
+    try {
+      const activos = emisores.filter((e: any) => e.activo !== false).map((e: any) => e.id);
+      const res = await resolverEmisoresCobros(
+        targets.map((r) => ({ key: r.id, facturacion_cola_id: r.facturacion_cola_id, segmento: r.segmento })),
+        activos,
+      );
+      setBulkRows(targets.map((r) => {
+        const sug = res.get(r.id);
+        return {
+          id: r.id,
+          cliente_nombre: r.cliente_nombre,
+          cliente_cuit: r.cliente_cuit,
+          condicion_fiscal: r.condicion_fiscal || "consumidor_final",
+          concepto: r.concepto,
+          monto: r.monto,
+          kind: "error" as const,
+          emisor_id: sug?.emisorId ?? null,
+          emisor_nombre: emisores.find((e: any) => e.id === sug?.emisorId)?.nombre_fiscal ?? null,
+          fecha: r.created_at,
+        };
+      }));
+      setBulkOpen(true);
+    } catch (e: any) {
+      toast({ title: "No se pudo preparar el lote", description: e?.message, variant: "destructive" });
+    } finally {
+      setPreparing(false);
+    }
+  };
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -109,6 +153,10 @@ export function TrayProblemas({ emisores, onChanged }: { emisores: any[]; onChan
         <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
         </Button>
+        <Button size="sm" onClick={openBulk} disabled={selected.size === 0 || preparing}>
+          {preparing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null}
+          Emitir seleccionadas ({selected.size})
+        </Button>
       </div>
 
       {loading ? (
@@ -117,8 +165,23 @@ export function TrayProblemas({ emisores, onChanged }: { emisores: any[]; onChan
         <p className="text-sm text-muted-foreground text-center py-8">No hay facturas con problemas. 🎉</p>
       ) : (
         <div className="space-y-2">
+          <label className="flex items-center gap-2 text-xs text-muted-foreground px-1">
+            <input
+              type="checkbox"
+              checked={rows.length > 0 && rows.every((r) => selected.has(r.id))}
+              onChange={(e) => setSelected(e.target.checked ? new Set(rows.map((r) => r.id)) : new Set())}
+            />
+            Seleccionar todas las cargadas
+          </label>
           {rows.map((f) => (
             <div key={f.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+              <input
+                type="checkbox"
+                aria-label={`Seleccionar ${f.cliente_nombre}`}
+                checked={selected.has(f.id)}
+                onChange={() => toggle(f.id)}
+                className="shrink-0"
+              />
               <div className="flex-1 min-w-0 space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <p className="text-sm font-semibold text-foreground">{f.cliente_nombre}</p>
@@ -150,6 +213,14 @@ export function TrayProblemas({ emisores, onChanged }: { emisores: any[]; onChan
           )}
         </div>
       )}
+
+      <BulkInvoiceModal
+        open={bulkOpen}
+        onOpenChange={setBulkOpen}
+        rows={bulkRows}
+        emisores={emisores as any}
+        onDone={() => { setSelected(new Set()); load(); onChanged?.(); }}
+      />
 
       <InvoiceModal
         factura={target as any}
