@@ -1,28 +1,46 @@
-# Auditoría ARCA: consulta de CUIT (solo lectura, sin cambios)
+# Auditoría (solo lectura): clases de Daniel Hernández en Liquidaciones
 
-## 1) Funciones/archivos relacionados
-- Facturación: `emit-factura-afip`, `emit-nota-credito-afip`, `auto-facturar`, `facturacion-auto-worker`, `generate-factura-pdf`, `send-factura-email`, `_shared/facturacion-emision.ts`, `_shared/fiscal-identity.ts`, tabla `afip_wsaa_tickets`.
-- Padrón/CUIT: `consultar-padron-afip` (existía desde 02/06/2026, último cambio 22/09) y `validar-cuit-arca` (creada hoy 06/10).
-- Frontend: `BillingDataSelfSection.tsx` (alumno) invoca `consultar-padron-afip`; `ManageStudents.tsx` (admin) invoca `validar-cuit-arca`. Lógica local: `fiscalIdentity.ts`, `documentoAlumno.ts`.
+No se modificó nada. Período: 01/08/2026 – 06/10/2026.
 
-## 2) Consulta de padrón previa
-- Sí existía: `consultar-padron-afip`, servicio **`ws_sr_padron_a13`** (endpoint `personaServiceA13`), no constancia de inscripción.
-- Devuelve nombre/razón social, condición fiscal y domicilio.
-- **Escribe en alumnos** si recibe `alumno_id` (dueño o admin): `documento`, `tipo_documento='cuit'`, `nombre_fiscal`, `condicion_fiscal`, `domicilio_fiscal`, `afip_verificado_at`, `afip_padron_snapshot`.
-- Se usa desde los datos de facturación del alumno.
+## 1) Profesores relacionados
+- **Daniel Hernandez** — activo, creado 24/06/2026, con usuario vinculado. Es el único.
+- **No existe "Daniela Hernández"**. La única "Daniela" es **Daniela Bongiorni** (activa), sin relación. Sin ambigüedad: el nombre correcto es Daniel.
 
-## 3) Certificados
-Los 3 emisores (Scarlett, Claudio, Josilene) están activos con certificado y clave cargados, y se usan en producción: 84, 189 y 61 facturas con CAE.
+## 2) y 3) Clases del período vs Liquidaciones
 
-## 4) Antes / ahora / faltante
-- Antes: facturación WSAA/WSFE operativa y consulta de padrón A13 conectada al alumno.
-- Agregado hoy: `validar-cuit-arca` (constancia, solo lectura, admin), UI en la ficha y TA reutilizable para WSFE.
-- Duplicación: hay dos consultas de padrón con servicios distintos.
-- Faltante real: autorización del certificado en ARCA para `ws_sr_constancia_inscripcion`. Falta confirmar si A13 sí está autorizado (no se probó hoy).
+| Fecha | Qué figura en la app | ¿En Liquidaciones? | Monto |
+|---|---|---|---|
+| Mar 04, 11, 18, 25/08 | Grupal martes Villa Nueva 8-10 (Agenda recurrente, vigente hasta 31/08) | No | — |
+| 23/08 | "Fondo fin de semana": no existe en Agenda, turnos ni eventos a su nombre | No | — |
+| 26/08 | Turno "Clase Evaluatoria" Matías Leguer, realizada | Sí | **$0**, "no liquidable" |
+| 03/09 | Personalizada Adriana Cichini | Sí | **$0** |
+| 10/09 | Personalizada Adriana Cichini Crosignani | Sí | **$0** |
+| 24/09 | Evaluatoria Gustavo Occhiuzzo | Sí | **$0** |
+| 06/10 | Dos ajustes manuales de $64.500 c/u (cargados hoy, nota "no tomó los valores de honorarios") | Sí | $129.000 |
 
-## 5) "Computador no autorizado a acceder al servicio"
-Es un error de WSAA al pedir el ticket: el certificado no tiene relación con ese nombre de servicio. No es un problema de endpoint (el error ocurre antes de llamar al padrón). El nombre `ws_sr_constancia_inscripcion` y el endpoint `personaServiceA5` son los oficiales. Si A13 funciona, la falta de autorización es solo del servicio nuevo.
+- Desde 01/09 la grupal de los martes pasó a **Claudio** (nueva serie), por eso Daniel no tiene grupales en septiembre/octubre.
+- Daniel tiene **0 "clases dictadas"** en toda su historia y nunca usó el link de carga mensual (no hay link ni envío).
 
-## Siguiente paso propuesto (requiere aprobación)
-1. Probar con un solo CUIT si `consultar-padron-afip` (A13) sigue respondiendo, sin `alumno_id` para no escribir datos.
-2. Si responde: hacer que la ficha admin reutilice A13 en modo lectura (sin escribir) y eliminar la duplicación. Si no: habilitar en ARCA el servicio de constancia para un certificado.
+## 4) Flujo y causas
+- **No hay importador desde Drive para Liquidaciones** en la app. Lo que está en el Excel de Drive no entra solo; hay que cargarlo en la app.
+- **Grupales de agosto**: el movimiento nace solo cuando el profesor confirma la clase ("Mis clases de hoy") o se carga a mano. Daniel nunca confirmó ninguna → no se crearon.
+- **Turnos (26/08, 03/09, 10/09, 24/09)**: sí entraron, pero en $0 con la nota "Honorario del profesor no configurado en el servicio de Turnera". Los servicios "Clase Evaluatoria" y "Personalizada" usan el honorario "Particular Circuito 1h" ($18.000), que tiene **vigencia desde 01/09/2026**: al momento de generarse (11/09 y 28/09) no se resolvió el valor. El 26/08 además es anterior a esa vigencia y quedó "no liquidable".
+- **Ajustes 06/10**: alguien compensó a mano. Hay **dos ajustes iguales** con 2 minutos de diferencia: posible duplicado a revisar.
+
+## 5) Cruce con Drive
+- **23/08 Fondo fin de semana**: está en Drive y no existe en la app (ni como clase, turno ni evento). Falta cargarlo.
+- **26/08 Particular circuito Matías Leguer**: está en la app, pero en $0 y "no liquidable".
+- Septiembre/octubre vacíos en Drive, aunque la app tiene 3 turnos realizados de septiembre (en $0).
+- Los 4 martes de agosto (grupal) no figuran en lo que mencionaste de Drive; conviene confirmar si los dio.
+
+## 6) Causa raíz por fecha
+- 04–25/08 grupales: **no se confirmaron como dictadas en la app**.
+- 23/08 fondo: **no se cargó en la app** (solo está en Drive; no hay importador).
+- 26/08, 03/09, 10/09, 24/09: **problema de valor del honorario** (vigencia del honorario del servicio que empieza el 01/09 y valor no resuelto al generarse), no de coach ni de mapeo.
+- No hay problema de mapeo de profesor: todo está con el mismo registro de Daniel.
+
+## Próximos pasos posibles (requieren tu autorización)
+1. Revisar y anular uno de los dos ajustes de $64.500 si es duplicado.
+2. Recalcular los 4 turnos en $0 con el honorario correcto (decidir qué valor aplica al 26/08, previo a la vigencia).
+3. Cargar el 23/08 y, si corresponde, los martes de agosto por la carga rápida de Liquidaciones.
+4. Corregir el cálculo de turnos para que tome el honorario vigente en la fecha del turno.
