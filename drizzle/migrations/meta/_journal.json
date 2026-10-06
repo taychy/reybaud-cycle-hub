@@ -260,6 +260,13 @@
       "when": 1791296309371,
       "tag": "0036_admitir_store_cambios_como_origen_de_tems_de_camioneta",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791298552733,
+      "tag": "0037_afip_wsaa_tickets",
+      "breakpoints": true
     }
   ]
 }
