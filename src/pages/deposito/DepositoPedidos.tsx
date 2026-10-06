@@ -594,8 +594,8 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos para preparar" }: 
                 </div>
               )}
               {canConfirmCashPayment(r) && (
-                <Button size="sm" className="w-full h-9" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
-                  <Banknote className="w-4 h-4 mr-1" /> Cobré el efectivo
+                <Button variant="outline" size="sm" className="h-9 text-amber-400 border-amber-500/40 hover:bg-amber-500/10" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)}>
+                  <Banknote className="w-4 h-4 mr-1" /> Cobrar efectivo
                 </Button>
               )}
               <div className="flex items-center gap-2">
@@ -680,7 +680,7 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos para preparar" }: 
                     <div className="flex items-center justify-end gap-1">
                       <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => openOrder(r)} title="Ver"><Eye className="w-4 h-4" /></Button>
                       {canConfirmCashPayment(r) && (
-                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)} title="Cobré el efectivo"><Banknote className="w-4 h-4" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400" disabled={cobrando === r.id} onClick={() => confirmarEfectivo(r)} title="Cobrar efectivo"><Banknote className="w-4 h-4" /></Button>
                       )}
                       {needsPhysicalReturn(r) && (
                         <Button variant="ghost" size="icon" className="h-8 w-8 bg-destructive/10 hover:bg-destructive/20 text-destructive" disabled={returnBusy === r.id} onClick={() => confirmarRetorno(r)} title="Confirmar retorno al depósito"><PackageCheck className="w-4 h-4" /></Button>
@@ -737,10 +737,10 @@ const DepositoPedidos = ({ restrictStatuses, title = "Pedidos para preparar" }: 
               )}
 
               {canConfirmCashPayment(selected) && (
-                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 space-y-2">
-                  <p className="text-xs text-amber-200">Este pedido se paga en efectivo y todavía no está cobrado.</p>
-                  <Button className="w-full gap-2" disabled={cobrando === selected.id} onClick={() => confirmarEfectivo(selected)}>
-                    <Banknote className="w-4 h-4" /> Cobré el efectivo
+                <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 p-3 flex items-center justify-between gap-3">
+                  <p className="text-xs text-amber-200">Se paga en efectivo y todavía no está cobrado.</p>
+                  <Button variant="outline" size="sm" className="h-9 shrink-0 text-amber-400 border-amber-500/40 hover:bg-amber-500/10" disabled={cobrando === selected.id} onClick={() => confirmarEfectivo(selected)}>
+                    <Banknote className="w-4 h-4 mr-1" /> Cobrar efectivo
                   </Button>
                 </div>
               )}
