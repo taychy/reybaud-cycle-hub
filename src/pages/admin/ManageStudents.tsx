@@ -56,6 +56,7 @@ import { logStudentActivity } from "@/lib/logStudentActivity";
 import { getEffectiveSubStatus, isAdminPayableSubscription, SUB_STATUS_LABELS, SUB_STATUS_BADGE } from "@/lib/subscriptionStatus";
 import { hasSubscriptionConflict } from "@/lib/subscriptionConflicts";
 import { RegisterPaymentModal } from "@/components/admin/RegisterPaymentModal";
+import { checkDocumento, formatDocumento, normalizeTipoDocumento, TIPO_DOCUMENTO_LABEL, type TipoDocumento } from "@/lib/documentoAlumno";
 import { ManageSubscriptionModal } from "@/components/admin/ManageSubscriptionModal";
 
 type Alumno = Tables<"alumnos">;
@@ -175,7 +176,12 @@ const ManageStudents = () => {
   const [reactivateAlumno, setReactivateAlumno] = useState<Alumno | null>(null);
   const [reactivateLoading, setReactivateLoading] = useState(false);
   const [editingDetail, setEditingDetail] = useState(false);
-  const [detailForm, setDetailForm] = useState({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", fecha_nacimiento: "", fecha_ingreso_escuela: "", notas: "", nombres_bancarios: "" });
+  const [detailForm, setDetailForm] = useState<{ nombre: string; apellido: string; email: string; emails_adicionales: string; telefono: string; documento: string; tipo_documento: TipoDocumento; fecha_nacimiento: string; fecha_ingreso_escuela: string; notas: string; nombres_bancarios: string }>({ nombre: "", apellido: "", email: "", emails_adicionales: "", telefono: "", documento: "", tipo_documento: "dni", fecha_nacimiento: "", fecha_ingreso_escuela: "", notas: "", nombres_bancarios: "" });
+  // id del alumno con el que se cargó detailForm (null = no inicializado)
+  const [detailFormFor, setDetailFormFor] = useState<string | null>(null);
+  const docCheck = checkDocumento(detailForm.documento, detailForm.tipo_documento);
+  const [arcaLoading, setArcaLoading] = useState(false);
+  const [arcaResult, setArcaResult] = useState<{ error?: string; persona?: { nombre: string | null; apellido: string | null; razon_social: string | null; tipo_persona: string | null; estado_clave: string | null; domicilio: string | null } | null } | null>(null);
 
   // Abrir drawer desde query ?alumno=ID (+ opcional &section=cuenta para scrollear)
   const alumnoQueryId = searchParams.get("alumno");
@@ -184,7 +190,7 @@ const ManageStudents = () => {
     if (!alumnoQueryId || alumnos.length === 0) return;
     if (drawerAlumno?.id === alumnoQueryId) return;
     const found = alumnos.find(a => a.id === alumnoQueryId);
-    if (found) setDrawerAlumno(found);
+    if (found) openDrawer(found);
   }, [alumnoQueryId, alumnos]);
 
   // Scroll a la sección solicitada cuando el drawer ya está abierto
@@ -692,9 +698,7 @@ const ManageStudents = () => {
   };
 
   // --- Drawer ---
-  const openDrawer = (alumno: Alumno) => {
-    setDrawerAlumno(alumno);
-    setEditingDetail(false);
+  const loadDetailForm = (alumno: Alumno) => {
     setDetailForm({
       nombre: alumno.nombre,
       apellido: getApellido(alumno),
@@ -702,15 +706,55 @@ const ManageStudents = () => {
       emails_adicionales: (((alumno as any).emails_adicionales as string[]) || []).join(", "),
       telefono: alumno.telefono || "",
       documento: alumno.documento || "",
+      tipo_documento: normalizeTipoDocumento((alumno as any).tipo_documento),
       fecha_nacimiento: (alumno as any).fecha_nacimiento || "",
       fecha_ingreso_escuela: (alumno as any).fecha_ingreso_escuela || "",
       notas: alumno.notas || "",
-      nombres_bancarios: ((alumno as any).nombres_bancarios || []).join(", "),
+      nombres_bancarios: (((alumno as any).nombres_bancarios as string[]) || []).join(", "),
     });
+    setDetailFormFor(alumno.id);
+    setArcaResult(null);
+  };
+
+  const openDrawer = (alumno: Alumno) => {
+    setDrawerAlumno(alumno);
+    setEditingDetail(false);
+    loadDetailForm(alumno);
+  };
+
+  const validarConArca = async () => {
+    if (!docCheck.value) return;
+    setArcaLoading(true);
+    setArcaResult(null);
+    try {
+      const { data, error } = await supabase.functions.invoke("validar-cuit-arca", { body: { cuit: docCheck.value } });
+      if (error) {
+        setArcaResult({ error: "No se pudo consultar ARCA en este momento." });
+      } else if (!data?.ok) {
+        setArcaResult({
+          error: data?.code === "no_autorizado"
+            ? "La consulta a ARCA todavía no está habilitada para los certificados de facturación. El número es válido localmente."
+            : data?.error || "No se pudo consultar ARCA.",
+        });
+      } else {
+        setArcaResult({ persona: data.persona });
+      }
+    } finally {
+      setArcaLoading(false);
+    }
   };
 
   const saveDetail = async () => {
     if (!drawerAlumno) return;
+    // Nunca guardar un formulario que no se cargó para este alumno (evita borrar datos reales).
+    if (detailFormFor !== drawerAlumno.id || !detailForm.nombre.trim() || !detailForm.email.trim()) {
+      toast.error("El formulario no tiene los datos del alumno cargados. Cerrá y volvé a tocar Editar.");
+      return;
+    }
+    if (docCheck.error) {
+      toast.error(docCheck.error);
+      return;
+    }
 
     const nombresBancariosArr = detailForm.nombres_bancarios
       .split(/[,\n;]/)
@@ -731,7 +775,8 @@ const ManageStudents = () => {
       email: mainEmailLower,
       emails_adicionales: emailsAdicionalesArr,
       telefono: detailForm.telefono.trim() || null,
-      documento: detailForm.documento.trim() || null,
+      documento: docCheck.value,
+      tipo_documento: detailForm.tipo_documento,
       fecha_nacimiento: detailForm.fecha_nacimiento || null,
       fecha_ingreso_escuela: detailForm.fecha_ingreso_escuela || null,
       notas: detailForm.notas.trim() || null,
@@ -757,18 +802,7 @@ const ManageStudents = () => {
       alumno.id === updatedAlumno.id ? updatedAlumno : alumno
     )));
     setDrawerAlumno(updatedAlumno);
-    setDetailForm({
-      nombre: updatedAlumno.nombre,
-      apellido: getApellido(updatedAlumno),
-      email: updatedAlumno.email,
-      emails_adicionales: (((updatedAlumno as any).emails_adicionales as string[]) || []).join(", "),
-      telefono: updatedAlumno.telefono || "",
-      documento: updatedAlumno.documento || "",
-      fecha_nacimiento: (updatedAlumno as any).fecha_nacimiento || "",
-      fecha_ingreso_escuela: (updatedAlumno as any).fecha_ingreso_escuela || "",
-      notas: updatedAlumno.notas || "",
-      nombres_bancarios: (((updatedAlumno as any).nombres_bancarios as string[]) || []).join(", "),
-    });
+    loadDetailForm(updatedAlumno);
 
     toast.success("Datos actualizados");
     await logStudentActivity({ alumnoId: drawerAlumno.id, eventType: "edicion_datos", title: "Edición de datos", description: "Datos personales modificados desde la ficha", actorRole: isSuperAdmin ? "super_admin" : "admin" });
@@ -1652,7 +1686,11 @@ const ManageStudents = () => {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <h3 className="text-sm font-semibold text-foreground">Datos personales</h3>
-                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => setEditingDetail(!editingDetail)}>
+                        <Button variant="ghost" size="sm" className="text-xs h-7" onClick={() => {
+                          // Salvaguarda: reconstruir el formulario desde la ficha vigente antes de editar.
+                          if (!editingDetail) loadDetailForm(drawerAlumno);
+                          setEditingDetail(!editingDetail);
+                        }}>
                           <Edit2 className="w-3 h-3 mr-1" /> {editingDetail ? "Cancelar" : "Editar"}
                         </Button>
                       </div>
@@ -1692,10 +1730,87 @@ const ManageStudents = () => {
                               <p className="text-[10px] text-muted-foreground">Formato: 549 + código de área + número (sin 15)</p>
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">DNI/CUIT</Label>
-                              <Input value={detailForm.documento} onChange={(e) => setDetailForm({ ...detailForm, documento: e.target.value })} className="bg-secondary border-border text-sm h-8" placeholder="Ej: 17951790" />
-                              <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
+                              <Label className="text-xs">Tipo de documento</Label>
+                              <Select
+                                value={detailForm.tipo_documento}
+                                onValueChange={(v) => { setDetailForm({ ...detailForm, tipo_documento: v as TipoDocumento }); setArcaResult(null); }}
+                              >
+                                <SelectTrigger className="bg-secondary border-border text-sm h-8"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="dni">DNI</SelectItem>
+                                  <SelectItem value="cuit">CUIT/CUIL</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Número de {TIPO_DOCUMENTO_LABEL[detailForm.tipo_documento]}</Label>
+                            <Input
+                              value={detailForm.documento}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const chk = checkDocumento(v, detailForm.tipo_documento);
+                                // CUIT/CUIL válido escrito con DNI seleccionado: se cambia el tipo de forma visible.
+                                if (detailForm.tipo_documento === "dni" && chk.suggestTipo === "cuit") {
+                                  setDetailForm({ ...detailForm, documento: v, tipo_documento: "cuit" });
+                                  toast.info("El número es un CUIT/CUIL válido: cambiamos el tipo a CUIT/CUIL.");
+                                } else {
+                                  setDetailForm({ ...detailForm, documento: v });
+                                }
+                                setArcaResult(null);
+                              }}
+                              className="bg-secondary border-border text-sm h-8"
+                              placeholder={detailForm.tipo_documento === "cuit" ? "Ej: 20179517905" : "Ej: 17951790"}
+                            />
+                            {docCheck.error ? (
+                              <div className="flex items-center gap-2">
+                                <p className="text-[10px] text-destructive">{docCheck.error}</p>
+                                {docCheck.suggestTipo && (
+                                  <Button type="button" variant="outline" size="sm" className="h-6 text-[10px] px-2"
+                                    onClick={() => setDetailForm({ ...detailForm, tipo_documento: docCheck.suggestTipo! })}>
+                                    Cambiar a {TIPO_DOCUMENTO_LABEL[docCheck.suggestTipo]}
+                                  </Button>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground">
+                                {detailForm.tipo_documento === "cuit" ? "11 dígitos, se valida el dígito verificador" : "7 u 8 dígitos, solo números"}
+                              </p>
+                            )}
+                            {detailForm.tipo_documento === "cuit" && !docCheck.error && docCheck.value && (
+                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs mt-1" onClick={validarConArca} disabled={arcaLoading}>
+                                {arcaLoading ? "Consultando ARCA…" : "Validar con ARCA"}
+                              </Button>
+                            )}
+                            {arcaResult && (
+                              <div className="rounded-md border border-border bg-muted/30 p-2 text-xs space-y-1 mt-1">
+                                {arcaResult.error ? (
+                                  <p className="text-amber-400">{arcaResult.error}</p>
+                                ) : !arcaResult.persona ? (
+                                  <p className="text-amber-400">ARCA no encontró ese CUIT/CUIL.</p>
+                                ) : (
+                                  <>
+                                    <p className="font-medium text-foreground">
+                                      {arcaResult.persona.razon_social || [arcaResult.persona.apellido, arcaResult.persona.nombre].filter(Boolean).join(", ")}
+                                    </p>
+                                    {arcaResult.persona.tipo_persona && <p className="text-muted-foreground">Tipo: {arcaResult.persona.tipo_persona}</p>}
+                                    {arcaResult.persona.estado_clave && <p className="text-muted-foreground">Estado: {arcaResult.persona.estado_clave}</p>}
+                                    {arcaResult.persona.domicilio && <p className="text-muted-foreground">Domicilio fiscal: {arcaResult.persona.domicilio}</p>}
+                                    {arcaResult.persona.nombre && arcaResult.persona.apellido && (
+                                      <Button type="button" variant="outline" size="sm" className="h-6 text-[10px] px-2"
+                                        onClick={() => {
+                                          const p = arcaResult.persona!;
+                                          const tit = (s: string) => s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+                                          setDetailForm({ ...detailForm, nombre: tit(p.nombre!), apellido: tit(p.apellido!) });
+                                          toast.success("Nombre y apellido completados con ARCA. Revisá y guardá.");
+                                        }}>
+                                        Usar nombre y apellido de ARCA
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Fecha de nacimiento</Label>
@@ -1731,7 +1846,18 @@ const ManageStudents = () => {
                             </p>
                           </div>
                           {/* Las notas internas se gestionan abajo como lista (multiples notas) */}
-                          <Button variant="gold" size="sm" onClick={saveDetail} className="w-full">Guardar cambios</Button>
+                          {detailFormFor !== drawerAlumno.id && (
+                            <p className="text-xs text-destructive">El formulario no se cargó con los datos del alumno. Tocá "Cancelar" y luego "Editar" de nuevo.</p>
+                          )}
+                          <Button
+                            variant="gold"
+                            size="sm"
+                            onClick={saveDetail}
+                            className="w-full"
+                            disabled={detailFormFor !== drawerAlumno.id || !!docCheck.error}
+                          >
+                            Guardar cambios
+                          </Button>
                         </div>
                       ) : (
                         <div className="space-y-2 text-sm">
@@ -1746,7 +1872,7 @@ const ManageStudents = () => {
                             />
                           )}
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
-                          <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
+                          <DetailRow label="Documento" value={formatDocumento(drawerAlumno.documento, (drawerAlumno as any).tipo_documento)} mono />
                           {(drawerAlumno as any).fecha_nacimiento && (
                             <DetailRow
                               label="Nacimiento"

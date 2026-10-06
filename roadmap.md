@@ -150,3 +150,8 @@
 - [ ] Devoluciones: botón "Vincular devolución" en Gastos > MP (refund → reservation_payments/store_orders, RPC admin idempotente, "Revisión manual" si no hay match)
 - [ ] Viajes: Pagos recibidos / Devoluciones / Cobrado neto; pagos "Devuelto"/"Devuelto parcialmente"; deuda exigible 0 si cancelada
 - [x] Ruteo manual de cobros por unidad (Escuela a Josilene) + auto-facturación segura. Sin emitir reales.
+
+## Ficha alumno · DNI/CUIT
+- [x] Ficha abierta por ?alumno=ID inicializa el formulario; bloquear guardar si no está inicializado
+- [x] Campo "Tipo de documento" (DNI / CUIT/CUIL) con validación y auto-sugerencia
+- [ ] Validar con ARCA: código listo; bloqueado hasta asociar ws_sr_constancia_inscripcion a los certificados en ARCA
