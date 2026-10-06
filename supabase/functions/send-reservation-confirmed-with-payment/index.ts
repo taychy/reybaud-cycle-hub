@@ -59,6 +59,14 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Transferencia de cupo sin acuerdo: no invitar a pagar saldo hasta que Administración lo defina.
+    const { data: transferBlocked } = await sb.rpc("reservation_transfer_payment_blocked", { p_reservation_id: reservation_id });
+    if (transferBlocked === true) {
+      return new Response(JSON.stringify({ ok: true, skipped: "transfer_agreement_pending" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // Recipient
     let email = "", nombre = "";
     if (r.alumno_id) {
