@@ -32,6 +32,12 @@ Deno.serve(async (req) => {
       .single();
     if (resErr || !reservation) return json({ error: "Reserva no encontrada" }, 404);
 
+    // Transferencia de cupo: tras la primera seña, bloquear pagos hasta que Administración defina el acuerdo.
+    const { data: blocked } = await supabaseAdmin.rpc("reservation_transfer_payment_blocked", { p_reservation_id: reservation_id });
+    if (blocked === true) {
+      return json({ error: "Administración debe definir la modalidad de pago antes de continuar.", code: "transfer_agreement_pending" }, 409);
+    }
+
     const { data: event, error: evErr } = await supabaseAdmin
       .from("events")
       .select("id, title, price, currency, type")

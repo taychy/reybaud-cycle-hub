@@ -147,6 +147,7 @@ function subjectFor(ev: any) {
     case "efectivo_anunciado": return `💵 Efectivo anunciado — reserva ${shortId(ev.reservation_id)}`;
     case "efectivo_cobrado": return `✅ Efectivo cobrado — reserva ${shortId(ev.reservation_id)}`;
     case "pago_informado": return `💳 Pago informado — reserva ${shortId(ev.reservation_id)}`;
+    case "reservation_transfer_deposit_paid": return `🚨 URGENTE — Contactar comprador de cupo transferido (reserva ${shortId(ev.reservation_id)})`;
     case "checklist_critico": return `⚠️ Checklist crítico — reserva ${shortId(ev.reservation_id)}`;
     default: return `Novedad reserva ${shortId(ev.reservation_id)}`;
   }
