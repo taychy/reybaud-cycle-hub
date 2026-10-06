@@ -1692,10 +1692,89 @@ const ManageStudents = () => {
                               <p className="text-[10px] text-muted-foreground">Formato: 549 + código de área + número (sin 15)</p>
                             </div>
                             <div className="space-y-1">
-                              <Label className="text-xs">DNI/CUIT</Label>
-                              <Input value={detailForm.documento} onChange={(e) => setDetailForm({ ...detailForm, documento: e.target.value })} className="bg-secondary border-border text-sm h-8" placeholder="Ej: 17951790" />
-                              <p className="text-[10px] text-muted-foreground">Solo números, sin puntos ni guiones</p>
+                              <Label className="text-xs">Tipo de documento</Label>
+                              <Select
+                                value={detailForm.tipo_documento}
+                                onValueChange={(v) => { setDetailForm({ ...detailForm, tipo_documento: v as TipoDocumento }); setArcaResult(null); }}
+                              >
+                                <SelectTrigger className="bg-secondary border-border text-sm h-8"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="dni">DNI</SelectItem>
+                                  <SelectItem value="cuit">CUIT/CUIL</SelectItem>
+                                </SelectContent>
+                              </Select>
                             </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Número de {TIPO_DOCUMENTO_LABEL[detailForm.tipo_documento]}</Label>
+                            <Input
+                              value={detailForm.documento}
+                              onChange={(e) => {
+                                const v = e.target.value;
+                                const chk = checkDocumento(v, detailForm.tipo_documento);
+                                // CUIT/CUIL válido escrito con DNI seleccionado: se cambia el tipo de forma visible.
+                                if (detailForm.tipo_documento === "dni" && chk.suggestTipo === "cuit") {
+                                  setDetailForm({ ...detailForm, documento: v, tipo_documento: "cuit" });
+                                  toast.info("El número es un CUIT/CUIL válido: cambiamos el tipo a CUIT/CUIL.");
+                                } else {
+                                  setDetailForm({ ...detailForm, documento: v });
+                                }
+                                setArcaResult(null);
+                              }}
+                              className="bg-secondary border-border text-sm h-8"
+                              placeholder={detailForm.tipo_documento === "cuit" ? "Ej: 20179517905" : "Ej: 17951790"}
+                            />
+                            {docCheck.error ? (
+                              <div className="flex items-center gap-2">
+                                <p className="text-[10px] text-destructive">{docCheck.error}</p>
+                                {docCheck.suggestTipo && (
+                                  <Button type="button" variant="outline" size="sm" className="h-6 text-[10px] px-2"
+                                    onClick={() => setDetailForm({ ...detailForm, tipo_documento: docCheck.suggestTipo! })}>
+                                    Cambiar a {TIPO_DOCUMENTO_LABEL[docCheck.suggestTipo]}
+                                  </Button>
+                                )}
+                              </div>
+                            ) : (
+                              <p className="text-[10px] text-muted-foreground">
+                                {detailForm.tipo_documento === "cuit" ? "11 dígitos, se valida el dígito verificador" : "7 u 8 dígitos, solo números"}
+                              </p>
+                            )}
+                            {detailForm.tipo_documento === "cuit" && !docCheck.error && docCheck.value && (
+                              <Button type="button" variant="outline" size="sm" className="h-7 text-xs mt-1" onClick={validarConArca} disabled={arcaLoading}>
+                                {arcaLoading ? "Consultando ARCA…" : "Validar con ARCA"}
+                              </Button>
+                            )}
+                            {arcaResult && (
+                              <div className="rounded-md border border-border bg-muted/30 p-2 text-xs space-y-1 mt-1">
+                                {arcaResult.error ? (
+                                  <p className="text-amber-400">{arcaResult.error}</p>
+                                ) : !arcaResult.persona ? (
+                                  <p className="text-amber-400">ARCA no encontró ese CUIT/CUIL.</p>
+                                ) : (
+                                  <>
+                                    <p className="font-medium text-foreground">
+                                      {arcaResult.persona.razon_social || [arcaResult.persona.apellido, arcaResult.persona.nombre].filter(Boolean).join(", ")}
+                                    </p>
+                                    {arcaResult.persona.tipo_persona && <p className="text-muted-foreground">Tipo: {arcaResult.persona.tipo_persona}</p>}
+                                    {arcaResult.persona.estado_clave && <p className="text-muted-foreground">Estado: {arcaResult.persona.estado_clave}</p>}
+                                    {arcaResult.persona.domicilio && <p className="text-muted-foreground">Domicilio fiscal: {arcaResult.persona.domicilio}</p>}
+                                    {arcaResult.persona.nombre && arcaResult.persona.apellido && (
+                                      <Button type="button" variant="outline" size="sm" className="h-6 text-[10px] px-2"
+                                        onClick={() => {
+                                          const p = arcaResult.persona!;
+                                          const tit = (s: string) => s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+                                          setDetailForm({ ...detailForm, nombre: tit(p.nombre!), apellido: tit(p.apellido!) });
+                                          toast.success("Nombre y apellido completados con ARCA. Revisá y guardá.");
+                                        }}>
+                                        Usar nombre y apellido de ARCA
+                                      </Button>
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                          <div>
                           </div>
                           <div className="space-y-1">
                             <Label className="text-xs">Fecha de nacimiento</Label>
@@ -1731,7 +1810,18 @@ const ManageStudents = () => {
                             </p>
                           </div>
                           {/* Las notas internas se gestionan abajo como lista (multiples notas) */}
-                          <Button variant="gold" size="sm" onClick={saveDetail} className="w-full">Guardar cambios</Button>
+                          {detailFormFor !== drawerAlumno.id && (
+                            <p className="text-xs text-destructive">El formulario no se cargó con los datos del alumno. Tocá "Cancelar" y luego "Editar" de nuevo.</p>
+                          )}
+                          <Button
+                            variant="gold"
+                            size="sm"
+                            onClick={saveDetail}
+                            className="w-full"
+                            disabled={detailFormFor !== drawerAlumno.id || !!docCheck.error}
+                          >
+                            Guardar cambios
+                          </Button>
                         </div>
                       ) : (
                         <div className="space-y-2 text-sm">
@@ -1746,7 +1836,7 @@ const ManageStudents = () => {
                             />
                           )}
                           <DetailRow label="Teléfono" value={drawerAlumno.telefono || "—"} />
-                          <DetailRow label="DNI/CUIT" value={drawerAlumno.documento || "—"} mono />
+                          <DetailRow label="Documento" value={formatDocumento(drawerAlumno.documento, (drawerAlumno as any).tipo_documento)} mono />
                           {(drawerAlumno as any).fecha_nacimiento && (
                             <DetailRow
                               label="Nacimiento"
