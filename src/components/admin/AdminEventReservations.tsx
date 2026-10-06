@@ -1908,6 +1908,7 @@ const AdminEventReservations = ({
                       <Badge variant="outline" className={`text-[10px] border ${reservationStatusColors[r.reservation_status] || ""}`}>
                         {reservationStatusLabels[r.reservation_status] || r.reservation_status}
                       </Badge>
+                      <TransferBadges r={r} />
                       <Badge variant="outline" className={`text-[10px] border ${paymentStatusColors[r.payment_status] || ""}`}>
                         {isPaymentFree ? "Sin pago requerido" : (paymentStatusLabels[r.payment_status] || r.payment_status)}
                       </Badge>
