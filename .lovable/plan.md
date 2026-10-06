@@ -1,43 +1,28 @@
-# Auditoría: Francisco Gutierrez (francngutierrez01@gmail.com)
+# Auditoría ARCA: consulta de CUIT (solo lectura, sin cambios)
 
-This is a read-only audit. No code or data was changed.
+## 1) Funciones/archivos relacionados
+- Facturación: `emit-factura-afip`, `emit-nota-credito-afip`, `auto-facturar`, `facturacion-auto-worker`, `generate-factura-pdf`, `send-factura-email`, `_shared/facturacion-emision.ts`, `_shared/fiscal-identity.ts`, tabla `afip_wsaa_tickets`.
+- Padrón/CUIT: `consultar-padron-afip` (existía desde 02/06/2026, último cambio 22/09) y `validar-cuit-arca` (creada hoy 06/10).
+- Frontend: `BillingDataSelfSection.tsx` (alumno) invoca `consultar-padron-afip`; `ManageStudents.tsx` (admin) invoca `validar-cuit-arca`. Lógica local: `fiscalIdentity.ts`, `documentoAlumno.ts`.
 
-## 1) "Tipo de documento inconsistente" in Facturación
+## 2) Consulta de padrón previa
+- Sí existía: `consultar-padron-afip`, servicio **`ws_sr_padron_a13`** (endpoint `personaServiceA13`), no constancia de inscripción.
+- Devuelve nombre/razón social, condición fiscal y domicilio.
+- **Escribe en alumnos** si recibe `alumno_id` (dueño o admin): `documento`, `tipo_documento='cuit'`, `nombre_fiscal`, `condicion_fiscal`, `domicilio_fiscal`, `afip_verificado_at`, `afip_padron_snapshot`.
+- Se usa desde los datos de facturación del alumno.
 
-**Data stored** (alumnos `d99d922a-...`):
-- documento = `20332925777` (11 digits)
-- tipo_documento = `dni`
-- condicion_fiscal = `consumidor_final`
+## 3) Certificados
+Los 3 emisores (Scarlett, Claudio, Josilene) están activos con certificado y clave cargados, y se usan en producción: 84, 189 y 61 facturas con CAE.
 
-**Rule that triggers it**: the rule is `resolveFiscalIdentity` in `src/lib/fiscalIdentity.ts`. The same rule exists in SQL in migration `20260912213321_...sql`, line 154, which produces `tipo_inconsistente`.
-- The type is inferred from the number, never from the student record. 11 digits with a valid check digit means CUIT (AFIP DocTipo 80). 7 or 8 digits means DNI (96).
-- `20332925777` passes the CUIT check digit, so the system expects **CUIT** and would issue the invoice as CUIT 20-33292577-7.
-- The student record says `dni`. Because the declared type does not match the number, `inconsistente = true` and the label "Tipo de documento inconsistente" shows (`TrayPendientes.tsx`, line 32).
-- The warning is **non-blocking** (`blocking: false`). The invoice can still be issued, using CUIT.
+## 4) Antes / ahora / faltante
+- Antes: facturación WSAA/WSFE operativa y consulta de padrón A13 conectada al alumno.
+- Agregado hoy: `validar-cuit-arca` (constancia, solo lectura, admin), UI en la ficha y TA reutilizable para WSFE.
+- Duplicación: hay dos consultas de padrón con servicios distintos.
+- Faltante real: autorización del certificado en ARCA para `ws_sr_constancia_inscripcion`. Falta confirmar si A13 sí está autorizado (no se probó hoy).
 
-**Root cause: a data problem.** The student record stores a CUIT/CUIL with its type set to DNI. Type inference, validation and invoicing logic all behave as designed.
+## 5) "Computador no autorizado a acceder al servicio"
+Es un error de WSAA al pedir el ticket: el certificado no tiene relación con ese nombre de servicio. No es un problema de endpoint (el error ocurre antes de llamar al padrón). El nombre `ws_sr_constancia_inscripcion` y el endpoint `personaServiceA5` son los oficiales. Si A13 funciona, la falta de autorización es solo del servicio nuevo.
 
-**Minimal fix (data only, no code):** change `tipo_documento` to `cuit` (or `cuil`) in Francisco's record. Keep the number as it is, unless he confirms he wants invoices made out to his 8-digit DNI (`33292577`). The ficha cannot edit `tipo_documento` today (see note in point 2), so this needs a one-off data update approved by you.
-
-## 2) "Editar" in the student ficha shows empty fields
-
-**Files involved:** `src/pages/admin/ManageStudents.tsx`
-- The edit form state is `detailForm` (line 178). It starts empty.
-- `detailForm` is filled only inside `openDrawer(alumno)` (lines 694–709) and again after saving.
-- Read mode renders `drawerAlumno` directly. Edit mode renders `detailForm`. These are two separate state objects.
-
-**Root cause: an initialization bug.** When the ficha is opened from a link with `?alumno=ID`, the effect at lines 183–188 calls `setDrawerAlumno(found)` directly instead of `openDrawer(found)`.
-- `drawerAlumno` gets filled, so read mode looks correct.
-- `detailForm` keeps its empty initial values, so the inputs show up empty.
-- Facturación links to the student exactly this way (`TrayPendientes.tsx`, line 390). Inconsistencias and Programas do too.
-- Opening the ficha by clicking a row in the student list works, because that goes through `openDrawer`.
-
-Risk: saving from that empty form would send `nombre: ""` and set the email, phone, DNI and birth date to empty or null. That would **delete real data**.
-
-**Minimal recommended fix (one line):** in the effect at line 187, replace `setDrawerAlumno(found)` with `openDrawer(found)`. A complementary safeguard: when "Editar" is clicked, rebuild `detailForm` from the current `drawerAlumno`. That also covers other places that update `drawerAlumno` without refreshing the form (group, sede, `onAlumnoUpdate`).
-
-Note: the edit form has no `tipo_documento` field. If you want to fix point 1 from the UI later, a selector for it would need to be added. That is optional and outside the minimal fix.
-
-## Suggested next step (requires your approval)
-1. Apply the one-line fix (plus the optional safeguard) in `ManageStudents.tsx`.
-2. Update Francisco's `tipo_documento` to `cuit`, as a one-off data change.
+## Siguiente paso propuesto (requiere aprobación)
+1. Probar con un solo CUIT si `consultar-padron-afip` (A13) sigue respondiendo, sin `alumno_id` para no escribir datos.
+2. Si responde: hacer que la ficha admin reutilice A13 en modo lectura (sin escribir) y eliminar la duplicación. Si no: habilitar en ARCA el servicio de constancia para un certificado.
