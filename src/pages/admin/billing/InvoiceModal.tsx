@@ -259,7 +259,7 @@ export function InvoiceModal({ factura, emisores, open, onOpenChange, onEmitted 
             ) : sugerido && sugerido.emisorId === null && !emisorId ? (
               <div className="flex items-start gap-1.5 text-destructive">
                 <ShieldAlert className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-                <p className="text-xs">Emisor sin determinar ({sugerido.motivo.replace(/^requiere_revision_emisor:\s*/, "")}). Elegilo a mano para poder emitir.</p>
+                <p className="text-xs">Emisor sin determinar ({(sugerido.motivo || "").replace(/^requiere_revision_emisor:\s*/, "")}). Elegilo a mano para poder emitir.</p>
               </div>
             ) : sugerido?.emisorId && emisorId && emisorId !== sugerido.emisorId ? (
               <p className="text-xs text-yellow-500">Elegido a mano: distinto del emisor que corresponde al cobro.</p>

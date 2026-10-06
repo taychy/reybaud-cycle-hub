@@ -9,9 +9,11 @@ export interface ColaEmisorInfo {
   emisor_resuelto_id?: string | null;
 }
 
-export type EmisorSugerido =
-  | { emisorId: string; origen: "override" | "cobro" | "regla" }
-  | { emisorId: null; motivo: string };
+export interface EmisorSugerido {
+  emisorId: string | null;
+  origen?: "override" | "cobro" | "regla";
+  motivo?: string;
+}
 
 export function elegirEmisorSugerido(
   cola: ColaEmisorInfo | null,
