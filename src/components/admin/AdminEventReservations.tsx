@@ -1,6 +1,8 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
 import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
+import TransferAgreementPanel from "@/components/admin/TransferAgreementPanel";
+import { transferModeLabel } from "@/lib/transferAgreement";
 import type { RefundSuggestion } from "@/lib/cancellationRefund";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { addablePackages, requiresPackage, packageOptionLabel } from "@/lib/eventPackageAdd";
@@ -510,7 +512,7 @@ const AdminEventReservations = ({
     const rep = transferAsReplacement(r.id);
     return (
       <>
-        {o && <Badge variant="outline" className="ml-1.5 text-[9px] border-amber-500/40 text-amber-500">{o.replacement_reservation_id ? "Reemplazada" : "Cupo en reventa"}</Badge>}
+        {o && <Badge variant="outline" className="ml-1.5 text-[9px] border-amber-500/40 text-amber-500">{o.status === "completed" ? "Cancelada — reemplazada" : o.replacement_reservation_id ? "Reemplazada" : "Cupo en reventa"}</Badge>}
         {rep && <Badge variant="outline" className="ml-1.5 text-[9px] border-cyan-500/40 text-cyan-500">Transferencia de reserva</Badge>}
       </>
     );
@@ -2264,6 +2266,13 @@ const AdminEventReservations = ({
                           <p>Reemplazada por <button type="button" className="underline text-primary" onClick={() => { const x = other(o.replacement_reservation_id); if (x) openDetail(x); }}>{name(other(o.replacement_reservation_id))}</button></p>
                         ) : <p className="text-muted-foreground">Esperando un nuevo comprador. El cupo está disponible en la venta normal.</p>}
                         <p className="text-xs text-muted-foreground">Pagado por el titular original: {formatPrice(Number(o.original_paid_amount || 0), curr(selectedRes))}. Los pagos originales no se modifican.</p>
+                        {o.agreement_defined_at && (
+                          <p className="text-xs">Reintegro: <strong>{transferModeLabel(o.payment_mode)}</strong>
+                            {Number(o.direct_payment_amount) > 0 && <> · directo por reemplazante {formatPrice(Number(o.direct_payment_amount), curr(selectedRes))} (impacto caja Reybaud $0)</>}
+                            {Number(o.reybaud_refund_amount) > 0 && <> · a devolver por Reybaud {formatPrice(Number(o.reybaud_refund_amount), curr(selectedRes))}</>}
+                          </p>
+                        )}
+                        {o.status === "completed" && <p className="text-xs font-medium">Cancelada — reemplazada</p>}
                       </div>
                     )}
                     {rep && (
@@ -2271,6 +2280,9 @@ const AdminEventReservations = ({
                         <Badge variant="outline" className="border-cyan-500/40 text-cyan-500">Transferencia de reserva</Badge>
                         <p>Ocupa el cupo de <button type="button" className="underline text-primary" onClick={() => { const x = other(rep.original_reservation_id); if (x) openDetail(x); }}>{name(other(rep.original_reservation_id))}</button></p>
                       </div>
+                    )}
+                    {rep && (
+                      <TransferAgreementPanel transfer={rep} currency={curr(selectedRes)} onChanged={loadTransfers} />
                     )}
                     {eligible && (
                       <Button size="sm" variant="outline" onClick={() => setTransferConfirmRes(selectedRes)}>Liberar cupo para reventa</Button>
