@@ -46,7 +46,13 @@ Deno.serve(async (req) => {
     if (evErr || !event) return json({ error: "Evento no encontrado" }, 404);
 
     const eventCurrency = String(reservation.currency_snapshot || reservation.moneda || event.currency || "ARS").toUpperCase();
-    const balance = Number(reservation.balance_due ?? reservation.amount_total ?? event.price ?? 0);
+    let balance = Number(reservation.balance_due ?? reservation.amount_total ?? event.price ?? 0);
+    // Saldo efectivo: descuenta pagos directos confirmados entre participantes (transferencia de cupo).
+    const { data: eff } = await supabaseAdmin.rpc("reservation_effective_payment_summary", { p_reservation_id: reservation_id });
+    if (eff && (eff as any).effective_balance != null) {
+      balance = Math.min(balance, Number((eff as any).effective_balance));
+      if (balance <= 0) return json({ error: "No hay saldo pendiente para este evento" }, 400);
+    }
     let eventAmount = Number(amountOverride ?? balance);
     let installmentLabel: string | null = null;
 
@@ -65,7 +71,7 @@ Deno.serve(async (req) => {
     }
 
     if (!eventAmount || eventAmount <= 0) return json({ error: "No hay saldo pendiente para este evento" }, 400);
-    if (installment_number == null && balance > 0 && eventAmount > balance) eventAmount = balance;
+    if (balance > 0 && eventAmount > balance) eventAmount = balance;
 
     let fxRate = 1;
     try {
