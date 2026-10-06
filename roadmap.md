@@ -161,3 +161,5 @@
 - [x] Número y fecha consultados a ARCA justo antes de cada emisión; reconciliación antes de reintentar
 - [x] Ticket WSAA reutilizable guardado en backend (facturas y notas de crédito)
 - [ ] Reintentar las 11 facturas fallidas del 06/10 (pendiente de OK del usuario; las 4 de WSAA pueden necesitar esperar que venza el ticket anterior)
+
+- [x] Auditoría ARCA: probado consultar-padron-afip (A13) en modo lectura con CUIT Francisco
