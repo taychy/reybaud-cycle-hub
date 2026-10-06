@@ -37,7 +37,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
 
   try {
-    const { reservation_id, force = false } = await req.json();
+    const body = await req.json();
+    const { reservation_id, force = false } = body ?? {};
     if (!reservation_id) {
       return new Response(JSON.stringify({ error: "Missing reservation_id" }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -62,6 +63,21 @@ Deno.serve(async (req) => {
     // Transferencia de cupo sin acuerdo: no invitar a pagar saldo hasta que Administración lo defina.
     const { data: transferBlocked } = await sb.rpc("reservation_transfer_payment_blocked", { p_reservation_id: reservation_id });
     if (transferBlocked === true) {
+      // Dejar el mail diferido (no "enviado") para reencolarlo cuando se defina el acuerdo.
+      // Si la llamada viene del procesador de avisos, ese mismo aviso queda como diferido.
+      if (!body?.from_notification_event) {
+        try {
+          await sb.from("admin_notification_events").upsert({
+            tipo: "reserva_confirmada",
+            prioridad: "pago",
+            reservation_id,
+            status: "diferido",
+            last_error: "deferred_transfer_agreement",
+            payload: { reason: "transfer_agreement_pending" },
+            deduplication_key: `transfer-saldo-deferred-${reservation_id}`,
+          }, { onConflict: "deduplication_key", ignoreDuplicates: true });
+        } catch (e) { console.error("[send-reservation-confirmed] defer", e); }
+      }
       return new Response(JSON.stringify({ ok: true, skipped: "transfer_agreement_pending" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

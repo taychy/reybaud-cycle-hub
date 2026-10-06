@@ -54,14 +54,17 @@ Deno.serve(async (req) => {
         const resp = await fetch(`${SUPABASE_URL}/functions/v1/send-reservation-confirmed-with-payment`, {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${SUPABASE_SERVICE_ROLE_KEY}` },
-          body: JSON.stringify({ reservation_id: ev.reservation_id }),
+          body: JSON.stringify({ reservation_id: ev.reservation_id, from_notification_event: ev.id }),
         });
         const ok = resp.ok;
+        let skipped: string | null = null;
+        try { skipped = (await resp.json())?.skipped ?? null; } catch { /* sin cuerpo */ }
+        const deferred = ok && skipped === "transfer_agreement_pending";
         await sb.from("admin_notification_events").update({
-          status: ok ? "enviado" : "fallido",
+          status: deferred ? "diferido" : ok ? "enviado" : "fallido",
           intentos: (ev.intentos || 0) + 1,
-          last_error: ok ? null : `confirm_pay_email_${resp.status}`,
-          sent_at: ok ? new Date().toISOString() : null,
+          last_error: deferred ? "deferred_transfer_agreement" : ok ? null : `confirm_pay_email_${resp.status}`,
+          sent_at: ok && !deferred ? new Date().toISOString() : null,
         }).eq("id", ev.id);
         await sb.from("audit_log").insert({
           action: ok ? "admin_notification.enviada" : "admin_notification.fallida",

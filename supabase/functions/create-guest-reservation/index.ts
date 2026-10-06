@@ -223,10 +223,12 @@ Deno.serve(async (req) => {
         .update({ admin_notes: `Comprobante invitado: ${path}` })
         .eq("id", reservationId);
 
+      // Aviso a Administración: nunca bloquea la reserva si falla.
       try {
-        await admin.from("admin_notification_events").insert({
+        const { error: notifErr } = await admin.from("admin_notification_events").insert({
           tipo: "guest_reservation_transferencia_pendiente",
-          prioridad: "alta",
+          prioridad: "pago",
+          reservation_id: reservationId,
           payload: {
             reservation_id: reservationId,
             participant_id: participantId,
@@ -238,7 +240,8 @@ Deno.serve(async (req) => {
           },
           deduplication_key: `guest-transf-${reservationId}`,
         });
-      } catch (e) { console.error(e); }
+        if (notifErr) console.error("[create-guest-reservation] admin notification", notifErr);
+      } catch (e) { console.error("[create-guest-reservation] admin notification", e); }
 
       return jsonResp({
         ok: true,
