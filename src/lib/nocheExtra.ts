@@ -31,3 +31,27 @@ export function nocheTimingShortLabel(timing?: string | null): string {
   if (timing === "ambas") return "Ambas";
   return "";
 }
+
+/** Modalidad compartida (habitación doble/compartida) de una noche extra. Espejo de SQL `_extra_night_is_shared`. */
+export function isNocheCompartida(nombre?: string | null): boolean {
+  return isNocheExtra(nombre) && /(doble|compartid|twin|double)/i.test(nombre || "");
+}
+
+export type ExtraNightPairingEstado =
+  | "pendiente_companero" | "pendiente_aceptacion" | "confirmada" | "rechazada" | "cancelada";
+
+export function extraNightEstadoLabel(estado?: string | null): string {
+  switch (estado) {
+    case "pendiente_companero": return "Pendiente de compañero";
+    case "pendiente_aceptacion": return "Pendiente de aceptación";
+    case "confirmada": return "Confirmada";
+    case "rechazada": return "Rechazada";
+    case "cancelada": return "Cancelada";
+    default: return "";
+  }
+}
+
+/** Reserva activa elegible para noche extra (no cancelada/rechazada/reemplazada). */
+export function isReservaActivaNoche(r: { reservation_status?: string | null; cancelled_at?: string | null }): boolean {
+  return !r.cancelled_at && !["cancelada", "rechazada"].includes(r.reservation_status || "");
+}

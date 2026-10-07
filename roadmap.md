@@ -163,3 +163,9 @@
 - [ ] Reintentar las 11 facturas fallidas del 06/10 (pendiente de OK del usuario; las 4 de WSAA pueden necesitar esperar que venza el ticket anterior)
 
 - [x] Auditoría ARCA: probado consultar-padron-afip (A13) en modo lectura con CUIT Francisco
+
+## Viajes · Noches extra
+- [x] Admin "Modificar noche extra" con vista previa económica, compañero e historial
+- [x] Link público: individual / compartida / invitación con aceptar-rechazar
+- [x] Rooming "Noches extra" separado + exportación
+- [ ] Caso Rodrigo Carballeiro + Marcelo Suanni: aplicar cuando Admin lo confirme
