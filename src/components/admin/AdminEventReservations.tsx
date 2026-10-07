@@ -47,6 +47,7 @@ import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallm
 import AdminChangePackageDialog from "@/components/admin/AdminChangePackageDialog";
 import ResolveSharedLodgingDialog, { type SharedLodgingOccupant } from "@/components/admin/ResolveSharedLodgingDialog";
 import ReservationAddonsPanel from "@/components/admin/ReservationAddonsPanel";
+import ExtraNightRoomingDialog from "@/components/admin/ExtraNightRoomingDialog";
 import ReservationDevolucionesCard from "@/components/admin/ReservationDevolucionesCard";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
@@ -317,6 +318,7 @@ const AdminEventReservations = ({
   const [sortAsc, setSortAsc] = useState(false);
   const [showTripReports, setShowTripReports] = useState(false);
   const [showLodging, setShowLodging] = useState(false);
+  const [showExtraNights, setShowExtraNights] = useState(false);
 
 
   // Detail drawer
@@ -1649,6 +1651,9 @@ const AdminEventReservations = ({
           <>
             <Button variant="outline" size="sm" className="h-10" onClick={() => setShowLodging(true)}>
               <BedDouble className="w-4 h-4 mr-1.5" /> Alojamiento
+            </Button>
+            <Button variant="outline" size="sm" className="h-10" onClick={() => setShowExtraNights(true)}>
+              <BedDouble className="w-4 h-4 mr-1.5" /> Noches extra
             </Button>
             <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
               <FileText className="w-4 h-4 mr-1.5" /> Reportes
@@ -3001,6 +3006,13 @@ const AdminEventReservations = ({
       <EventTripReports
         open={showTripReports}
         onOpenChange={setShowTripReports}
+        eventId={eventId}
+        eventTitle={eventTitle}
+      />
+
+      <ExtraNightRoomingDialog
+        open={showExtraNights}
+        onOpenChange={setShowExtraNights}
         eventId={eventId}
         eventTitle={eventTitle}
       />

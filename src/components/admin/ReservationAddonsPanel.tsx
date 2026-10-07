@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
-import { Loader2, Plus, Trash2, ShoppingBag } from "lucide-react";
+import { Loader2, Plus, Trash2, ShoppingBag, BedDouble } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { isNocheExtra, unidadesPorTiming, nocheTimingShortLabel, NOCHE_TIMING_OPTIONS, type NocheTiming } from "@/lib/nocheExtra";
+import ExtraNightEditDialog from "@/components/admin/ExtraNightEditDialog";
 
 
 interface Addon {
@@ -53,6 +54,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
   const [qty, setQty] = useState("1");
   const [notas, setNotas] = useState("");
   const [timing, setTiming] = useState<NocheTiming | "">("");
+  const [nightOpen, setNightOpen] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -138,8 +140,20 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <ShoppingBag className="w-4 h-4 text-violet-400" />
-        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Extras contratados</h4>
+        <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex-1">Extras contratados</h4>
+        {available.some((a) => isNocheExtra(a.nombre)) && (
+          <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setNightOpen(true)}>
+            <BedDouble className="w-3.5 h-3.5 mr-1" /> Modificar noche extra
+          </Button>
+        )}
       </div>
+      <ExtraNightEditDialog
+        open={nightOpen}
+        onOpenChange={setNightOpen}
+        reservationId={reservationId}
+        eventId={eventId}
+        onSaved={() => { load(); onChanged?.(); }}
+      />
 
       {contracted.length === 0 ? (
         <p className="text-xs text-muted-foreground italic">Sin extras contratados.</p>

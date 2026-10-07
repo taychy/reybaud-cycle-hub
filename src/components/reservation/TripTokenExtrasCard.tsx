@@ -10,6 +10,7 @@ import { AlertTriangle, CheckCircle, ChevronRight, Loader2, ShoppingBag } from "
 import { toast } from "sonner";
 import { formatPrice } from "@/lib/currency";
 import { isNocheExtra, NOCHE_TIMING_OPTIONS, unidadesPorTiming, type NocheTiming } from "@/lib/nocheExtra";
+import TripTokenExtraNightShare from "@/components/reservation/TripTokenExtraNightShare";
 
 interface Addon {
   id: string;
@@ -211,6 +212,7 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
           <span>{pendingNightCount > 0 ? "Completar datos" : selectedCount > 0 ? "Gestionar extras" : "Elegir extras"}</span>
           <ChevronRight className="w-4 h-4" />
         </Button>
+        {editable && <TripTokenExtraNightShare addons={addons} onChanged={() => window.setTimeout(() => window.location.reload(), 400)} />}
       </div>
 
       <Drawer open={open} onOpenChange={setOpen}>
