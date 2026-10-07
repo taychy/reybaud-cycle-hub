@@ -6059,6 +6059,160 @@ export type Database = {
         }
         Relationships: []
       }
+      extra_night_changes: {
+        Row: {
+          accion: string
+          actor_email: string | null
+          actor_user_id: string | null
+          addon_anterior_id: string | null
+          addon_nuevo_id: string | null
+          created_at: string
+          event_id: string
+          id: string
+          nota: string | null
+          origen: string
+          pairing_id: string | null
+          partner_reservation_id: string | null
+          reservation_id: string
+          subtotal_anterior: number | null
+          subtotal_nuevo: number | null
+          timing_anterior: string | null
+          timing_nuevo: string | null
+        }
+        Insert: {
+          accion: string
+          actor_email?: string | null
+          actor_user_id?: string | null
+          addon_anterior_id?: string | null
+          addon_nuevo_id?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          nota?: string | null
+          origen: string
+          pairing_id?: string | null
+          partner_reservation_id?: string | null
+          reservation_id: string
+          subtotal_anterior?: number | null
+          subtotal_nuevo?: number | null
+          timing_anterior?: string | null
+          timing_nuevo?: string | null
+        }
+        Update: {
+          accion?: string
+          actor_email?: string | null
+          actor_user_id?: string | null
+          addon_anterior_id?: string | null
+          addon_nuevo_id?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          nota?: string | null
+          origen?: string
+          pairing_id?: string | null
+          partner_reservation_id?: string | null
+          reservation_id?: string
+          subtotal_anterior?: number | null
+          subtotal_nuevo?: number | null
+          timing_anterior?: string | null
+          timing_nuevo?: string | null
+        }
+        Relationships: []
+      }
+      extra_night_pairings: {
+        Row: {
+          addon_id: string
+          created_at: string
+          estado: string
+          event_id: string
+          id: string
+          noche_timing: string
+          nota: string | null
+          origen: string
+          partner_reservation_id: string | null
+          requested_by: string | null
+          reservation_id: string
+          resolved_at: string | null
+          resolved_by: string | null
+          updated_at: string
+        }
+        Insert: {
+          addon_id: string
+          created_at?: string
+          estado: string
+          event_id: string
+          id?: string
+          noche_timing: string
+          nota?: string | null
+          origen?: string
+          partner_reservation_id?: string | null
+          requested_by?: string | null
+          reservation_id: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+        }
+        Update: {
+          addon_id?: string
+          created_at?: string
+          estado?: string
+          event_id?: string
+          id?: string
+          noche_timing?: string
+          nota?: string | null
+          origen?: string
+          partner_reservation_id?: string | null
+          requested_by?: string | null
+          reservation_id?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "extra_night_pairings_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "event_addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_night_pairings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_night_pairings_partner_reservation_id_fkey"
+            columns: ["partner_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_night_pairings_partner_reservation_id_fkey"
+            columns: ["partner_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "extra_night_pairings_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "extra_night_pairings_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       facturacion_auto_log: {
         Row: {
           cola_id: string | null
@@ -16496,6 +16650,61 @@ export type Database = {
         Returns: string
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _extra_night_apply: {
+        Args: { p_addon: string; p_res: string; p_timing: string }
+        Returns: undefined
+      }
+      _extra_night_confirm_pair: {
+        Args: {
+          p_addon: string
+          p_event: string
+          p_nota: string
+          p_origen: string
+          p_pairing?: string
+          p_partner: string
+          p_res: string
+          p_timing: string
+        }
+        Returns: string
+      }
+      _extra_night_current: {
+        Args: { p_res: string }
+        Returns: {
+          addon_id: string
+          noche_timing: string
+          nombre: string
+          subtotal: number
+        }[]
+      }
+      _extra_night_eligible: {
+        Args: { p_event: string; p_res: string }
+        Returns: boolean
+      }
+      _extra_night_is_night: { Args: { p_nombre: string }; Returns: boolean }
+      _extra_night_is_shared: { Args: { p_nombre: string }; Returns: boolean }
+      _extra_night_log: {
+        Args: {
+          p_accion: string
+          p_addon: string
+          p_before: Json
+          p_event: string
+          p_nota: string
+          p_origen: string
+          p_pairing: string
+          p_partner: string
+          p_res: string
+          p_timing: string
+        }
+        Returns: undefined
+      }
+      _extra_night_preview_row: {
+        Args: { p_addon: string; p_res: string; p_timing: string }
+        Returns: Json
+      }
+      _extra_night_res_name: {
+        Args: { p_res: string; p_short?: boolean }
+        Returns: string
+      }
       _fact_cola_evaluar: {
         Args: { r: Database["public"]["Tables"]["facturacion_cola"]["Row"] }
         Returns: {
@@ -16687,6 +16896,15 @@ export type Database = {
         }
         Returns: string
       }
+      admin_extra_night_preview: {
+        Args: {
+          p_addon_id: string
+          p_partner_reservation_id?: string
+          p_reservation_id: string
+          p_timing: string
+        }
+        Returns: Json
+      }
       admin_get_liquidacion_context: {
         Args: { p_coach_id: string; p_mes: string }
         Returns: Json
@@ -16711,6 +16929,16 @@ export type Database = {
       admin_revoke_cuenta_token: {
         Args: { p_token_id: string }
         Returns: undefined
+      }
+      admin_set_extra_night: {
+        Args: {
+          p_addon_id: string
+          p_nota?: string
+          p_partner_reservation_id?: string
+          p_reservation_id: string
+          p_timing: string
+        }
+        Returns: Json
       }
       admin_set_reservation_price_snapshot: {
         Args: { p_note?: string; p_price?: number; p_reservation_id: string }
@@ -18199,6 +18427,18 @@ export type Database = {
           motivo: string
           nombre_parcial: string
         }[]
+      }
+      manage_extra_night_by_token: {
+        Args: {
+          p_accept?: boolean
+          p_action: string
+          p_addon_id?: string
+          p_pairing_id?: string
+          p_partner_reservation_id?: string
+          p_timing?: string
+          p_token: string
+        }
+        Returns: Json
       }
       manage_trip_extras_by_token: {
         Args: { p_action?: string; p_selections?: Json; p_token: string }

@@ -281,6 +281,13 @@
       "when": 1791308885845,
       "tag": "0039_fix_set_cola_emisor_override_audit_role",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791394376415,
+      "tag": "0040_extra_night_pairings",
+      "breakpoints": true
     }
   ]
 }
