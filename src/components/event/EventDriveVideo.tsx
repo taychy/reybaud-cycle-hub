@@ -12,7 +12,7 @@ export default function EventDriveVideo({ video }: { video: EventDriveVideoConfi
 
   return (
     <section id="video" className="scroll-mt-14 space-y-2 py-2" aria-label={video.title || "Video del viaje"}>
-      <div className="aspect-video w-full overflow-hidden rounded-md border border-border bg-background">
+      <div className="aspect-[4/3] w-full overflow-hidden rounded-md border border-border bg-background sm:aspect-video">
         <iframe
           src={`${fileUrl}/preview`}
           title={video.title || "Video del viaje"}
