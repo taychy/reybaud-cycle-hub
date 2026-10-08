@@ -19,6 +19,7 @@ interface Props {
   reserveDisabled?: boolean;
   /** Estilo opcional del botón disparador (p.ej. landing premium). No cambia el drawer. */
   triggerClassName?: string;
+  premium?: boolean;
 }
 
 const EventPackagesDrawer = ({
@@ -28,6 +29,7 @@ const EventPackagesDrawer = ({
   reserveLabel = "Reservar mi lugar",
   reserveDisabled,
   triggerClassName,
+  premium = false,
 }: Props) => {
   const [open, setOpen] = useState(false);
 
@@ -44,7 +46,7 @@ const EventPackagesDrawer = ({
       </Button>
 
       <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerContent className="max-h-[90vh]">
+        <DrawerContent className={`max-h-[90vh] ${premium ? "alpine-event" : ""}`}>
           <DrawerHeader className="text-left">
             <DrawerTitle className="font-heading uppercase tracking-wider text-base">
               Precios y paquetes

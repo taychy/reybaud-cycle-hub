@@ -43,6 +43,7 @@ import EventPremiumLanding, { getPremiumLanding } from "@/components/event/Event
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
+import { premiumDateSummary } from "@/lib/premiumEventSummary";
 
 type Alumno = Tables<"alumnos">;
 
@@ -189,6 +190,7 @@ const EventDetail = () => {
   const [showGuestDrawer, setShowGuestDrawer] = useState(false);
   const [showChangePackage, setShowChangePackage] = useState(false);
   const [packagesMinPrice, setPackagesMinPrice] = useState<number | null>(null);
+  const [packagesCurrency, setPackagesCurrency] = useState<string | null>(null);
   const [packagesCount, setPackagesCount] = useState<number>(0);
   
   
@@ -227,6 +229,8 @@ const EventDetail = () => {
         .map((p) => resolveActivePrice(Number(p.precio) || 0, p.currency || "ARS", stagesMap[p.id]).precio)
         .filter((n) => n > 0);
       setPackagesCount(prices.length);
+      const currencies = [...new Set(rows.map((p) => p.currency))];
+      setPackagesCurrency(currencies.length === 1 ? currencies[0] : null);
       setPackagesMinPrice(prices.length ? Math.min(...prices) : null);
     })();
 
@@ -476,6 +480,8 @@ const EventDetail = () => {
   // Borrador: solo visible para admins (RLS). Vista previa privada sin reservas ni cobros.
   const isDraftPreview = event.estado_publicacion === "borrador";
   const premiumLanding = getPremiumLanding(event.metadata);
+  const premiumDates = premiumDateSummary(event);
+  const premiumPrice = getEventPriceDisplay({ ...event, currency: packagesCurrency || event.currency, packages_min_price: packagesMinPrice });
   const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview;
   const isTripLike = event.type === "camp" || event.type === "viaje";
   const isSoldOut = event.estado_publicacion === "agotado";
@@ -486,7 +492,7 @@ const EventDetail = () => {
   const isOpenAudience = publicAudience === "open";
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className={`min-h-screen bg-background flex flex-col ${premiumLanding ? "alpine-event" : ""}`}>
       {/* Hero Image */}
       <div className="relative">
         <EventHeroMedia hero={hero} title={event.title} />
@@ -521,7 +527,7 @@ const EventDetail = () => {
           <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
         </Button>
         <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
-          <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
+          <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${premiumLanding ? "bg-background/80 text-foreground border-primary" : typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
         </div>
@@ -529,7 +535,7 @@ const EventDetail = () => {
 
 
       <main className="flex-1 px-4 pb-24 -mt-2">
-        <div className="w-full max-w-md md:max-w-2xl mx-auto space-y-4 animate-fade-in">
+        <div className={`w-full mx-auto space-y-4 animate-fade-in ${premiumLanding ? "max-w-md md:max-w-5xl" : "max-w-md md:max-w-2xl"}`}>
 
           {/* Title & Date */}
           <div className="space-y-3">
@@ -538,11 +544,11 @@ const EventDetail = () => {
                 Vista previa privada (borrador) — solo administradores. Reservas y cobros desactivados.
               </div>
             )}
-            <h1 className="text-2xl font-heading font-bold text-foreground leading-tight">{event.title}</h1>
+            <h1 className={`font-heading font-bold text-foreground leading-tight ${premiumLanding ? "text-3xl md:text-5xl uppercase" : "text-2xl"}`}>{premiumLanding?.headline || event.title}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-primary" />
-                <span className="capitalize">{dateFormatted}</span>
+                <span className="capitalize">{premiumLanding ? premiumDates.label : dateFormatted}</span>
               </span>
               {event.start_time && (
                 <span className="flex items-center gap-1.5">
@@ -551,6 +557,16 @@ const EventDetail = () => {
                 </span>
               )}
             </div>
+            {premiumLanding && (
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-border py-4">
+                {event.duration_days && <span className="text-sm text-foreground">{event.duration_days} días</span>}
+                {event.duration_nights && <span className="text-sm text-foreground">{event.duration_nights} noches</span>}
+                {premiumPrice.price != null && <a href="#precio" className="ml-auto text-primary font-heading font-bold text-2xl focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"><span className="text-xs font-normal text-muted-foreground">Desde · EUR </span>{formatPrice(premiumPrice.price, premiumPrice.currency)}</a>}
+              </div>
+            )}
+            {premiumLanding && isDraftPreview && premiumDates.conflict && (
+              <p className="text-xs text-muted-foreground border-l-2 border-primary pl-3">Revisión de fecha: inicio {event.date}, fin {event.end_date || "sin cargar"}; no coinciden con {event.duration_days} días. Pendiente de confirmación.</p>
+            )}
             {event.location && (
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <MapPin className="w-4 h-4 text-primary" />
@@ -695,7 +711,7 @@ const EventDetail = () => {
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* Price & Quick Details — only when NOT reserved             */}
           {/* ═══════════════════════════════════════════════════════════ */}
-          {!isActiveReservation && (isPaid || priceDisplay.mode === "gratuito" || event.max_capacity || event.duration_days) && (
+          {!premiumLanding && !isActiveReservation && (isPaid || priceDisplay.mode === "gratuito" || event.max_capacity || event.duration_days) && (
             <div className="glass-card rounded-xl p-5 space-y-4">
               {isPaid && (() => {
                 const disc = applyDiscount(priceDisplay.price!, "eventos", false, id);
@@ -772,9 +788,11 @@ const EventDetail = () => {
               incluye={toItems((event as any).incluye ?? event.metadata?.incluye, event.metadata?.included_text)}
               noIncluye={toItems((event as any).no_incluye ?? event.metadata?.no_incluye, event.metadata?.not_included_text)}
               reglamento={extractReglamento(event.metadata)}
+              faq={event.metadata?.faq}
               packagesCta={!isActiveReservation && packagesCount > 0 ? (
                 <EventPackagesDrawer
                 eventId={id}
+                premium
                 onReserve={
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? () => {
