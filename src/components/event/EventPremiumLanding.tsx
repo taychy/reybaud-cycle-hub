@@ -3,6 +3,7 @@ import type { ReglamentoFields } from "@/lib/eventReglamentoDefaults";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
+import { Button } from "@/components/ui/button";
 
 /**
  * Bloque de landing premium configurable por viaje desde `events.metadata.premium_landing`.
@@ -51,9 +52,10 @@ interface Props {
   noIncluye?: string[];
   reglamento?: ReglamentoFields;
   packagesCta?: ReactNode;
+  faq?: string;
 }
 
-export default function EventPremiumLanding({ eventId, config, itinerario, isDraftPreview = false, description, incluye = [], noIncluye = [], reglamento, packagesCta }: Props) {
+export default function EventPremiumLanding({ eventId, config, itinerario, isDraftPreview = false, description, incluye = [], noIncluye = [], reglamento, packagesCta, faq }: Props) {
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
 
   useEffect(() => {
@@ -83,6 +85,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
     config.kit?.items?.length ? ["kit", "Kit"] : null,
     pkgs.length ? ["precio", "Precio"] : null,
     hasTerms ? ["condiciones", "Condiciones"] : null,
+    faq ? ["preguntas", "Preguntas"] : null,
   ].filter(Boolean) as [string, string][];
 
   const base = pkgs[0];
@@ -90,20 +93,15 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
 
   return (
     <div className="space-y-4">
-      <nav className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/90 backdrop-blur border-b border-border overflow-x-auto">
+      <nav aria-label="Secciones del viaje" className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-background/90 backdrop-blur border-b border-border overflow-x-auto">
         <div className="flex gap-4 text-xs font-heading uppercase tracking-wider whitespace-nowrap">
           {nav.map(([id, label]) => (
-            <a key={id} href={`#${id}`} className="text-muted-foreground hover:text-foreground transition-colors">{label}</a>
+            <a key={id} href={`#${id}`} className="py-2 text-muted-foreground hover:text-foreground transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">{label}</a>
           ))}
         </div>
       </nav>
 
       <section id="experiencia" className="scroll-mt-14 space-y-3 py-2">
-        {config.headline && (
-          <h2 className="font-heading font-bold text-3xl md:text-4xl uppercase leading-none text-foreground">
-            {config.headline.split(" ").slice(0, -1).join(" ")} <span className={accent}>{config.headline.split(" ").slice(-1)}</span>
-          </h2>
-        )}
         {config.subheadline && <p className="text-sm text-muted-foreground uppercase tracking-[0.2em]">{config.subheadline}</p>}
         {!!config.stats?.length && (
           <div className="grid grid-cols-2 md:grid-cols-4 gap-px bg-border rounded-xl overflow-hidden border border-border">
@@ -122,7 +120,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
       </section>
 
       {itinerario.length > 0 && (
-        <section id="recorrido" className="scroll-mt-14 glass-card rounded-xl p-5 space-y-4">
+        <section id="recorrido" className="scroll-mt-14 border-y border-border py-6 space-y-4">
           <h3 className="font-heading font-semibold text-sm uppercase tracking-wide text-foreground">Recorrido</h3>
           <ol className="relative border-l border-border ml-3 space-y-5">
             {itinerario.map((it, i) => (
@@ -212,14 +210,15 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
             <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-border text-muted-foreground">Servicio adicional · no incluido en el viaje</span>
           </div>
           {config.individual_prep.body && <p className="text-sm text-muted-foreground">{config.individual_prep.body}</p>}
+          <Button asChild variant="outline" className="h-auto whitespace-normal text-center border-primary px-4 py-3 text-xs font-heading uppercase tracking-wide hover:bg-primary/10 hover:text-foreground">
           <a
             href={buildWhatsAppUrl(config.individual_prep.whatsapp_message || "Hola, quiero consultar por el entrenamiento personalizado.")}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center justify-center rounded-md border border-[hsl(var(--alpine-red))] px-4 py-2 text-xs font-heading uppercase tracking-wider text-foreground hover:bg-[hsl(var(--alpine-red))]/10 transition-colors"
           >
             {config.individual_prep.cta_label || "Consultar entrenamiento personalizado"}
           </a>
+          </Button>
         </section>
       )}
 
@@ -262,7 +261,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
                   <p className={`text-[11px] font-heading uppercase tracking-wider ${i === 0 ? accent : "text-muted-foreground"}`}>{st.nombre}</p>
                   <p className="font-heading font-bold text-2xl text-foreground">{formatPrice(st.precio, st.currency)}</p>
                   <p className="text-xs text-muted-foreground">{base.nombre}</p>
-                  {ext && <p className="text-xs text-muted-foreground">{extra!.nombre}: <span className="text-foreground">{formatPrice(ext.precio, ext.currency)}</span></p>}
+                  {ext && extra && <p className="text-xs text-muted-foreground">{extra.nombre}: <span className="text-foreground">{formatPrice(ext.precio, ext.currency)}</span></p>}
                   <p className="text-[11px] text-muted-foreground pt-1 border-t border-border">{untilLabel(st.vigente_hasta)}</p>
                 </div>
               );
@@ -296,6 +295,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
           Interno: condiciones de seña, pagos y cancelación aún no cargadas para este viaje
         </p>
       )}
+      {faq && <section id="preguntas" className="scroll-mt-14 border-t border-border py-5 space-y-3"><h3 className="font-heading uppercase text-sm text-foreground">Preguntas frecuentes</h3><p className="text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{faq}</p></section>}
     </div>
   );
 }

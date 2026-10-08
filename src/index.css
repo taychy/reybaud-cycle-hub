@@ -69,6 +69,13 @@
 }
 
 @layer components {
+  .alpine-event {
+    --primary: var(--alpine-red);
+    --accent: var(--alpine-red);
+    --accent-foreground: var(--primary-foreground);
+    --ring: var(--alpine-red);
+  }
+
   .gold-gradient {
     background: linear-gradient(135deg, hsl(27 90% 55%), hsl(27 85% 65%));
   }

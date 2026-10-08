@@ -173,7 +173,9 @@
 
 ## Viajes · Bormio "La Gran Conquista Alpina"
 - [x] Respaldo, precios por etapa (doble/individual +€600), seña €500, contenido y "Fechas a confirmar" (borrador)
-- [ ] Fechas, itinerario día por día, cancelación, fotos de bicis, plan de cuotas (esperan datos del usuario)
+- [ ] Fecha definitiva: DB inicio y fin 21/06/2027 contradicen 8 días / 7 noches; esperar aclaración sin sobrescribir
+- [ ] Finalizar encabezado premium, CTA y pruebas; auditar términos y fotografías oficiales con derechos
+- [ ] Cancelación, autorización de fotos y revisión de cuotas (esperan confirmación)
 - [ ] Publicación (requiere autorización)
 
 ## Alumnos · Acceso a entrenamientos por deuda
