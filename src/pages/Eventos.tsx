@@ -134,7 +134,9 @@ const EventCard = ({
   const priceDisplay = getEventPriceDisplay(event);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const d = new Date(event.date + "T12:00:00");
-  const dateStr = d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
+  const dateStr = isEventDateTbd(event.metadata)
+    ? DATES_TBD_LABEL
+    : d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
   const hasReservation = !!reservationStatus;
   const resBadge = getReservationBadge(reservationStatus);
   const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";

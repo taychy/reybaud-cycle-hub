@@ -40,6 +40,7 @@ import { resolveEventHero } from "@/lib/eventHero";
 import EventHeroMedia from "@/components/event/EventHeroMedia";
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
+import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 
 type Alumno = Tables<"alumnos">;
 
@@ -417,7 +418,9 @@ const EventDetail = () => {
   }
 
   const d = new Date(event.date + "T12:00:00");
-  const dateFormatted = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+  const dateFormatted = isEventDateTbd(event.metadata)
+    ? DATES_TBD_LABEL
+    : d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const priceDisplay = getEventPriceDisplay({ ...event, packages_min_price: packagesMinPrice });
   const showDesde = packagesCount > 1;
   const isPaid = priceDisplay.mode === "con_valor" && priceDisplay.price != null;
