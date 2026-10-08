@@ -10,7 +10,7 @@ Consulté las filas reales de producción. No cambié código ni datos. Este doc
 ## Fuente del apto
 Tomé el apto físico de la ficha de cada alumno: archivo, fecha de firma y vencimiento. La lista de documentos del viaje no tiene ningún apto ni archivo cargado para este evento.
 
-## Vigentes con documento cargado (al 08/10 y al 25/10): 6
+## Vigentes con documento cargado (al 08/10 y al 25/10): 5
 | Alumno | Firma | Vence |
 |---|---|---|
 | Elias Miguel Benitez | 18/02/2026 | 18/02/2027 |
@@ -19,7 +19,6 @@ Tomé el apto físico de la ficha de cada alumno: archivo, fecha de firma y venc
 | Martin Eugenio Cheade | 23/09/2026 | 23/09/2027 |
 | Nicolás Fermoselle | 05/10/2026 | 05/10/2027 |
 
-En la tabla aparecen 5 nombres, no 6. Los vigentes correctos son **5**; el conteo de arriba es un error.
 
 ## Faltantes (sin archivo y sin fechas): 26
 Aldo Marcelo Angeleri, Andrea Soledad Corsalini, Daniel Mroz, Daniel Pozo, Diego José Pelleriti, Fernando Gabriel Strada, Guillermo Gorroño, Hernán Martinero Saez, Hugo Bronstein, Jorge Monczor, Julio Javier Zabalá, Leonardo Miño, Luciano Gastón Grosso, Marcelo Fabián Hamui, Marcelo Suanni, María Andrea Galarraga, María Eugenia Louys, Matías Amadeo, Pablo Terrile, Rodrigo Alonso, Rodrigo Carballeiro, Sergio Brukman, Solange Russo, Tamara Raquel Mazur, Teresa Noemí Cancinos, Valeria Irigoyen.
