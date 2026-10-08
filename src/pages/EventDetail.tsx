@@ -38,6 +38,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 import { resolveEventHero } from "@/lib/eventHero";
 import EventHeroMedia from "@/components/event/EventHeroMedia";
+import EventPremiumLanding, { getPremiumLanding } from "@/components/event/EventPremiumLanding";
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
@@ -459,6 +460,7 @@ const EventDetail = () => {
   const isExternal = eventNature === "externo_informativo";
   // Borrador: solo visible para admins (RLS). Vista previa privada sin reservas ni cobros.
   const isDraftPreview = event.estado_publicacion === "borrador";
+  const premiumLanding = getPremiumLanding(event.metadata);
   const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview;
   const isTripLike = event.type === "camp" || event.type === "viaje";
   const isSoldOut = event.estado_publicacion === "agotado";
@@ -745,6 +747,14 @@ const EventDetail = () => {
             </div>
           )}
 
+          {id && premiumLanding && (
+            <EventPremiumLanding
+              eventId={id}
+              config={premiumLanding}
+              itinerario={Array.isArray(event.metadata?.itinerario) ? event.metadata.itinerario : []}
+            />
+          )}
+
           {/* Botón siempre visible: ver precios, paquetes e inclusiones (también funciona sin login) */}
           {!isActiveReservation && id && packagesCount > 0 && (
             <div id="precios" className="scroll-mt-6">
@@ -929,6 +939,7 @@ const EventDetail = () => {
           )}
 
           {/* What's included / not included — collapsible checklist */}
+          <div id="que-incluye" className="scroll-mt-14" />
           <EventInclusions
             incluye={(event as any).incluye ?? event.metadata?.incluye}
             noIncluye={(event as any).no_incluye ?? event.metadata?.no_incluye}
@@ -941,7 +952,7 @@ const EventDetail = () => {
           {id && isTripLike && !isActiveReservation && <EventRoadbook eventId={id} />}
 
           {/* Itinerary */}
-          {event.metadata?.itinerario && Array.isArray(event.metadata.itinerario) && event.metadata.itinerario.length > 0 && (
+          {!premiumLanding && event.metadata?.itinerario && Array.isArray(event.metadata.itinerario) && event.metadata.itinerario.length > 0 && (
             <div className="glass-card rounded-xl p-5 space-y-3">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">Itinerario</h3>
               <div className="space-y-2">
