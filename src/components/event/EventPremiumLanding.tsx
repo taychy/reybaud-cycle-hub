@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { Button } from "@/components/ui/button";
+import EventDriveVideo, { type EventDriveVideoConfig } from "./EventDriveVideo";
 
 /**
  * Bloque de landing premium configurable por viaje desde `events.metadata.premium_landing`.
@@ -14,6 +15,7 @@ export interface PremiumLandingConfig {
   subheadline?: string;
   stats?: { value: string; label: string }[];
   note?: string;
+  video?: EventDriveVideoConfig;
   bikes?: { name: string; spec?: string; image?: string }[];
   preparation?: { quote?: string; body?: string; proposal_internal?: string[] };
   /** Servicio opcional existente (asesoría personalizada); solo consulta, nunca compra desde el viaje. */
@@ -118,6 +120,8 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
           <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line border-l-2 border-[hsl(var(--alpine-red))] pl-4">{description}</p>
         )}
       </section>
+
+      {config.video && <EventDriveVideo video={config.video} />}
 
       {itinerario.length > 0 && (
         <section id="recorrido" className="scroll-mt-14 border-y border-border py-6 space-y-4">
