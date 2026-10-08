@@ -457,7 +457,9 @@ const EventDetail = () => {
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const isInformativeOnly = eventNature === "propio_informativo" || eventNature === "externo_informativo";
   const isExternal = eventNature === "externo_informativo";
-  const allowsParticipation = isReservable || isInscriptionOnly;
+  // Borrador: solo visible para admins (RLS). Vista previa privada sin reservas ni cobros.
+  const isDraftPreview = event.estado_publicacion === "borrador";
+  const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview;
   const isTripLike = event.type === "camp" || event.type === "viaje";
   const isSoldOut = event.estado_publicacion === "agotado";
   const isProximamente = event.estado_publicacion === "proximamente";
@@ -514,6 +516,11 @@ const EventDetail = () => {
 
           {/* Title & Date */}
           <div className="space-y-3">
+            {isDraftPreview && (
+              <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+                Vista previa privada (borrador) — solo administradores. Reservas y cobros desactivados.
+              </div>
+            )}
             <h1 className="text-2xl font-heading font-bold text-foreground leading-tight">{event.title}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
