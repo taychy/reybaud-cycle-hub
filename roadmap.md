@@ -170,3 +170,8 @@
 - [x] Rooming "Noches extra" separado + exportación
 - [ ] Caso Rodrigo Carballeiro + Marcelo Suanni: aplicar cuando Admin lo confirme
 - [x] Envío aviso apto físico Training Camp San Luis
+
+## Viajes · Bormio "La Gran Conquista Alpina"
+- [x] Respaldo, precios por etapa (doble/individual +€600), seña €500, contenido y "Fechas a confirmar" (borrador)
+- [ ] Fechas, itinerario día por día, cancelación, fotos de bicis, plan de cuotas (esperan datos del usuario)
+- [ ] Publicación (requiere autorización)

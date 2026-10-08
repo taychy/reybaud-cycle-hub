@@ -1,3 +1,4 @@
+import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -115,7 +116,9 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const anyPackagePaid = packages.some((p) => p.precio > 0);
   const isPaid = (event.price != null && event.price > 0) || anyPackagePaid;
   const d = new Date(event.date + "T12:00:00");
-  const dateStr = d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+  const dateStr = isEventDateTbd(event.metadata)
+    ? DATES_TBD_LABEL
+    : d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
 
   // Cargar paquetes cuando abre el drawer (solo si es evento pago con reserva)
   useEffect(() => {
