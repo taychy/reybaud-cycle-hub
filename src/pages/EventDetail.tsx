@@ -544,6 +544,16 @@ const EventDetail = () => {
                 Vista previa privada (borrador) — solo administradores. Reservas y cobros desactivados.
               </div>
             )}
+            {premiumLanding && event.metadata?.premium_landing?.show_itinerant_capacity_banner === true && event.max_capacity != null && (
+              <div role="note" className="border-l-[3px] border-[hsl(var(--alpine-red))] bg-card/80 px-4 py-3 space-y-1" aria-label="Cupos limitados del viaje">
+                <p className="text-[10px] font-heading font-semibold uppercase tracking-[0.14em] text-[hsl(var(--alpine-red))]">
+                  Viaje itinerante · Grupo reducido
+                </p>
+                <p className="text-sm leading-snug text-foreground">
+                  Por la logística del recorrido, <strong className="font-heading font-bold">solo {event.max_capacity} cupos en total.</strong>
+                </p>
+              </div>
+            )}
             <h1 className={`font-heading font-bold text-foreground leading-tight ${premiumLanding ? "text-3xl md:text-5xl uppercase" : "text-2xl"}`}>{premiumLanding?.headline || event.title}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
