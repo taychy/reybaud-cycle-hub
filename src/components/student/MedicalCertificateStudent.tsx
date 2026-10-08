@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -43,6 +43,8 @@ const statusConfig: Record<string, { label: string; variant: "default" | "second
 export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }: MedicalCertificateStudentProps) => {
   const [uploading, setUploading] = useState(false);
   const [signatureDate, setSignatureDate] = useState("");
+  const [replacing, setReplacing] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const status = getStatus(alumno);
   const config = statusConfig[status];
@@ -51,6 +53,7 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
   const uploadedAt = (alumno as any).medical_certificate_uploaded_at;
   const expDate = (alumno as any).medical_certificate_expiration_date;
   const sigDate = (alumno as any).medical_certificate_signature_date;
+  const showUploadForm = !certUrl || replacing;
 
   const calcExpiration = (sigDateStr: string): string => {
     const d = new Date(sigDateStr);
@@ -105,6 +108,7 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
       if (updateError) throw updateError;
       onUpdate(updated as Alumno);
       setSignatureDate(""); // La próxima carga debe indicar la fecha del nuevo certificado.
+      setReplacing(false);
 
       // Notify admins for audit
       try {
@@ -177,7 +181,7 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
           </div>
         )}
 
-        {!readOnly && (
+        {!readOnly && showUploadForm && (
           <div className="space-y-1.5">
             <Label className="text-xs text-muted-foreground">
               {certUrl ? "Fecha de firma del nuevo apto físico *" : "Fecha de firma del médico *"}
@@ -198,20 +202,35 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
         )}
 
         <div className="flex gap-2">
-          {!readOnly && (
+          {!readOnly && certUrl && !replacing && (
             <Button
-              variant={certUrl ? "outline" : "gold"}
+              variant="outline"
+              size="sm"
+              className="flex-1 text-xs"
+              onClick={() => {
+                setSignatureDate("");
+                setReplacing(true);
+              }}
+            >
+              <Upload className="w-3.5 h-3.5 mr-1.5" />
+              Reemplazar
+            </Button>
+          )}
+
+          {!readOnly && showUploadForm && (
+            <Button
+              variant="gold"
               size="sm"
               className="flex-1 text-xs"
               disabled={uploading || !signatureDate}
-              onClick={() => document.getElementById("student-cert-upload")?.click()}
+              onClick={() => fileInputRef.current?.click()}
             >
               {uploading ? (
                 <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />
               ) : (
                 <Upload className="w-3.5 h-3.5 mr-1.5" />
               )}
-              {certUrl ? "Reemplazar" : "Subir apto físico"}
+              {certUrl ? "Subir nuevo apto físico" : "Subir apto físico"}
             </Button>
           )}
 
@@ -222,12 +241,29 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
           )}
         </div>
 
+        {!readOnly && replacing && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="w-full text-xs"
+            disabled={uploading}
+            onClick={() => {
+              setReplacing(false);
+              setSignatureDate("");
+            }}
+          >
+            Cancelar reemplazo
+          </Button>
+        )}
+
         <input
-          id="student-cert-upload"
+          ref={fileInputRef}
           type="file"
           accept=".pdf,.jpg,.jpeg,.png"
           className="hidden"
           onChange={handleUpload}
+          disabled={uploading || readOnly}
         />
 
         <p className="text-[10px] text-muted-foreground">
