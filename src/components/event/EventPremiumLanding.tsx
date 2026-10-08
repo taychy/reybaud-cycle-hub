@@ -13,6 +13,7 @@ export interface PremiumLandingConfig {
   note?: string;
   bikes?: { name: string; spec?: string; image?: string }[];
   preparation?: { quote?: string; body?: string; proposal_internal?: string[] };
+  kit?: { title?: string; items: string[]; promo_until?: string; note?: string };
 }
 
 interface ItinerarioItem { dia?: string; descripcion?: string }
@@ -53,6 +54,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
     config.bikes?.length ? ["bicicletas", "Bicicletas"] : null,
     ["que-incluye", "Qué incluye"],
     config.preparation ? ["preparacion", "Preparación"] : null,
+    config.kit?.items?.length ? ["kit", "Kit"] : null,
     pkgs.length ? ["precio", "Precio"] : null,
   ].filter(Boolean) as [string, string][];
 
