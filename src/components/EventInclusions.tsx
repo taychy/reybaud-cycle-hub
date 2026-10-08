@@ -14,7 +14,7 @@ interface EventInclusionsProps {
  *  IMPORTANTE: no partimos por comas ni puntos para no fragmentar oraciones del admin
  *  (ej. "Transporte a San Luis, aéreo o terrestre." debe ser UN solo ítem).
  */
-function toItems(val: any, textFallback?: string): string[] {
+export function toItems(val: any, textFallback?: string): string[] {
   // Prefer array if it has usable strings (one item per line ya cargado)
   if (Array.isArray(val) && val.length > 0) {
     const arr = val

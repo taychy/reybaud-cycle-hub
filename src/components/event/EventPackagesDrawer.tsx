@@ -17,6 +17,8 @@ interface Props {
   onReserve?: () => void;
   reserveLabel?: string;
   reserveDisabled?: boolean;
+  /** Estilo opcional del botón disparador (p.ej. landing premium). No cambia el drawer. */
+  triggerClassName?: string;
 }
 
 const EventPackagesDrawer = ({
@@ -25,6 +27,7 @@ const EventPackagesDrawer = ({
   onReserve,
   reserveLabel = "Reservar mi lugar",
   reserveDisabled,
+  triggerClassName,
 }: Props) => {
   const [open, setOpen] = useState(false);
 
@@ -32,8 +35,8 @@ const EventPackagesDrawer = ({
     <>
       <Button
         type="button"
-        variant="gold-outline"
-        className="w-full h-11 text-xs"
+        variant={triggerClassName ? "outline" : "gold-outline"}
+        className={triggerClassName || "w-full h-11 text-xs"}
         onClick={() => setOpen(true)}
       >
         <Wallet className="w-4 h-4" />

@@ -14,7 +14,8 @@ import {
 } from "lucide-react";
 
 import EventRankings from "@/components/EventRankings";
-import EventInclusions from "@/components/EventInclusions";
+import EventInclusions, { toItems } from "@/components/EventInclusions";
+import { extractReglamento } from "@/lib/eventReglamentoDefaults";
 import BottomNav from "@/components/BottomNav";
 import { formatPrice } from "@/lib/currency";
 import { getEventPriceDisplay } from "@/lib/eventPricing";
@@ -767,11 +768,42 @@ const EventDetail = () => {
               config={premiumLanding}
               isDraftPreview={isDraftPreview}
               itinerario={Array.isArray(event.metadata?.itinerario) ? event.metadata.itinerario : []}
+              description={event.description || event.short_description}
+              incluye={toItems((event as any).incluye ?? event.metadata?.incluye, event.metadata?.included_text)}
+              noIncluye={toItems((event as any).no_incluye ?? event.metadata?.no_incluye, event.metadata?.not_included_text)}
+              reglamento={extractReglamento(event.metadata)}
+              packagesCta={!isActiveReservation && packagesCount > 0 ? (
+                <EventPackagesDrawer
+                eventId={id}
+                onReserve={
+                  allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
+                    ? () => {
+                        if (!alumno) {
+                          if (isOpenAudience) {
+                            setShowGuestDrawer(true);
+                          } else {
+                            navigate(`/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`);
+                          }
+                          return;
+                        }
+                        if (isImpersonating) {
+                          toast({ title: "Modo solo lectura", description: "Estás viendo la cuenta como super admin: no podés crear reservas.", variant: "destructive" });
+                          return;
+                        }
+                        setShowReservationDrawer(true);
+                      }
+                    : undefined
+                }
+                reserveLabel={!alumno && !isOpenAudience ? "Iniciar sesión" : isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
+                reserveDisabled={!!alumno && isImpersonating}
+                triggerClassName="w-full h-12 rounded-none border-[hsl(var(--alpine-red))] bg-transparent font-heading uppercase tracking-[0.2em] text-xs text-foreground hover:bg-[hsl(var(--alpine-red))]/10"
+              />
+              ) : null}
             />
           )}
 
           {/* Botón siempre visible: ver precios, paquetes e inclusiones (también funciona sin login) */}
-          {!isActiveReservation && id && packagesCount > 0 && (
+          {!premiumLanding && !isActiveReservation && id && packagesCount > 0 && (
             <div id="precios" className="scroll-mt-6">
               <EventPackagesDrawer
                 eventId={id}
@@ -942,7 +974,7 @@ const EventDetail = () => {
           {/* ═══════════════════════════════════════════════════════════ */}
 
           {/* Description */}
-          {(event.description || event.short_description) && (
+          {!premiumLanding && (event.description || event.short_description) && (
             <div className="glass-card rounded-xl p-5 space-y-2">
               <h3 className="font-heading font-semibold text-sm text-foreground uppercase tracking-wide">
                 {isActiveReservation && isTripLike ? "Sobre el viaje" : "Descripción"}
@@ -954,14 +986,14 @@ const EventDetail = () => {
           )}
 
           {/* What's included / not included — collapsible checklist */}
-          <div id="que-incluye" className="scroll-mt-14" />
-          <EventInclusions
+          {!premiumLanding && <div id="que-incluye" className="scroll-mt-14" />}
+          {!premiumLanding && <EventInclusions
             incluye={(event as any).incluye ?? event.metadata?.incluye}
             noIncluye={(event as any).no_incluye ?? event.metadata?.no_incluye}
             incluyeText={event.metadata?.included_text}
             noIncluyeText={event.metadata?.not_included_text}
             defaultCollapsed={isTripLike && isActiveReservation}
-          />
+          />}
 
           {/* Public roadbook for trip/camp before reservation. Reserved users already see it above. */}
           {id && isTripLike && !isActiveReservation && <EventRoadbook eventId={id} />}
@@ -991,7 +1023,7 @@ const EventDetail = () => {
 
 
           {/* Reglamento y condiciones */}
-          <EventReglamentoSection metadata={event.metadata} />
+          {!premiumLanding && <EventReglamentoSection metadata={event.metadata} />}
 
           {/* More info links */}
           {(event.metadata?.reglamento || event.metadata?.web_url || event.metadata?.whatsapp_url) && !isActiveReservation && (
