@@ -54,7 +54,6 @@ export default function EventPremiumLanding({ eventId, config, itinerario }: { e
     ["que-incluye", "Qué incluye"],
     config.preparation ? ["preparacion", "Preparación"] : null,
     pkgs.length ? ["precio", "Precio"] : null,
-    ["faq", "FAQ"],
   ].filter(Boolean) as [string, string][];
 
   const base = pkgs[0];
