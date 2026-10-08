@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import type { ReglamentoFields } from "@/lib/eventReglamentoDefaults";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
@@ -39,7 +40,20 @@ function untilLabel(iso: string | null) {
   return `Hasta ${day}/${m}/${y}`;
 }
 
-export default function EventPremiumLanding({ eventId, config, itinerario, isDraftPreview = false }: { eventId: string; config: PremiumLandingConfig; itinerario: ItinerarioItem[]; isDraftPreview?: boolean }) {
+interface Props {
+  eventId: string;
+  config: PremiumLandingConfig;
+  itinerario: ItinerarioItem[];
+  isDraftPreview?: boolean;
+  /** Datos funcionales del evento, reubicados en secciones premium (sin duplicar bloques legacy). */
+  description?: string | null;
+  incluye?: string[];
+  noIncluye?: string[];
+  reglamento?: ReglamentoFields;
+  packagesCta?: ReactNode;
+}
+
+export default function EventPremiumLanding({ eventId, config, itinerario, isDraftPreview = false, description, incluye = [], noIncluye = [], reglamento, packagesCta }: Props) {
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
 
   useEffect(() => {
@@ -51,15 +65,24 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
     })();
   }, [eventId]);
 
+  const terms = reglamento ? ([
+    ["Política de seña", reglamento.politica_sena],
+    ["Política de pagos", reglamento.politica_pagos],
+    ["Política de cancelación", reglamento.politica_cancelacion],
+    ["Reglamento", reglamento.reglamento_texto],
+  ].filter(([, b]) => !!b) as [string, string][]) : [];
+  const hasTerms = terms.length > 0 || !!reglamento?.reglamento_url;
+
   const nav = [
     ["experiencia", "Experiencia"],
     itinerario.length ? ["recorrido", "Recorrido"] : null,
     config.bikes?.length ? ["bicicletas", "Bicicletas"] : null,
-    ["que-incluye", "Qué incluye"],
+    incluye.length || noIncluye.length ? ["que-incluye", "Qué incluye"] : null,
     config.preparation ? ["preparacion", "Preparación"] : null,
     config.individual_prep ? ["preparacion-individual", "Individual"] : null,
     config.kit?.items?.length ? ["kit", "Kit"] : null,
     pkgs.length ? ["precio", "Precio"] : null,
+    hasTerms ? ["condiciones", "Condiciones"] : null,
   ].filter(Boolean) as [string, string][];
 
   const base = pkgs[0];
@@ -93,6 +116,9 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
           </div>
         )}
         {config.note && <p className="text-[11px] text-muted-foreground">{config.note}</p>}
+        {description && (
+          <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-line border-l-2 border-[hsl(var(--alpine-red))] pl-4">{description}</p>
+        )}
       </section>
 
       {itinerario.length > 0 && (
@@ -129,6 +155,34 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
                 </div>
               </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {(incluye.length > 0 || noIncluye.length > 0) && (
+        <section id="que-incluye" className="scroll-mt-14 space-y-3" aria-labelledby="que-incluye-title">
+          <h3 id="que-incluye-title" className="font-heading font-semibold text-sm uppercase tracking-wide text-foreground">Qué incluye</h3>
+          <div className="grid md:grid-cols-2 gap-px bg-border rounded-xl overflow-hidden border border-border">
+            {incluye.length > 0 && (
+              <div className="bg-card p-5 space-y-3">
+                <p className={`text-[11px] font-heading uppercase tracking-[0.2em] ${accent}`}>Incluido</p>
+                <ul className="space-y-2">
+                  {incluye.map((x) => (
+                    <li key={x} className="flex gap-3 text-sm text-foreground"><span aria-hidden className={accent}>—</span><span>{x}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {noIncluye.length > 0 && (
+              <div className="bg-card p-5 space-y-3">
+                <p className="text-[11px] font-heading uppercase tracking-[0.2em] text-muted-foreground">No incluido</p>
+                <ul className="space-y-2">
+                  {noIncluye.map((x) => (
+                    <li key={x} className="flex gap-3 text-sm text-muted-foreground"><span aria-hidden>×</span><span>{x}</span></li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -215,7 +269,32 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
             })}
           </div>
           {base.sena ? <p className="text-xs text-muted-foreground">Seña: {formatPrice(base.sena, base.currency)} por persona. Saldo en cuotas.</p> : null}
+          {packagesCta && <div className="pt-2">{packagesCta}</div>}
         </section>
+      )}
+
+      {hasTerms && (
+        <section id="condiciones" className="scroll-mt-14 space-y-3" aria-labelledby="condiciones-title">
+          <h3 id="condiciones-title" className="font-heading font-semibold text-sm uppercase tracking-wide text-foreground">Condiciones</h3>
+          <div className="rounded-xl border border-border bg-card divide-y divide-border">
+            {terms.map(([title, body]) => (
+              <details key={title} className="group p-4">
+                <summary className="cursor-pointer list-none flex items-center justify-between text-xs font-heading uppercase tracking-wider text-foreground">
+                  {title}<span aria-hidden className={`${accent} group-open:rotate-45 transition-transform`}>+</span>
+                </summary>
+                <p className="pt-3 text-sm text-muted-foreground whitespace-pre-line leading-relaxed">{body}</p>
+              </details>
+            ))}
+            {reglamento?.reglamento_url && (
+              <a href={reglamento.reglamento_url} target="_blank" rel="noopener noreferrer" className="block p-4 text-xs font-heading uppercase tracking-wider text-foreground hover:bg-muted/20">Ver reglamento completo</a>
+            )}
+          </div>
+        </section>
+      )}
+      {!hasTerms && isDraftPreview && (
+        <p className="text-[11px] uppercase tracking-wider text-muted-foreground border border-dashed border-border rounded-lg p-2">
+          Interno: condiciones de seña, pagos y cancelación aún no cargadas para este viaje
+        </p>
       )}
     </div>
   );
