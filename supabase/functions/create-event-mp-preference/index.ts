@@ -27,10 +27,13 @@ Deno.serve(async (req) => {
 
     const { data: reservation, error: resErr } = await supabaseAdmin
       .from("event_reservations")
-      .select("id, alumno_id, event_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda")
+      .select("id, alumno_id, event_id, amount_total, amount_paid, balance_due, price_snapshot, currency_snapshot, moneda, terminos_pendientes")
       .eq("id", reservation_id)
       .single();
     if (resErr || !reservation) return json({ error: "Reserva no encontrada" }, 404);
+    if ((reservation as any).terminos_pendientes) {
+      return json({ error: "Antes de pagar tenés que aceptar las condiciones del viaje.", code: "terms_pending" }, 409);
+    }
 
     // Transferencia de cupo: tras la primera seña, bloquear pagos hasta que Administración defina el acuerdo.
     const { data: blocked } = await supabaseAdmin.rpc("reservation_transfer_payment_blocked", { p_reservation_id: reservation_id });

@@ -60,7 +60,7 @@ Deno.serve(async (req) => {
 
     const { data: reservation, error: rErr } = await supabase
       .from("event_reservations")
-      .select("id, external_participant_id, reservation_status, payment_status, balance_due, currency_snapshot, cancelled_at")
+      .select("id, external_participant_id, reservation_status, payment_status, balance_due, currency_snapshot, cancelled_at, terminos_pendientes")
       .eq("id", reservationId)
       .maybeSingle();
 
@@ -72,6 +72,9 @@ Deno.serve(async (req) => {
     }
     if (reservation.cancelled_at) {
       return json(400, { error: "La reserva está cancelada" });
+    }
+    if ((reservation as any).terminos_pendientes) {
+      return json(409, { error: "Antes de pagar tenés que aceptar las condiciones del viaje.", code: "terms_pending" });
     }
     if (reservation.payment_status === "pagado") {
       return json(400, { error: "La reserva ya está pagada" });
