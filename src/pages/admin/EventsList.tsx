@@ -581,7 +581,12 @@ const EventsList = () => {
                           <ClipboardList className="w-4 h-4 mr-2" /> Testeo técnico
                         </DropdownMenuItem>
                       )}
-                      <DropdownMenuItem onClick={() => window.open(`/eventos/${ev.id}`, "_blank", "noopener")}>
+                      <DropdownMenuItem onClick={() => {
+                        // Borradores: misma ventana para conservar la sesión admin (una pestaña nueva puede no tenerla).
+                        const isDraft = (ev as any).estado_publicacion === "borrador" || !ev.is_active;
+                        if (isDraft) navigate(`/eventos/${ev.id}`);
+                        else window.open(`/eventos/${ev.id}`, "_blank", "noopener");
+                      }}>
                         <Eye className="w-4 h-4 mr-2" /> {(ev as any).estado_publicacion === "borrador" || !ev.is_active ? "Vista previa (solo admin)" : "Ver landing"}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate(`/admin/eventos/${ev.id}/lista-espera`)}>

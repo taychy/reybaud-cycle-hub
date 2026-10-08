@@ -67,7 +67,7 @@ const AdminLogin = () => {
     clearPendingOtpState();
 
     // Explicit returnTo respected if user has that portal
-    if (otpReturnTo?.startsWith("/admin") && available.includes("admin")) {
+    if ((otpReturnTo?.startsWith("/admin") || otpReturnTo?.startsWith("/eventos/")) && available.includes("admin")) {
       navigate(otpReturnTo, { replace: true });
       return true;
     }

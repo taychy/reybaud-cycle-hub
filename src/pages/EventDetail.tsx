@@ -179,6 +179,10 @@ const EventDetail = () => {
 
   const [event, setEvent] = useState<Event | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hasSession, setHasSession] = useState(true);
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setHasSession(!!data.session));
+  }, []);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [showReservationDrawer, setShowReservationDrawer] = useState(false);
   const [showGuestDrawer, setShowGuestDrawer] = useState(false);
@@ -411,8 +415,18 @@ const EventDetail = () => {
 
   if (!event) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-6 text-center">
         <p className="text-muted-foreground">Evento no encontrado.</p>
+        {!hasSession && (
+          <div className="max-w-sm space-y-3">
+            <p className="text-xs text-muted-foreground">
+              Si es un viaje en borrador, solo se ve con una sesión de administrador iniciada en esta ventana.
+            </p>
+            <Button onClick={() => navigate(`/admin/login?returnTo=${encodeURIComponent(`/eventos/${id}`)}`)}>
+              Iniciar sesión como administrador
+            </Button>
+          </div>
+        )}
         <Button variant="outline" onClick={handleBack}>Volver</Button>
       </div>
     );
