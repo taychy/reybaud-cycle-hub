@@ -50,6 +50,7 @@ export type EffectiveSubStatus =
 export interface SubStatusInput {
   estado: string;
   fecha_fin: string | null;
+  fecha_inicio?: string | null;
   cancelada_at?: string | null;
   cancelada_motivo?: string | null;
   mp_status?: string | null;
@@ -132,6 +133,13 @@ export function getEffectiveSubStatus(sub: SubStatusInput): EffectiveSubStatus {
         if (today <= fin) return "activa";
       }
       return "finalizada";
+    }
+    // Renovación impaga: gracia del día 1 al 5 del mes del nuevo período
+    // (espejo de public.suscripcion_da_acceso_entrenamientos).
+    if (sub.estado === "pendiente" && sub.origen_registro === "renovacion_pendiente" && sub.fecha_inicio) {
+      const [iy, im] = sub.fecha_inicio.substring(0, 10).split("-").map((n) => parseInt(n, 10));
+      const now = new Date();
+      if (now.getFullYear() === iy && now.getMonth() === im - 1 && now.getDate() <= 5) return "pago_pendiente";
     }
     return sub.estado as EffectiveSubStatus;
   }

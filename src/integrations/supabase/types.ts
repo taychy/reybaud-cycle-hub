@@ -19406,6 +19406,19 @@ export type Database = {
         Returns: Json
       }
       subscription_paid_amount: { Args: { _sub_id: string }; Returns: number }
+      suscripcion_da_acceso_entrenamientos: {
+        Args: {
+          _cancelada_at: string
+          _cancelada_motivo: string
+          _estado: string
+          _fecha_fin: string
+          _fecha_inicio: string
+          _hoy: string
+          _mp_status: string
+          _origen: string
+        }
+        Returns: boolean
+      }
       sync_event_externals_to_marketing: { Args: never; Returns: number }
       sync_ex_alumnos_to_marketing: { Args: never; Returns: number }
       sync_reservation_package_from_room: {
