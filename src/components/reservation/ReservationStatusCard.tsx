@@ -25,6 +25,7 @@ import TripDocumentDrawer from "./TripDocumentDrawer";
 import TripExtrasDrawer from "./TripExtrasDrawer";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 import StudentInstallmentsPlan, { StudentInstallmentsPlanHandle } from "./StudentInstallmentsPlan";
+import { StudentTermsPendingBanner } from "./ReservationTermsPending";
 
 interface Reservation {
   id: string;
@@ -294,10 +295,16 @@ const ReservationStatusCard = ({
   const [searchParams, setSearchParams] = useSearchParams();
   const [mpLoading, setMpLoading] = useState(false);
   const [transferBlocked, setTransferBlocked] = useState(false);
+  const [termsPending, setTermsPending] = useState(false);
+  const [termsTick, setTermsTick] = useState(0);
   useEffect(() => {
     supabase.rpc("reservation_transfer_payment_blocked" as any, { p_reservation_id: reservation.id })
-      .then(({ data }) => setTransferBlocked(data === true));
-  }, [reservation.id, reservation.amount_paid]);
+      .then(({ data }) => setTransferBlocked(data === true || termsPending));
+  }, [reservation.id, reservation.amount_paid, termsPending]);
+  useEffect(() => {
+    supabase.from("event_reservations" as any).select("terminos_pendientes").eq("id", reservation.id).maybeSingle()
+      .then(({ data }) => setTermsPending((data as any)?.terminos_pendientes === true));
+  }, [reservation.id, termsTick]);
   const [showCancelDrawer, setShowCancelDrawer] = useState(false);
   const [showTimeline, setShowTimeline] = useState(false);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
@@ -835,7 +842,11 @@ const ReservationStatusCard = ({
             </button>
           </div>
         )}
-        {transferBlocked && (reservation.balance_due ?? 0) > 0 && (
+        {termsPending && (
+          <StudentTermsPendingBanner reservationId={reservation.id} eventId={eventId}
+            onAccepted={() => { setTermsPending(false); setTermsTick((t) => t + 1); onPaymentReported(); }} />
+        )}
+        {transferBlocked && !termsPending && (reservation.balance_due ?? 0) > 0 && (
           <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm text-muted-foreground">
             Administración se pondrá en contacto para coordinar el saldo.
           </div>
