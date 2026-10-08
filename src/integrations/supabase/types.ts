@@ -5252,7 +5252,10 @@ export type Database = {
           price_snapshot: number | null
           reservation_status: string
           terminos_aceptados_at: string | null
+          terminos_pendientes: boolean
           terminos_snapshot: Json | null
+          terminos_token: string | null
+          terminos_token_expires_at: string | null
           terminos_version_aceptada: string | null
           tipo_vinculo: string | null
           updated_at: string
@@ -5305,7 +5308,10 @@ export type Database = {
           price_snapshot?: number | null
           reservation_status?: string
           terminos_aceptados_at?: string | null
+          terminos_pendientes?: boolean
           terminos_snapshot?: Json | null
+          terminos_token?: string | null
+          terminos_token_expires_at?: string | null
           terminos_version_aceptada?: string | null
           tipo_vinculo?: string | null
           updated_at?: string
@@ -5358,7 +5364,10 @@ export type Database = {
           price_snapshot?: number | null
           reservation_status?: string
           terminos_aceptados_at?: string | null
+          terminos_pendientes?: boolean
           terminos_snapshot?: Json | null
+          terminos_token?: string | null
+          terminos_token_expires_at?: string | null
           terminos_version_aceptada?: string | null
           tipo_vinculo?: string | null
           updated_at?: string
@@ -16613,6 +16622,10 @@ export type Database = {
       }
     }
     Functions: {
+      _accept_reservation_terms: {
+        Args: { p_canal: string; p_reservation_id: string; p_version: string }
+        Returns: Json
+      }
       _adjust_product_stock: {
         Args: {
           p_cambio_id: string
@@ -16791,6 +16804,14 @@ export type Database = {
         Returns: number
       }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
+      accept_my_reservation_terms: {
+        Args: { p_reservation_id: string; p_version: string }
+        Returns: Json
+      }
+      accept_reservation_terms_by_token: {
+        Args: { p_token: string; p_version: string }
+        Returns: Json
+      }
       accept_roommate_invitation: {
         Args: { _roommate_id: string }
         Returns: Json
@@ -16925,6 +16946,10 @@ export type Database = {
           revoked_at: string
           token: string
         }[]
+      }
+      admin_renew_reservation_terms_link: {
+        Args: { p_reservation_id: string }
+        Returns: Json
       }
       admin_revoke_cuenta_token: {
         Args: { p_token_id: string }
@@ -17633,6 +17658,7 @@ export type Database = {
         }
         Returns: Json
       }
+      event_terms_snapshot: { Args: { p_event_id: string }; Returns: Json }
       expire_descuentos_alumno: { Args: never; Returns: number }
       expire_overdue_pausas: {
         Args: never
@@ -18181,6 +18207,10 @@ export type Database = {
           id: string
           nombre: string
         }[]
+      }
+      get_reservation_terms_by_token: {
+        Args: { p_token: string }
+        Returns: Json
       }
       get_resumen_financiero_mes: {
         Args: { _mes: string; _moneda?: string }
