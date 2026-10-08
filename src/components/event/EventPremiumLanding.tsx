@@ -147,6 +147,34 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
         </section>
       )}
 
+      {!!config.kit?.items?.length && (
+        <section id="kit" className="scroll-mt-14 glass-card rounded-xl p-5 space-y-4">
+          <div className="space-y-1">
+            <p className={`text-[11px] font-heading uppercase tracking-[0.2em] ${accent}`}>Beneficio de lanzamiento</p>
+            <h3 className="font-heading font-semibold text-sm uppercase tracking-wide text-foreground">{config.kit.title || "Kit del Conquistador"}</h3>
+          </div>
+          <ul className="grid sm:grid-cols-2 gap-2">
+            {config.kit.items.map((item, i) => (
+              <li key={i} className="rounded-lg border border-border bg-card p-3 flex items-start gap-3">
+                <span className="w-6 h-6 shrink-0 rounded-full bg-[hsl(var(--alpine-red))] text-[10px] font-heading font-bold flex items-center justify-center text-primary-foreground">{i + 1}</span>
+                <span className="text-sm text-foreground">{item}</span>
+              </li>
+            ))}
+          </ul>
+          {config.kit.promo_until && (
+            <p className="text-sm text-foreground">
+              Incluido <span className={`font-heading font-semibold ${accent}`}>sin costo adicional</span> para reservas efectuadas hasta el {config.kit.promo_until}.
+            </p>
+          )}
+          {config.kit.note && <p className="text-[11px] text-muted-foreground">{config.kit.note}</p>}
+          {isDraftPreview && (
+            <p className="text-[11px] uppercase tracking-wider text-muted-foreground border border-dashed border-border rounded-lg p-2">
+              Imágenes ilustrativas pendientes — no hay fotos definitivas de los productos
+            </p>
+          )}
+        </section>
+      )}
+
       {base && base.stages.length > 0 && (
         <section id="precio" className="scroll-mt-14 space-y-3">
           <h3 className="font-heading font-semibold text-sm uppercase tracking-wide text-foreground">Precio por persona</h3>
