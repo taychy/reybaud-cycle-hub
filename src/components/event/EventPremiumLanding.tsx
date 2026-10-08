@@ -145,7 +145,9 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
             {config.bikes.map((b) => (
               <div key={b.name} className="glass-card rounded-xl overflow-hidden">
                 {b.image ? (
-                  <img src={b.image} alt={b.name} loading="lazy" className="w-full aspect-[16/9] object-cover" />
+                  <div className="w-full aspect-[16/10] bg-white p-3 sm:p-4">
+                    <img src={b.image} alt={`Bicicleta de referencia: ${b.name}`} loading="lazy" className="h-full w-full object-contain" />
+                  </div>
                 ) : isDraftPreview ? (
                   <div className="w-full aspect-[16/9] flex items-center justify-center border-b border-dashed border-border text-[11px] uppercase tracking-wider text-muted-foreground">
                     Foto pendiente de autorización
