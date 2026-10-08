@@ -104,6 +104,7 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
 
       if (updateError) throw updateError;
       onUpdate(updated as Alumno);
+      setSignatureDate(""); // La próxima carga debe indicar la fecha del nuevo certificado.
 
       // Notify admins for audit
       try {
@@ -119,6 +120,7 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
       toast.error(err.message || "Error al subir el archivo");
     } finally {
       setUploading(false);
+      e.target.value = ""; // Permite volver a elegir el mismo archivo si hubo un error.
     }
   };
 
@@ -175,9 +177,11 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
           </div>
         )}
 
-        {!readOnly && !certUrl && (
+        {!readOnly && (
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground">Fecha de firma del médico *</Label>
+            <Label className="text-xs text-muted-foreground">
+              {certUrl ? "Fecha de firma del nuevo apto físico *" : "Fecha de firma del médico *"}
+            </Label>
             <Input
               type="date"
               value={signatureDate}
@@ -186,7 +190,9 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
               className="bg-secondary border-border text-xs h-8"
             />
             <p className="text-[10px] text-muted-foreground">
-              El vencimiento se calcula automáticamente: 12 meses desde la firma.
+              {certUrl
+                ? "Ingresá la fecha de firma del certificado que vas a subir. El apto anterior se conserva hasta que el nuevo se guarde correctamente."
+                : "El vencimiento se calcula automáticamente: 12 meses desde la firma."}
             </p>
           </div>
         )}
@@ -197,7 +203,7 @@ export const MedicalCertificateStudent = ({ alumno, onUpdate, readOnly = false }
               variant={certUrl ? "outline" : "gold"}
               size="sm"
               className="flex-1 text-xs"
-              disabled={uploading || (!certUrl && !signatureDate)}
+              disabled={uploading || !signatureDate}
               onClick={() => document.getElementById("student-cert-upload")?.click()}
             >
               {uploading ? (
