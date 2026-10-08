@@ -70,6 +70,12 @@ const ValidatePaymentDrawer = ({
   const [proofUrl, setProofUrl] = useState<string | null>(null);
   const [loadingProof, setLoadingProof] = useState(false);
   const [fxSuggested, setFxSuggested] = useState<string | null>(null);
+  const [termsPending, setTermsPending] = useState(false);
+  useEffect(() => {
+    if (!open || !payment?.reservation_id) { setTermsPending(false); return; }
+    supabase.from("event_reservations" as any).select("terminos_pendientes").eq("id", payment.reservation_id).maybeSingle()
+      .then(({ data }) => setTermsPending((data as any)?.terminos_pendientes === true));
+  }, [open, payment?.reservation_id]);
 
   // Installment state
   const [installments, setInstallments] = useState<Installment[]>([]);
@@ -568,7 +574,12 @@ const ValidatePaymentDrawer = ({
                 />
               </div>
 
-              <Button variant="default" className="w-full" disabled={submitting} onClick={handleSubmit}>
+              {termsPending && (
+                <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                  Condiciones pendientes: el participante todavía no aceptó las condiciones del viaje. No se puede registrar la seña ni ningún pago hasta que acepte (copiá el enlace desde la reserva).
+                </div>
+              )}
+              <Button variant="default" className="w-full" disabled={submitting || termsPending} onClick={handleSubmit}>
                 {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <CheckCircle className="w-4 h-4 mr-2" />}
                 Validar y reconocer {equivalent ? formatPrice(parseFloat(equivalent), evCurr) : ""}
               </Button>

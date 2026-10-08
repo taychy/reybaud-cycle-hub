@@ -151,7 +151,13 @@ Deno.serve(async (req) => {
       accessToken = created.access_token;
     }
 
-    // 3) Reserva
+    // 3) Reserva — mismo snapshot de condiciones que el flujo de alumno (event_terms_snapshot).
+    const acceptedAt = new Date().toISOString();
+    let termsSnap: any = null;
+    try {
+      const { data } = await admin.rpc("event_terms_snapshot", { p_event_id: event_id });
+      termsSnap = data ? { ...(data as any), aceptado_at: acceptedAt, canal: "invitado" } : null;
+    } catch (e) { console.error("[create-guest-reservation] terms snapshot", e); }
     const { data: reservation, error: rErr } = await admin
       .from("event_reservations")
       .insert({
@@ -175,7 +181,9 @@ Deno.serve(async (req) => {
         origin: "guest_landing",
         created_by: "guest",
         accepted_terms: true,
-        terminos_aceptados_at: new Date().toISOString(),
+        terminos_aceptados_at: acceptedAt,
+        terminos_version_aceptada: termsSnap?.version ?? null,
+        terminos_snapshot: termsSnap,
       })
       .select("id")
       .single();

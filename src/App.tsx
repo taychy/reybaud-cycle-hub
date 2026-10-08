@@ -60,6 +60,7 @@ import MisReservas from "./pages/MisReservas";
 import MisReservasLegacyRedirect from "./pages/MisReservasLegacyRedirect";
 
 import GuestReservationView from "./pages/GuestReservationView";
+import ReservationTermsAccept from "./pages/ReservationTermsAccept";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import PendingApproval from "./pages/PendingApproval";
 import StoreDashboard from "./pages/admin/store/StoreDashboard";
@@ -211,6 +212,7 @@ const App = () => (
           <Route path="/mis-reservas/:id" element={<MisReservas />} />
 
           <Route path="/mi-reserva/:token" element={<GuestReservationView />} />
+          <Route path="/condiciones/:token" element={<ReservationTermsAccept />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>

@@ -52,6 +52,7 @@ import ReservationDevolucionesCard from "@/components/admin/ReservationDevolucio
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
 import { reservationNet, isReservaCancelada, paymentRefundState, refundByPayment, type RefundRow } from "@/lib/reservationRefunds";
+import { AdminTermsBadge } from "@/components/reservation/ReservationTermsPending";
 
 /* ─── Types ─── */
 
@@ -516,6 +517,7 @@ const AdminEventReservations = ({
       <>
         {o && <Badge variant="outline" className="ml-1.5 text-[9px] border-amber-500/40 text-amber-500">{o.status === "completed" ? "Cancelada — reemplazada" : o.replacement_reservation_id ? "Reemplazada" : "Cupo en reventa"}</Badge>}
         {rep && <Badge variant="outline" className="ml-1.5 text-[9px] border-cyan-500/40 text-cyan-500">Transferencia de reserva</Badge>}
+        <AdminTermsBadge r={r} onChanged={loadReservations} />
       </>
     );
   };
