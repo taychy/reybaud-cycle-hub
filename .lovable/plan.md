@@ -1,36 +1,27 @@
-# Auditoría (solo lectura): aptos físicos — Training Camp San Luis Octubre (22–25/10/2026)
+# Auditoría: correos del Training Camp San Luis no visibles en Historial
 
-Consulté las filas reales de producción. No cambié código ni datos. Este documento es el informe; no hay nada para implementar.
+## Hallazgos (solo lectura, producción — el mismo backend que usa la app publicada)
 
-## Participantes considerados
-- 37 reservas en total: 6 canceladas quedan fuera (Ingrid Epp, que fue reemplazada por Fernando Strada, Diego Condoleo, María Fernanda Marmorek, Mercedes Carlés, Valeria Orga y Walter Castellanos).
-- **31 participantes activos únicos**, todos con reserva confirmada. Cada uno es un alumno distinto, sin duplicados y sin participantes externos.
-- Acompañantes que no entrenan: el sistema no tiene ningún dato que los distinga. Todos tienen un paquete de alojamiento normal y no excluí a nadie. Si hay acompañantes, hace falta que me digas quiénes son.
+| Envío | Asunto | Estado | Creado (UTC) | Total | Enviados | Fallidos | Destinatarios por estado |
+|---|---|---|---|---|---|---|---|
+| 80539c78… | Training Camp San Luis – Falta cargar tu apto físico | sent | 08/10 15:26 | 25 | 25 | 0 | sent: 25 |
+| 014b3860… | Training Camp San Luis – ¡Tu apto físico está al día! | sent | 08/10 15:31 | 7 | 7 | 0 | sent: 25 → 7 |
 
-## Fuente del apto
-Tomé el apto físico de la ficha de cada alumno: archivo, fecha de firma y vencimiento. La lista de documentos del viaje no tiene ningún apto ni archivo cargado para este evento.
+- Los dos envíos existen y son los **dos más recientes** de los 25 que hay en total. El Historial carga los últimos 100 (Email masivo) y 200 (Comunicaciones), ordenados del más nuevo al más viejo, sin filtro por fecha ni por evento. Las consultas no tienen ningún filtro que los oculte.
+- La ruta funciona: `/admin/comunicaciones?tab=email-masivo` → pestaña "Historial". También aparecen en `/admin/comunicaciones?tab=historial`.
+- "Enviado" quiere decir que el proveedor **aceptó** el correo. No confirma que haya llegado al buzón. No se registraron rebotes ni quejas para estos envíos.
 
-## Vigentes con documento cargado (al 08/10 y al 25/10): 5
-| Alumno | Firma | Vence |
-|---|---|---|
-| Elias Miguel Benitez | 18/02/2026 | 18/02/2027 |
-| Federico Laurenzi | 13/08/2026 | 13/08/2027 |
-| Ivan Martinero | 18/03/2026 | 18/03/2027 |
-| Martin Eugenio Cheade | 23/09/2026 | 23/09/2027 |
-| Nicolás Fermoselle | 05/10/2026 | 05/10/2027 |
+## Causa probable: permisos de la cuenta con la que se entra
+Solo los usuarios con rol **admin** pueden leer esos envíos. Si no lo tienen, la lista aparece vacía y sin mostrar ningún error. Roles actuales:
+- scarlettbonatto@gmail.com: admin, alumno, depósito, coach → **los ve**
+- scarlett@ciclismoreybaud.com: solo coach → **no ve nada**
+- scarlettbonatto+playreview@gmail.com: sin roles → no ve nada
 
+Si la usuaria entró con scarlett@ciclismoreybaud.com, esa es la causa exacta. Falta confirmar con qué cuenta entró.
 
-## Faltantes (sin archivo y sin fechas): 26
-Aldo Marcelo Angeleri, Andrea Soledad Corsalini, Daniel Mroz, Daniel Pozo, Diego José Pelleriti, Fernando Gabriel Strada, Guillermo Gorroño, Hernán Martinero Saez, Hugo Bronstein, Jorge Monczor, Julio Javier Zabalá, Leonardo Miño, Luciano Gastón Grosso, Marcelo Fabián Hamui, Marcelo Suanni, María Andrea Galarraga, María Eugenia Louys, Matías Amadeo, Pablo Terrile, Rodrigo Alonso, Rodrigo Carballeiro, Sergio Brukman, Solange Russo, Tamara Raquel Mazur, Teresa Noemí Cancinos, Valeria Irigoyen.
+## Solución propuesta (requiere tu aprobación, no se aplicó nada)
+1. Rápida: entrar con scarlettbonatto@gmail.com.
+2. O dar el rol admin a scarlett@ciclismoreybaud.com, si querés que esa cuenta administre.
+3. Opcional: si la lista vuelve vacía por falta de permisos, mostrar un aviso del tipo "No tenés permisos para ver el historial" en lugar de una lista vacía sin explicación.
 
-## Conteos (sobre 31)
-| Estado | Al 08/10 | Al 25/10 |
-|---|---|---|
-| Vigente con documento | 5 | 5 |
-| Vencido | 0 | 0 |
-| Faltante | 26 | 26 |
-| Falta la fecha (hay archivo, no hay vencimiento) | 0 | 0 |
-| Falta el archivo (hay fechas, no hay archivo) | 0 | 0 |
-| Ambiguo | 0 | 0 (no hay acompañantes identificables) |
-
-Ningún apto vigente vence antes del 25/10.
+No se reenvió nada ni se modificaron datos.
