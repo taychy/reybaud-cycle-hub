@@ -24,6 +24,7 @@ import {
   ChevronRight,
   ClipboardList,
   Calculator,
+  Eye,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -580,6 +581,9 @@ const EventsList = () => {
                           <ClipboardList className="w-4 h-4 mr-2" /> Testeo técnico
                         </DropdownMenuItem>
                       )}
+                      <DropdownMenuItem onClick={() => window.open(`/eventos/${ev.id}`, "_blank", "noopener")}>
+                        <Eye className="w-4 h-4 mr-2" /> {(ev as any).estado_publicacion === "borrador" || !ev.is_active ? "Vista previa (solo admin)" : "Ver landing"}
+                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => navigate(`/admin/eventos/${ev.id}/lista-espera`)}>
                         <ClipboardList className="w-4 h-4 mr-2" /> Lista de espera
                       </DropdownMenuItem>
