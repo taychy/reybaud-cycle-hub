@@ -169,3 +169,4 @@
 - [x] Link público: individual / compartida / invitación con aceptar-rechazar
 - [x] Rooming "Noches extra" separado + exportación
 - [ ] Caso Rodrigo Carballeiro + Marcelo Suanni: aplicar cuando Admin lo confirme
+- Envío aviso apto físico Training Camp San Luis
