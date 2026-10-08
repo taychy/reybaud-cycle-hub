@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload, Copy } from "lucide-react";
+import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload, Copy, Map, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import EventRoadbook from "@/components/reservation/EventRoadbook";
 import { toast } from "@/hooks/use-toast";
 import { EVENTOS_TRANSFER_INFO } from "@/lib/contactInfo";
 
@@ -85,6 +87,40 @@ const statusBadge = (r: GuestData["reservations"][0]) => {
     return <Badge variant="destructive">Cancelada</Badge>;
   }
   return <Badge>{r.reservation_status}</Badge>;
+};
+
+/** Muestra el Roadbook dentro de la reserva privada solo cuando hay programa cargado. */
+const ReservationRoadbook = ({ eventId }: { eventId: string }) => {
+  const [available, setAvailable] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setAvailable(false);
+    setOpen(false);
+    supabase.from("events").select("roadbook").eq("id", eventId).maybeSingle().then(({ data }) => {
+      const raw = (data as any)?.roadbook;
+      const hasContent = Boolean(raw?.intro || (Array.isArray(raw?.dias) && raw.dias.some((d: any) => d.titulo || d.fecha)));
+      if (active) setAvailable(hasContent);
+    });
+    return () => { active = false; };
+  }, [eventId]);
+
+  if (!available) return null;
+
+  return (
+    <Collapsible open={open} onOpenChange={setOpen} className="pt-2">
+      <CollapsibleTrigger asChild>
+        <Button type="button" variant="outline" className="w-full justify-between" aria-expanded={open}>
+          <span className="flex items-center gap-2"><Map className="w-4 h-4" /> Ver programa y recorridos</span>
+          <ChevronDown className={`w-4 h-4 transition-transform ${open ? "rotate-180" : ""}`} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-3">
+        {open && <EventRoadbook eventId={eventId} />}
+      </CollapsibleContent>
+    </Collapsible>
+  );
 };
 
 export default function GuestReservationView() {
@@ -235,6 +271,7 @@ export default function GuestReservationView() {
                   <MapPin className="w-4 h-4" /><span>{r.event.location}</span>
                 </div>
               )}
+              <ReservationRoadbook eventId={r.event_id} />
               <div className="pt-3 border-t space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wider">Paquete</div>
                 <div className="font-medium">{r.package_nombre_snapshot}</div>
