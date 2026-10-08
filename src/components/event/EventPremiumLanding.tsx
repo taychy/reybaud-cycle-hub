@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
+import { buildWhatsAppUrl } from "@/lib/contactInfo";
 
 /**
  * Bloque de landing premium configurable por viaje desde `events.metadata.premium_landing`.
@@ -13,6 +14,8 @@ export interface PremiumLandingConfig {
   note?: string;
   bikes?: { name: string; spec?: string; image?: string }[];
   preparation?: { quote?: string; body?: string; proposal_internal?: string[] };
+  /** Servicio opcional existente (asesoría personalizada); solo consulta, nunca compra desde el viaje. */
+  individual_prep?: { title?: string; body?: string; cta_label?: string; whatsapp_message?: string };
   kit?: { title?: string; items: string[]; promo_until?: string; note?: string };
 }
 
@@ -54,6 +57,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
     config.bikes?.length ? ["bicicletas", "Bicicletas"] : null,
     ["que-incluye", "Qué incluye"],
     config.preparation ? ["preparacion", "Preparación"] : null,
+    config.individual_prep ? ["preparacion-individual", "Individual"] : null,
     config.kit?.items?.length ? ["kit", "Kit"] : null,
     pkgs.length ? ["precio", "Precio"] : null,
   ].filter(Boolean) as [string, string][];
@@ -144,6 +148,24 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
               </ul>
             </div>
           )}
+        </section>
+      )}
+
+      {config.individual_prep && (
+        <section id="preparacion-individual" className="scroll-mt-14 glass-card rounded-xl p-5 space-y-3 border border-dashed border-border">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="font-heading font-semibold text-sm uppercase tracking-wide text-foreground">{config.individual_prep.title || "Preparación individual (opcional)"}</h3>
+            <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full border border-border text-muted-foreground">Servicio adicional · no incluido en el viaje</span>
+          </div>
+          {config.individual_prep.body && <p className="text-sm text-muted-foreground">{config.individual_prep.body}</p>}
+          <a
+            href={buildWhatsAppUrl(config.individual_prep.whatsapp_message || "Hola, quiero consultar por el entrenamiento personalizado.")}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center rounded-md border border-[hsl(var(--alpine-red))] px-4 py-2 text-xs font-heading uppercase tracking-wider text-foreground hover:bg-[hsl(var(--alpine-red))]/10 transition-colors"
+          >
+            {config.individual_prep.cta_label || "Consultar entrenamiento personalizado"}
+          </a>
         </section>
       )}
 
