@@ -12,7 +12,7 @@ export interface PremiumLandingConfig {
   stats?: { value: string; label: string }[];
   note?: string;
   bikes?: { name: string; spec?: string; image?: string }[];
-  preparation?: { quote?: string; body?: string };
+  preparation?: { quote?: string; body?: string; proposal_internal?: string[] };
 }
 
 interface ItinerarioItem { dia?: string; descripcion?: string }
@@ -35,7 +35,7 @@ function untilLabel(iso: string | null) {
   return `Hasta ${day}/${m}/${y}`;
 }
 
-export default function EventPremiumLanding({ eventId, config, itinerario }: { eventId: string; config: PremiumLandingConfig; itinerario: ItinerarioItem[] }) {
+export default function EventPremiumLanding({ eventId, config, itinerario, isDraftPreview = false }: { eventId: string; config: PremiumLandingConfig; itinerario: ItinerarioItem[]; isDraftPreview?: boolean }) {
   const [pkgs, setPkgs] = useState<Pkg[]>([]);
 
   useEffect(() => {
@@ -110,7 +110,13 @@ export default function EventPremiumLanding({ eventId, config, itinerario }: { e
           <div className="grid md:grid-cols-2 gap-3">
             {config.bikes.map((b) => (
               <div key={b.name} className="glass-card rounded-xl overflow-hidden">
-                {b.image && <img src={b.image} alt={b.name} loading="lazy" className="w-full aspect-[16/9] object-cover" />}
+                {b.image ? (
+                  <img src={b.image} alt={b.name} loading="lazy" className="w-full aspect-[16/9] object-cover" />
+                ) : isDraftPreview ? (
+                  <div className="w-full aspect-[16/9] flex items-center justify-center border-b border-dashed border-border text-[11px] uppercase tracking-wider text-muted-foreground">
+                    Foto pendiente de autorización
+                  </div>
+                ) : null}
                 <div className="p-4 border-t-2 border-[hsl(var(--alpine-red))]">
                   <p className="font-heading font-bold uppercase text-foreground">{b.name}</p>
                   {b.spec && <p className="text-sm text-muted-foreground">{b.spec}</p>}
@@ -126,6 +132,16 @@ export default function EventPremiumLanding({ eventId, config, itinerario }: { e
           <p className={`text-[11px] font-heading uppercase tracking-[0.2em] ${accent}`}>Preparación específica Reybaud</p>
           {config.preparation.quote && <p className="font-heading text-xl md:text-2xl leading-snug text-foreground">{config.preparation.quote}</p>}
           {config.preparation.body && <p className="text-sm text-muted-foreground">{config.preparation.body}</p>}
+          {isDraftPreview && !!config.preparation.proposal_internal?.length && (
+            <div className="rounded-lg border border-dashed border-border p-3 space-y-2">
+              <p className="text-[11px] uppercase tracking-wider text-muted-foreground">Propuesta a confirmar — interno, no visible al público</p>
+              <ul className="grid sm:grid-cols-2 gap-2">
+                {config.preparation.proposal_internal.map((x) => (
+                  <li key={x} className="text-sm text-foreground/80 flex gap-2"><span className={accent}>—</span>{x}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </section>
       )}
 

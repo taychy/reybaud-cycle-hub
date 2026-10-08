@@ -751,6 +751,7 @@ const EventDetail = () => {
             <EventPremiumLanding
               eventId={id}
               config={premiumLanding}
+              isDraftPreview={isDraftPreview}
               itinerario={Array.isArray(event.metadata?.itinerario) ? event.metadata.itinerario : []}
             />
           )}
