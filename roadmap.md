@@ -175,3 +175,7 @@
 - [x] Respaldo, precios por etapa (doble/individual +€600), seña €500, contenido y "Fechas a confirmar" (borrador)
 - [ ] Fechas, itinerario día por día, cancelación, fotos de bicis, plan de cuotas (esperan datos del usuario)
 - [ ] Publicación (requiere autorización)
+
+## Alumnos · Acceso a entrenamientos por deuda
+- [x] Regla de acceso efectiva en base (RLS/RPCs) + app, gracia día 1-5, excepción staff por rol real
+- [ ] Publicar la app (espera autorización); revisar los 39 alumnos con renovación de octubre impaga
