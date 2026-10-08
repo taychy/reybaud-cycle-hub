@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTrainingScope } from "@/lib/weeklyTraining";
-import { puedeVerEntrenamientos } from "@/lib/trainingAccess";
+import { puedeVerEntrenamientos, SUB_ACCESS_COLUMNS } from "@/lib/trainingAccess";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -37,10 +37,12 @@ export const StudentProgressContent = () => {
     // El grupo no otorga acceso por sí solo.
     const { data: subsAcceso } = await supabase
       .from("suscripciones")
-      .select("estado, cancelada_at")
+      .select(SUB_ACCESS_COLUMNS)
       .eq("alumno_id", aId);
+    // La base es la fuente de verdad (incluye la excepción de staff).
+    const { data: puedeServidor } = await supabase.rpc("alumno_puede_ver_entrenamientos", { _alumno_id: aId });
 
-    if (!puedeVerEntrenamientos(estado, subsAcceso || [])) {
+    if (!puedeServidor && !puedeVerEntrenamientos(estado, (subsAcceso as any) || [])) {
       setSessions([]);
       return;
     }

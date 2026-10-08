@@ -3,7 +3,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { applyTrainingScope } from "@/lib/weeklyTraining";
-import { puedeVerEntrenamientos } from "@/lib/trainingAccess";
+import { puedeVerEntrenamientos, SUB_ACCESS_COLUMNS } from "@/lib/trainingAccess";
 import { Button } from "@/components/ui/button";
 import { LogOut, Calendar, ExternalLink, Download, X, CheckCircle2, Home, Trophy, CreditCard, User, ChevronRight, TrendingUp, ShoppingCart, MoreHorizontal, AlertTriangle, Lock } from "lucide-react";
 import TiendaSection from "@/components/TiendaSection";
@@ -153,17 +153,46 @@ const StudentDashboard = () => {
       // Fetch ALL subscriptions for access permissions
       const { data: allSubs } = await supabase
         .from("suscripciones")
-        .select("id, estado, fecha_fin, cancelada_at, created_at, plan_id, planes(nombre, precio)")
+        .select(`id, created_at, plan_id, ${SUB_ACCESS_COLUMNS}, planes(nombre, precio)`)
         .eq("alumno_id", alumnoData.id)
         .order("created_at", { ascending: false });
+
+      // Staff por rol real (admin/coach) del usuario dueño de la ficha: la deuda de su
+      // ficha de alumno no restringe su acceso (la base aplica la misma excepción).
+      let esStaff = false;
+      if ((alumnoData as any).user_id) {
+        const uid = (alumnoData as any).user_id as string;
+        const [{ data: isAdm }, { data: isCoach }] = await Promise.all([
+          supabase.rpc("has_role", { _user_id: uid, _role: "admin" }),
+          supabase.rpc("has_role", { _user_id: uid, _role: "coach" }),
+        ]);
+        esStaff = !!isAdm || !!isCoach;
+      }
+      if (cancelled) return;
 
       if (allSubs) {
         const subInputs: SubStatusInput[] = allSubs.map((s: any) => ({
           estado: s.estado,
+          fecha_inicio: s.fecha_inicio,
           fecha_fin: s.fecha_fin,
           cancelada_at: s.cancelada_at,
+          cancelada_motivo: s.cancelada_motivo,
+          mp_status: s.mp_status,
+          origen_registro: s.origen_registro,
         }));
-        setAccessPerms(getAccessPermissions(subInputs));
+        const perms = getAccessPermissions(subInputs);
+        setAccessPerms(
+          esStaff && perms.bannerType
+            ? {
+                ...perms,
+                canViewEvents: true, canViewProgress: true, canViewStore: true,
+                canMarkTraining: true, canReserveActivities: true,
+                bannerType: "warning",
+                bannerMessage: "Tu ficha de alumno/a tiene una mensualidad pendiente. Por tu rol de staff, tu acceso no se restringe.",
+                status: "activa",
+              }
+            : perms,
+        );
 
         // Store best fecha_fin for news carousel
         const activeSub = allSubs.find((s: any) => s.estado === "activa" && s.fecha_fin);
@@ -203,7 +232,7 @@ const StudentDashboard = () => {
 
       // El grupo no otorga acceso por sí solo: alumno inactivo/bloqueado o sin
       // mensualidad no cancelada no ve entrenamientos (la base aplica lo mismo).
-      if (!puedeVerEntrenamientos(alumnoData.estado, (allSubs as any) || [])) {
+      if (!puedeVerEntrenamientos(alumnoData.estado, (allSubs as any) || [], { esStaff })) {
         setWeekTrainings(Array(7).fill(null));
         setEntrenamiento(null);
         setLoading(false);
