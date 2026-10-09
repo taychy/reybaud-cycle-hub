@@ -120,7 +120,7 @@ BEGIN
       SET estado='faltante', chequeado_at=NULL, chequeado_by=NULL, updated_at=now()
       FROM public.vehiculo_chequeo_scans x
       WHERE x.chequeo_id=v_row.id AND x.item_id=i.id
-        AND x.cantidad_vista=0 AND i.estado='cargado'
+        AND x.cantidad_vista < GREATEST(COALESCE(i.cantidad,1),1) AND i.estado='cargado'
         AND NOT (
           i.source_table='store_order_items' AND EXISTS (
              SELECT 1 FROM public.store_order_items oi
