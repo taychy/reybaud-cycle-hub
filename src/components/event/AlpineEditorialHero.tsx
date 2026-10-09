@@ -10,27 +10,26 @@ interface Props {
   price?: number | null;
   currency?: string | null;
   capacity?: number | null;
+  imageUrl?: string;
 }
 
 export default function AlpineEditorialHero({
-  title, subtitle, dateLabel, days, nights, price, currency, capacity,
+  title, subtitle, dateLabel, days, nights, price, currency, capacity, imageUrl,
 }: Props) {
   const isConquest = title.toLocaleLowerCase("es-AR").includes("gran conquista alpina");
 
   return (
     <header className="relative isolate overflow-hidden bg-[#101011] px-4 pb-6 pt-40 text-[#f7f5f1] sm:pt-52 md:pb-10">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-80 overflow-hidden bg-gradient-to-b from-[#24262b] to-[#111113]">
-        <svg viewBox="0 0 800 340" preserveAspectRatio="xMidYMax slice" className="absolute inset-0 h-full w-full" role="img" aria-label="Silueta de montañas alpinas">
-          <defs>
-            <linearGradient id="alpineMountain" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#3e414a" />
-              <stop offset="1" stopColor="#17181d" />
-            </linearGradient>
-          </defs>
-          <path d="M-80 330 L138 152 L228 240 L382 35 L520 175 L630 95 L840 300 L840 340 L-80 340 Z" fill="url(#alpineMountain)" />
-          <path d="M345 88 L382 35 L420 86 L396 76 L382 91 L369 76 Z" fill="#e8e7e3" />
-          <path d="M-30 334 L120 255 L218 318 L399 162 L527 281 L683 240 L840 340 Z" fill="#15161a" opacity=".9" />
-        </svg>
+      {/* Fotografía auténtica del Passo dello Stelvio. No usar ilustraciones vectoriales en la portada. */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden="true">
+        <img
+          src={imageUrl || "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a0/Stelvio_Pass_%28Unsplash%29.jpg/1280px-Stelvio_Pass_%28Unsplash%29.jpg"}
+          alt=""
+          loading="eager"
+          decoding="async"
+          className="absolute inset-0 h-full w-full object-cover object-[48%_center] sm:object-center"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#080a0c]/45 via-[#080a0c]/55 to-[#101011]" />
       </div>
       <div className="relative z-10 mx-auto max-w-5xl">
         {capacity != null && (
