@@ -3,6 +3,7 @@
 // Para 2 cuotas: hoy se cobra la cuota 1 y la cuota 2 queda como deuda en cuenta corriente (vence a 30 días).
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { resolveCuentaMP } from "../_shared/resolve-cuenta-mp.ts";
+import { decideEnrollmentRetry } from "./retry.ts";
 import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
 
 const corsHeaders = {
@@ -265,7 +266,7 @@ Deno.serve(async (req) => {
     if (benefitToken) {
       const { data: b } = await admin
         .from("program_preinscripcion_benefits")
-        .select("id, plan_id, activo, used_at, valid_until, precio_total, precio_cuota, cuotas_cantidad")
+        .select("id, plan_id, activo, used_at, valid_until, precio_total, precio_cuota, cuotas_cantidad, suscripcion_id")
         .eq("token", benefitToken)
         .maybeSingle();
       const hoyAR = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
@@ -367,19 +368,37 @@ Deno.serve(async (req) => {
     });
     const ec = (enrollCheck ?? {}) as Record<string, any>;
 
-    // 4) Sub existente o nueva
-    const existSub = ec.already_enrolled
-      ? { id: ec.suscripcion_id as string, estado: ec.estado as string }
-      : null;
-
     // Si ya está inscripto y la inscripción está paga, no cobramos de nuevo.
-    if (existSub && Number(ec.saldo ?? 0) <= 0) {
+    if (ec.already_enrolled && Number(ec.saldo ?? 0) <= 0) {
       return jsonResp({
         error: "Ya tenés una inscripción confirmada a este programa. Escribinos si necesitás ayuda.",
         code: "ALREADY_ENROLLED",
-        suscripcion_id: existSub.id,
+        suscripcion_id: ec.suscripcion_id,
       }, 409);
     }
+
+    // 4) Reintento: misma suscripción, sin doble cobro (ver retry.ts).
+    const loadSub = async (id: string | null | undefined) => {
+      if (!id) return null;
+      const { data: s } = await admin.from("suscripciones")
+        .select("id, alumno_id, plan_id, estado, cancelada_at, mp_status").eq("id", id).maybeSingle();
+      if (!s) return null;
+      const { data: pagado } = await admin.rpc("subscription_paid_amount", { _sub_id: s.id });
+      return { ...s, pagado: Number(pagado ?? 0) };
+    };
+    const existingFull = ec.already_enrolled ? await loadSub(ec.suscripcion_id) : null;
+    const benefitSub = benefit?.suscripcion_id && benefit.suscripcion_id !== existingFull?.id
+      ? await loadSub(benefit.suscripcion_id) : null;
+    const decision = decideEnrollmentRetry({
+      alumnoId, planId: plan.id,
+      benefit: benefit ? { used_at: benefit.used_at, suscripcion_id: benefit.suscripcion_id } : null,
+      benefitSub, existingSub: existingFull,
+    });
+    if (decision.action === "reject") {
+      return jsonResp({ error: decision.error, code: decision.code, suscripcion_id: decision.suscripcionId }, 409);
+    }
+    const existSub = decision.action === "reuse" ? { id: decision.suscripcionId } : null;
+
 
 
     const modalidadNota = esCuotas
@@ -435,10 +454,11 @@ Deno.serve(async (req) => {
       suscripcionId = nuevaSub.id;
     }
 
-    // 4.b) Trazabilidad del beneficio de preinscripción (conversión).
+    // 4.b) Vincular (NO consumir) el beneficio. used_at lo marca el trigger
+    // trg_consume_program_benefit_on_paid cuando el pago queda confirmado.
     if (benefit) {
       await admin.from("program_preinscripcion_benefits")
-        .update({ used_at: new Date().toISOString(), suscripcion_id: suscripcionId, updated_at: new Date().toISOString() })
+        .update({ suscripcion_id: suscripcionId, updated_at: new Date().toISOString() })
         .eq("id", benefit.id).is("used_at", null);
       await admin.from("suscripciones").update({ notas: `${notasSub} | Beneficio preinscripción ${benefit.id}` }).eq("id", suscripcionId);
     }

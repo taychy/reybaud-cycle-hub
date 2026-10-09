@@ -1,0 +1,1 @@
+- Beneficio de preinscripción: enroll-programa solo lo vincula (suscripcion_id); se consume (used_at) por trigger al pasar la suscripción a 'activa'; reintentos reutilizan la misma suscripción vía enroll-programa/retry.ts y nunca con pago aprobado/en proceso/en verificación. Why: no perder el precio por pagos fallidos ni cobrar doble.
