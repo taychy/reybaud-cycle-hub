@@ -3,7 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { Package, RefreshCw, ScanLine, CheckCircle2, Tag, Truck } from "lucide-react";
+import { Package, RefreshCw, ScanLine, CheckCircle2, Tag, Truck, MessageCircle, Bell } from "lucide-react";
+import CambioAvisoDialog from "@/components/deposito/CambioAvisoDialog";
 import ScanCambioDialog from "@/components/deposito/ScanCambioDialog";
 import CambioLabelDialog from "@/components/deposito/CambioLabelDialog";
 import { formatVariante } from "@/lib/productQr";
@@ -12,11 +13,14 @@ import { esSustitucionFaltaStock } from "@/lib/faltaStock";
 type Cambio = any;
 
 const estadoTexto = (c: Cambio) => {
-  if (c.estado === "aprobado" && !esSustitucionFaltaStock(c)) return "A recibir devolución";
-  if (c.estado === "en_deposito" && !esSustitucionFaltaStock(c)) return "Preparar reemplazo";
-  if (["aprobado", "en_deposito"].includes(c.estado) && esSustitucionFaltaStock(c)) return "Preparar reemplazo";
-  if (c.estado === "listo_retiro") return "Listo para entregar";
-  return c.estado || "Pendiente";
+  const sust = esSustitucionFaltaStock(c);
+  const devuelta = sust || Boolean(c.recibido_en);
+  const preparado = Boolean(c.preparado_at) || ["enviado", "entregado"].includes(c.reemplazo_estado || "");
+  if (c.estado === "entregado") return "Entregado";
+  if (preparado && !devuelta) return "Reemplazo separado · falta devolución";
+  if (devuelta && !preparado) return "Devolución recibida · falta preparar";
+  if (preparado && devuelta) return "Listo para entregar";
+  return sust ? "Reemplazo pendiente" : "Pendiente de recepción y preparación";
 };
 
 const CambiosPreparacionSection = () => {
@@ -29,6 +33,7 @@ const CambiosPreparacionSection = () => {
   const [loading, setLoading] = useState(true);
   const [scanFor, setScanFor] = useState<Cambio | null>(null);
   const [defineFor, setDefineFor] = useState<Cambio | null>(null);
+  const [avisoFor, setAvisoFor] = useState<{cambio: Cambio; tipo: "estado" | "recordatorio_devolucion"} | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const { toast } = useToast();
 
@@ -36,7 +41,7 @@ const CambiosPreparacionSection = () => {
     setLoading(true);
     const { data, error } = await supabase
       .from("store_cambios" as any)
-      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido)")
+      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido, telefono)")
       .in("estado", ["aprobado", "en_deposito", "listo_retiro"])
       .order("created_at", { ascending: true });
 
@@ -103,47 +108,29 @@ const CambiosPreparacionSection = () => {
     [items],
   );
 
-  const procesarConScan = async (cambio: Cambio, devuelto: any, recibido: any | null) => {
-    const { error } = await supabase.rpc("deposito_recibir_cambio" as any, {
+  const recibirDevolucion = async (cambio: Cambio, devuelto: any) => {
+    if (!devuelto) throw new Error("Falta identificar la prenda devuelta");
+    const { error } = await supabase.rpc("deposito_recibir_devolucion" as any, {
       p_cambio_id: cambio.id,
       p_metodo: devuelto.metodo,
-      p_qr_devuelto_pid: devuelto.productId,
-      p_qr_devuelto_variante: devuelto.variante,
-      p_entregar_reemplazo: !!recibido,
-      p_qr_recibido_pid: recibido?.productId || null,
-      p_qr_recibido_variante: recibido?.variante || null,
+      p_producto_id: devuelto.productId,
+      p_variante: devuelto.variante,
     });
     if (error) throw error;
-    toast({ title: recibido ? "Cambio listo para entregar" : "Devolución recibida" });
+    toast({ title: "Devolución recibida. Stock registrado según corresponda." });
     await load();
   };
 
-  const definirReemplazo = async (cambio: Cambio, recibido: any) => {
-    const { error } = await supabase.rpc("deposito_definir_reemplazo" as any, {
+  const prepararReemplazo = async (cambio: Cambio, recibido: any) => {
+    if (!recibido) throw new Error("Falta identificar la prenda de reemplazo");
+    const { error } = await supabase.rpc("deposito_preparar_reemplazo" as any, {
       p_cambio_id: cambio.id,
       p_metodo: recibido.metodo,
       p_producto_id: recibido.productId,
       p_variante: recibido.variante,
-      p_marcar_listo: true,
     });
     if (error) throw error;
-    toast({ title: "Reemplazo listo para entregar" });
-    await load();
-  };
-
-  const marcarListo = async (id: string) => {
-    setBusy(id);
-    const { error } = await supabase.rpc("transition_cambio_estado" as any, {
-      p_id: id,
-      p_nuevo_estado: "listo_retiro",
-      p_nota: "Reemplazo preparado desde la bandeja unificada de Pedidos",
-    });
-    setBusy(null);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-      return;
-    }
-    toast({ title: "Reemplazo listo para entregar" });
+    toast({ title: "Reemplazo preparado y separado" });
     await load();
   };
 
@@ -275,6 +262,9 @@ const CambiosPreparacionSection = () => {
         <div className="divide-y divide-border">
           {pendientes.map((c) => {
             const sust = esSustitucionFaltaStock(c);
+            const devuelta = sust || Boolean(c.recibido_en);
+            const preparado = Boolean(c.preparado_at) || ["enviado","entregado"].includes(c.reemplazo_estado || "");
+            const listo = devuelta && preparado;
             const orderId = c.order_id || c.compra_id;
             const order = orderId ? orders[orderId] : null;
             const replacementName = c.producto_reemplazo_id ? products[c.producto_reemplazo_id] : null;
@@ -304,47 +294,51 @@ const CambiosPreparacionSection = () => {
                       Estado: {estadoTexto(c)}
                       {sust && " · no requiere devolución física"}
                     </p>
+                    <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                      <Badge variant="outline" className={devuelta ? "border-green-500/40 text-green-400" : "border-amber-500/40 text-amber-400"}>
+                        {sust ? "Sin devolución" : devuelta ? "Devolución recibida" : "Devolución pendiente"}
+                      </Badge>
+                      <Badge variant="outline" className={preparado ? "border-green-500/40 text-green-400" : "border-amber-500/40 text-amber-400"}>
+                        {preparado ? "Reemplazo preparado" : "Reemplazo pendiente"}
+                      </Badge>
+                      {!devuelta && c.stock_devuelto_at && <Badge variant="destructive">Revisar stock: ingreso sin recepción</Badge>}
+                    </div>
                   </div>
 
-                  <div className="shrink-0">
-                    {c.estado === "aprobado" && !sust && (
+                  <div className="flex flex-wrap gap-2 items-center sm:justify-end sm:max-w-[340px]">
+                    {!sust && !devuelta && (
                       <Button size="sm" onClick={() => setScanFor(c)}>
                         <ScanLine className="w-4 h-4 mr-1" /> Recibir devolución
                       </Button>
                     )}
-                    {c.estado === "en_deposito" && !sust && (
+                    {!preparado && (
                       <Button size="sm" onClick={() => setDefineFor(c)}>
                         <Package className="w-4 h-4 mr-1" /> Preparar reemplazo
                       </Button>
                     )}
-                    {["aprobado", "en_deposito"].includes(c.estado) && sust && (
-                      <Button size="sm" disabled={busy === c.id} onClick={() => marcarListo(c.id)}>
-                        <Package className="w-4 h-4 mr-1" /> Listo para entregar
+                    {listo && <>
+                      <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
+                        <Tag className="w-4 h-4 mr-1" /> Etiqueta
                       </Button>
-                    )}
-                    {c.estado === "listo_retiro" && (
-                      <div className="flex gap-2 flex-wrap justify-end">
-                        <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
-                          <Tag className="w-4 h-4 mr-1" /> Etiqueta cambio
-                        </Button>
-                        {cambiosEnCamioneta.has(c.id) ? (
-                          <Badge variant="outline" className="h-9 px-3 border-green-500/40 text-green-400 flex items-center">
-                            <Truck className="w-4 h-4 mr-1" /> En camioneta
-                          </Badge>
-                        ) : (
-                          <Button
-                            size="sm"
-                            disabled={busy === `camioneta:${c.id}`}
-                            onClick={() => ponerEnCamioneta(c)}
-                          >
+                      {cambiosEnCamioneta.has(c.id)
+                        ? <Badge variant="outline" className="text-green-400"><Truck className="w-3 h-3 mr-1" /> En camioneta</Badge>
+                        : <Button size="sm" variant="outline" disabled={busy === "camioneta:" + c.id} onClick={() => ponerEnCamioneta(c)}>
                             <Truck className="w-4 h-4 mr-1" /> Poner en camioneta
-                          </Button>
-                        )}
-                        <Button size="sm" variant="outline" disabled={busy === c.id} onClick={() => marcarEntregado(c.id)}>
-                          <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
-                        </Button>
-                      </div>
-                    )}
+                          </Button>}
+                      <Button size="sm" variant="outline" disabled={busy === c.id}
+                        onClick={() => marcarEntregado(c.id)}>
+                        <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
+                      </Button>
+                    </>}
+                    <Button size="sm" variant="outline"
+                      onClick={() => setAvisoFor({ cambio:c, tipo:"estado" })}>
+                      <MessageCircle className="w-4 h-4 mr-1" /> Avisar estado
+                    </Button>
+                    {!sust && !devuelta &&
+                      <Button size="sm" variant="outline"
+                        onClick={() => setAvisoFor({ cambio:c, tipo:"recordatorio_devolucion" })}>
+                        <Bell className="w-4 h-4 mr-1" /> Recordar devolución
+                      </Button>}
                   </div>
                 </div>
               </div>
@@ -380,6 +374,7 @@ const CambiosPreparacionSection = () => {
 
       {scanFor && (
         <ScanCambioDialog
+          mode="return"
           open={!!scanFor}
           onOpenChange={(v) => !v && setScanFor(null)}
           title={`Recibir cambio · ${scanFor.producto?.name || ""}`}
@@ -387,25 +382,34 @@ const CambiosPreparacionSection = () => {
           expectedReturnVariante={scanFor.variante_origen}
           expectedDeliverProductId={scanFor.producto_reemplazo_id || scanFor.producto_id}
           expectedDeliverVariante={scanFor.variante_destino}
-          requireReemplazo={!!scanFor.variante_destino}
-          onConfirm={({ devuelto, recibido }) => procesarConScan(scanFor, devuelto, recibido)}
+          onConfirm={({ devuelto }) => recibirDevolucion(scanFor, devuelto)}
         />
       )}
 
       {defineFor && (
         <ScanCambioDialog
+          mode="replacement"
           open={!!defineFor}
           onOpenChange={(v) => !v && setDefineFor(null)}
           title={`Preparar reemplazo · ${defineFor.producto?.name || ""}`}
           expectedReturnProductId={defineFor.producto_id}
           expectedReturnVariante={defineFor.variante_origen}
+          expectedDeliverProductId={defineFor.producto_reemplazo_id || defineFor.producto_id}
+          expectedDeliverVariante={defineFor.variante_destino}
           requireReemplazo
           onConfirm={({ recibido }) => {
             if (!recibido) throw new Error("Falta reemplazo");
-            return definirReemplazo(defineFor, recibido);
+            return prepararReemplazo(defineFor, recibido);
           }}
         />
       )}
+      {avisoFor && <CambioAvisoDialog
+        open={!!avisoFor}
+        onOpenChange={(v) => { if (!v) setAvisoFor(null); }}
+        cambio={avisoFor.cambio}
+        tipo={avisoFor.tipo}
+        onRegistered={load}
+      />}
     </>
   );
 };
