@@ -42,59 +42,19 @@ const DepositoCambios = () => {
 
   const buckets = useMemo(() => {
     const cambios = items.filter((c) => tipoRegistro(c) !== "prueba");
+    const abiertos = cambios.filter((c) => ["aprobado", "en_deposito", "listo_retiro"].includes(c.estado));
+    const preparo = (c: any) => !!c.preparado_at || ["enviado", "entregado"].includes(c.reemplazo_estado);
+    const devolvio = (c: any) => esSustitucionFaltaStock(c) || !!c.recibido_en;
     return {
-      // Las sustituciones por falta de stock no vuelven físicamente: no se escanean.
-      pendientes: cambios.filter((c) => c.estado === "aprobado" && !esSustitucionFaltaStock(c)),
-      sustituciones: cambios.filter(
-        (c) => esSustitucionFaltaStock(c) && ["aprobado", "en_deposito"].includes(c.estado),
-      ),
-      esperando: cambios.filter(
-        (c) => c.estado === "en_deposito" && !esSustitucionFaltaStock(c) && c.reemplazo_estado !== "enviado" && c.reemplazo_estado !== "entregado",
-      ),
-      listoRetiro: cambios.filter((c) => c.estado === "listo_retiro"),
+      pendientes: abiertos.filter((c) => !esSustitucionFaltaStock(c) && !devolvio(c)),
+      sustituciones: abiertos.filter((c) => esSustitucionFaltaStock(c) && !preparo(c)),
+      esperando: abiertos.filter((c) => devolvio(c) && !preparo(c) && !esSustitucionFaltaStock(c)),
+      listoRetiro: abiertos.filter((c) => devolvio(c) && preparo(c)),
       cerrados: cambios.filter((c) => ["entregado", "rechazado", "cancelado"].includes(c.estado)),
       pruebasActivas: items.filter(esPruebaActiva),
       pruebasCerradas: items.filter((c) => esPrueba(c) && !esPruebaActiva(c)),
     };
   }, [items]);
-
-  const marcarListo = async (id: string) => {
-    const { error } = await supabase.rpc("transition_cambio_estado" as any, {
-      p_id: id, p_nuevo_estado: "listo_retiro", p_nota: "Reemplazo preparado en depósito",
-    });
-    if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
-    toast({ title: "Reemplazo listo para entregar" });
-    load();
-  };
-
-
-  const procesarConScan = async (cambio: any, devuelto: any, recibido: any | null) => {
-    const { error } = await supabase.rpc("deposito_recibir_cambio" as any, {
-      p_cambio_id: cambio.id,
-      p_metodo: devuelto.metodo,
-      p_qr_devuelto_pid: devuelto.productId,
-      p_qr_devuelto_variante: devuelto.variante,
-      p_entregar_reemplazo: !!recibido,
-      p_qr_recibido_pid: recibido?.productId || null,
-      p_qr_recibido_variante: recibido?.variante || null,
-    });
-    if (error) throw error;
-    toast({ title: recibido ? "Cambio listo para retirar" : "Recibido en depósito" });
-    load();
-  };
-
-  const definirReemplazo = async (cambio: any, recibido: any) => {
-    const { error } = await supabase.rpc("deposito_definir_reemplazo" as any, {
-      p_cambio_id: cambio.id,
-      p_metodo: recibido.metodo,
-      p_producto_id: recibido.productId,
-      p_variante: recibido.variante,
-      p_marcar_listo: true,
-    });
-    if (error) throw error;
-    toast({ title: "Reemplazo listo" });
-    load();
-  };
 
   const marcarEntregado = async (id: string) => {
     const { error } = await supabase.rpc("transition_cambio_estado" as any, {
@@ -114,8 +74,10 @@ const DepositoCambios = () => {
     load();
   };
 
-  const renderItem = (c: any, action: "scan" | "define" | "view" | "readonly" | "sustitucion") => {
+  const renderItem = (c: any) => {
     const esSust = esSustitucionFaltaStock(c);
+    const devuelta = esSust || !!c.recibido_en;
+    const preparado = !!c.preparado_at || ["enviado","entregado"].includes(c.reemplazo_estado);
     return (
     <div key={c.id} className="rounded-xl border border-border bg-card p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
@@ -127,7 +89,7 @@ const DepositoCambios = () => {
           </p>
         </div>
         <div className="flex flex-col items-end gap-1">
-          <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+          <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{c.estado === "en_deposito" && !c.recibido_en ? "Pendiente de recepción" : estadoCambioLabel(c.estado)}</Badge>
           {esSust && (
             <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-400">Sustitución por falta de stock</Badge>
           )}
@@ -147,29 +109,15 @@ const DepositoCambios = () => {
           </>
         )}
       </div>
-      <div className="flex gap-2 pt-1">
-        {action === "scan" && (
-          <Button size="sm" onClick={() => setScanFor(c)}>
-            <ScanLine className="w-3.5 h-3.5 mr-1" /> Escanear recepción
-          </Button>
-        )}
-        {action === "define" && (
-          <Button size="sm" onClick={() => setDefineFor(c)}>
-            <Package className="w-3.5 h-3.5 mr-1" /> Definir reemplazo
-          </Button>
-        )}
-        {action === "sustitucion" && (
-          <Button size="sm" onClick={() => marcarListo(c.id)}>
-            <Package className="w-3.5 h-3.5 mr-1" /> Listo para entregar
-          </Button>
-        )}
-        {action === "view" && (
-          <div className="flex items-center gap-2 flex-wrap">
-            <Badge className="bg-green-500/20 text-green-400">Esperando retiro en sede</Badge>
-            <Button size="sm" variant="outline" onClick={() => marcarEntregado(c.id)}>
-              ✓ Marcar entregado
-            </Button>
-          </div>
+      <div className="flex flex-wrap gap-2 pt-1">
+        <Badge variant="outline" className={devuelta ? "text-green-400 border-green-500/40" : "text-amber-400 border-amber-500/40"}>
+          {esSust ? "No requiere devolución" : devuelta ? "Devolución recibida" : "Devolución pendiente"}
+        </Badge>
+        <Badge variant="outline" className={preparado ? "text-green-400 border-green-500/40" : "text-amber-400 border-amber-500/40"}>
+          {preparado ? "Reemplazo preparado" : "Reemplazo pendiente"}
+        </Badge>
+        {!devuelta && c.stock_devuelto_at && !esSust && (
+          <Badge variant="destructive">Verificar stock: ingreso sin recepción</Badge>
         )}
       </div>
     </div>
@@ -253,17 +201,17 @@ const DepositoCambios = () => {
             ? vacio("No hay cambios para recibir")
             : (
               <>
-                {buckets.pendientes.map((c) => renderItem(c, "readonly"))}
-                {buckets.sustituciones.map((c) => renderItem(c, "readonly"))}
+                {buckets.pendientes.map(renderItem)}
+                {buckets.sustituciones.map(renderItem)}
               </>
             )}
 
         </TabsContent>
         <TabsContent value="esperando" className="mt-3 space-y-2">
-          {buckets.esperando.length === 0 ? vacio("No hay cambios esperando reemplazo") : buckets.esperando.map((c) => renderItem(c, "readonly"))}
+          {buckets.esperando.length === 0 ? vacio("No hay cambios esperando reemplazo") : buckets.esperando.map(renderItem)}
         </TabsContent>
         <TabsContent value="listos" className="mt-3 space-y-2">
-          {buckets.listoRetiro.length === 0 ? vacio("Sin cambios listos para retirar") : buckets.listoRetiro.map((c) => renderItem(c, "readonly"))}
+          {buckets.listoRetiro.length === 0 ? vacio("Sin cambios listos para retirar") : buckets.listoRetiro.map(renderItem)}
         </TabsContent>
         <TabsContent value="pruebas" className="mt-3 space-y-2">
           <p className="text-[11px] text-muted-foreground">
@@ -277,7 +225,7 @@ const DepositoCambios = () => {
             ? vacio("Sin casos cerrados")
             : (
               <>
-                {buckets.cerrados.map((c) => renderItem(c, "readonly"))}
+                {buckets.cerrados.map(renderItem)}
                 {buckets.pruebasCerradas.map(renderPrueba)}
               </>
             )}
@@ -286,6 +234,7 @@ const DepositoCambios = () => {
 
       {scanFor && (
         <ScanCambioDialog
+          mode="return"
           open={!!scanFor}
           onOpenChange={(v) => !v && setScanFor(null)}
           title={`Recibir cambio · ${scanFor.producto?.name || ""}`}
@@ -293,23 +242,20 @@ const DepositoCambios = () => {
           expectedReturnVariante={scanFor.variante_origen}
           expectedDeliverProductId={scanFor.producto_reemplazo_id || scanFor.producto_id}
           expectedDeliverVariante={scanFor.variante_destino}
-          requireReemplazo={!!scanFor.variante_destino}
-          onConfirm={({ devuelto, recibido }) => procesarConScan(scanFor, devuelto, recibido)}
+          onConfirm={() => { throw new Error("Recibí la devolución desde Ventas → Pedidos"); }}
         />
       )}
 
       {defineFor && (
         <ScanCambioDialog
+          mode="replacement"
           open={!!defineFor}
           onOpenChange={(v) => !v && setDefineFor(null)}
           title={`Definir reemplazo · ${defineFor.producto?.name || ""}`}
           expectedReturnProductId={defineFor.producto_id}
           expectedReturnVariante={defineFor.variante_origen}
           requireReemplazo
-          onConfirm={({ recibido }) => {
-            if (!recibido) throw new Error("Falta reemplazo");
-            return definirReemplazo(defineFor, recibido);
-          }}
+          onConfirm={() => { throw new Error("Prepará el reemplazo desde Ventas → Pedidos"); }}
         />
       )}
 
