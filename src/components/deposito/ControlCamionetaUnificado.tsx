@@ -348,6 +348,7 @@ export default function ControlCamionetaUnificado({
   const tarjeta = (it: Item, pendiente: boolean) => {
     const o = ordenes[orderForItem[it.id]];
     const consulta = consultas[it.id];
+    const faltaConfirmada = it.estado === "faltante";
     const sede = sedes.find((s) => s.id === cargas.find((c) => c.id === it.carga_id)?.sede_id)?.nombre || "Sin sede";
     return (
       <div key={it.id} className="rounded-lg border border-border p-3 space-y-2">
@@ -357,18 +358,18 @@ export default function ControlCamionetaUnificado({
             <p className="text-xs text-muted-foreground">{it.producto || "Producto"}{it.variante ? " · " + it.variante : ""} · ×{Number(it.cantidad)}</p>
             <p className="text-[11px] text-muted-foreground">{o?.order_number ? "Pedido #" + o.order_number + " · " : ""}{sede}</p>
           </div>
-          {pendiente ? <Badge variant="destructive">No encontrado</Badge> :
+          {pendiente ? <Badge variant={faltaConfirmada ? "destructive" : "outline"}>{faltaConfirmada ? "No encontrado" : "Por controlar"}</Badge> :
             <Badge variant="outline" className="border-green-500/40 text-green-400">Escaneado</Badge>}
         </div>
         {pendiente ? (
-          <div className="space-y-2">
-            <p className="text-xs font-medium">¿Ese pedido fue entregado?</p>
-            {consulta && <p className="text-[11px] text-muted-foreground">Consulta {new Date(consulta.consultado_at).toLocaleDateString("es-AR")} · respuesta: {consulta.respuesta.replace(/_/g," ")}{consulta.gusto ? " · le gustó: " + consulta.gusto : ""}</p>}
-            <div className="flex flex-wrap gap-2">
-              <Button size="sm" variant="outline" onClick={() => consultar(it)}>
-                <MessageCircle className="w-4 h-4 mr-1" /> Consultar y preguntar opinión
-              </Button>
-              {it.estado === "faltante" && (
+          faltaConfirmada ? (
+            <div className="space-y-2">
+              <p className="text-xs font-medium">¿Ese pedido fue entregado?</p>
+              {consulta && <p className="text-[11px] text-muted-foreground">Consulta {new Date(consulta.consultado_at).toLocaleDateString("es-AR")} · respuesta: {consulta.respuesta.replace(/_/g," ")}{consulta.gusto ? " · le gustó: " + consulta.gusto : ""}</p>}
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => consultar(it)}>
+                  <MessageCircle className="w-4 h-4 mr-1" /> Consultar y preguntar opinión
+                </Button>
                 <Button size="sm" variant="outline" onClick={async () => {
                   if (!window.confirm("¿Tenés confirmación de que el pedido fue entregado? Se actualizará su estado real.")) return;
                   const { error } = await (supabase as any).rpc("resolver_item_chequeo",{
@@ -377,8 +378,6 @@ export default function ControlCamionetaUnificado({
                   if (error) toast.error(error.message);
                   else { toast.success("Entrega confirmada por el operador"); void recargar(); onCompleted?.(); }
                 }}>Sí, confirmar entrega</Button>
-              )}
-              {it.estado === "faltante" && (
                 <Button size="sm" variant="outline" onClick={async () => {
                   const { error } = await (supabase as any).rpc("resolver_item_chequeo",{
                     _item_id:it.id,_accion:"sigue_en_camioneta",
@@ -386,9 +385,20 @@ export default function ControlCamionetaUnificado({
                   if (error) toast.error(error.message);
                   else { toast.success("Volvió a la lista de la camioneta"); void recargar(); }
                 }}>Lo encontré · sigue en camioneta</Button>
-              )}
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs text-muted-foreground flex-1">Todavía no se escaneó en esta ronda. No implica que se haya entregado.</p>
+              {isRunning && <Button size="sm" variant="outline" onClick={() => {
+                if (!window.confirm("¿Verificaste físicamente este pedido en la camioneta?")) return;
+                if (Number(it.cantidad) > 1) {
+                  setCandidatos([it]); setCantidadManual((p) => ({ ...p, [it.id]: "1" })); return;
+                }
+                void marcarVisto(it,1);
+              }}>Lo veo · registrar manualmente</Button>}
+            </div>
+          )
         ) : <p className="text-xs text-green-500">Detectado en esta ronda · sigue en la camioneta</p>}
       </div>
     );
@@ -443,8 +453,8 @@ export default function ControlCamionetaUnificado({
                   : <p className="text-xs text-muted-foreground">Todavía no hay pedidos escaneados en este control.</p>}
               </div>
               <div className="space-y-2">
-                <h3 className="font-heading font-semibold uppercase text-sm">No encontrados · revisar entrega ({sinEscanear.length + faltantes.length})</h3>
-                <p className="text-xs text-muted-foreground">Antes de cerrar, figuran como sin escanear. Al terminar se guardan como pendientes de revisión, nunca como entregados.</p>
+                <h3 className="font-heading font-semibold uppercase text-sm">{isRunning ? "Pendientes de escaneo" : "No encontrados · revisar entrega"} ({sinEscanear.length + faltantes.length})</h3>
+                <p className="text-xs text-muted-foreground">Mientras controlás, lo no visto es solo pendiente de escaneo. Al finalizar, lo faltante queda para investigar; nunca se marca entregado automáticamente.</p>
                 {filtro([...sinEscanear,...faltantes]).map((it) => tarjeta(it,true))}
                 {sinEscanear.length === 0 && faltantes.length === 0 && <p className="text-xs text-muted-foreground">No hay pedidos por investigar.</p>}
               </div>
