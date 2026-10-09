@@ -13,6 +13,7 @@ import AlpineEditorialLanding from "./AlpineEditorialLanding";
  */
 export interface PremiumLandingConfig {
   headline?: string;
+  hero_image?: string;
   layout_variant?: "editorial_alpine";
   subheadline?: string;
   stats?: { value: string; label: string }[];
