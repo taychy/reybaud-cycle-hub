@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Truck, Plus, ChevronRight, ArrowLeft, Package, CheckCircle2, AlertTriangle, X, ScanLine, Camera } from "lucide-react";
 import { toast } from "sonner";
 import CameraScanner from "@/components/deposito/CameraScanner";
+import ControlCamionetaUnificado from "@/components/deposito/ControlCamionetaUnificado";
 import EtiquetaExternaCapture from "@/components/deposito/EtiquetaExternaCapture";
 import { findOrdersEnCamionetaSinCargar, type OrdenSinCargar } from "@/lib/camionetaSync";
 import { avisoWaLink, buildAvisoCamionetaMessage, buildAvisoPedidoReferencia, formatAvisoFecha } from "@/lib/camionetaAviso";
@@ -107,6 +108,7 @@ const DepositoCamioneta = () => {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ sede_id: "", fecha_salida: new Date().toISOString().slice(0, 10), entregador: "", notas: "" });
   const [sinCargar, setSinCargar] = useState<OrdenSinCargar[]>([]);
+  const [controlTotalOpen, setControlTotalOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -178,7 +180,7 @@ const DepositoCamioneta = () => {
           <Truck className="w-5 h-5 text-primary" />
           <div>
             <h1 className="text-xl font-heading font-bold uppercase tracking-wider">Camioneta</h1>
-            <p className="text-xs text-muted-foreground">Una sola camioneta, organizada internamente por sede.</p>
+            <p className="text-xs text-muted-foreground">Una sola caja física: control completo para todas las sedes.</p>
           </div>
         </div>
         <Button variant="gold" size="sm" onClick={() => setShowCreate(true)}>
@@ -239,10 +241,13 @@ const DepositoCamioneta = () => {
                       <Truck className="w-6 h-6 text-primary shrink-0" />
                       <div className="flex-1">
                         <div className="font-medium text-foreground">Camioneta actual</div>
-                        <p className="text-xs text-muted-foreground">Una sola camioneta. La mercadería se organiza abajo por sede de retiro.</p>
+                        <p className="text-xs text-muted-foreground">Una sola caja física. Los pedidos mantienen su sede de destino, pero se chequean todos juntos.</p>
                       </div>
                       <Badge variant="outline">{activas.length} sede{activas.length === 1 ? "" : "s"}</Badge>
                     </div>
+                    <Button className="mb-3 w-full sm:w-auto" variant="gold" onClick={() => setControlTotalOpen(true)}>
+                      <ScanLine className="w-4 h-4 mr-2" /> Controlar toda la camioneta
+                    </Button>
                     <div className="divide-y divide-border rounded-lg border border-border overflow-hidden">
                       {activas.map((c) => {
                         const sede = sedes.find((s) => s.id === c.sede_id);
@@ -263,6 +268,13 @@ const DepositoCamioneta = () => {
                       })}
                     </div>
                   </div>
+                  <ControlCamionetaUnificado
+                    open={controlTotalOpen}
+                    onOpenChange={setControlTotalOpen}
+                    cargas={activas}
+                    sedes={sedes}
+                    onCompleted={load}
+                  />
                 </div>
               ) : (
                 <div className="rounded-lg border border-dashed p-6 text-center">

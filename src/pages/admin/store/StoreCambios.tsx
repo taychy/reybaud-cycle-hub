@@ -218,6 +218,20 @@ const AdminCambios = () => {
                     Iniciado por admin. Motivo: {selected.motivo_admin}
                   </div>
                 )}
+                {["aprobado", "en_deposito", "listo_retiro"].includes(selected.estado) && !esPrueba(selected) && (
+                  <div className="rounded-lg border border-border p-3 space-y-1 text-xs">
+                    <b>Seguimiento operativo</b>
+                    <div className={selected.recibido_en || esSustitucionFaltaStock(selected) ? "text-green-400" : "text-amber-400"}>
+                      Devolución: {esSustitucionFaltaStock(selected) ? "No corresponde" : selected.recibido_en ? "Recibida" : "Pendiente"}
+                    </div>
+                    <div className={selected.preparado_at || ["enviado","entregado"].includes(selected.reemplazo_estado) ? "text-green-400" : "text-amber-400"}>
+                      Reemplazo: {selected.preparado_at || ["enviado","entregado"].includes(selected.reemplazo_estado) ? "Preparado" : "Pendiente"}
+                    </div>
+                    {!selected.recibido_en && selected.stock_devuelto_at && !esSustitucionFaltaStock(selected) && (
+                      <div className="text-destructive">Advertencia: el sistema muestra ingreso de stock sin recepción física registrada. Conciliar.</div>
+                    )}
+                  </div>
+                )}
                 <div>
                   <p className="text-xs text-muted-foreground mb-1">Historial</p>
                   <ul className="space-y-1 text-[11px]">
@@ -242,14 +256,18 @@ const AdminCambios = () => {
                     </div>
                   )}
                   {selected.estado === "aprobado" && (
-                    <Button size="sm" className="w-full" onClick={() => transition(selected.id, "en_deposito")}>
-                      <Package className="w-4 h-4 mr-1" /> Enviar a depósito
-                    </Button>
+                    <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
+                      Cambio aprobado. Ya está pendiente de recepción y/o preparación en <b>Ventas → Pedidos</b>.
+                      Aprobar no confirma el ingreso físico de ninguna prenda.
+                    </div>
                   )}
-                  {(selected.estado === "en_deposito" || selected.estado === "listo_retiro") && (
-                    <Button size="sm" className="w-full" onClick={() => transition(selected.id, "entregado", "Entregado en sede")}>
-                      <Truck className="w-4 h-4 mr-1" /> Marcar entregado
-                    </Button>
+                  {selected.estado === "listo_retiro"
+                    && (esSustitucionFaltaStock(selected) || !!selected.recibido_en)
+                    && (selected.reemplazo_estado === "enviado" || selected.reemplazo_estado === "entregado" || !!selected.preparado_at)
+                    && (
+                      <Button size="sm" className="w-full" onClick={() => transition(selected.id, "entregado", "Entrega física confirmada en sede")}>
+                        <Truck className="w-4 h-4 mr-1" /> Confirmar entrega física
+                      </Button>
                   )}
                   {selected.estado === "devolucion_solicitada" && (
                     <div className="grid grid-cols-2 gap-2">
