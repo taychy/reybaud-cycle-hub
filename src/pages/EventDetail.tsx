@@ -830,7 +830,7 @@ const EventDetail = () => {
                 eventId={id}
                 premium
                 triggerClassName={editorialAlpine ? "h-12 w-full rounded-xl border-0 bg-[#e73531] font-semibold text-white hover:bg-[#d72e29] hover:text-white" : undefined}
-                onReserve=
+                onReserve={
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? () => {
                         if (!alumno) {
@@ -851,7 +851,6 @@ const EventDetail = () => {
                 }
                 reserveLabel={!alumno && !isOpenAudience ? "Iniciar sesión" : isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
                 reserveDisabled={!!alumno && isImpersonating}
-                triggerClassName="w-full h-12 rounded-none border-[hsl(var(--alpine-red))] bg-transparent font-heading uppercase tracking-[0.2em] text-xs text-foreground hover:bg-[hsl(var(--alpine-red))]/10"
               />
               ) : null}
             />
