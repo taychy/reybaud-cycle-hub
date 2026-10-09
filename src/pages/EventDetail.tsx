@@ -507,6 +507,7 @@ const EventDetail = () => {
             price={premiumPrice.price}
             currency={premiumPrice.currency}
             capacity={event.max_capacity}
+            imageUrl={premiumLanding?.hero_image}
           />
         ) : (
           <EventHeroMedia hero={hero} title={event.title} />
