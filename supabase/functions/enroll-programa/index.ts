@@ -383,7 +383,7 @@ Deno.serve(async (req) => {
       const { data: s } = await admin.from("suscripciones")
         .select("id, alumno_id, plan_id, estado, cancelada_at, mp_status").eq("id", id).maybeSingle();
       if (!s) return null;
-      const { data: pagado } = await admin.rpc("subscription_paid_amount", { _suscripcion_id: s.id });
+      const { data: pagado } = await admin.rpc("subscription_paid_amount", { _sub_id: s.id });
       return { ...s, pagado: Number(pagado ?? 0) };
     };
     const existingFull = ec.already_enrolled ? await loadSub(ec.suscripcion_id) : null;
