@@ -46,6 +46,7 @@ export default function ControlCamionetaUnificado({
   const [telExterno, setTelExterno] = useState<Record<string, string>>({});
   const [rondas, setRondas] = useState<Record<string, string>>({});
   const [vistos, setVistos] = useState<Record<string, number>>({});
+  const [ultimosVistos, setUltimosVistos] = useState<Record<string, number>>({});
   const [consultas, setConsultas] = useState<Record<string, Consulta>>({});
   const [scannerOpen, setScannerOpen] = useState(false);
   const [buscando, setBuscando] = useState("");
@@ -88,6 +89,21 @@ export default function ControlCamionetaUnificado({
       (scans || []).forEach((s: any) => { m[s.item_id] = Number(s.cantidad_vista) || 0; });
       setVistos(m);
     } else setVistos({});
+
+    // Al reabrir un control ya cerrado, conservar lo observado en la última ronda de cada subcarga.
+    const { data: cerradas } = await (supabase as any).from("vehiculo_chequeos")
+      .select("id,carga_id,closed_at").in("carga_id",cargasIds).eq("estado","cerrado")
+      .order("closed_at",{ascending:false});
+    const porCarga: Record<string,string> = {};
+    (cerradas || []).forEach((r: any) => { if (!porCarga[r.carga_id]) porCarga[r.carga_id] = r.id; });
+    const idsUltima = Object.values(porCarga);
+    if (idsUltima.length) {
+      const { data: ultimosScans } = await (supabase as any).from("vehiculo_chequeo_scans")
+        .select("item_id,cantidad_vista").in("chequeo_id",idsUltima);
+      const observed: Record<string,number> = {};
+      (ultimosScans || []).forEach((r: any) => { observed[r.item_id] = Number(r.cantidad_vista) || 0; });
+      setUltimosVistos(observed);
+    } else setUltimosVistos({});
 
     const storeIds = list.filter((it) => it.source_table === "store_order_items").map((it) => it.source_id);
     const oi = storeIds.length ? await supabase.from("store_order_items").select("id,order_id").in("id",storeIds) : {data: []};
@@ -141,11 +157,12 @@ export default function ControlCamionetaUnificado({
   const esperado = items.filter((it) => it.estado === "cargado"
     && !entregadoAdministracion(it)
     && ordenes[orderForItem[it.id]]?.status !== "cancelado");
-  const estan = esperado.filter((it) => (vistos[it.id] || 0) > 0);
-  const sinEscanear = esperado.filter((it) => !(vistos[it.id] > 0));
+  const isRunning = cargasIds.length > 0 && cargasIds.every((id) => !!rondas[id]);
+  const vistosDeRonda = isRunning ? vistos : ultimosVistos;
+  const estan = esperado.filter((it) => (vistosDeRonda[it.id] || 0) > 0);
+  const sinEscanear = isRunning ? esperado.filter((it) => !(vistos[it.id] > 0)) : [];
   const faltantes = items.filter((it) => it.estado === "faltante" && !entregadoAdministracion(it));
   const yaEntregados = items.filter(entregadoAdministracion);
-  const isRunning = cargasIds.length > 0 && cargasIds.every((id) => !!rondas[id]);
 
   const iniciar = async () => {
     setBusy(true);
@@ -426,7 +443,7 @@ export default function ControlCamionetaUnificado({
                   : <p className="text-xs text-muted-foreground">Todavía no hay pedidos escaneados en este control.</p>}
               </div>
               <div className="space-y-2">
-                <h3 className="font-heading font-semibold uppercase text-sm">Sin encontrar · revisar entrega ({sinEscanear.length + faltantes.length})</h3>
+                <h3 className="font-heading font-semibold uppercase text-sm">No encontrados · revisar entrega ({sinEscanear.length + faltantes.length})</h3>
                 <p className="text-xs text-muted-foreground">Antes de cerrar, figuran como sin escanear. Al terminar se guardan como pendientes de revisión, nunca como entregados.</p>
                 {filtro([...sinEscanear,...faltantes]).map((it) => tarjeta(it,true))}
                 {sinEscanear.length === 0 && faltantes.length === 0 && <p className="text-xs text-muted-foreground">No hay pedidos por investigar.</p>}
