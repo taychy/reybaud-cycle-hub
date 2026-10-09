@@ -1088,6 +1088,18 @@ Deno.serve(async (req) => {
     // ─── DEFAULT: SUSCRIPCION FLOW ───
     const suscripcionId = externalRef;
 
+    // Un pago aprobado nunca se pisa con un intento posterior fallido/pendiente.
+    if (payment.status !== "approved") {
+      const { data: guardSub } = await supabaseAdmin
+        .from("suscripciones").select("estado, mp_status").eq("id", suscripcionId).maybeSingle();
+      if (guardSub && (guardSub.estado === "activa" || guardSub.mp_status === "approved")) {
+        console.log("[mp-webhook] sub ya aprobada; se ignora estado", { suscripcionId, status: payment.status });
+        return new Response(JSON.stringify({ ok: true, skipped: "already_approved" }), {
+          status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // Map MP status to our status
     let estado: string;
     switch (payment.status) {
