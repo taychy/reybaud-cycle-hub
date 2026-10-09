@@ -22,6 +22,7 @@ interface Props {
   open: boolean;
   onOpenChange: (v: boolean) => void;
   title?: string;
+  mode?: "both" | "return" | "replacement";
   // Slot devuelto
   expectedReturnProductId?: string;
   expectedReturnVariante?: Record<string, any> | null;
@@ -30,7 +31,7 @@ interface Props {
   expectedDeliverProductId?: string;
   expectedDeliverVariante?: Record<string, any> | null;
   // Callbacks
-  onConfirm: (data: { devuelto: ScanSlotValue; recibido: ScanSlotValue | null }) => Promise<void> | void;
+  onConfirm: (data: { devuelto: ScanSlotValue | null; recibido: ScanSlotValue | null }) => Promise<void> | void;
 }
 
 type ProductLite = {
@@ -304,7 +305,7 @@ const ScanSlot = ({
 };
 
 const ScanCambioDialog = ({
-  open, onOpenChange, title = "Procesar cambio",
+  open, onOpenChange, title = "Procesar cambio", mode = "both",
   expectedReturnProductId, expectedReturnVariante,
   requireReemplazo, expectedDeliverProductId, expectedDeliverVariante,
   onConfirm,
@@ -324,11 +325,11 @@ const ScanCambioDialog = ({
   }, [open, requireReemplazo]);
 
   const handleConfirm = async () => {
-    if (!devuelto) { toast({ title: "Falta escanear la prenda devuelta", variant: "destructive" }); return; }
-    if (enviarReemplazo && !recibido) { toast({ title: "Falta escanear el reemplazo", variant: "destructive" }); return; }
+    if (mode !== "replacement" && !devuelto) { toast({ title: "Falta escanear la prenda devuelta", variant: "destructive" }); return; }
+    if ((mode === "replacement" || (mode === "both" && enviarReemplazo)) && !recibido) { toast({ title: "Falta escanear el reemplazo", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      await onConfirm({ devuelto, recibido: enviarReemplazo ? recibido : null });
+      await onConfirm({ devuelto: mode === "replacement" ? null : devuelto, recibido: mode === "return" ? null : (mode === "replacement" || enviarReemplazo ? recibido : null) });
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: "Error", description: e?.message || "No se pudo procesar", variant: "destructive" });
@@ -346,22 +347,22 @@ const ScanCambioDialog = ({
         </DialogHeader>
 
         <div className="space-y-3">
-          <ScanSlot
+          {mode !== "replacement" && <ScanSlot
             label={<><ArrowLeft className="w-3 h-3 inline mr-1" />Prenda que devuelve el alumno</>}
             value={devuelto}
             onChange={setDevuelto}
             expectedProductId={expectedReturnProductId}
             expectedVariante={expectedReturnVariante}
-          />
+          />}
 
-          {!requireReemplazo && (
+          {mode === "both" && !requireReemplazo && (
             <label className="flex items-center justify-between text-xs px-1">
               <span>¿Enviás el reemplazo ahora?</span>
               <Switch checked={enviarReemplazo} onCheckedChange={setEnviarReemplazo} />
             </label>
           )}
 
-          {enviarReemplazo && (
+          {(mode === "replacement" || (mode === "both" && enviarReemplazo)) && (
             <ScanSlot
               label={<><ArrowRight className="w-3 h-3 inline mr-1" />Prenda que se envía como reemplazo</>}
               value={recibido}
