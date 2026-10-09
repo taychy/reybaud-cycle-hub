@@ -5,6 +5,7 @@ import { formatPrice } from "@/lib/currency";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { Button } from "@/components/ui/button";
 import EventDriveVideo, { type EventDriveVideoConfig } from "./EventDriveVideo";
+import AlpineEditorialLanding from "./AlpineEditorialLanding";
 
 /**
  * Bloque de landing premium configurable por viaje desde `events.metadata.premium_landing`.
@@ -12,6 +13,7 @@ import EventDriveVideo, { type EventDriveVideoConfig } from "./EventDriveVideo";
  */
 export interface PremiumLandingConfig {
   headline?: string;
+  layout_variant?: "editorial_alpine";
   subheadline?: string;
   stats?: { value: string; label: string }[];
   note?: string;
@@ -92,6 +94,22 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
 
   const base = pkgs[0];
   const extra = pkgs[1];
+
+  if (config.layout_variant === "editorial_alpine") {
+    return (
+      <AlpineEditorialLanding
+        config={config}
+        itinerario={itinerario}
+        incluye={incluye}
+        noIncluye={noIncluye}
+        reglamento={reglamento}
+        packagesCta={packagesCta}
+        faq={faq}
+        base={base}
+        isDraftPreview={isDraftPreview}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
