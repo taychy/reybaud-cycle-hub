@@ -169,8 +169,8 @@ export default function ControlCamionetaUnificado({
     && ordenes[orderForItem[it.id]]?.status !== "cancelado");
   const isRunning = cargasIds.length > 0 && cargasIds.every((id) => !!rondas[id]);
   const vistosDeRonda = isRunning ? vistos : ultimosVistos;
-  const estan = esperado.filter((it) => (vistosDeRonda[it.id] || 0) > 0);
-  const sinEscanear = isRunning ? esperado.filter((it) => !(vistos[it.id] > 0)) : [];
+  const estan = esperado.filter((it) => (vistosDeRonda[it.id] || 0) >= Math.max(1,Number(it.cantidad)));
+  const sinEscanear = isRunning ? esperado.filter((it) => (vistos[it.id] || 0) < Math.max(1,Number(it.cantidad))) : [];
   const faltantes = items.filter((it) => it.estado === "faltante" && !entregadoAdministracion(it));
   const yaEntregados = items.filter(entregadoAdministracion);
 
@@ -209,7 +209,7 @@ export default function ControlCamionetaUnificado({
     const code = raw.trim();
     const uuid = uuidEn(code);
     let matched: Item[] = [];
-    const ordered = esperado.filter((it) => !(vistos[it.id] > 0));
+    const ordered = esperado.filter((it) => (vistos[it.id] || 0) < Math.max(1,Number(it.cantidad)));
     // QR inequívoco de paquete / ítem: identifica exactamente esta unidad de carga.
     if (uuid) matched = ordered.filter((it) => it.id.toLowerCase() === uuid);
     if (matched.length) return matched;
@@ -368,13 +368,13 @@ export default function ControlCamionetaUnificado({
             <p className="text-xs text-muted-foreground">{it.producto || "Producto"}{it.variante ? " · " + it.variante : ""} · ×{Number(it.cantidad)}</p>
             <p className="text-[11px] text-muted-foreground">{o?.order_number ? "Pedido #" + o.order_number + " · " : ""}{sede}</p>
           </div>
-          {pendiente ? <Badge variant={faltaConfirmada ? "destructive" : "outline"}>{faltaConfirmada ? "No encontrado" : "Por controlar"}</Badge> :
+          {pendiente ? <Badge variant={faltaConfirmada ? "destructive" : "outline"}>{faltaConfirmada ? "Faltante" : "Por controlar"}</Badge> :
             <Badge variant="outline" className="border-green-500/40 text-green-400">Escaneado</Badge>}
         </div>
         {pendiente ? (
           faltaConfirmada ? (
             <div className="space-y-2">
-              <p className="text-xs font-medium">¿Ese pedido fue entregado?</p>
+              <p className="text-xs font-medium">¿Ese pedido fue entregado? {ultimosVistos[it.id] > 0 && "El último control encontró " + ultimosVistos[it.id] + " de " + Number(it.cantidad) + " unidades."}</p>
               {consulta && <p className="text-[11px] text-muted-foreground">Consulta {new Date(consulta.consultado_at).toLocaleDateString("es-AR")} · respuesta: {consulta.respuesta.replace(/_/g," ")}{consulta.gusto ? " · le gustó: " + consulta.gusto : ""}</p>}
               <div className="flex flex-wrap gap-2">
                 <Button size="sm" variant="outline" onClick={() => consultar(it)}>
@@ -399,11 +399,11 @@ export default function ControlCamionetaUnificado({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2">
-              <p className="text-xs text-muted-foreground flex-1">Todavía no se escaneó en esta ronda. No implica que se haya entregado.</p>
+              <p className="text-xs text-muted-foreground flex-1">{vistos[it.id] > 0 ? "Vistas " + vistos[it.id] + " de " + Number(it.cantidad) + " unidades; falta completar." : "Todavía no se escaneó en esta ronda. No implica que se haya entregado."}</p>
               {isRunning && <Button size="sm" variant="outline" onClick={() => {
                 if (!window.confirm("¿Verificaste físicamente este pedido en la camioneta?")) return;
                 if (Number(it.cantidad) > 1) {
-                  setCandidatos([it]); setCantidadManual((p) => ({ ...p, [it.id]: "1" })); return;
+                  setCandidatos([it]); setCantidadManual((p) => ({ ...p, [it.id]: String(Math.max(1,vistos[it.id] || 1)) })); return;
                 }
                 void marcarVisto(it,1);
               }}>Lo veo · registrar manualmente</Button>}
@@ -464,7 +464,7 @@ export default function ControlCamionetaUnificado({
               </div>
               <div className="space-y-2">
                 <h3 className="font-heading font-semibold uppercase text-sm">{isRunning ? "Pendientes de escaneo" : "No encontrados · revisar entrega"} ({sinEscanear.length + faltantes.length})</h3>
-                <p className="text-xs text-muted-foreground">Mientras controlás, lo no visto es solo pendiente de escaneo. Al finalizar, lo faltante queda para investigar; nunca se marca entregado automáticamente.</p>
+                <p className="text-xs text-muted-foreground">Mientras controlás, los no escaneados y las cantidades incompletas quedan pendientes. Al finalizar, lo faltante se investiga; nunca se marca entregado automáticamente.</p>
                 {filtro([...sinEscanear,...faltantes]).map((it) => tarjeta(it,true))}
                 {sinEscanear.length === 0 && faltantes.length === 0 && <p className="text-xs text-muted-foreground">No hay pedidos por investigar.</p>}
               </div>
