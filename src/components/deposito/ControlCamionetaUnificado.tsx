@@ -17,6 +17,7 @@ type Sede = { id: string; nombre: string };
 type Item = {
   id: string; carga_id: string; source_table: string; source_id: string;
   cliente_nombre: string; producto: string | null; variante: string | null;
+  alumno_id?: string | null;
   cantidad: number; estado: string; chequeado_at?: string | null;
 };
 type Orden = {
@@ -44,6 +45,7 @@ export default function ControlCamionetaUnificado({
   const [ordenes, setOrdenes] = useState<Record<string, Orden>>({});
   const [orderForItem, setOrderForItem] = useState<Record<string, string>>({});
   const [telExterno, setTelExterno] = useState<Record<string, string>>({});
+  const [telAlumno, setTelAlumno] = useState<Record<string, string>>({});
   const [rondas, setRondas] = useState<Record<string, string>>({});
   const [vistos, setVistos] = useState<Record<string, number>>({});
   const [ultimosVistos, setUltimosVistos] = useState<Record<string, number>>({});
@@ -131,6 +133,14 @@ export default function ControlCamionetaUnificado({
     const eMap: Record<string,string> = {};
     (ext.data || []).forEach((e: any) => { eMap[e.id] = e.cliente_telefono || ""; });
     setTelExterno(eMap);
+    // Cubre sustituciones, preventas y otras cargas con alumno asociado.
+    const alumnoExtraIds = Array.from(new Set(list.map((it) => it.alumno_id).filter(Boolean))) as string[];
+    if (alumnoExtraIds.length) {
+      const { data: al } = await supabase.from("alumnos").select("id,telefono").in("id",alumnoExtraIds);
+      const byId: Record<string,string> = {};
+      (al || []).forEach((a: any) => { byId[a.id] = a.telefono || ""; });
+      setTelAlumno(byId);
+    } else setTelAlumno({});
 
     const itemIds = list.map((it) => it.id);
     if (itemIds.length) {
@@ -305,7 +315,7 @@ export default function ControlCamionetaUnificado({
     setComentario(consultas[it.id]?.comentario || "");
   };
   const telefonoDe = (it: Item) =>
-    ordenes[orderForItem[it.id]]?.telefono || telExterno[it.source_id] || "";
+    ordenes[orderForItem[it.id]]?.telefono || telExterno[it.source_id] || (it.alumno_id && telAlumno[it.alumno_id]) || "";
 
   const copiarConsulta = async () => {
     try { await navigator.clipboard.writeText(mensaje); setAbiertoWa(true); toast.success("Texto copiado"); }
