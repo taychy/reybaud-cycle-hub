@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Bike, Check, ChevronDown, CreditCard, Flag, MapPin, Mountain, Play, Route, X } from "lucide-react";
+import { Bike, Check, ChevronDown, CupSoda, Flag, MapPin, Mountain, Play, Route, Shirt, ShoppingBag, X } from "lucide-react";
 import EventDriveVideo from "./EventDriveVideo";
 import type { PremiumLandingConfig } from "./EventPremiumLanding";
 import type { ReglamentoFields } from "@/lib/eventReglamentoDefaults";
@@ -67,6 +67,7 @@ export default function AlpineEditorialLanding({
     ["recorrido", "Recorrido"],
     ["bicicletas", "Bicicletas"],
     ["que-incluye", "Qué incluye"],
+    ...(config.kit?.items?.length ? [["kit", "Kit"]] : []),
     ["preparacion", "Preparación"],
     ["precio", "Precio"],
     ["condiciones", "Condiciones"],
@@ -229,18 +230,51 @@ export default function AlpineEditorialLanding({
         </section>
       )}
 
+
+      {!!config.kit?.items?.length && (
+        <section id="kit" className="scroll-mt-16 space-y-4 pt-12">
+          <div>
+            <h2 className={titleClass}>{config.kit.title || "Kit del Conquistador"}</h2>
+            <p className="mt-2 text-sm text-zinc-400">Tu equipamiento oficial para el viaje.</p>
+          </div>
+          <div className="grid grid-cols-3 gap-3">
+            {([
+              { name: "Jersey", Icon: Shirt },
+              { name: "Bolso", Icon: ShoppingBag },
+              { name: "Caramañola", Icon: CupSoda },
+            ] as const).map(({ name, Icon }) => (
+              <div key={name} className="flex min-h-28 flex-col items-center justify-center gap-3 rounded-xl border border-white/10 bg-[#1c1c1e] px-2 py-4 text-center sm:min-h-36">
+                <Icon className="h-8 w-8 text-[#ff5754] sm:h-10 sm:w-10" strokeWidth={1.7} aria-hidden="true" />
+                <span className="font-heading text-sm font-bold uppercase tracking-wide text-white sm:text-base">{name}</span>
+              </div>
+            ))}
+          </div>
+          {config.kit.note && (
+            <p className="text-xs leading-relaxed text-zinc-400">{config.kit.note}</p>
+          )}
+        </section>
+      )}
+
       {config.preparation && (
         <section id="preparacion" className="scroll-mt-16 pt-10">
-          <div className="space-y-3 rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 sm:p-7">
+          <div className="rounded-2xl border border-[#e73531]/25 bg-gradient-to-b from-[#2a171b] to-[#1c1c1e] p-5 sm:p-7">
             <p className="text-xs font-semibold uppercase tracking-[.14em] text-[#ff5754]">Preparación específica Reybaud</p>
-            <p className="font-heading text-2xl font-black uppercase leading-tight sm:text-3xl">{config.preparation.quote}</p>
+            <p className="mt-3 font-heading text-2xl font-black uppercase leading-tight text-white sm:text-3xl">{config.preparation.quote}</p>
+            {config.preparation.body && (
+              <details className="group mt-5">
+                <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 rounded-lg border border-[#e73531] px-4 py-3 text-sm font-semibold text-white transition-colors hover:bg-[#e73531]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ff5754] [&::-webkit-details-marker]:hidden">
+                  <span>Cómo nos preparamos</span>
+                  <ChevronDown className="h-5 w-5 shrink-0 text-[#ff5754] transition-transform group-open:rotate-180" aria-hidden="true" />
+                </summary>
+                <p className="mt-3 whitespace-pre-line text-sm leading-relaxed text-zinc-300">{config.preparation.body}</p>
+              </details>
+            )}
+            {config.individual_prep && (
+              <p className="mt-4 text-xs leading-relaxed text-zinc-300">
+                Preparación individual opcional disponible como servicio adicional, con costo aparte.
+              </p>
+            )}
           </div>
-          {config.preparation.body && (
-            <details className="group mt-3 rounded-xl px-1 text-sm text-zinc-400">
-              <summary className="cursor-pointer py-2 font-medium text-zinc-300">Cómo nos preparamos <ChevronDown className="inline h-4 w-4 transition-transform group-open:rotate-180" /></summary>
-              <p className="pb-2 leading-relaxed">{config.preparation.body}</p>
-            </details>
-          )}
         </section>
       )}
 
