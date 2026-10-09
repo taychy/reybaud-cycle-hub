@@ -79,7 +79,8 @@ BEGIN
   END IF;
 
   IF NEW.estado IN ('listo_retiro','entregado') AND
-       OLD.estado IS DISTINCT FROM NEW.estado THEN
+       OLD.estado IS DISTINCT FROM NEW.estado AND
+       NOT (OLD.estado='devolucion_solicitada' AND NEW.estado='entregado') THEN
     IF NEW.tipo = 'cambio' AND NEW.recibido_en IS NULL THEN
       RAISE EXCEPTION 'Falta recibir la prenda original';
     END IF;
@@ -210,9 +211,68 @@ CREATE OR REPLACE FUNCTION public.deposito_definir_reemplazo(
  p_cambio_id uuid, p_metodo public.cambio_metodo, p_producto_id uuid,
  p_variante jsonb, p_marcar_listo boolean)
 RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE c public.store_cambios%ROWTYPE;
 BEGIN
-  IF NOT p_marcar_listo THEN RAISE EXCEPTION 'Usá Preparar reemplazo para registrar la operación física'; END IF;
-  PERFORM public.deposito_preparar_reemplazo(p_cambio_id,p_metodo,p_producto_id,p_variante);
+  IF p_marcar_listo THEN
+    PERFORM public.deposito_preparar_reemplazo(p_cambio_id,p_metodo,p_producto_id,p_variante);
+    RETURN;
+  END IF;
+  IF auth.uid() IS NULL OR NOT (
+    public.has_role(auth.uid(),'admin'::app_role)
+    OR public.has_role(auth.uid(),'deposito'::app_role)) THEN
+    RAISE EXCEPTION 'No autorizado';
+  END IF;
+  SELECT * INTO c FROM public.store_cambios WHERE id=p_cambio_id FOR UPDATE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Cambio no encontrado'; END IF;
+  IF c.estado NOT IN ('aprobado','en_deposito') OR c.reemplazo_estado IN ('enviado','entregado')
+     OR c.preparado_at IS NOT NULL THEN RAISE EXCEPTION 'El reemplazo ya está preparado o el cambio no está aprobado'; END IF;
+  UPDATE public.store_cambios SET
+    producto_reemplazo_id=CASE WHEN p_producto_id<>producto_id THEN p_producto_id ELSE NULL END,
+    variante_destino=p_variante,
+    metodo_entrega_reemplazo=p_metodo,
+    reemplazo_estado='pendiente_envio',
+    historial=COALESCE(historial,'[]'::jsonb)||jsonb_build_array(jsonb_build_object(
+      'evento','reemplazo_definido','at',now(),'by',auth.uid(),
+      'nota','Sólo definido; aún no se separó ningún producto ni se modificó stock'))
+  WHERE id=p_cambio_id;
+END;
+$$;
+
+-- El cambio presencial certifica el ingreso físico y reutiliza las dos operaciones seguras.
+-- Un INSERT en estado en_deposito no ejecutaba el trigger de inventario: se corrige esa asimetría.
+CREATE OR REPLACE FUNCTION public.deposito_registrar_cambio_presencial(
+ p_order_id uuid,p_alumno_id uuid,p_metodo public.cambio_metodo,
+ p_qr_devuelto_pid uuid,p_qr_devuelto_variante jsonb,p_motivo public.cambio_motivo,
+ p_comentario text,p_entregar_reemplazo boolean,p_qr_recibido_pid uuid,p_qr_recibido_variante jsonb)
+RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO 'public' AS $$
+DECLARE v_uid uuid:=auth.uid(); v_alumno uuid:=p_alumno_id; v_id uuid;
+BEGIN
+  IF v_uid IS NULL OR NOT (public.has_role(v_uid,'admin'::app_role)
+                          OR public.has_role(v_uid,'deposito'::app_role)) THEN
+    RAISE EXCEPTION 'No autorizado';
+  END IF;
+  IF p_qr_devuelto_pid IS NULL THEN RAISE EXCEPTION 'Falta la prenda devuelta'; END IF;
+  IF p_entregar_reemplazo AND p_qr_recibido_pid IS NULL THEN
+    RAISE EXCEPTION 'Falta la prenda de reemplazo';
+  END IF;
+  IF v_alumno IS NULL AND p_order_id IS NOT NULL THEN
+    SELECT alumno_id INTO v_alumno FROM public.store_orders WHERE id=p_order_id;
+  END IF;
+  INSERT INTO public.store_cambios (
+    alumno_id,producto_id,origen_tipo,compra_id,order_id,
+    variante_origen,variante_destino,producto_reemplazo_id,
+    motivo,comentario,iniciado_por,origen_solicitud,estado
+  ) VALUES (
+    v_alumno,p_qr_devuelto_pid,'compra',p_order_id,p_order_id,
+    COALESCE(p_qr_devuelto_variante,'{}'::jsonb),p_qr_recibido_variante,
+    CASE WHEN p_qr_recibido_pid<>p_qr_devuelto_pid THEN p_qr_recibido_pid ELSE NULL END,
+    p_motivo,p_comentario,'admin','presencial','aprobado'
+  ) RETURNING id INTO v_id;
+  PERFORM public.deposito_recibir_devolucion(v_id,p_metodo,p_qr_devuelto_pid,p_qr_devuelto_variante);
+  IF p_entregar_reemplazo THEN
+    PERFORM public.deposito_preparar_reemplazo(v_id,p_metodo,p_qr_recibido_pid,p_qr_recibido_variante);
+  END IF;
+  RETURN v_id;
 END;
 $$;
 
