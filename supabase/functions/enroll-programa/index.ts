@@ -266,7 +266,7 @@ Deno.serve(async (req) => {
     if (benefitToken) {
       const { data: b } = await admin
         .from("program_preinscripcion_benefits")
-        .select("id, plan_id, activo, used_at, valid_until, precio_total, precio_cuota, cuotas_cantidad")
+        .select("id, plan_id, activo, used_at, valid_until, precio_total, precio_cuota, cuotas_cantidad, suscripcion_id")
         .eq("token", benefitToken)
         .maybeSingle();
       const hoyAR = new Date(Date.now() - 3 * 3600 * 1000).toISOString().slice(0, 10);
