@@ -39,6 +39,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import { logEventResultSubmission } from "@/lib/logEventResultSubmission";
 import { resolveEventHero } from "@/lib/eventHero";
 import EventHeroMedia from "@/components/event/EventHeroMedia";
+import AlpineEditorialHero from "@/components/event/AlpineEditorialHero";
 import EventPremiumLanding, { getPremiumLanding } from "@/components/event/EventPremiumLanding";
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
@@ -480,6 +481,7 @@ const EventDetail = () => {
   // Borrador: solo visible para admins (RLS). Vista previa privada sin reservas ni cobros.
   const isDraftPreview = event.estado_publicacion === "borrador";
   const premiumLanding = getPremiumLanding(event.metadata);
+  const editorialAlpine = premiumLanding?.layout_variant === "editorial_alpine";
   const premiumDates = premiumDateSummary(event);
   const premiumPrice = getEventPriceDisplay({ ...event, currency: packagesCurrency || event.currency, packages_min_price: packagesMinPrice });
   const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview;
@@ -495,7 +497,20 @@ const EventDetail = () => {
     <div className={`min-h-screen bg-background flex flex-col ${premiumLanding ? "alpine-event" : ""}`}>
       {/* Hero Image */}
       <div className="relative">
-        <EventHeroMedia hero={hero} title={event.title} />
+        {editorialAlpine ? (
+          <AlpineEditorialHero
+            title={premiumLanding?.headline || event.title}
+            subtitle={premiumLanding?.subheadline?.split("—")[0]?.trim() || "Italia · Suiza · Austria"}
+            dateLabel={premiumDates.label}
+            days={event.duration_days}
+            nights={event.duration_nights}
+            price={premiumPrice.price}
+            currency={premiumPrice.currency}
+            capacity={event.max_capacity}
+          />
+        ) : (
+          <EventHeroMedia hero={hero} title={event.title} />
+        )}
         <Button
           type="button"
           variant="ghost"
@@ -526,17 +541,25 @@ const EventDetail = () => {
         >
           <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
         </Button>
+        {!editorialAlpine && (
         <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
           <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${premiumLanding ? "bg-background/80 text-foreground border-primary" : typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
         </div>
+        )}
       </div>
 
 
-      <main className="flex-1 px-4 pb-24 -mt-2">
+      <main className={"flex-1 px-4 " + (editorialAlpine ? "pb-44" : "pb-24 -mt-2")}>
         <div className={`w-full mx-auto space-y-4 animate-fade-in ${premiumLanding ? "max-w-md md:max-w-5xl" : "max-w-md md:max-w-2xl"}`}>
 
+          {editorialAlpine && isDraftPreview && (
+            <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
+              Vista previa privada (borrador) — solo administradores. Reservas y cobros desactivados.
+            </div>
+          )}
+          {!editorialAlpine && (
           {/* Title & Date */}
           <div className="space-y-3">
             {isDraftPreview && (
@@ -604,6 +627,8 @@ const EventDetail = () => {
               </div>
             )}
           </div>
+
+          )}
 
           {/* ═══════════════════════════════════════════════════════════ */}
           {/* PRIORITY: Active reservation → show status card FIRST      */}
@@ -803,7 +828,8 @@ const EventDetail = () => {
                 <EventPackagesDrawer
                 eventId={id}
                 premium
-                onReserve={
+                triggerClassName={editorialAlpine ? "h-12 w-full rounded-xl border-0 bg-[#e73531] font-semibold text-white hover:bg-[#d72e29] hover:text-white" : undefined}
+                onReserve=
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? () => {
                         if (!alumno) {
@@ -1309,6 +1335,21 @@ const EventDetail = () => {
         </div>
       </main>
 
+      {editorialAlpine && !isActiveReservation && (
+        <div className="fixed inset-x-0 bottom-[63px] z-20 border-t border-white/10 bg-[#121213]/95 px-4 py-3 backdrop-blur-md">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
+            {premiumPrice.price != null && (
+              <p className="flex flex-col leading-none">
+                <span className="mb-1 text-[11px] text-zinc-400">Desde</span>
+                <span className="font-heading text-2xl font-black text-white">{formatPrice(premiumPrice.price, premiumPrice.currency)}</span>
+              </p>
+            )}
+            <a href="#precio" className="inline-flex min-h-11 min-w-[165px] items-center justify-center rounded-xl bg-[#e73531] px-5 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+              Ver paquetes
+            </a>
+          </div>
+        </div>
+      )}
       <BottomNav activeTab="eventos" />
 
       {/* Reservation Drawer */}
