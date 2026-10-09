@@ -559,8 +559,8 @@ const EventDetail = () => {
               Vista previa privada (borrador) — solo administradores. Reservas y cobros desactivados.
             </div>
           )}
-          {!editorialAlpine && (
           {/* Title & Date */}
+          {!editorialAlpine && (
           <div className="space-y-3">
             {isDraftPreview && (
               <div className="rounded-lg border border-primary/40 bg-primary/10 px-3 py-2 text-xs text-foreground">
