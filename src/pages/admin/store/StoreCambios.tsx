@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
+import AddPruebaDialog from "@/components/store/AddPruebaDialog";
 import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
 import { esSustitucionFaltaStock, RESOLUCION_LABEL, type ResolucionEconomica } from "@/lib/faltaStock";
 
@@ -23,13 +24,15 @@ const AdminCambios = () => {
   const [tab, setTab] = useState<"nuevos" | "seguimiento" | "pruebas" | "cerrados">("nuevos");
   const [selected, setSelected] = useState<Cambio | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [pruebaOpen, setPruebaOpen] = useState(false);
+  const [pruebaBusy,setPruebaBusy]=useState(false);
   const { toast } = useToast();
 
   const load = async () => {
     setLoading(true);
     const { data } = await supabase
       .from("store_cambios" as any)
-      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido, email)")
+      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), reemplazo:store_products!store_cambios_producto_reemplazo_id_fkey(name), venta:store_orders!store_cambios_order_id_fkey(order_number), alumnos(nombre, apellido, email)")
       .order("created_at", { ascending: false });
     setItems((data as any[]) || []);
     setLoading(false);
@@ -69,6 +72,16 @@ const AdminCambios = () => {
     if (selected?.id === id) setSelected({ ...selected, estado: nuevo });
   };
 
+  const devolverPrueba = async (id:string) => {
+    setPruebaBusy(true);
+    const {error}=await supabase.rpc("prueba_devolver" as any,{p_cambio_id:id,p_nota:null});
+    setPruebaBusy(false);
+    if(error){toast({title:"No se pudo recibir la prueba",description:error.message,variant:"destructive"});return;}
+    toast({title:"Prenda de prueba recibida",description:"Ingresó nuevamente al stock."});
+    setSelected(null);
+    load();
+  };
+
   const renderList = (list: Cambio[]) => {
     if (loading) return <div className="py-8 flex justify-center"><Loader2 className="w-5 h-5 animate-spin" /></div>;
     if (list.length === 0) return <p className="text-center text-sm text-muted-foreground py-8">Sin solicitudes</p>;
@@ -93,6 +106,8 @@ const AdminCambios = () => {
                     {new Date(c.created_at).toLocaleDateString("es-AR")} · motivo: {c.motivo}
                     {c.iniciado_por === "admin" && <span className="text-amber-400 ml-1">· admin</span>}
                     {c.origen_solicitud === "presencial" && <span className="text-cyan ml-1">· presencial</span>}
+                    {c.venta?.order_number && <span className="ml-1">· venta #{c.venta.order_number}</span>}
+                    {c.tipo==="prueba" && <span className="ml-1">{c.order_id?"· con venta":"· directo al alumno"}</span>}
                     {c.reemplazo_estado && c.reemplazo_estado !== "sin_definir" && (
                       <span className="ml-1">· reemplazo: {c.reemplazo_estado}</span>
                     )}
@@ -104,7 +119,7 @@ const AdminCambios = () => {
                   </p>
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>
+                  {!esPrueba(c) && <Badge className={`text-[10px] uppercase ${estadoCambioClass(c.estado)}`}>{estadoCambioLabel(c.estado)}</Badge>}
                   {esSustitucionFaltaStock(c) && (
                     <Badge variant="outline" className="text-[9px] border-amber-500/40 text-amber-400">
                       Falta de stock · {RESOLUCION_LABEL[c.resolucion_economica as ResolucionEconomica] || "sin ajuste"}
@@ -132,7 +147,7 @@ const AdminCambios = () => {
           <p className="text-sm text-muted-foreground">Gestioná solicitudes de cambio y devoluciones.</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Crear en nombre del alumno
+          <Plus className="w-4 h-4 mr-2" /> Crear cambio desde venta
         </Button>
       </div>
 
@@ -166,10 +181,16 @@ const AdminCambios = () => {
         </TabsList>
         <TabsContent value="nuevos" className="mt-3">{renderList(buckets.nuevos)}</TabsContent>
         <TabsContent value="seguimiento" className="mt-3">{renderList(buckets.seguimiento)}</TabsContent>
-        <TabsContent value="pruebas" className="mt-3 space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            Prendas enviadas a prueba: no son venta ni cambio. Se gestionan desde el detalle del pedido.
-          </p>
+        <TabsContent value="pruebas" className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-3 justify-between items-center">
+            <p className="text-[11px] text-muted-foreground max-w-lg">
+              Las prendas pueden enviarse a prueba junto con una venta o directamente a un alumno.
+              La prueba no es una venta y su stock se controla por separado.
+            </p>
+            <Button size="sm" onClick={() => setPruebaOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Enviar prenda a prueba
+            </Button>
+          </div>
           {renderList(buckets.pruebas)}
         </TabsContent>
         <TabsContent value="cerrados" className="mt-3">{renderList(buckets.cerrados)}</TabsContent>
@@ -186,7 +207,7 @@ const AdminCambios = () => {
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle>Cambio #{selected.id.slice(0, 8)}</SheetTitle>
+                <SheetTitle>{esPrueba(selected)?"Prenda de prueba":"Cambio"} #{selected.id.slice(0,8)}</SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4 text-sm">
                 <div>
@@ -197,22 +218,37 @@ const AdminCambios = () => {
                 <div>
                   <p className="text-xs text-muted-foreground">Producto</p>
                   <p className="font-semibold">{selected.producto?.name}</p>
+                  {esPrueba(selected)&&<p className="text-xs text-muted-foreground mt-1">
+                    {selected.order_id?"Prueba vinculada a una venta":"Prueba vinculada directamente al alumno"}
+                  </p>}
                 </div>
+                {!esPrueba(selected) && (selected.venta?.order_number||selected.preorder_id) && (
+                  <div className="rounded-lg border border-border p-3 space-y-1 text-xs">
+                    <p className="uppercase text-muted-foreground text-[11px]">Venta que originó el cambio</p>
+                    <p className="font-semibold">
+                      {selected.venta?.order_number?"Pedido #"+selected.venta.order_number:"Preventa asociada"}
+                    </p>
+                    <p>Compró: {selected.producto?.name}</p>
+                    <p>Recibirá: {selected.reemplazo?.name||selected.producto?.name}</p>
+                    {Number(selected.diferencia_precio)>0 &&
+                      <p className="text-amber-400">Diferencia de precio pendiente de revisión: {selected.moneda||"ARS"} {Number(selected.diferencia_precio).toLocaleString("es-AR")}. No se cobra automáticamente.</p>}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Variante original</p>
+                    <p className="text-xs text-muted-foreground">{esPrueba(selected)?"Prenda prestada":"Variante original de venta"}</p>
                     <p>{Object.entries(selected.variante_origen || {}).map(([k, v]) => `${k}: ${v}`).join(" · ") || "—"}</p>
                   </div>
-                  <div>
+                  {!esPrueba(selected)&&<div>
                     <p className="text-xs text-muted-foreground">Variante destino</p>
-                    <p>{selected.variante_destino ? Object.entries(selected.variante_destino).map(([k, v]) => `${k}: ${v}`).join(" · ") : <span className="text-amber-400">Sin stock / devolución</span>}</p>
-                  </div>
+                    <p>{selected.variante_destino ? Object.entries(selected.variante_destino).map(([k, v]) => `${k}: ${v}`).join(" · ") : <span className="text-amber-400">Sin destino definido</span>}</p>
+                  </div>}
                 </div>
-                <div>
+                {!esPrueba(selected) && <div>
                   <p className="text-xs text-muted-foreground">Motivo</p>
                   <p>{selected.motivo}{selected.comentario && <> — "{selected.comentario}"</>}</p>
-                </div>
-                {selected.iniciado_por === "admin" && (
+                </div>}
+                {selected.iniciado_por === "admin" && !esPrueba(selected) && (
                   <div className="rounded border border-amber-400/30 bg-amber-500/5 p-2 text-xs">
                     <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-400" />
                     Iniciado por admin. Motivo: {selected.motivo_admin}
@@ -245,7 +281,23 @@ const AdminCambios = () => {
 
                 <div className="space-y-2 pt-3 border-t border-border">
                   <p className="text-xs text-muted-foreground">Acciones</p>
-                  {selected.estado === "solicitado" && (
+                  {esPruebaActiva(selected) && (
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <p className="text-xs">
+                        La prenda sigue con el alumno. Si vuelve al depósito, registrá su recepción.
+                      </p>
+                      <Button size="sm" variant="outline" disabled={pruebaBusy}
+                        onClick={() => {
+                          if(window.confirm("¿Recibiste físicamente la prenda de prueba? Reingresará al stock.")) {
+                            void devolverPrueba(selected.id);
+                          }
+                        }}>Recibir devolución de prueba</Button>
+                      {!selected.order_id&&<p className="text-[11px] text-muted-foreground">
+                        Si el alumno decide quedársela, deberá generarse una venta y vincularla antes de convertir la prueba.
+                      </p>}
+                    </div>
+                  )}
+                  {!esPrueba(selected) && selected.estado === "solicitado" && (
                     <div className="grid grid-cols-2 gap-2">
                       <Button size="sm" onClick={() => transition(selected.id, "aprobado")}>
                         <CheckCircle2 className="w-4 h-4 mr-1" /> Aprobar
@@ -255,13 +307,13 @@ const AdminCambios = () => {
                       </Button>
                     </div>
                   )}
-                  {selected.estado === "aprobado" && (
+                  {!esPrueba(selected) && selected.estado === "aprobado" && (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
                       Cambio aprobado. Ya está pendiente de recepción y/o preparación en <b>Ventas → Pedidos</b>.
                       Aprobar no confirma el ingreso físico de ninguna prenda.
                     </div>
                   )}
-                  {selected.estado === "listo_retiro"
+                  {!esPrueba(selected) && selected.estado === "listo_retiro"
                     && (esSustitucionFaltaStock(selected) || !!selected.recibido_en)
                     && (selected.reemplazo_estado === "enviado" || selected.reemplazo_estado === "entregado" || !!selected.preparado_at)
                     && (
@@ -269,7 +321,7 @@ const AdminCambios = () => {
                         <Truck className="w-4 h-4 mr-1" /> Confirmar entrega física
                       </Button>
                   )}
-                  {selected.estado === "devolucion_solicitada" && (
+                  {!esPrueba(selected) && selected.estado === "devolucion_solicitada" && (
                     <div className="grid grid-cols-2 gap-2">
                       <Button size="sm" onClick={() => transition(selected.id, "entregado", "Devolución resuelta con saldo a favor")}>
                         Resolver devolución
@@ -287,6 +339,7 @@ const AdminCambios = () => {
       </Sheet>
 
       <AdminCreateCambioDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={load} />
+      <AddPruebaDialog open={pruebaOpen} onOpenChange={setPruebaOpen} onCreated={load} />
     </div>
   );
 };
