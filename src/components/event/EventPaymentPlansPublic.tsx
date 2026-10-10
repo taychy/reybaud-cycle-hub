@@ -226,8 +226,8 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
                   </span>
                   {pkg.nextStage && (
                     <span className="mt-0.5 flex items-center gap-1 text-[11px] text-primary tabular-nums">
-                      <TrendingUp className="w-3 h-3" />
-                      {formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}{" "}
+                      <TrendingUp className="w-3 h-3" aria-hidden />
+                      Sube a {formatPrice(pkg.nextStage.precio, pkg.nextStage.currency)}{" "}
                       {formatCountdown(pkg.nextStage.vigente_desde)}
                     </span>
                   )}
