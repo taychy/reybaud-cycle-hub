@@ -126,7 +126,7 @@ const DetalleStockDialog = ({ product, onOpenChange }: Props) => {
                   <TableBody>
                     {Object.entries(inventory).sort(([a],[b]) => a.localeCompare(b, "es")).map(([v, n]) => (
                       <TableRow key={v}>
-                        <TableCell className="text-xs">{v.replace(/\\|/g, " · ")}</TableCell>
+                        <TableCell className="text-xs">{v.split("|").join(" · ")}</TableCell>
                         <TableCell className="text-right tabular-nums font-semibold">{formatQuantity(n)}</TableCell>
                       </TableRow>
                     ))}
