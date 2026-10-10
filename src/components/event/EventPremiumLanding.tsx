@@ -38,6 +38,29 @@ export function getPremiumLanding(metadata: any): PremiumLandingConfig | null {
   return c && typeof c === "object" ? (c as PremiumLandingConfig) : null;
 }
 
+/**
+ * CTA secundario de consulta por WhatsApp del viaje.
+ * Solo se renderiza si `premium_landing.whatsapp` está configurado en metadata;
+ * no reemplaza al CTA principal de paquetes/reserva.
+ */
+export function LandingWhatsAppCta({ whatsapp, variant = "default" }: { whatsapp?: PremiumLandingConfig["whatsapp"]; variant?: "default" | "editorial" }) {
+  if (!whatsapp) return null;
+  const href = buildWhatsAppUrl(
+    whatsapp.message || "Hola, quiero recibir más información sobre el viaje.",
+    whatsapp.number,
+  );
+  const cls = variant === "editorial"
+    ? "inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/20 bg-[#1c1c1e] px-5 font-heading text-sm font-bold uppercase tracking-wider text-white transition-colors hover:border-[#e73531]/70 hover:bg-[#e73531]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e73531]"
+    : "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 font-heading text-xs uppercase tracking-wide text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary";
+  const iconCls = variant === "editorial" ? "h-5 w-5 text-[#ff5754]" : "h-4 w-4 text-primary";
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+      <MessageCircle className={iconCls} aria-hidden="true" />
+      Hablar con Reybaud por WhatsApp
+    </a>
+  );
+}
+
 const accent = "text-[hsl(var(--alpine-red))]";
 
 function untilLabel(iso: string | null) {
@@ -297,6 +320,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
           </div>
           {base.sena ? <p className="text-xs text-muted-foreground">Seña: {formatPrice(base.sena, base.currency)} por persona. Saldo en cuotas.</p> : null}
           {packagesCta && <div className="pt-2">{packagesCta}</div>}
+          <LandingWhatsAppCta whatsapp={config.whatsapp} />
         </section>
       )}
 
