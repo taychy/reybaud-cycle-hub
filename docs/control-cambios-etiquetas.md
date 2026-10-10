@@ -1,1 +1,0 @@
-Control de cambios: la etiqueta de paquete debe emitirse cuando se prepara el reemplazo, sin exigir devolución.
