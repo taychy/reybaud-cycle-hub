@@ -84,14 +84,23 @@ const AdminCreateCambioDialog = ({open,onOpenChange,onCreated}: Props) => {
             .not("alumno_id","is",null)
             .order("created_at",{ascending:false}).limit(350)
         : await supabase.from("store_preorders")
-            .select("id,alumno_id,producto_nombre,product_id,variante,precio_unitario,estado,created_at,alumnos(nombre,apellido)")
+            .select("id,alumno_id,producto_nombre,product_id,variante,precio_unitario,estado,created_at")
             .in("estado",["entregada","lista_para_retirar"])
             .not("alumno_id","is",null)
             .order("created_at",{ascending:false}).limit(350);
       if(!current)return;
       if(res.error) toast({title:"No se pudieron consultar las ventas",description:res.error.message,variant:"destructive"});
-      setVentas((res.data as any[]) || []);
-      setLoading(false);
+      let rows=(res.data as any[])||[];
+      // En preventas no existe FK declarada a alumnos: consultar los nombres sin
+      // forzar un join PostgREST que rompería el selector con un error 400.
+      if(origen==="preorder"&&rows.length){
+        const ids=Array.from(new Set(rows.map(x=>x.alumno_id).filter(Boolean))) as string[];
+        const {data:customers}=await supabase.from("alumnos").select("id,nombre,apellido").in("id",ids);
+        const names=new Map((customers||[]).map(x=>[x.id,x]));
+        rows=rows.map(x=>({...x,alumnos:names.get(x.alumno_id)||null}));
+      }
+      if(current)setVentas(rows);
+      if(current)setLoading(false);
     })();
     return ()=>{current=false;};
   },[open,origen]);
