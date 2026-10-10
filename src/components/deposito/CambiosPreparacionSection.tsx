@@ -337,6 +337,11 @@ const CambiosPreparacionSection = () => {
                         <Package className="w-4 h-4 mr-1" /> Preparar reemplazo
                       </Button>
                     )}
+                    {!preparado && !!c.variante_destino && Object.keys(c.variante_destino).length > 0 && (
+                      <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
+                        <Tag className="w-4 h-4 mr-1" /> Generar etiqueta QR
+                      </Button>
+                    )}
                     {preparado && <>
                       <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
                         <Tag className="w-4 h-4 mr-1" /> Imprimir etiqueta QR
@@ -418,6 +423,8 @@ const CambiosPreparacionSection = () => {
       {defineFor && (
         <ScanCambioDialog
           mode="replacement"
+          cambioId={defineFor.id}
+          onPrintLabel={() => { setLabelFor(defineFor); setDefineFor(null); }}
           open={!!defineFor}
           onOpenChange={(v) => !v && setDefineFor(null)}
           title={`Preparar reemplazo · ${defineFor.producto?.name || ""}`}
