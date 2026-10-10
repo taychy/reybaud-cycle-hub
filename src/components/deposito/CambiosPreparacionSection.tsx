@@ -17,6 +17,9 @@ const estadoTexto = (c: Cambio) => {
   const sust = esSustitucionFaltaStock(c);
   const devuelta = sust || Boolean(c.recibido_en);
   const preparado = Boolean(c.preparado_at) || ["enviado", "entregado"].includes(c.reemplazo_estado || "");
+  if (c.reemplazo_entregado_at && !devuelta) return "Reemplazo entregado · falta devolución";
+  if (c.reemplazo_entregado_at && devuelta) return "Cambio completado";
+  if (c.reemplazo_canal_entrega === "moto" && c.reemplazo_despachado_at) return "Reemplazo enviado por moto" + (!devuelta ? " · falta devolución" : "");
   if (c.estado === "entregado") return "Entregado";
   if (preparado && !devuelta) return "Reemplazo separado · falta devolución";
   if (devuelta && !preparado) return "Devolución recibida · falta preparar";
@@ -164,6 +167,14 @@ const CambiosPreparacionSection = () => {
       return;
     }
 
+    if (cambio.reemplazo_canal_entrega === "moto" && cambio.reemplazo_despachado_at) {
+      toast({title:"Este reemplazo ya fue enviado por moto",variant:"destructive"});
+      return;
+    }
+    if (cambio.reemplazo_entregado_at) {
+      toast({title:"El reemplazo ya se entregó",variant:"destructive"});
+      return;
+    }
     if (!cambio.preparado_at && !["enviado","entregado"].includes(cambio.reemplazo_estado || "")) {
       toast({ title: "Primero prepará el reemplazo", variant: "destructive" });
       return;
@@ -233,27 +244,42 @@ const CambiosPreparacionSection = () => {
     });
   };
 
-  const marcarEntregado = async (id: string) => {
-    setBusy(id);
-    const { error } = await supabase.rpc("transition_cambio_estado" as any, {
-      p_id: id,
-      p_nuevo_estado: "entregado",
-      p_nota: "Entregado desde la bandeja unificada de Pedidos",
+  /** Moto: despacho registrado sin afirmar que el alumno lo recibió. */
+  const enviarPorMoto = async (cambio: Cambio) => {
+    if (!window.confirm("¿Confirmás que entregaste el reemplazo al servicio de moto? Esto NO lo marca recibido por el alumno.")) return;
+    setBusy("moto:"+cambio.id);
+    const { error } = await supabase.rpc("registrar_envio_moto_reemplazo" as any, {
+      p_cambio_id: cambio.id,
+      p_nota: "Despacho de reemplazo por moto registrado en depósito",
     });
-    if (!error) {
-      await (supabase as any)
-        .from("vehiculo_carga_items")
-        .update({ estado: "entregado", entregado_at: new Date().toISOString() })
-        .eq("source_table", "store_cambios")
-        .eq("source_id", id)
-        .eq("estado", "cargado");
-    }
     setBusy(null);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
+    if(error) {
+      toast({title:"No se pudo registrar el envío por moto",description:error.message,variant:"destructive"});
       return;
     }
-    toast({ title: "Cambio entregado" });
+    toast({title:"Reemplazo enviado por moto",description:"Aguardando confirmación de entrega. La devolución sigue pendiente si todavía no la recibimos."});
+    await load();
+  };
+
+  /** Una entrega física no es el cierre del cambio hasta recibir la prenda original. */
+  const confirmarEntrega = async (cambio: Cambio, canal: "mano"|"moto"|"camioneta") => {
+    const detalle=canal==="moto"?"por moto":canal==="camioneta"?"desde la camioneta":"en mano";
+    if(!window.confirm(`¿Confirmás que el alumno recibió físicamente el reemplazo ${detalle}? Si todavía no devolvió la prenda original, el cambio seguirá abierto.`)) return;
+    setBusy("entregar:"+cambio.id);
+    const { data, error } = await supabase.rpc("confirmar_entrega_reemplazo" as any, {
+      p_cambio_id: cambio.id,
+      p_canal: canal,
+      p_nota: "Entrega del reemplazo confirmada por depósito",
+    });
+    setBusy(null);
+    if(error) {
+      toast({title:"No se pudo confirmar la entrega",description:error.message,variant:"destructive"});
+      return;
+    }
+    const pendiente = (data as any)?.devolucion_pendiente;
+    toast({title:"Reemplazo entregado",description:pendiente
+      ?"La devolución del alumno sigue PENDIENTE. El cambio continúa abierto."
+      :"Ambas partes están resueltas. Cambio cerrado."});
     await load();
   };
 
@@ -286,6 +312,10 @@ const CambiosPreparacionSection = () => {
             const devuelta = sust || Boolean(c.recibido_en);
             const preparado = Boolean(c.preparado_at) || ["enviado","entregado"].includes(c.reemplazo_estado || "");
             const listo = devuelta && preparado;
+            const reemplazoEntregado = !!c.reemplazo_entregado_at;
+            const enviadoMoto = c.reemplazo_canal_entrega === "moto" && !!c.reemplazo_despachado_at;
+            const enCamioneta = cambiosEnCamioneta.has(c.id);
+            const canalEntrega: "camioneta"|"moto"|"mano" = enCamioneta ? "camioneta" : enviadoMoto ? "moto" : "mano";
             const orderId = c.order_id || c.compra_id;
             const order = orderId ? orders[orderId] : null;
             const replacementName = c.producto_reemplazo_id ? products[c.producto_reemplazo_id] : null;
@@ -320,7 +350,7 @@ const CambiosPreparacionSection = () => {
                         {sust ? "Sin devolución" : devuelta ? "Devolución recibida" : "Devolución pendiente"}
                       </Badge>
                       <Badge variant="outline" className={preparado ? "border-green-500/40 text-green-400" : "border-amber-500/40 text-amber-400"}>
-                        {preparado ? "Reemplazo preparado" : "Reemplazo pendiente"}
+                        {reemplazoEntregado ? "Reemplazo entregado" : enviadoMoto ? "Enviado por moto" : enCamioneta ? "En camioneta" : preparado ? "Reemplazo preparado" : "Reemplazo pendiente"}
                       </Badge>
                       {!devuelta && c.stock_devuelto_at && <Badge variant="destructive">Revisar stock: ingreso sin recepción</Badge>}
                     </div>
@@ -346,23 +376,29 @@ const CambiosPreparacionSection = () => {
                       <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
                         <Tag className="w-4 h-4 mr-1" /> Imprimir etiqueta QR
                       </Button>
-                      {!cambiosEnCamioneta.has(c.id) && (
+                      {!reemplazoEntregado && !enviadoMoto && !enCamioneta && (
                         <Select value={destinos[c.id] || order?.sede_retiro_id || ""} onValueChange={(v) => setDestinos((prev) => ({ ...prev, [c.id]: v }))}>
                           <SelectTrigger className="w-full sm:w-[175px] h-8"><SelectValue placeholder="Destino camioneta" /></SelectTrigger>
                           <SelectContent>{sedesCamioneta.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
                         </Select>
                       )}
-                      {cambiosEnCamioneta.has(c.id)
-                        ? <Badge variant="outline" className="text-green-400"><Truck className="w-3 h-3 mr-1" /> En camioneta</Badge>
-                        : <Button size="sm" variant="outline" disabled={busy === "camioneta:" + c.id} onClick={() => ponerEnCamioneta(c)}>
-                            <Truck className="w-4 h-4 mr-1" /> Poner en camioneta
+                      {enCamioneta ? <Badge variant="outline" className="text-green-400"><Truck className="w-3 h-3 mr-1" /> En camioneta</Badge>
+                        : !enviadoMoto && !reemplazoEntregado &&
+                          <Button size="sm" variant="outline" disabled={busy==="camioneta:"+c.id} onClick={()=>ponerEnCamioneta(c)}>
+                            <Truck className="w-4 h-4 mr-1"/> Poner en camioneta
                           </Button>}
-                      {listo ? (
-                        <Button size="sm" variant="outline" disabled={busy === c.id}
-                          onClick={() => marcarEntregado(c.id)}>
-                          <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
+                      {!enCamioneta && !enviadoMoto && !reemplazoEntregado &&
+                        <Button size="sm" variant="outline" disabled={busy==="moto:"+c.id} onClick={()=>enviarPorMoto(c)}>
+                          <Truck className="w-4 h-4 mr-1" /> Enviar por moto
+                        </Button>}
+                      {!reemplazoEntregado && (
+                        <Button size="sm" variant="outline" disabled={busy==="entregar:"+c.id}
+                          onClick={()=>confirmarEntrega(c,canalEntrega)}>
+                          <CheckCircle2 className="w-4 h-4 mr-1"/> Confirmar entregado {canalEntrega==="mano"?"en mano":canalEntrega==="moto"?"por moto":""}
                         </Button>
-                      ) : <Badge variant="outline" className="text-amber-400 border-amber-500/40">Devolución pendiente · no entregar</Badge>}
+                      )}
+                      {reemplazoEntregado && <Badge className="bg-green-600/20 text-green-400">Reemplazo recibido por alumno</Badge>}
+                      {!devuelta && <Badge variant="outline" className="text-amber-400 border-amber-500/40">Devolución pendiente · cambio abierto</Badge>}
                     </>}
                     <Button size="sm" variant="outline"
                       onClick={() => setAvisoFor({ cambio:c, tipo:"estado" })}>

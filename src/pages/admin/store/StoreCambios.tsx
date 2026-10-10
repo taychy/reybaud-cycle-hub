@@ -261,8 +261,13 @@ const AdminCambios = () => {
                       Devolución: {esSustitucionFaltaStock(selected) ? "No corresponde" : selected.recibido_en ? "Recibida" : "Pendiente"}
                     </div>
                     <div className={selected.preparado_at || ["enviado","entregado"].includes(selected.reemplazo_estado) ? "text-green-400" : "text-amber-400"}>
-                      Reemplazo: {selected.preparado_at || ["enviado","entregado"].includes(selected.reemplazo_estado) ? "Preparado" : "Pendiente"}
+                      Reemplazo: {selected.reemplazo_entregado_at ? "Entregado por "+({camioneta:"camioneta",moto:"moto",mano:"entrega directa"}[selected.reemplazo_canal_entrega as "camioneta"|"moto"|"mano"]||"entrega directa")
+                        : selected.reemplazo_despachado_at && selected.reemplazo_canal_entrega==="moto" ? "Enviado por moto · esperando confirmación"
+                        : selected.preparado_at || ["enviado","entregado"].includes(selected.reemplazo_estado) ? "Preparado" : "Pendiente"}
                     </div>
+                    {selected.reemplazo_entregado_at && !selected.recibido_en && (
+                      <div className="text-amber-400 font-medium">Reemplazo entregado · devolución original pendiente · cambio abierto</div>
+                    )}
                     {!selected.recibido_en && selected.stock_devuelto_at && !esSustitucionFaltaStock(selected) && (
                       <div className="text-destructive">Advertencia: el sistema muestra ingreso de stock sin recepción física registrada. Conciliar.</div>
                     )}
@@ -314,12 +319,12 @@ const AdminCambios = () => {
                     </div>
                   )}
                   {!esPrueba(selected) && selected.estado === "listo_retiro"
-                    && (esSustitucionFaltaStock(selected) || !!selected.recibido_en)
+                    && !selected.reemplazo_entregado_at
                     && (selected.reemplazo_estado === "enviado" || selected.reemplazo_estado === "entregado" || !!selected.preparado_at)
                     && (
-                      <Button size="sm" className="w-full" onClick={() => transition(selected.id, "entregado", "Entrega física confirmada en sede")}>
-                        <Truck className="w-4 h-4 mr-1" /> Confirmar entrega física
-                      </Button>
+                      <div className="rounded-lg border border-border p-3 text-xs">
+                        Reemplazo preparado. Confirmá la entrega física desde Depósito → Ventas → Pedidos, indicando si fue en mano, por moto o por camioneta.
+                      </div>
                   )}
                   {!esPrueba(selected) && selected.estado === "devolucion_solicitada" && (
                     <div className="grid grid-cols-2 gap-2">
