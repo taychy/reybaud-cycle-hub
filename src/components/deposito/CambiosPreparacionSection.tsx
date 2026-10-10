@@ -141,8 +141,14 @@ const CambiosPreparacionSection = () => {
       p_variante: recibido.variante,
     });
     if (error) throw error;
-    toast({ title: "Reemplazo preparado y separado" });
+    toast({ title: "Reemplazo preparado", description: "Imprimí la etiqueta QR para identificar la bolsa antes de cargarla." });
     await load();
+    // Se abre la etiqueta del cambio/pedido inmediatamente después de identificar el producto.
+    // No depende de la devolución física de la prenda anterior.
+    setLabelFor({ ...cambio, producto_reemplazo_id: null,
+      producto: { ...cambio.producto, name: recibido.productName },
+      variante_destino: recibido.variante,
+      _nombre_etiqueta: recibido.productName });
   };
 
   const ponerEnCamioneta = async (cambio: Cambio) => {
@@ -331,19 +337,27 @@ const CambiosPreparacionSection = () => {
                         <Package className="w-4 h-4 mr-1" /> Preparar reemplazo
                       </Button>
                     )}
-                    {listo && <>
+                    {preparado && <>
                       <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
-                        <Tag className="w-4 h-4 mr-1" /> Etiqueta
+                        <Tag className="w-4 h-4 mr-1" /> Imprimir etiqueta QR
                       </Button>
+                      {!cambiosEnCamioneta.has(c.id) && (
+                        <Select value={destinos[c.id] || order?.sede_retiro_id || ""} onValueChange={(v) => setDestinos((prev) => ({ ...prev, [c.id]: v }))}>
+                          <SelectTrigger className="w-full sm:w-[175px] h-8"><SelectValue placeholder="Destino camioneta" /></SelectTrigger>
+                          <SelectContent>{sedesCamioneta.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
+                        </Select>
+                      )}
                       {cambiosEnCamioneta.has(c.id)
                         ? <Badge variant="outline" className="text-green-400"><Truck className="w-3 h-3 mr-1" /> En camioneta</Badge>
                         : <Button size="sm" variant="outline" disabled={busy === "camioneta:" + c.id} onClick={() => ponerEnCamioneta(c)}>
                             <Truck className="w-4 h-4 mr-1" /> Poner en camioneta
                           </Button>}
-                      <Button size="sm" variant="outline" disabled={busy === c.id}
-                        onClick={() => marcarEntregado(c.id)}>
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
-                      </Button>
+                      {listo ? (
+                        <Button size="sm" variant="outline" disabled={busy === c.id}
+                          onClick={() => marcarEntregado(c.id)}>
+                          <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
+                        </Button>
+                      ) : <Badge variant="outline" className="text-amber-400 border-amber-500/40">Devolución pendiente · no entregar</Badge>}
                     </>}
                     <Button size="sm" variant="outline"
                       onClick={() => setAvisoFor({ cambio:c, tipo:"estado" })}>
@@ -375,7 +389,7 @@ const CambiosPreparacionSection = () => {
           const order = orderId ? orders[orderId] : null;
           const replacementName = labelFor.producto_reemplazo_id
             ? products[labelFor.producto_reemplazo_id]
-            : labelFor.producto?.name;
+            : labelFor._nombre_etiqueta || labelFor.producto?.name;
           return {
             id: labelFor.id,
             alumno_nombre: [labelFor.alumnos?.nombre, labelFor.alumnos?.apellido].filter(Boolean).join(" ") || "Alumno",
