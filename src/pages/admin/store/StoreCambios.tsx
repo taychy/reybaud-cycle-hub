@@ -32,7 +32,7 @@ const AdminCambios = () => {
     setLoading(true);
     const { data } = await supabase
       .from("store_cambios" as any)
-      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido, email)")
+      .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), reemplazo:store_products!store_cambios_producto_reemplazo_id_fkey(name), venta:store_orders!store_cambios_order_id_fkey(order_number), alumnos(nombre, apellido, email)")
       .order("created_at", { ascending: false });
     setItems((data as any[]) || []);
     setLoading(false);
@@ -106,6 +106,8 @@ const AdminCambios = () => {
                     {new Date(c.created_at).toLocaleDateString("es-AR")} · motivo: {c.motivo}
                     {c.iniciado_por === "admin" && <span className="text-amber-400 ml-1">· admin</span>}
                     {c.origen_solicitud === "presencial" && <span className="text-cyan ml-1">· presencial</span>}
+                    {c.venta?.order_number && <span className="ml-1">· venta #{c.venta.order_number}</span>}
+                    {c.tipo==="prueba" && <span className="ml-1">{c.order_id?"· con venta":"· directo al alumno"}</span>}
                     {c.reemplazo_estado && c.reemplazo_estado !== "sin_definir" && (
                       <span className="ml-1">· reemplazo: {c.reemplazo_estado}</span>
                     )}
@@ -220,6 +222,18 @@ const AdminCambios = () => {
                     {selected.order_id?"Prueba vinculada a una venta":"Prueba vinculada directamente al alumno"}
                   </p>}
                 </div>
+                {!esPrueba(selected) && (selected.venta?.order_number||selected.preorder_id) && (
+                  <div className="rounded-lg border border-border p-3 space-y-1 text-xs">
+                    <p className="uppercase text-muted-foreground text-[11px]">Venta que originó el cambio</p>
+                    <p className="font-semibold">
+                      {selected.venta?.order_number?"Pedido #"+selected.venta.order_number:"Preventa asociada"}
+                    </p>
+                    <p>Compró: {selected.producto?.name}</p>
+                    <p>Recibirá: {selected.reemplazo?.name||selected.producto?.name}</p>
+                    {Number(selected.diferencia_precio)>0 &&
+                      <p className="text-amber-400">Diferencia de precio pendiente de revisión: {selected.moneda||"ARS"} {Number(selected.diferencia_precio).toLocaleString("es-AR")}. No se cobra automáticamente.</p>}
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-muted-foreground">Variante original</p>
