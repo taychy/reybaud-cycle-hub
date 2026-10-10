@@ -380,3 +380,14 @@ BEGIN
   RETURN v_id;
 END;
 $function$;
+
+
+-- Protección adicional frente a dos operadores creando simultáneamente el mismo cambio.
+CREATE UNIQUE INDEX IF NOT EXISTS store_cambios_una_venta_activa_idx
+ ON public.store_cambios(order_item_id)
+ WHERE tipo='cambio' AND order_item_id IS NOT NULL
+ AND estado IN ('solicitado','aprobado','en_deposito','listo_retiro','devolucion_solicitada');
+CREATE UNIQUE INDEX IF NOT EXISTS store_cambios_una_preventa_activa_idx
+ ON public.store_cambios(preorder_id)
+ WHERE tipo='cambio' AND preorder_id IS NOT NULL
+ AND estado IN ('solicitado','aprobado','en_deposito','listo_retiro','devolucion_solicitada');
