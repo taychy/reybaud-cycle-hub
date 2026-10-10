@@ -150,6 +150,9 @@ BEGIN
                    THEN COALESCE(p_variante,'{}'::jsonb) ELSE variante_origen END,
     estado=CASE WHEN reemplazo_entregado_at IS NOT NULL
                   THEN 'entregado'::public.cambio_estado
+                -- Evitar el aviso falso "listo para retirar en sede" si ya está en camino.
+                WHEN reemplazo_canal_entrega='moto' AND reemplazo_despachado_at IS NOT NULL
+                  THEN 'en_deposito'::public.cambio_estado
                 WHEN reemplazo_estado IN ('enviado','entregado') OR preparado_at IS NOT NULL
                   THEN 'listo_retiro'::public.cambio_estado
                 ELSE 'en_deposito'::public.cambio_estado END,
