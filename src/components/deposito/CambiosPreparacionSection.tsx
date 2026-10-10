@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Package, RefreshCw, ScanLine, CheckCircle2, Tag, Truck, MessageCircle, Bell } from "lucide-react";
 import CambioAvisoDialog from "@/components/deposito/CambioAvisoDialog";
@@ -28,6 +29,8 @@ const CambiosPreparacionSection = () => {
   const [products, setProducts] = useState<Record<string, string>>({});
   const [orders, setOrders] = useState<Record<string, any>>({});
   const [sedeNames, setSedeNames] = useState<Record<string, string>>({});
+  const [sedesCamioneta, setSedesCamioneta] = useState<{id: string; nombre: string}[]>([]);
+  const [destinos, setDestinos] = useState<Record<string,string>>({});
   const [cambiosEnCamioneta, setCambiosEnCamioneta] = useState<Set<string>>(new Set());
   const [labelFor, setLabelFor] = useState<Cambio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,14 @@ const CambiosPreparacionSection = () => {
       setSedeNames({});
     }
 
+    const { data: cajasActivas } = await (supabase as any).from("vehiculo_cargas")
+      .select("sede_id").in("estado", ["abierta","en_ruta"]);
+    const cajasIds = Array.from(new Set(((cajasActivas || []) as any[]).map(x => x.sede_id).filter(Boolean))) as string[];
+    if (cajasIds.length) {
+      const { data: destinosActivos } = await supabase.from("sedes").select("id,nombre").in("id", cajasIds);
+      setSedesCamioneta((destinosActivos as any[]) || []);
+    } else setSedesCamioneta([]);
+
     const cambioIds = list.map((c) => c.id);
     if (cambioIds.length) {
       const { data: cargados } = await (supabase as any)
@@ -137,16 +148,20 @@ const CambiosPreparacionSection = () => {
   const ponerEnCamioneta = async (cambio: Cambio) => {
     const orderId = cambio.order_id || cambio.compra_id;
     const order = orderId ? orders[orderId] : null;
-    const sedeId = order?.sede_retiro_id;
+    const sedeId = destinos[cambio.id] || order?.sede_retiro_id;
     if (!sedeId) {
       toast({
-        title: "Falta sede de retiro",
+        title: "Elegí el destino de camioneta",
         description: "Definí la sede del pedido antes de pasarlo a camioneta.",
         variant: "destructive",
       });
       return;
     }
 
+    if (!cambio.preparado_at && !["enviado","entregado"].includes(cambio.reemplazo_estado || "")) {
+      toast({ title: "Primero prepará el reemplazo", variant: "destructive" });
+      return;
+    }
     setBusy(`camioneta:${cambio.id}`);
     const { data: carga, error: cargaError } = await (supabase as any)
       .from("vehiculo_cargas")
