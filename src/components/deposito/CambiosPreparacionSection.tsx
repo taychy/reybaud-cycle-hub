@@ -217,7 +217,7 @@ const CambiosPreparacionSection = () => {
       variante: formatVariante(cambio.variante_destino) || null,
       cantidad: 1,
       estado: "cargado",
-      notas: order?.order_number ? `Cambio · Pedido #${order.order_number}` : "Cambio",
+      notas: (order?.order_number ? `Cambio · Pedido #${order.order_number}` : "Cambio") + (!cambio.recibido_en && !esSustitucionFaltaStock(cambio) ? " · DEVOLUCIÓN PENDIENTE" : ""),
     });
     setBusy(null);
 
@@ -228,7 +228,7 @@ const CambiosPreparacionSection = () => {
 
     setCambiosEnCamioneta((prev) => new Set([...prev, cambio.id]));
     toast({
-      title: "Cambio puesto en camioneta",
+      title: "Reemplazo cargado en camioneta · devolución pendiente si corresponde",
       description: sedeNames[sedeId] ? `Caja ${sedeNames[sedeId]}` : undefined,
     });
   };
