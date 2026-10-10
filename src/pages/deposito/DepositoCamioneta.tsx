@@ -273,7 +273,7 @@ const DepositoCamioneta = () => {
                     onOpenChange={setControlTotalOpen}
                     cargas={activas}
                     sedes={sedes}
-                    onCompleted={load}
+                    onCompleted={refresh}
                   />
                 </div>
               ) : (
