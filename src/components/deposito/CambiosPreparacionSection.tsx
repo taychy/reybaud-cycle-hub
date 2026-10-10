@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Package, RefreshCw, ScanLine, CheckCircle2, Tag, Truck, MessageCircle, Bell } from "lucide-react";
 import CambioAvisoDialog from "@/components/deposito/CambioAvisoDialog";
@@ -28,6 +29,8 @@ const CambiosPreparacionSection = () => {
   const [products, setProducts] = useState<Record<string, string>>({});
   const [orders, setOrders] = useState<Record<string, any>>({});
   const [sedeNames, setSedeNames] = useState<Record<string, string>>({});
+  const [sedesCamioneta, setSedesCamioneta] = useState<{id: string; nombre: string}[]>([]);
+  const [destinos, setDestinos] = useState<Record<string,string>>({});
   const [cambiosEnCamioneta, setCambiosEnCamioneta] = useState<Set<string>>(new Set());
   const [labelFor, setLabelFor] = useState<Cambio | null>(null);
   const [loading, setLoading] = useState(true);
@@ -85,6 +88,14 @@ const CambiosPreparacionSection = () => {
       setSedeNames({});
     }
 
+    const { data: cajasActivas } = await (supabase as any).from("vehiculo_cargas")
+      .select("sede_id").in("estado", ["abierta","en_ruta"]);
+    const cajasIds = Array.from(new Set(((cajasActivas || []) as any[]).map(x => x.sede_id).filter(Boolean))) as string[];
+    if (cajasIds.length) {
+      const { data: destinosActivos } = await supabase.from("sedes").select("id,nombre").in("id", cajasIds);
+      setSedesCamioneta((destinosActivos as any[]) || []);
+    } else setSedesCamioneta([]);
+
     const cambioIds = list.map((c) => c.id);
     if (cambioIds.length) {
       const { data: cargados } = await (supabase as any)
@@ -130,23 +141,33 @@ const CambiosPreparacionSection = () => {
       p_variante: recibido.variante,
     });
     if (error) throw error;
-    toast({ title: "Reemplazo preparado y separado" });
+    toast({ title: "Reemplazo preparado", description: "Imprimí la etiqueta QR para identificar la bolsa antes de cargarla." });
     await load();
+    // Se abre la etiqueta del cambio/pedido inmediatamente después de identificar el producto.
+    // No depende de la devolución física de la prenda anterior.
+    setLabelFor({ ...cambio, producto_reemplazo_id: null,
+      producto: { ...cambio.producto, name: recibido.productName },
+      variante_destino: recibido.variante,
+      _nombre_etiqueta: recibido.productName });
   };
 
   const ponerEnCamioneta = async (cambio: Cambio) => {
     const orderId = cambio.order_id || cambio.compra_id;
     const order = orderId ? orders[orderId] : null;
-    const sedeId = order?.sede_retiro_id;
+    const sedeId = destinos[cambio.id] || order?.sede_retiro_id;
     if (!sedeId) {
       toast({
-        title: "Falta sede de retiro",
+        title: "Elegí el destino de camioneta",
         description: "Definí la sede del pedido antes de pasarlo a camioneta.",
         variant: "destructive",
       });
       return;
     }
 
+    if (!cambio.preparado_at && !["enviado","entregado"].includes(cambio.reemplazo_estado || "")) {
+      toast({ title: "Primero prepará el reemplazo", variant: "destructive" });
+      return;
+    }
     setBusy(`camioneta:${cambio.id}`);
     const { data: carga, error: cargaError } = await (supabase as any)
       .from("vehiculo_cargas")
@@ -196,7 +217,7 @@ const CambiosPreparacionSection = () => {
       variante: formatVariante(cambio.variante_destino) || null,
       cantidad: 1,
       estado: "cargado",
-      notas: order?.order_number ? `Cambio · Pedido #${order.order_number}` : "Cambio",
+      notas: (order?.order_number ? `Cambio · Pedido #${order.order_number}` : "Cambio") + (!cambio.recibido_en && !esSustitucionFaltaStock(cambio) ? " · DEVOLUCIÓN PENDIENTE" : ""),
     });
     setBusy(null);
 
@@ -207,7 +228,7 @@ const CambiosPreparacionSection = () => {
 
     setCambiosEnCamioneta((prev) => new Set([...prev, cambio.id]));
     toast({
-      title: "Cambio puesto en camioneta",
+      title: "Reemplazo cargado en camioneta · devolución pendiente si corresponde",
       description: sedeNames[sedeId] ? `Caja ${sedeNames[sedeId]}` : undefined,
     });
   };
@@ -316,19 +337,32 @@ const CambiosPreparacionSection = () => {
                         <Package className="w-4 h-4 mr-1" /> Preparar reemplazo
                       </Button>
                     )}
-                    {listo && <>
+                    {!preparado && !!c.variante_destino && Object.keys(c.variante_destino).length > 0 && (
                       <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
-                        <Tag className="w-4 h-4 mr-1" /> Etiqueta
+                        <Tag className="w-4 h-4 mr-1" /> Generar etiqueta QR
                       </Button>
+                    )}
+                    {preparado && <>
+                      <Button size="sm" variant="outline" onClick={() => setLabelFor(c)}>
+                        <Tag className="w-4 h-4 mr-1" /> Imprimir etiqueta QR
+                      </Button>
+                      {!cambiosEnCamioneta.has(c.id) && (
+                        <Select value={destinos[c.id] || order?.sede_retiro_id || ""} onValueChange={(v) => setDestinos((prev) => ({ ...prev, [c.id]: v }))}>
+                          <SelectTrigger className="w-full sm:w-[175px] h-8"><SelectValue placeholder="Destino camioneta" /></SelectTrigger>
+                          <SelectContent>{sedesCamioneta.map((s) => <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>)}</SelectContent>
+                        </Select>
+                      )}
                       {cambiosEnCamioneta.has(c.id)
                         ? <Badge variant="outline" className="text-green-400"><Truck className="w-3 h-3 mr-1" /> En camioneta</Badge>
                         : <Button size="sm" variant="outline" disabled={busy === "camioneta:" + c.id} onClick={() => ponerEnCamioneta(c)}>
                             <Truck className="w-4 h-4 mr-1" /> Poner en camioneta
                           </Button>}
-                      <Button size="sm" variant="outline" disabled={busy === c.id}
-                        onClick={() => marcarEntregado(c.id)}>
-                        <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
-                      </Button>
+                      {listo ? (
+                        <Button size="sm" variant="outline" disabled={busy === c.id}
+                          onClick={() => marcarEntregado(c.id)}>
+                          <CheckCircle2 className="w-4 h-4 mr-1" /> Marcar entregado
+                        </Button>
+                      ) : <Badge variant="outline" className="text-amber-400 border-amber-500/40">Devolución pendiente · no entregar</Badge>}
                     </>}
                     <Button size="sm" variant="outline"
                       onClick={() => setAvisoFor({ cambio:c, tipo:"estado" })}>
@@ -360,7 +394,7 @@ const CambiosPreparacionSection = () => {
           const order = orderId ? orders[orderId] : null;
           const replacementName = labelFor.producto_reemplazo_id
             ? products[labelFor.producto_reemplazo_id]
-            : labelFor.producto?.name;
+            : labelFor._nombre_etiqueta || labelFor.producto?.name;
           return {
             id: labelFor.id,
             alumno_nombre: [labelFor.alumnos?.nombre, labelFor.alumnos?.apellido].filter(Boolean).join(" ") || "Alumno",
@@ -389,6 +423,8 @@ const CambiosPreparacionSection = () => {
       {defineFor && (
         <ScanCambioDialog
           mode="replacement"
+          cambioId={defineFor.id}
+          onPrintLabel={() => { setLabelFor(defineFor); setDefineFor(null); }}
           open={!!defineFor}
           onOpenChange={(v) => !v && setDefineFor(null)}
           title={`Preparar reemplazo · ${defineFor.producto?.name || ""}`}

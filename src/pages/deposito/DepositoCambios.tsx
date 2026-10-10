@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, ScanLine, Plus, Package, Undo2 } from "lucide-react";
 import ScanCambioDialog from "@/components/deposito/ScanCambioDialog";
+import CambiosPreparacionSection from "@/components/deposito/CambiosPreparacionSection";
 import RegistrarCambioPresencialDialog from "@/components/deposito/RegistrarCambioPresencialDialog";
 import { formatVariante } from "@/lib/productQr";
 import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
@@ -174,8 +175,10 @@ const DepositoCambios = () => {
       </div>
 
       <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-        Para preparar, recibir devoluciones, marcar un reemplazo listo o entregarlo, usá <b>Ventas → Pedidos</b>. Esta pantalla queda como consulta y trazabilidad.
+        Gestioná el cambio desde acá: prepará el reemplazo, imprimí su etiqueta QR y cargalo en camioneta. La devolución original queda pendiente hasta que la recibas.
       </div>
+
+      <CambiosPreparacionSection />
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as any)}>
         <TabsList className="grid grid-cols-5 w-full">

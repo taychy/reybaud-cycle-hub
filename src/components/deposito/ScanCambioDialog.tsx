@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { Camera, Keyboard, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft } from "lucide-react";
+import { Camera, Keyboard, CheckCircle2, AlertTriangle, Loader2, ArrowRight, ArrowLeft, Tag } from "lucide-react";
 import CameraScanner from "./CameraScanner";
 import { decodeProductQr, formatVariante, variantesEquivalentes } from "@/lib/productQr";
 
@@ -30,6 +30,8 @@ interface Props {
   requireReemplazo?: boolean; // si true, fuerza completar también el slot "recibe"
   expectedDeliverProductId?: string;
   expectedDeliverVariante?: Record<string, any> | null;
+  cambioId?: string;
+  onPrintLabel?: () => void;
   // Callbacks
   onConfirm: (data: { devuelto: ScanSlotValue | null; recibido: ScanSlotValue | null }) => Promise<void> | void;
 }
@@ -52,6 +54,7 @@ const ScanSlot = ({
   expectedProductId,
   expectedVariante,
   checkStock,
+  expectedCambioId,
 }: {
   label: ReactNode;
   value: ScanSlotValue | null;
@@ -59,6 +62,7 @@ const ScanSlot = ({
   expectedProductId?: string;
   expectedVariante?: Record<string, any> | null;
   checkStock?: boolean;
+  expectedCambioId?: string;
 }) => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -94,6 +98,27 @@ const ScanSlot = ({
     setScannerOpen(false);
     const code = (raw || "").trim();
     if (!code) return;
+
+    // Etiqueta QR ÚNICA de la bolsa: RBCAM1:uuid (no se confunde con el SKU).
+    if (code.toUpperCase().startsWith("RBCAM1:")) {
+      const readId = code.slice("RBCAM1:".length).trim().toLowerCase();
+      if (!expectedCambioId || readId !== expectedCambioId.toLowerCase()) {
+        toast({ title: "La etiqueta no corresponde a este cambio", variant: "destructive" });
+        return;
+      }
+      if (!expectedProductId || !expectedVariante || !Object.keys(expectedVariante).length) {
+        toast({ title: "Falta definir el talle del reemplazo", description: "Elegí el producto y talle en Manual. Al prepararlo se genera su etiqueta definitiva.", variant: "destructive" });
+        return;
+      }
+      const original = await fetchProduct(expectedProductId);
+      if (!original) {
+        toast({ title: "El producto de la etiqueta no está disponible", variant: "destructive" });
+        return;
+      }
+      setProductLoaded(original);
+      onChange({ productId: original.id, productName: original.name, variante: expectedVariante as Record<string,string>, metodo: "qr" });
+      return;
+    }
 
     // Soportamos los dos tipos de etiqueta que conviven hoy:
     // 1) QR legacy/extenso con UUID del producto (decodeProductQr)
@@ -189,7 +214,7 @@ const ScanSlot = ({
 
   // Validaciones
   const productMatchWarn = expectedProductId && value && value.productId !== expectedProductId;
-  const varianteMatchWarn = expectedVariante && value && !variantesEquivalentes(value.variante, expectedVariante);
+  const varianteMatchWarn = expectedVariante && Object.keys(expectedVariante).length > 0 && value && !variantesEquivalentes(value.variante, expectedVariante);
 
   // Chequeo de stock para slot "recibe"
   const stockDisp = (() => {
@@ -308,7 +333,7 @@ const ScanCambioDialog = ({
   open, onOpenChange, title = "Procesar cambio", mode = "both",
   expectedReturnProductId, expectedReturnVariante,
   requireReemplazo, expectedDeliverProductId, expectedDeliverVariante,
-  onConfirm,
+  cambioId, onPrintLabel, onConfirm,
 }: Props) => {
   const [devuelto, setDevuelto] = useState<ScanSlotValue | null>(null);
   const [recibido, setRecibido] = useState<ScanSlotValue | null>(null);
@@ -347,6 +372,19 @@ const ScanCambioDialog = ({
         </DialogHeader>
 
         <div className="space-y-3">
+          {mode === "replacement" && (
+            <div className="rounded-lg border border-border p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">La etiqueta de la bolsa identifica al alumno y su cambio, y sirve para el control de camioneta.</p>
+              {onPrintLabel && (
+                <Button type="button" variant="outline" size="sm"
+                  disabled={!expectedDeliverVariante || !Object.keys(expectedDeliverVariante).length}
+                  onClick={onPrintLabel}>
+                  <Tag className="w-4 h-4 mr-1" /> Generar etiqueta QR
+                </Button>
+              )}
+              <p className="text-[11px] text-muted-foreground">Si todavía falta definir el talle, elegí Manual y confirmá. La etiqueta se genera automáticamente.</p>
+            </div>
+          )}
           {mode !== "replacement" && <ScanSlot
             label={<><ArrowLeft className="w-3 h-3 inline mr-1" />Prenda que devuelve el alumno</>}
             value={devuelto}
@@ -369,6 +407,7 @@ const ScanCambioDialog = ({
               onChange={setRecibido}
               expectedProductId={expectedDeliverProductId}
               expectedVariante={expectedDeliverVariante}
+              expectedCambioId={cambioId}
               checkStock
             />
           )}
