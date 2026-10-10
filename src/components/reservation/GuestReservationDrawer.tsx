@@ -112,6 +112,14 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     })();
     return () => { cancelled = true; };
   }, [pkgId, packages, priceFor]);
+  // Seña según el plan (misma regla que create-guest-reservation/chargeNow.ts). null = sin seña → total.
+  const senaFor = (total: number): number | null => {
+    if (!planInfo) return null;
+    const v = Number(planInfo.sena_valor || 0);
+    const pct = planInfo.sena_tipo === "porcentaje_paquete" || planInfo.sena_tipo === "porcentaje";
+    const s = Math.round((pct ? (total * v) / 100 : v) * 100) / 100;
+    return s > 0 ? Math.min(s, total) : null;
+  };
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const canNextFromStep2 = !!selectedPkg;
   const canSubmit = terms && (metodo === "mp" || (metodo === "transferencia" && comprobante));
@@ -178,7 +186,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                   </div>
                   {planInfo && (
                     <div className="text-xs text-muted-foreground mt-1">
-                      Seña {fmtMoney(planInfo.sena_tipo === "porcentaje" ? Math.round(pr.precio * planInfo.sena_valor) / 100 : planInfo.sena_valor, pr.currency)}
+                      Seña {fmtMoney(senaFor(pr.precio) ?? 0, pr.currency)}
                       {planInfo.cantidad_cuotas > 0 ? ` + ${planInfo.cantidad_cuotas} cuotas · ${planInfo.nombre}` : ""}
                     </div>
                   )}
@@ -235,11 +243,19 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
 
           {step === 3 && selectedPkg && (
             <div className="space-y-4">
+              {(() => { const pr = priceFor(selectedPkg); const sena = senaFor(pr.precio); return (
               <div className="p-4 rounded-xl border bg-muted/30">
-                <div className="text-xs text-muted-foreground mb-1">Vas a pagar</div>
-                <div className="text-2xl font-bold text-primary">{(() => { const pr = priceFor(selectedPkg); return fmtMoney(pr.precio, pr.currency); })()}</div>
+                <div className="text-xs text-muted-foreground mb-1">{sena != null ? "Seña a pagar ahora" : "Vas a pagar"}</div>
+                <div className="text-2xl font-bold text-primary">{fmtMoney(sena ?? pr.precio, pr.currency)}</div>
                 <div className="text-sm mt-1">{selectedPkg.nombre}</div>
+                {sena != null && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Total del paquete {fmtMoney(pr.precio, pr.currency)}
+                    {planInfo && planInfo.cantidad_cuotas > 0 ? ` · saldo en ${planInfo.cantidad_cuotas} cuotas` : ""}
+                  </div>
+                )}
               </div>
+              ); })()}
               <div>
                 <Label>Método de pago</Label>
                 <RadioGroup value={metodo} onValueChange={(v) => setMetodo(v as any)} className="mt-2">
@@ -261,7 +277,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                     <BankRow label="Alias" value={BANK_INFO.alias} onCopy={() => { navigator.clipboard.writeText(BANK_INFO.alias); toast.success("Alias copiado"); }} />
                     <BankRow
                       label="Monto"
-                      value={(() => { const pr = priceFor(selectedPkg); return fmtMoney(pr.precio, pr.currency); })()}
+                      value={(() => { const pr = priceFor(selectedPkg); return fmtMoney(senaFor(pr.precio) ?? pr.precio, pr.currency); })()}
                       strong
                     />
                     <p className="text-[11px] text-muted-foreground pt-1 border-t">
