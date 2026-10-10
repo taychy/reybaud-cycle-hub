@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { Bike, Check, ChevronDown, CupSoda, Flag, MapPin, Mountain, Play, Route, Shirt, ShoppingBag, X } from "lucide-react";
 import EventDriveVideo from "./EventDriveVideo";
-import type { PremiumLandingConfig } from "./EventPremiumLanding";
+import { LandingWhatsAppCta, type PremiumLandingConfig } from "./EventPremiumLanding";
 import type { ReglamentoFields } from "@/lib/eventReglamentoDefaults";
 import { formatPrice } from "@/lib/currency";
 
@@ -282,6 +282,7 @@ export default function AlpineEditorialLanding({
         <section id="precio" className="scroll-mt-16 space-y-4 pt-7">
           {base?.sena != null && <p className="text-sm text-zinc-300">Seña de {formatPrice(Number(base.sena), base.currency)} por persona. Saldo en cuotas.</p>}
           {packagesCta && <div>{packagesCta}</div>}
+          <LandingWhatsAppCta whatsapp={config.whatsapp} variant="editorial" />
           {isDraftPreview && <p className="text-[11px] text-zinc-500">Vista previa interna: las reservas permanecen desactivadas.</p>}
         </section>
       )}

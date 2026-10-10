@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { MessageCircle } from "lucide-react";
 import type { ReglamentoFields } from "@/lib/eventReglamentoDefaults";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
@@ -23,6 +24,8 @@ export interface PremiumLandingConfig {
   preparation?: { quote?: string; body?: string; proposal_internal?: string[] };
   /** Servicio opcional existente (asesoría personalizada); solo consulta, nunca compra desde el viaje. */
   individual_prep?: { title?: string; body?: string; cta_label?: string; whatsapp_message?: string };
+  /** CTA de consulta general por WhatsApp del viaje. Solo se muestra si está configurado en metadata. */
+  whatsapp?: { number?: string; message?: string };
   kit?: { title?: string; items: string[]; promo_until?: string; note?: string };
 }
 
@@ -33,6 +36,29 @@ interface Pkg { id: string; nombre: string; sena: number | null; currency: strin
 export function getPremiumLanding(metadata: any): PremiumLandingConfig | null {
   const c = metadata?.premium_landing;
   return c && typeof c === "object" ? (c as PremiumLandingConfig) : null;
+}
+
+/**
+ * CTA secundario de consulta por WhatsApp del viaje.
+ * Solo se renderiza si `premium_landing.whatsapp` está configurado en metadata;
+ * no reemplaza al CTA principal de paquetes/reserva.
+ */
+export function LandingWhatsAppCta({ whatsapp, variant = "default" }: { whatsapp?: PremiumLandingConfig["whatsapp"]; variant?: "default" | "editorial" }) {
+  if (!whatsapp) return null;
+  const href = buildWhatsAppUrl(
+    whatsapp.message || "Hola, quiero recibir más información sobre el viaje.",
+    whatsapp.number,
+  );
+  const cls = variant === "editorial"
+    ? "inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/20 bg-[#1c1c1e] px-5 font-heading text-sm font-bold uppercase tracking-wider text-white transition-colors hover:border-[#e73531]/70 hover:bg-[#e73531]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e73531]"
+    : "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 font-heading text-xs uppercase tracking-wide text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary";
+  const iconCls = variant === "editorial" ? "h-5 w-5 text-[#ff5754]" : "h-4 w-4 text-primary";
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
+      <MessageCircle className={iconCls} aria-hidden="true" />
+      Hablar con Reybaud por WhatsApp
+    </a>
+  );
 }
 
 const accent = "text-[hsl(var(--alpine-red))]";
@@ -294,6 +320,7 @@ export default function EventPremiumLanding({ eventId, config, itinerario, isDra
           </div>
           {base.sena ? <p className="text-xs text-muted-foreground">Seña: {formatPrice(base.sena, base.currency)} por persona. Saldo en cuotas.</p> : null}
           {packagesCta && <div className="pt-2">{packagesCta}</div>}
+          <LandingWhatsAppCta whatsapp={config.whatsapp} />
         </section>
       )}
 
