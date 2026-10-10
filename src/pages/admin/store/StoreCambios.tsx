@@ -7,6 +7,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
+import AddPruebaDialog from "@/components/store/AddPruebaDialog";
 import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
 import { esSustitucionFaltaStock, RESOLUCION_LABEL, type ResolucionEconomica } from "@/lib/faltaStock";
 
@@ -23,6 +24,8 @@ const AdminCambios = () => {
   const [tab, setTab] = useState<"nuevos" | "seguimiento" | "pruebas" | "cerrados">("nuevos");
   const [selected, setSelected] = useState<Cambio | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [pruebaOpen, setPruebaOpen] = useState(false);
+  const [pruebaBusy,setPruebaBusy]=useState(false);
   const { toast } = useToast();
 
   const load = async () => {
@@ -67,6 +70,16 @@ const AdminCambios = () => {
     toast({ title: "Estado actualizado" });
     load();
     if (selected?.id === id) setSelected({ ...selected, estado: nuevo });
+  };
+
+  const devolverPrueba = async (id:string) => {
+    setPruebaBusy(true);
+    const {error}=await supabase.rpc("prueba_devolver" as any,{p_cambio_id:id,p_nota:null});
+    setPruebaBusy(false);
+    if(error){toast({title:"No se pudo recibir la prueba",description:error.message,variant:"destructive"});return;}
+    toast({title:"Prenda de prueba recibida",description:"Ingresó nuevamente al stock."});
+    setSelected(null);
+    load();
   };
 
   const renderList = (list: Cambio[]) => {
@@ -132,7 +145,7 @@ const AdminCambios = () => {
           <p className="text-sm text-muted-foreground">Gestioná solicitudes de cambio y devoluciones.</p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
-          <Plus className="w-4 h-4 mr-2" /> Crear en nombre del alumno
+          <Plus className="w-4 h-4 mr-2" /> Crear cambio desde venta
         </Button>
       </div>
 
@@ -166,10 +179,16 @@ const AdminCambios = () => {
         </TabsList>
         <TabsContent value="nuevos" className="mt-3">{renderList(buckets.nuevos)}</TabsContent>
         <TabsContent value="seguimiento" className="mt-3">{renderList(buckets.seguimiento)}</TabsContent>
-        <TabsContent value="pruebas" className="mt-3 space-y-2">
-          <p className="text-[11px] text-muted-foreground">
-            Prendas enviadas a prueba: no son venta ni cambio. Se gestionan desde el detalle del pedido.
-          </p>
+        <TabsContent value="pruebas" className="mt-3 space-y-3">
+          <div className="flex flex-wrap gap-3 justify-between items-center">
+            <p className="text-[11px] text-muted-foreground max-w-lg">
+              Las prendas pueden enviarse a prueba junto con una venta o directamente a un alumno.
+              La prueba no es una venta y su stock se controla por separado.
+            </p>
+            <Button size="sm" onClick={() => setPruebaOpen(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Enviar prenda a prueba
+            </Button>
+          </div>
           {renderList(buckets.pruebas)}
         </TabsContent>
         <TabsContent value="cerrados" className="mt-3">{renderList(buckets.cerrados)}</TabsContent>
@@ -197,6 +216,9 @@ const AdminCambios = () => {
                 <div>
                   <p className="text-xs text-muted-foreground">Producto</p>
                   <p className="font-semibold">{selected.producto?.name}</p>
+                  {esPrueba(selected)&&<p className="text-xs text-muted-foreground mt-1">
+                    {selected.order_id?"Prueba vinculada a una venta":"Prueba vinculada directamente al alumno"}
+                  </p>}
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -245,7 +267,23 @@ const AdminCambios = () => {
 
                 <div className="space-y-2 pt-3 border-t border-border">
                   <p className="text-xs text-muted-foreground">Acciones</p>
-                  {selected.estado === "solicitado" && (
+                  {esPruebaActiva(selected) && (
+                    <div className="rounded-lg border border-border p-3 space-y-2">
+                      <p className="text-xs">
+                        La prenda sigue con el alumno. Si vuelve al depósito, registrá su recepción.
+                      </p>
+                      <Button size="sm" variant="outline" disabled={pruebaBusy}
+                        onClick={() => {
+                          if(window.confirm("¿Recibiste físicamente la prenda de prueba? Reingresará al stock.")) {
+                            void devolverPrueba(selected.id);
+                          }
+                        }}>Recibir devolución de prueba</Button>
+                      {!selected.order_id&&<p className="text-[11px] text-muted-foreground">
+                        Si el alumno decide quedársela, deberá generarse una venta y vincularla antes de convertir la prueba.
+                      </p>}
+                    </div>
+                  )}
+                  {!esPrueba(selected) && selected.estado === "solicitado" && (
                     <div className="grid grid-cols-2 gap-2">
                       <Button size="sm" onClick={() => transition(selected.id, "aprobado")}>
                         <CheckCircle2 className="w-4 h-4 mr-1" /> Aprobar
@@ -255,13 +293,13 @@ const AdminCambios = () => {
                       </Button>
                     </div>
                   )}
-                  {selected.estado === "aprobado" && (
+                  {!esPrueba(selected) && selected.estado === "aprobado" && (
                     <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs">
                       Cambio aprobado. Ya está pendiente de recepción y/o preparación en <b>Ventas → Pedidos</b>.
                       Aprobar no confirma el ingreso físico de ninguna prenda.
                     </div>
                   )}
-                  {selected.estado === "listo_retiro"
+                  {!esPrueba(selected) && selected.estado === "listo_retiro"
                     && (esSustitucionFaltaStock(selected) || !!selected.recibido_en)
                     && (selected.reemplazo_estado === "enviado" || selected.reemplazo_estado === "entregado" || !!selected.preparado_at)
                     && (
@@ -269,7 +307,7 @@ const AdminCambios = () => {
                         <Truck className="w-4 h-4 mr-1" /> Confirmar entrega física
                       </Button>
                   )}
-                  {selected.estado === "devolucion_solicitada" && (
+                  {!esPrueba(selected) && selected.estado === "devolucion_solicitada" && (
                     <div className="grid grid-cols-2 gap-2">
                       <Button size="sm" onClick={() => transition(selected.id, "entregado", "Devolución resuelta con saldo a favor")}>
                         Resolver devolución
@@ -287,6 +325,7 @@ const AdminCambios = () => {
       </Sheet>
 
       <AdminCreateCambioDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={load} />
+      <AddPruebaDialog open={pruebaOpen} onOpenChange={setPruebaOpen} onCreated={load} />
     </div>
   );
 };
