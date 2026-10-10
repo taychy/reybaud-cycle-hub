@@ -189,7 +189,7 @@ const ScanSlot = ({
 
   // Validaciones
   const productMatchWarn = expectedProductId && value && value.productId !== expectedProductId;
-  const varianteMatchWarn = expectedVariante && value && !variantesEquivalentes(value.variante, expectedVariante);
+  const varianteMatchWarn = expectedVariante && Object.keys(expectedVariante).length > 0 && value && !variantesEquivalentes(value.variante, expectedVariante);
 
   // Chequeo de stock para slot "recibe"
   const stockDisp = (() => {
