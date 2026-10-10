@@ -924,33 +924,6 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* Bormio premium: reemplaza el CTA genérico de reserva por consulta directa a Reybaud */}
-          {premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641" && allowsParticipation && !hasReservation && !eventPast && !isProximamente && (
-            <div className="rounded-2xl border border-white/10 bg-[#1c1c1e] p-5 space-y-4 animate-fade-in">
-              <div className="text-center space-y-2">
-                <h3 className="font-heading text-lg font-bold uppercase tracking-wide text-white">
-                  ¿Querés hablar con Reybaud?
-                </h3>
-                <p className="text-sm leading-relaxed text-zinc-400">
-                  Escribinos por WhatsApp y te contamos cómo funciona el viaje y la postulación.
-                </p>
-              </div>
-              <Button
-                asChild
-                className="w-full h-12 rounded-xl border-0 bg-[#e73531] text-sm font-semibold text-white hover:bg-[#d72e29] hover:text-white"
-              >
-                <a
-                  href="https://wa.me/5491133013204?text=Hola%2C%20vi%20La%20Gran%20Conquista%20Alpina%202027%20y%20quiero%20recibir%20m%C3%A1s%20informaci%C3%B3n%20sobre%20el%20viaje%20y%20la%20postulaci%C3%B3n."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <MessageCircle className="w-4 h-4 mr-2" />
-                  Hablar con Reybaud por WhatsApp
-                </a>
-              </Button>
-            </div>
-          )}
-
           {/* ═══ NO RESERVATION CTAs ═══ */}
           {alumno && !(premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641") && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
