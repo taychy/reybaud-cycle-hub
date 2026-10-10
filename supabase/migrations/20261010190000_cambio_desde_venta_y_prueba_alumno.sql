@@ -114,7 +114,13 @@ BEGIN
   SELECT count(*) INTO v_duplicates FROM public.store_cambios c
   WHERE c.tipo='cambio'
     AND c.estado IN ('solicitado','aprobado','en_deposito','listo_retiro','devolucion_solicitada')
-    AND ( (p_origen_tipo='compra' AND c.order_item_id=p_order_item_id)
+    AND ( (p_origen_tipo='compra' AND (
+             c.order_item_id=p_order_item_id OR (
+              c.order_item_id IS NULL AND c.order_id=v_order_id
+              AND c.producto_id=v_original_producto
+              AND COALESCE(c.variante_origen,'{}'::jsonb)=v_original_variante
+             )
+           ))
        OR (p_origen_tipo='preorder' AND c.preorder_id=p_preorder_id) );
   IF v_duplicates>0 THEN
     RAISE EXCEPTION 'Esta prenda ya tiene un cambio abierto';
@@ -245,3 +251,133 @@ BEGIN
   RETURN v_id;
 END;
 $$;
+
+-- No se permiten solicitudes desde la app sin acreditar el artículo comprado.
+CREATE OR REPLACE FUNCTION public.request_cambio_indumentaria(p_producto_id uuid, p_origen_tipo text, p_compra_id uuid, p_preorder_id uuid, p_variante_origen jsonb, p_variante_destino jsonb, p_motivo cambio_motivo, p_comentario text, p_fotos text[])
+ RETURNS uuid
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  v_alumno_id uuid;
+  v_producto record;
+  v_id uuid;
+  v_existing int;
+  v_order_status text;
+  v_estado text;
+  v_historial jsonb;
+  v_variant_stock jsonb;
+  v_has_stock boolean := true;
+  v_min_stock int;
+  v_k text;
+  v_v text;
+  v_q int;
+BEGIN
+  SELECT id INTO v_alumno_id FROM public.alumnos WHERE user_id = auth.uid() LIMIT 1;
+  IF v_alumno_id IS NULL THEN RAISE EXCEPTION 'No autorizado'; END IF;
+
+  -- La solicitud del alumno también debe identificar una compra real, no solo un producto.
+  IF p_origen_tipo='compra' THEN
+    IF p_compra_id IS NULL OR p_preorder_id IS NOT NULL OR NOT EXISTS (
+      SELECT 1 FROM public.store_orders o
+      JOIN public.store_order_items i ON i.order_id=o.id
+      WHERE o.id=p_compra_id AND o.alumno_id=v_alumno_id
+        AND i.product_id=p_producto_id
+        AND COALESCE(i.variant_selection,'{}'::jsonb)=COALESCE(p_variante_origen,'{}'::jsonb)
+        AND o.status NOT IN ('cancelado','pendiente','pendiente_pago')
+    ) THEN
+      RAISE EXCEPTION 'Para solicitar un cambio seleccioná una prenda de una venta real';
+    END IF;
+  ELSIF p_origen_tipo='preorder' THEN
+    IF p_preorder_id IS NULL OR p_compra_id IS NOT NULL OR NOT EXISTS (
+      SELECT 1 FROM public.store_preorders o
+      WHERE o.id=p_preorder_id AND o.alumno_id=v_alumno_id
+        AND o.product_id=p_producto_id
+        AND COALESCE(o.variante,'{}'::jsonb)=COALESCE(p_variante_origen,'{}'::jsonb)
+        AND o.estado IN ('entregada','lista_para_retirar')
+    ) THEN
+      RAISE EXCEPTION 'Para solicitar un cambio seleccioná una preventa real';
+    END IF;
+  ELSE
+    RAISE EXCEPTION 'El cambio requiere una venta o preventa asociada';
+  END IF;
+
+  SELECT * INTO v_producto FROM public.store_products WHERE id = p_producto_id;
+  IF v_producto IS NULL THEN RAISE EXCEPTION 'Producto no encontrado'; END IF;
+  IF v_producto.no_admite_cambio THEN RAISE EXCEPTION 'Este producto no admite cambios'; END IF;
+
+  IF p_origen_tipo = 'compra' AND p_compra_id IS NOT NULL THEN
+    SELECT status INTO v_order_status FROM public.store_orders
+      WHERE id = p_compra_id AND alumno_id = v_alumno_id;
+    IF v_order_status IS NULL THEN RAISE EXCEPTION 'Pedido no encontrado'; END IF;
+    IF v_order_status NOT IN ('pagado','pendiente_pago_efectivo','preparando','enviado','entregado') THEN
+      RAISE EXCEPTION 'No se puede solicitar cambio con el pedido en estado %', v_order_status;
+    END IF;
+  END IF;
+
+  SELECT count(*) INTO v_existing
+  FROM public.store_cambios
+  WHERE alumno_id = v_alumno_id
+    AND producto_id = p_producto_id
+    AND estado IN ('solicitado','aprobado','en_deposito','listo_retiro','devolucion_solicitada');
+  IF v_existing > 0 THEN RAISE EXCEPTION 'Ya tenés una solicitud de cambio abierta para este producto'; END IF;
+
+  -- Decidir estado inicial
+  IF p_variante_destino IS NULL THEN
+    v_estado := 'devolucion_solicitada';
+  ELSE
+    -- Chequear stock de la variante destino contra variant_stock del producto
+    v_variant_stock := COALESCE(v_producto.variant_stock, '{}'::jsonb);
+    v_min_stock := NULL;
+    FOR v_k, v_v IN SELECT key, value::text FROM jsonb_each_text(p_variante_destino) LOOP
+      -- value llega con comillas dobles; jsonb_each_text ya las quita
+      v_q := NULLIF(v_variant_stock ->> (v_k || ':' || v_v), '')::int;
+      IF v_q IS NULL THEN
+        -- sin info de stock para ese atributo → tratamos como sin stock para forzar revisión admin
+        v_has_stock := false;
+        EXIT;
+      END IF;
+      IF v_min_stock IS NULL OR v_q < v_min_stock THEN v_min_stock := v_q; END IF;
+    END LOOP;
+    IF v_has_stock AND (v_min_stock IS NULL OR v_min_stock <= 0) THEN
+      v_has_stock := false;
+    END IF;
+
+    IF v_has_stock THEN
+      v_estado := 'aprobado';
+    ELSE
+      v_estado := 'solicitado';
+    END IF;
+  END IF;
+
+  v_historial := jsonb_build_array(
+    jsonb_build_object(
+      'estado', v_estado, 'at', now(), 'by', 'alumno',
+      'nota', CASE
+                WHEN v_estado = 'aprobado' THEN 'Auto-aprobado: hay stock del talle elegido'
+                WHEN v_estado = 'solicitado' THEN 'Sin stock del talle elegido — requiere autorización de administración'
+                ELSE 'Solicitud de devolución'
+              END
+    )
+  );
+
+  INSERT INTO public.store_cambios (
+    alumno_id, producto_id, origen_tipo, compra_id, preorder_id, order_id,
+    variante_origen, variante_destino, motivo, comentario, fotos,
+    iniciado_por, origen_solicitud, estado, aprobado_at, historial
+  ) VALUES (
+    v_alumno_id, p_producto_id, p_origen_tipo, p_compra_id, p_preorder_id,
+    CASE WHEN p_origen_tipo='compra' THEN p_compra_id ELSE NULL END,
+    COALESCE(p_variante_origen, '{}'::jsonb), p_variante_destino,
+    p_motivo, p_comentario, COALESCE(p_fotos, ARRAY[]::text[]),
+    'alumno', 'app',
+    v_estado::cambio_estado,
+    CASE WHEN v_estado = 'aprobado' THEN now() ELSE NULL END,
+    v_historial
+  ) RETURNING id INTO v_id;
+
+  RETURN v_id;
+END;
+$function$
+
