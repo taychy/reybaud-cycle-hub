@@ -24,6 +24,9 @@ export type CambioParaAviso = {
   recibido_en?: string | null;
   reemplazo_estado?: string | null;
   preparado_at?: string | null;
+  reemplazo_canal_entrega?: string | null;
+  reemplazo_despachado_at?: string | null;
+  reemplazo_entregado_at?: string | null;
   variante_origen?: Record<string, any> | null;
   variante_destino?: Record<string, any> | null;
   alumnos?: { nombre?: string | null; apellido?: string | null; telefono?: string | null } | null;
@@ -44,14 +47,22 @@ const elaborarMensaje = (c: CambioParaAviso, tipo: TipoAviso): string => {
   const esSustitucion = c.tipo === "sustitucion_falta_stock";
   const recibida = esSustitucion || !!c.recibido_en;
   const preparada = !!c.preparado_at || ["enviado","entregado"].includes(c.reemplazo_estado || "");
+  const entregada = !!c.reemplazo_entregado_at;
+  const enviadaMoto = c.reemplazo_canal_entrega === "moto" && !!c.reemplazo_despachado_at;
   const hola = "Hola " + nombre + ", ¿cómo estás? Te escribimos de Reybaud por el cambio de " + producto + ".";
   if (tipo === "recordatorio_devolucion") {
     return hola + "\n\nTe queríamos recordar que todavía necesitamos recibir la prenda que vas a devolver (" + original + "). "
-      + (preparada ? "Ya tenemos separado el reemplazo (" + nuevo + "), pero primero necesitamos recibir la prenda anterior para completar la entrega." : "Cuando puedas acercarla, seguimos con la preparación del reemplazo.")
+      + (entregada ? "El reemplazo (" + nuevo + ") ya fue entregado. Solo nos queda recibir la prenda anterior para cerrar el cambio."
+         : enviadaMoto ? "El reemplazo (" + nuevo + ") fue enviado por moto. La devolución de la prenda original sigue pendiente."
+         : preparada ? "Ya tenemos separado el reemplazo (" + nuevo + "), y nos queda coordinar su entrega y recibir la prenda original."
+         : "Cuando puedas acercarla, seguimos con la preparación del reemplazo.")
       + "\n\nAvisanos cuándo podés traerla. ¡Gracias!";
   }
+  if (entregada && recibida) return hola + "\n\n¡Ya tenemos el cambio completo! Recibiste el reemplazo (" + nuevo + ") y registramos la devolución. ¡Gracias!";
+  if (entregada && !recibida) return hola + "\n\nYa te entregamos el reemplazo (" + nuevo + "). Solo nos queda recibir la prenda original (" + original + ") para cerrar el cambio. ¿Nos avisás cuándo podés enviarla?";
+  if (enviadaMoto) return hola + "\n\nTu reemplazo (" + nuevo + ") fue enviado por moto. Te pedimos que nos confirmes cuando lo recibas." + (!recibida ? " La devolución de la prenda original (" + original + ") continúa pendiente." : "") + " ¡Gracias!";
   if (recibida && preparada) return hola + "\n\nYa recibimos la devolución y tenemos preparado tu reemplazo (" + nuevo + "). Nos ponemos de acuerdo para la entrega. ¡Gracias!";
-  if (preparada) return hola + "\n\nYa tenemos separado tu reemplazo (" + nuevo + "). Nos falta recibir la prenda original (" + original + ") para poder completar la entrega. Avisanos cuándo podés acercarla. ¡Gracias!";
+  if (preparada) return hola + "\n\nYa tenemos separado tu reemplazo (" + nuevo + "). Vamos a coordinar su entrega." + (!recibida ? " La prenda original (" + original + ") sigue pendiente de devolución, y podés mandarla después." : "") + " ¡Gracias!";
   if (recibida) return hola + "\n\nYa recibimos la prenda que devolviste (" + original + "). Estamos preparando el reemplazo (" + nuevo + ") y te vamos a avisar cuando esté listo.";
   return hola + "\n\nTu cambio está aprobado. Estamos esperando recibir la prenda original (" + original + ") para completar el proceso. Te vamos a avisar los próximos pasos. ¡Gracias!";
 };
