@@ -181,3 +181,9 @@
 ## Alumnos · Acceso a entrenamientos por deuda
 - [x] Regla de acceso efectiva en base (RLS/RPCs) + app, gracia día 1-5, excepción staff por rol real
 - [ ] Publicar la app (espera autorización); revisar los 39 alumnos con renovación de octubre impaga
+
+## Bormio 2027 · Correcciones puntuales (preview)
+- [ ] WhatsApp: mensaje "reserva" en vez de "postulación" (mismo número 5491140312299)
+- [ ] Aclarar "↗ €4.279 en 51 días" como próximo aumento (no es total)
+- [ ] Validar pasos 2-3 de reserva pública con escrituras bloqueadas, desktop/mobile
+- [ ] Plan Meta Pixel + CAPI: en espera de ID del Pixel, token y decisión sobre consentimiento
