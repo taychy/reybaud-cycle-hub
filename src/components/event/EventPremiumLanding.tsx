@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { MessageCircle } from "lucide-react";
 import type { ReglamentoFields } from "@/lib/eventReglamentoDefaults";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
@@ -23,6 +24,8 @@ export interface PremiumLandingConfig {
   preparation?: { quote?: string; body?: string; proposal_internal?: string[] };
   /** Servicio opcional existente (asesoría personalizada); solo consulta, nunca compra desde el viaje. */
   individual_prep?: { title?: string; body?: string; cta_label?: string; whatsapp_message?: string };
+  /** CTA de consulta general por WhatsApp del viaje. Solo se muestra si está configurado en metadata. */
+  whatsapp?: { number?: string; message?: string };
   kit?: { title?: string; items: string[]; promo_until?: string; note?: string };
 }
 
