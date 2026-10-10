@@ -207,7 +207,7 @@ const AdminCambios = () => {
           {selected && (
             <>
               <SheetHeader>
-                <SheetTitle>Cambio #{selected.id.slice(0, 8)}</SheetTitle>
+                <SheetTitle>{esPrueba(selected)?"Prenda de prueba":"Cambio"} #{selected.id.slice(0,8)}</SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4 text-sm">
                 <div>
@@ -236,19 +236,19 @@ const AdminCambios = () => {
                 )}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Variante original</p>
+                    <p className="text-xs text-muted-foreground">{esPrueba(selected)?"Prenda prestada":"Variante original de venta"}</p>
                     <p>{Object.entries(selected.variante_origen || {}).map(([k, v]) => `${k}: ${v}`).join(" · ") || "—"}</p>
                   </div>
-                  <div>
+                  {!esPrueba(selected)&&<div>
                     <p className="text-xs text-muted-foreground">Variante destino</p>
-                    <p>{selected.variante_destino ? Object.entries(selected.variante_destino).map(([k, v]) => `${k}: ${v}`).join(" · ") : <span className="text-amber-400">Sin stock / devolución</span>}</p>
-                  </div>
+                    <p>{selected.variante_destino ? Object.entries(selected.variante_destino).map(([k, v]) => `${k}: ${v}`).join(" · ") : <span className="text-amber-400">Sin destino definido</span>}</p>
+                  </div>}
                 </div>
-                <div>
+                {!esPrueba(selected) && <div>
                   <p className="text-xs text-muted-foreground">Motivo</p>
                   <p>{selected.motivo}{selected.comentario && <> — "{selected.comentario}"</>}</p>
-                </div>
-                {selected.iniciado_por === "admin" && (
+                </div>}
+                {selected.iniciado_por === "admin" && !esPrueba(selected) && (
                   <div className="rounded border border-amber-400/30 bg-amber-500/5 p-2 text-xs">
                     <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-400" />
                     Iniciado por admin. Motivo: {selected.motivo_admin}
