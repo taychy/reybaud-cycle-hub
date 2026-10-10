@@ -79,7 +79,8 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
         setStagesByPkg({});
       }
     })();
-  }, [open, eventId, initialPackageId]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, eventId]);
 
   useEffect(() => {
     if (open && pkgId) onPackageChange?.(pkgId);
