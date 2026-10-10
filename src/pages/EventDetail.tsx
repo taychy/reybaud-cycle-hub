@@ -188,6 +188,8 @@ const EventDetail = () => {
   }, []);
   const [reservation, setReservation] = useState<Reservation | null>(null);
   const [showReservationDrawer, setShowReservationDrawer] = useState(false);
+  // Paquete elegido en "Ver precios y paquetes": se conserva durante la sesión de la página
+  const [chosenPackageId, setChosenPackageId] = useState<string | null>(null);
   const [showGuestDrawer, setShowGuestDrawer] = useState(false);
   const [showChangePackage, setShowChangePackage] = useState(false);
   const [packagesMinPrice, setPackagesMinPrice] = useState<number | null>(null);
@@ -832,7 +834,8 @@ const EventDetail = () => {
                 triggerClassName={editorialAlpine ? "h-12 w-full rounded-xl border-0 bg-[#e73531] font-semibold text-white hover:bg-[#d72e29] hover:text-white" : undefined}
                 onReserve={
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
-                    ? () => {
+                    ? (pkgId: string | null) => {
+                        if (pkgId) setChosenPackageId(pkgId);
                         if (!alumno) {
                           if (isOpenAudience) {
                             setShowGuestDrawer(true);
@@ -851,6 +854,9 @@ const EventDetail = () => {
                 }
                 reserveLabel={!alumno && !isOpenAudience ? "Iniciar sesión" : isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
                 reserveDisabled={!!alumno && isImpersonating}
+                selectPackage={!!alumno || isOpenAudience}
+                selectedPackageId={chosenPackageId}
+                onSelectedPackageChange={setChosenPackageId}
               />
               ) : null}
             />
@@ -863,7 +869,8 @@ const EventDetail = () => {
                 eventId={id}
                 onReserve={
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
-                    ? () => {
+                    ? (pkgId: string | null) => {
+                        if (pkgId) setChosenPackageId(pkgId);
                         if (!alumno) {
                           if (isOpenAudience) {
                             setShowGuestDrawer(true);
@@ -882,6 +889,9 @@ const EventDetail = () => {
                 }
                 reserveLabel={!alumno && !isOpenAudience ? "Iniciar sesión" : isInscriptionOnly ? "Inscribirme" : "Reservar mi lugar"}
                 reserveDisabled={!!alumno && isImpersonating}
+                selectPackage={!!alumno || isOpenAudience}
+                selectedPackageId={chosenPackageId}
+                onSelectedPackageChange={setChosenPackageId}
               />
             </div>
           )}
@@ -1361,6 +1371,8 @@ const EventDetail = () => {
           alumno={alumno}
           onReserved={handleReservationCreated}
           eventNature={eventNature}
+          initialPackageId={chosenPackageId}
+          onPackageChange={setChosenPackageId}
           promo={promo?.ok ? {
             ok: true,
             descuento_id: promo.descuento_id,
@@ -1378,6 +1390,8 @@ const EventDetail = () => {
           onOpenChange={setShowGuestDrawer}
           eventId={event.id}
           eventName={event.title}
+          initialPackageId={chosenPackageId}
+          onPackageChange={setChosenPackageId}
         />
       )}
 
