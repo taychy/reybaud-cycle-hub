@@ -12662,6 +12662,9 @@ export type Database = {
           metodo_entrega_reemplazo:
             | Database["public"]["Enums"]["cambio_metodo"]
             | null
+          metodo_preparacion:
+            | Database["public"]["Enums"]["cambio_metodo"]
+            | null
           metodo_recepcion: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda: string
           monto_absorbido: number | null
@@ -12676,6 +12679,8 @@ export type Database = {
           precio_cobrado_original: number | null
           precio_reemplazo: number | null
           preorder_id: string | null
+          preparado_at: string | null
+          preparado_por: string | null
           producto_id: string
           producto_reemplazo_id: string | null
           prueba_cierre_at: string | null
@@ -12686,6 +12691,11 @@ export type Database = {
           prueba_salida_at: string | null
           recibido_en: string | null
           recibido_por: string | null
+          reemplazo_canal_entrega: string | null
+          reemplazo_despachado_at: string | null
+          reemplazo_entrega_nota: string | null
+          reemplazo_entregado_at: string | null
+          reemplazo_entregado_por: string | null
           reemplazo_estado: Database["public"]["Enums"]["cambio_reemplazo_estado"]
           resolucion_economica: string | null
           responsable_admin_id: string | null
@@ -12722,6 +12732,9 @@ export type Database = {
           metodo_entrega_reemplazo?:
             | Database["public"]["Enums"]["cambio_metodo"]
             | null
+          metodo_preparacion?:
+            | Database["public"]["Enums"]["cambio_metodo"]
+            | null
           metodo_recepcion?: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda?: string
           monto_absorbido?: number | null
@@ -12736,6 +12749,8 @@ export type Database = {
           precio_cobrado_original?: number | null
           precio_reemplazo?: number | null
           preorder_id?: string | null
+          preparado_at?: string | null
+          preparado_por?: string | null
           producto_id: string
           producto_reemplazo_id?: string | null
           prueba_cierre_at?: string | null
@@ -12746,6 +12761,11 @@ export type Database = {
           prueba_salida_at?: string | null
           recibido_en?: string | null
           recibido_por?: string | null
+          reemplazo_canal_entrega?: string | null
+          reemplazo_despachado_at?: string | null
+          reemplazo_entrega_nota?: string | null
+          reemplazo_entregado_at?: string | null
+          reemplazo_entregado_por?: string | null
           reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
           resolucion_economica?: string | null
           responsable_admin_id?: string | null
@@ -12782,6 +12802,9 @@ export type Database = {
           metodo_entrega_reemplazo?:
             | Database["public"]["Enums"]["cambio_metodo"]
             | null
+          metodo_preparacion?:
+            | Database["public"]["Enums"]["cambio_metodo"]
+            | null
           metodo_recepcion?: Database["public"]["Enums"]["cambio_metodo"] | null
           moneda?: string
           monto_absorbido?: number | null
@@ -12796,6 +12819,8 @@ export type Database = {
           precio_cobrado_original?: number | null
           precio_reemplazo?: number | null
           preorder_id?: string | null
+          preparado_at?: string | null
+          preparado_por?: string | null
           producto_id?: string
           producto_reemplazo_id?: string | null
           prueba_cierre_at?: string | null
@@ -12806,6 +12831,11 @@ export type Database = {
           prueba_salida_at?: string | null
           recibido_en?: string | null
           recibido_por?: string | null
+          reemplazo_canal_entrega?: string | null
+          reemplazo_despachado_at?: string | null
+          reemplazo_entrega_nota?: string | null
+          reemplazo_entregado_at?: string | null
+          reemplazo_entregado_por?: string | null
           reemplazo_estado?: Database["public"]["Enums"]["cambio_reemplazo_estado"]
           resolucion_economica?: string | null
           responsable_admin_id?: string | null
@@ -14742,6 +14772,56 @@ export type Database = {
             columns: ["carga_id"]
             isOneToOne: false
             referencedRelation: "vehiculo_cargas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vehiculo_entrega_consultas: {
+        Row: {
+          canal: string
+          comentario: string | null
+          consultado_at: string
+          consultado_por: string | null
+          gusto: string | null
+          id: string
+          item_id: string
+          mensaje: string
+          respondido_at: string | null
+          respondido_por: string | null
+          respuesta: string
+        }
+        Insert: {
+          canal?: string
+          comentario?: string | null
+          consultado_at?: string
+          consultado_por?: string | null
+          gusto?: string | null
+          id?: string
+          item_id: string
+          mensaje: string
+          respondido_at?: string | null
+          respondido_por?: string | null
+          respuesta?: string
+        }
+        Update: {
+          canal?: string
+          comentario?: string | null
+          consultado_at?: string
+          consultado_por?: string | null
+          gusto?: string | null
+          id?: string
+          item_id?: string
+          mensaje?: string
+          respondido_at?: string | null
+          respondido_por?: string | null
+          respuesta?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vehiculo_entrega_consultas_item_id_fkey"
+            columns: ["item_id"]
+            isOneToOne: false
+            referencedRelation: "vehiculo_carga_items"
             referencedColumns: ["id"]
           },
         ]
@@ -16864,6 +16944,19 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_crear_cambio_desde_venta: {
+        Args: {
+          p_comentario: string
+          p_motivo: Database["public"]["Enums"]["cambio_motivo"]
+          p_motivo_admin: string
+          p_order_item_id: string
+          p_origen_tipo: string
+          p_preorder_id: string
+          p_producto_reemplazo_id: string
+          p_variante_destino: Json
+        }
+        Returns: string
+      }
       admin_create_cambio_indumentaria: {
         Args: {
           p_alumno_id: string
@@ -17403,6 +17496,10 @@ export type Database = {
         }
         Returns: string
       }
+      confirmar_entrega_reemplazo: {
+        Args: { p_cambio_id: string; p_canal?: string; p_nota?: string }
+        Returns: Json
+      }
       confirmar_pago_mensualidad_manual: {
         Args: { p_pagado_at: string; p_suscripcion_id: string }
         Returns: Json
@@ -17615,6 +17712,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      deposito_preparar_reemplazo: {
+        Args: {
+          p_cambio_id: string
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_producto_id: string
+          p_variante: Json
+        }
+        Returns: Json
+      }
       deposito_recibir_cambio: {
         Args: {
           p_cambio_id: string
@@ -17626,6 +17732,15 @@ export type Database = {
           p_qr_recibido_variante: Json
         }
         Returns: undefined
+      }
+      deposito_recibir_devolucion: {
+        Args: {
+          p_cambio_id: string
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_producto_id: string
+          p_variante: Json
+        }
+        Returns: Json
       }
       deposito_registrar_cambio_presencial: {
         Args: {
@@ -17673,6 +17788,10 @@ export type Database = {
       expire_stale_subscriptions_for_alumno: {
         Args: { p_alumno_id: string; p_plan_id?: string }
         Returns: number
+      }
+      finalizar_control_camioneta_total: {
+        Args: { p_chequeo_ids: string[] }
+        Returns: Json
       }
       finalize_stock_count:
         | {
@@ -18913,6 +19032,15 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_aviso_cambio: {
+        Args: {
+          p_cambio_id: string
+          p_canal?: string
+          p_mensaje?: string
+          p_tipo: string
+        }
+        Returns: undefined
+      }
       registrar_cambio_grupo_alumno: {
         Args: {
           p_alumno_id: string
@@ -18920,6 +19048,10 @@ export type Database = {
           p_nuevo_grupo: string
         }
         Returns: Json
+      }
+      registrar_consulta_entrega_camioneta: {
+        Args: { p_canal?: string; p_item_id: string; p_mensaje: string }
+        Returns: string
       }
       registrar_devolucion: {
         Args: {
@@ -18941,6 +19073,10 @@ export type Database = {
         }
         Returns: string
       }
+      registrar_envio_moto_reemplazo: {
+        Args: { p_cambio_id: string; p_nota?: string }
+        Returns: Json
+      }
       registrar_obligacion_devolucion: {
         Args: {
           p_estado: string
@@ -18952,6 +19088,15 @@ export type Database = {
           p_sugerido: number
         }
         Returns: Json
+      }
+      registrar_respuesta_entrega_camioneta: {
+        Args: {
+          p_comentario?: string
+          p_consulta_id: string
+          p_gusto?: string
+          p_respuesta: string
+        }
+        Returns: undefined
       }
       registrar_seleccion_reingreso: {
         Args: {
