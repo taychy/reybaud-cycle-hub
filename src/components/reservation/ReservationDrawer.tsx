@@ -87,9 +87,12 @@ interface ReservationDrawerProps {
   onReserved: (reservation: any) => void;
   eventNature?: string;
   promo?: PromoApplied | null;
+  /** Paquete ya elegido en "Ver precios y paquetes": no se vuelve a pedir. */
+  initialPackageId?: string | null;
+  onPackageChange?: (id: string | null) => void;
 }
 
-const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva", promo = null }: ReservationDrawerProps) => {
+const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva", promo = null, initialPackageId = null, onPackageChange }: ReservationDrawerProps) => {
   const { toast } = useToast();
   const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
@@ -181,6 +184,23 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   }, [open, event.id, isInscriptionOnly]);
 
   const hasPackages = packages.length > 0;
+
+  // Aplicar el paquete elegido antes de abrir (si existe y tiene cupo)
+  useEffect(() => {
+    if (!open || !initialPackageId || packages.length === 0) return;
+    const p = packages.find((x) => x.id === initialPackageId);
+    if (!p) return;
+    const rows = p.availability || [];
+    const avail = rows.reduce((a, r) => a + Math.max(0, r.available), 0);
+    if (rows.length === 0 || avail <= 0) return;
+    setSelectedPackageId(p.id);
+  }, [open, initialPackageId, packages]);
+
+  useEffect(() => {
+    if (open && selectedPackageId) onPackageChange?.(selectedPackageId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedPackageId]);
+
   const selectedPackage = packages.find((p) => p.id === selectedPackageId) || null;
 
   // Precio efectivo: del paquete elegido, o del evento
@@ -355,6 +375,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const matesNeeded = Math.max(0, roomCapacity - 1); // restantes a declarar
 
   const goAfterSummary = () => {
+    if (hasPackages && selectedPackageId) { goAfterPackage(); return; }
     if (hasPackages) setStep("package");
     else setStep("form");
   };
@@ -743,7 +764,34 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                     <p className="text-xl font-heading font-bold text-primary">{formatPrice(event.price!, event.currency)}</p>
                   </div>
                 )}
-                {hasPackages && !isInscriptionOnly && (
+                {hasPackages && !isInscriptionOnly && selectedPackage && (
+                  <div className="pt-2 border-t border-border/50 space-y-1">
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <BedDouble className="w-3.5 h-3.5 text-primary" /> Paquete elegido
+                    </p>
+                    <p className="text-sm font-semibold text-foreground">{selectedPackage.nombre}</p>
+                    <p className="text-xl font-heading font-bold text-primary">
+                      {formatPrice(effectivePrice ?? selectedPackage.precio, selectedPackage.currency)}
+                    </p>
+                    {paymentPlanPreview && (
+                      <p className="text-xs text-muted-foreground">
+                        Seña {formatPrice(paymentPlanPreview.sena_monto, selectedPackage.currency)}
+                        {(() => {
+                          const n = paymentPlanPreview.installments.filter((i) => i.installment_type === "cuota").length;
+                          return n > 0 ? ` + ${n} cuota${n > 1 ? "s" : ""} · ${paymentPlanPreview.nombre}` : "";
+                        })()}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      className="text-xs text-primary underline underline-offset-2"
+                      onClick={() => setStep("package")}
+                    >
+                      Cambiar paquete
+                    </button>
+                  </div>
+                )}
+                {hasPackages && !isInscriptionOnly && !selectedPackage && (
                   <div className="pt-2 border-t border-border/50">
                     <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                       <BedDouble className="w-3.5 h-3.5 text-primary" /> Desde

@@ -34,9 +34,12 @@ interface Props {
   onOpenChange: (open: boolean) => void;
   eventId: string;
   eventName: string;
+  /** Paquete ya elegido en "Ver precios y paquetes": no se vuelve a pedir. */
+  initialPackageId?: string | null;
+  onPackageChange?: (id: string | null) => void;
 }
 
-export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName }: Props) {
+export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName, initialPackageId = null, onPackageChange }: Props) {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -51,6 +54,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
   const [metodo, setMetodo] = useState<"mp" | "transferencia">("mp");
   const [terms, setTerms] = useState(false);
   const [comprobante, setComprobante] = useState<File | null>(null);
+  const [planInfo, setPlanInfo] = useState<{ nombre: string; sena_tipo: string; sena_valor: number; cantidad_cuotas: number } | null>(null);
   const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
 
   useEffect(() => {
@@ -68,6 +72,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
       setPaymentPolicy(parsePaymentPolicy((eventData as any)?.metadata));
       const list = (data as Pkg[]) || [];
       setPackages(list);
+      if (initialPackageId && list.some((p) => p.id === initialPackageId)) setPkgId(initialPackageId);
       if (list.length > 0) {
         const stages = await fetchPriceStages(list.map((p) => p.id));
         setStagesByPkg(stages);
@@ -75,13 +80,38 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
         setStagesByPkg({});
       }
     })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, eventId]);
+
+  useEffect(() => {
+    if (open && pkgId) onPackageChange?.(pkgId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pkgId]);
 
   const priceFor = useMemo(() => {
     return (p: Pkg) => resolveActivePrice(Number(p.precio || 0), p.currency || "ARS", stagesByPkg[p.id]);
   }, [stagesByPkg]);
 
   const selectedPkg = packages.find((p) => p.id === pkgId);
+
+  // Plan de pagos del paquete elegido (solo para mostrar el resumen)
+  useEffect(() => {
+    setPlanInfo(null);
+    if (!pkgId) return;
+    let cancelled = false;
+    (async () => {
+      const activeStageId = (() => { const p = packages.find((x) => x.id === pkgId); return p ? priceFor(p).activeStage?.id ?? null : null; })();
+      const base = () => supabase
+        .from("event_package_payment_plans" as any)
+        .select("nombre, sena_tipo, sena_valor, cantidad_cuotas")
+        .eq("package_id", pkgId).eq("activo", true).is("archived_at", null)
+        .order("version", { ascending: false }).limit(1);
+      let { data } = activeStageId ? await base().eq("price_stage_id", activeStageId).maybeSingle() : { data: null as any };
+      if (!data) ({ data } = await base().is("price_stage_id", null).maybeSingle());
+      if (!cancelled && data) setPlanInfo({ ...(data as any), sena_valor: Number((data as any).sena_valor) });
+    })();
+    return () => { cancelled = true; };
+  }, [pkgId, packages, priceFor]);
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const canNextFromStep2 = !!selectedPkg;
   const canSubmit = terms && (metodo === "mp" || (metodo === "transferencia" && comprobante));
@@ -139,6 +169,24 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
         <div className="mt-6 space-y-4 pb-24">
           {step === 1 && (
             <div className="space-y-3">
+              {selectedPkg && (() => { const pr = priceFor(selectedPkg); return (
+                <div className="p-4 rounded-xl border border-primary/40 bg-primary/5">
+                  <div className="text-xs text-muted-foreground">Paquete elegido</div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <span className="font-semibold">{selectedPkg.nombre}</span>
+                    <span className="font-bold text-primary">{fmtMoney(pr.precio, pr.currency)}</span>
+                  </div>
+                  {planInfo && (
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Seña {fmtMoney(planInfo.sena_tipo === "porcentaje" ? Math.round(pr.precio * planInfo.sena_valor) / 100 : planInfo.sena_valor, pr.currency)}
+                      {planInfo.cantidad_cuotas > 0 ? ` + ${planInfo.cantidad_cuotas} cuotas · ${planInfo.nombre}` : ""}
+                    </div>
+                  )}
+                  <button type="button" className="mt-1 text-xs text-primary underline underline-offset-2" onClick={() => setStep(2)}>
+                    Cambiar paquete
+                  </button>
+                </div>
+              ); })()}
               <div className="grid grid-cols-2 gap-3">
                 <div><Label>Nombre *</Label><Input value={form.nombre} onChange={(e) => setForm({ ...form, nombre: e.target.value })} /></div>
                 <div><Label>Apellido *</Label><Input value={form.apellido} onChange={(e) => setForm({ ...form, apellido: e.target.value })} /></div>
@@ -252,7 +300,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName 
             <Button
               className="flex-1"
               disabled={step === 1 ? !canNextFromStep1 : !canNextFromStep2}
-              onClick={() => setStep(step + 1)}
+              onClick={() => setStep(step === 1 && selectedPkg ? 3 : step + 1)}
             >Continuar <ArrowRight className="w-4 h-4 ml-1" /></Button>
           )}
           {step === 3 && (

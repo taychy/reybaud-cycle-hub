@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CalendarDays, Wallet, TrendingUp, BedDouble, BellRing } from "lucide-react";
+import { CalendarDays, Wallet, TrendingUp, BedDouble, BellRing, CheckCircle2, Circle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
@@ -67,7 +67,14 @@ const computeInstallmentAmounts = (
   });
 };
 
-const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
+interface EventPaymentPlansPublicProps {
+  eventId: string;
+  /** Si se pasa, cada paquete es seleccionable (una sola elección). */
+  selectedId?: string | null;
+  onSelect?: (pkg: { id: string; nombre: string; precio: number; currency: string }) => void;
+}
+
+const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: EventPaymentPlansPublicProps) => {
   const [packages, setPackages] = useState<Pkg[]>([]);
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
   const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
@@ -171,19 +178,31 @@ const EventPaymentPlansPublic = ({ eventId }: { eventId: string }) => {
           const minCuota = cuotaMontos.length ? Math.min(...cuotaMontos) : 0;
           const maxCuota = cuotaMontos.length ? Math.max(...cuotaMontos) : 0;
           const cuotasIguales = cuotaMontos.length > 0 && minCuota === maxCuota;
-          const open = !!openIds[pkg.id];
+          const selectable = !!onSelect;
+          const isSelected = selectable && selectedId === pkg.id;
+          const open = !!openIds[pkg.id] || isSelected;
           return (
-            <div key={pkg.id}>
+            <div key={pkg.id} className={selectable ? `my-1 rounded-lg border transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-transparent"}` : undefined}>
               <button
                 type="button"
                 aria-expanded={open}
+                aria-pressed={selectable ? isSelected : undefined}
                 aria-controls={`pkg-detail-${pkg.id}`}
-                onClick={() => setOpenIds((s) => ({ ...s, [pkg.id]: !s[pkg.id] }))}
+                onClick={() => {
+                  if (selectable) {
+                    onSelect!({ id: pkg.id, nombre: pkg.nombre, precio: pkg.precio, currency: pkg.currency });
+                    return;
+                  }
+                  setOpenIds((s) => ({ ...s, [pkg.id]: !s[pkg.id] }));
+                }}
                 className="w-full px-1 py-3 flex items-start gap-3 text-left hover:bg-muted/20 transition-colors rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
               >
+                {selectable && (isSelected
+                  ? <CheckCircle2 className="w-5 h-5 text-primary shrink-0 mt-0.5" aria-hidden />
+                  : <Circle className="w-5 h-5 text-muted-foreground shrink-0 mt-0.5" aria-hidden />)}
                 {/* Izquierda: título + subtítulo */}
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground">{pkg.nombre}</p>
+                  <p className="text-sm font-semibold text-foreground">{pkg.nombre}{isSelected && <span className="ml-2 text-[10px] uppercase tracking-wider text-primary">Elegido</span>}</p>
                   {pkg.plan ? (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Por persona · seña {formatPrice(sena, pkg.currency)}
