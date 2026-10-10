@@ -1,50 +1,41 @@
-# Página de Bormio "La Gran Conquista Alpina": auditoría y plan (todavía sin cambios)
+# Diagnóstico Bormio 2027 — seguimiento de Meta y reservas (solo lectura)
 
-## Lo que ya existe (revisado en la base real)
-- **El viaje ya está cargado en borrador:** "Italia, Suiza y Austria: La Gran Conquista". Está oculto: no es público ni visible para alumnos y no tiene reservas.
-  - Moneda EUR, pago en cuotas, cupo de 20, 7 noches, y una política de pago internacional ya configurada (EUR efectivo sin recargo; transferencia en ARS +7%).
-  - Tiene dos paquetes: **Doble €3.888** e **Individual €4.413**, ambos con seña de €500 y cupo de 10. No tiene etapas de precio ni plan de cuotas.
-  - Tiene **fechas cargadas 21/06/2027 al 28/06/2027, que no están confirmadas**. Esas fechas se muestran en la tarjeta y en la página del viaje, y también se usan para calcular las cuotas y los plazos de cambio.
-- **Viaje que conviene usar como modelo: Emilia Romagna 2027.** Ya está publicado y usa las mismas piezas: portada con varias fotos, preguntas frecuentes, política de pago internacional, alojamiento, auditoría técnica y audiencia abierta.
-- **La página pública es la misma para todos los viajes.** Se arma sola con los datos de cada viaje: portada con fotos, aviso de precio, qué incluye y qué no, itinerario, planes de pago, paquetes, reserva de alumnos e invitados, y cobro con Mercado Pago o efectivo. Agregar Bormio no requiere una página nueva, solo cargar sus datos.
+No se modificó código, datos ni permisos. No se abrió el navegador ni se creó ninguna reserva.
 
-## Diferencias detectadas con tu pedido
-1. El precio doble cargado es **€3.888**, pero pediste **€3.890**. Además, la Individual (€4.413) no tiene precio por etapas definido. Necesito que confirmes los precios de la Individual.
-2. Las etapas de precio (€3.890 hasta 30/11/2026, €4.279 hasta 31/01/2027 y €4.706,90 después) no están cargadas.
-3. **Riesgo principal: las fechas.** La app exige fecha de inicio para todo viaje y hoy tiene una cargada que no está confirmada. Publicar así expondría esa fecha y calcularía cuotas sobre ella.
-4. El plan de cuotas automático necesita fecha de viaje y de lanzamiento. Sin fecha confirmada no se puede generar correctamente.
+## Estado actual del evento (leído de la base de datos)
+- `status = publicado`, `is_active = true`, audiencia `open`, 0 reservas.
+- Paquetes activos: Habitación doble EUR 3.890 · Habitación individual EUR 4.490.
+- Atención: esto contradice el supuesto de "borrador/oculto". Bormio hoy es público y acepta reservas directas.
 
-## Propuesta (cambios mínimos)
-**Paso A: cargar datos solo de este viaje, sin tocar código ni otros viajes**
-- Portada con fotos de las etapas y de las bicis Cannondale SuperSix EVO y Scott Addict (Shimano 105 electrónico). Las fotos las aportás vos o se suben al almacenamiento de imágenes de viajes.
-- Descripción, itinerario de 7 etapas (538 km y +11.610 m aprox.: Gavia, Bernina, Stelvio, Resia, Innsbruck, Dolomitas), qué incluye y qué no.
-  - Incluye: transfers Milán-Bormio y Ortisei-Milán para personas y equipaje, excepto bike boxes; 7 noches en hoteles 3* con desayuno; alquiler de bici de ruta; van de apoyo diario; traslado de equipaje; preparación específica Reybaud.
-  - La asistencia y el avituallamiento figuran como "a validar".
-- Etapas de precio en el paquete doble y seña de €500.
-- Preguntas frecuentes sin reglas de cancelación (quedan vacías hasta confirmarlas).
-- Antes de cargar nada, guardo una copia del estado actual para poder volver atrás.
+## 1. Meta Pixel — NO implementado
+- Revisé `index.html`, `src/` y las funciones del servidor: no hay `fbq`, ni ID de pixel, ni envíos al servidor de Meta.
+- No se dispara ningún evento: PageView, ViewContent, Lead, Contact, InitiateCheckout ni Purchase.
+- Como no hay pixel, tampoco hay duplicaciones ni aviso de consentimiento para publicidad.
+- El botón de WhatsApp (`LandingWhatsAppCta` en `src/components/event/EventPremiumLanding.tsx`) abre wa.me y no registra ningún evento.
 
-**Paso B: "fechas a confirmar" (único cambio de código, se activa solo por viaje)**
-- Una opción en los datos del viaje que, cuando está prendida, muestra "Fechas a confirmar" en lugar de la fecha en la tarjeta y en la página.
-- Mientras esté prendida, la cuota final dice "un mes antes del viaje (fecha a confirmar)" y no se genera el calendario de cuotas.
-- Los viajes que no tengan la opción se ven igual que hoy.
+## 2. Enlaces de la campaña y UTM
+- No hay lectura ni guardado de `utm_*`, `fbclid` ni `gclid` en ningún lugar de la app.
+- La landing es `/eventos/e726408b-…` (de `src/lib/eventLinks.ts`). Los parámetros UTM se pueden agregar al enlace y la página carga igual, pero se pierden: no llegan a la reserva.
+- No puedo confirmar desde el código a qué URL apuntan los anuncios de la campaña; falta ese dato.
 
-**Paso C: revisión y publicación (solo con tu autorización)**
-- Primero veo la página en la vista previa con el viaje todavía oculto. Recién después, si lo autorizás, se publica.
+## 3. Flujo público de paquetes (verificado en el código)
+- `src/pages/EventDetail.tsx` (~830–860): en la landing premium, `EventPackagesDrawer` recibe `selectPackage` como verdadero para invitados (audiencia abierta) y alumnos, y guarda la elección en `chosenPackageId`.
+- `src/components/event/EventPackagesDrawer.tsx`: no se puede continuar sin elegir; muestra "Elegiste {nombre} · {precio}".
+- `EventPaymentPlansPublic.tsx`: la seña y las cuotas se calculan con los datos del paquete elegido.
+- Las ventanas de reserva reciben `initialPackageId={chosenPackageId}`:
+  - Invitado: `src/components/reservation/GuestReservationDrawer.tsx` (líneas 75, 132, 186) preselecciona el paquete, muestra "Cambiar paquete" y envía `package_id`.
+  - Alumno: `src/components/reservation/ReservationDrawer.tsx` (líneas 190–197, 496, 790): lo mismo.
+- No se repite la selección dentro de la ventana; solo se cambia si se toca "Cambiar paquete".
+- Detalle pendiente: el encabezado "Desde · EUR 3.890" (línea 600) aparece siempre porque hay más de un paquete. Es correcto, pero puede confundir a quien eligió la individual.
+- No probado hoy en navegador: el paso previo al pago con la cuenta de alumno, y la reserva real hasta el pago (no se hace a propósito).
 
-## Vuelta atrás
-- Datos: restaurar la copia guardada del viaje, sus paquetes y sus etapas de precio, o volver a ponerlo en borrador.
-- Código: apagar la opción de fechas a confirmar o deshacer el cambio. Al no haber reservas, no se afecta a nadie.
+## 4. ¿Postulación o compra directa?
+- Es compra directa: no hay pantalla de postulación para viajes. El CTA lleva a reservar con seña.
+- El mensaje del WhatsApp habla de "la postulación", pero en la app esa etapa no existe.
 
-## Pruebas
-- Pruebas automáticas de la nueva opción: prendida muestra "Fechas a confirmar"; apagada se ve exactamente igual que hoy.
-- Pruebas de etapas de precio con 30/11/2026 y 31/01/2027 como límites.
-- Revisar que Emilia Romagna, Girona y San Luis se sigan viendo igual en la vista previa.
-- Correr las pruebas automáticas existentes y comprobar que la app compile.
-- Simular una reserva de prueba sin pagar, para ver que la seña sea de €500 y que el recargo en ARS se aplique bien.
-
-## Qué necesito de vos
-1. Precio de la habitación Individual en cada etapa.
-2. Confirmar €3.890 (en lugar de €3.888) como precio doble de lanzamiento.
-3. Fotos de las bicis y de las etapas, o autorización para usar las que ya están cargadas.
-4. Si preferís mantener el viaje oculto hasta tener la fecha, puedo saltear el Paso B.
+## Prioridades sugeridas (no se implementan sin tu aprobación)
+1. Decidir si Bormio debe seguir publicado y con reservas abiertas mientras corre la campaña.
+2. Si vas a pautar en Meta: instalar el pixel una sola vez, con ID y aviso de consentimiento para las regiones que lo exigen. Registrar ViewContent en la landing, Contact en WhatsApp, InitiateCheckout al abrir la reserva, Lead al crear la reserva y Purchase solo cuando el pago de la seña esté confirmado. Actualizar la política de privacidad.
+3. Guardar los UTM de la primera visita y asociarlos a la reserva.
+4. Definir postulación vs compra directa y ajustar el texto del WhatsApp a esa decisión.
+5. Con tu autorización: hacer una prueba en navegador como alumno hasta el paso previo al pago, sin pagar.
