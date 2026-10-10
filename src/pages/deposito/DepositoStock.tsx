@@ -15,6 +15,7 @@ import { toast } from "@/hooks/use-toast";
 import StockImportDialog from "@/components/deposito/StockImportDialog";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import ProductLabelsDialog from "@/components/deposito/ProductLabelsDialog";
+import DetalleStockDialog from "@/components/deposito/DetalleStockDialog";
 import { sortVariantSpecs } from "@/lib/variantSort";
 import { effectiveStock } from "@/lib/stock";
 import { downloadNoCambioNiimbotLabel } from "@/lib/depositoPolicyLabels";
@@ -70,6 +71,7 @@ const DepositoStock = () => {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [labelsProduct, setLabelsProduct] = useState<Product | null>(null);
+  const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -230,8 +232,7 @@ const DepositoStock = () => {
     );
     if (match) {
       toast({ title: "Producto encontrado", description: match.name });
-      setMovDialog(match);
-      setMovTipo("ingreso");
+      setDetailProduct(match);
     } else {
       setSearch(trimmed);
       toast({
@@ -375,8 +376,8 @@ const DepositoStock = () => {
                 <TableRow>
                   <TableHead>Producto</TableHead>
                   <TableHead className="text-center">Stock actual</TableHead>
-                  <TableHead className="text-center">Mínimo</TableHead>
-                  <TableHead className="text-center">Estado</TableHead>
+                  <TableHead className="text-center hidden sm:table-cell">Mínimo</TableHead>
+                  <TableHead className="text-center hidden sm:table-cell">Estado</TableHead>
                   <TableHead className="hidden md:table-cell text-center">Acciones</TableHead>
                 </TableRow>
               </TableHeader>
@@ -385,16 +386,24 @@ const DepositoStock = () => {
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
                       <div className="flex flex-col">
-                        <span>{p.name}</span>
+                        <button type="button"
+                          className="text-left hover:text-primary focus-visible:underline focus-visible:outline-none"
+                          onClick={() => setDetailProduct(p)}>
+                          {p.name}
+                        </button>
                         {p.sku_base && (
                           <span className="text-[10px] font-mono text-muted-foreground">
                             RYB-{p.sku_base}
                           </span>
                         )}
+                        <Button size="sm" variant="outline" className="mt-2 h-8 w-fit"
+                          onClick={() => setDetailProduct(p)}>
+                          <Search className="w-3.5 h-3.5 mr-1" /> Ver talles y cantidades
+                        </Button>
                         <Button
                           size="sm"
                           variant="outline"
-                          className="mt-2 h-8 w-fit md:hidden"
+                          className="mt-1 h-8 w-fit md:hidden"
                           onClick={() => setLabelsProduct(p)}
                         >
                           <Tag className="w-3 h-3 mr-1" /> Imprimir etiqueta
@@ -406,8 +415,8 @@ const DepositoStock = () => {
                         {effectiveStock(p)}
                       </span>
                     </TableCell>
-                    <TableCell className="text-center text-muted-foreground">{p.min_stock}</TableCell>
-                    <TableCell className="text-center">
+                    <TableCell className="text-center text-muted-foreground hidden sm:table-cell">{p.min_stock}</TableCell>
+                    <TableCell className="text-center hidden sm:table-cell">
                       {effectiveStock(p) === 0 ? (
                         <Badge variant="destructive">Sin stock</Badge>
                       ) : effectiveStock(p) <= p.min_stock ? (
@@ -585,6 +594,11 @@ const DepositoStock = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <DetalleStockDialog
+        product={detailProduct ? (products.find((p) => p.id === detailProduct.id) || detailProduct) : null}
+        onOpenChange={(open) => { if (!open) setDetailProduct(null); }}
+      />
 
       <StockImportDialog
         open={showImport}
