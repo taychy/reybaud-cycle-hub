@@ -186,7 +186,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                   </div>
                   {planInfo && (
                     <div className="text-xs text-muted-foreground mt-1">
-                      Seña {fmtMoney(planInfo.sena_tipo === "porcentaje" ? Math.round(pr.precio * planInfo.sena_valor) / 100 : planInfo.sena_valor, pr.currency)}
+                      Seña {fmtMoney(senaFor(pr.precio) ?? 0, pr.currency)}
                       {planInfo.cantidad_cuotas > 0 ? ` + ${planInfo.cantidad_cuotas} cuotas · ${planInfo.nombre}` : ""}
                     </div>
                   )}
