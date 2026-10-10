@@ -253,3 +253,55 @@ REVOKE ALL ON FUNCTION public.registrar_envio_moto_reemplazo(uuid,text) FROM PUB
 REVOKE ALL ON FUNCTION public.confirmar_entrega_reemplazo(uuid,text,text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.registrar_envio_moto_reemplazo(uuid,text) TO authenticated,service_role;
 GRANT EXECUTE ON FUNCTION public.confirmar_entrega_reemplazo(uuid,text,text) TO authenticated,service_role;
+
+-- Evita que un alumno con permiso de actualización se atribuya una entrega física.
+CREATE OR REPLACE FUNCTION public.store_cambios_guard_physical()
+ RETURNS trigger
+ LANGUAGE plpgsql
+ SET search_path TO 'public'
+AS $function$
+DECLARE v_staff boolean;
+BEGIN
+  IF NEW.tipo NOT IN ('cambio','sustitucion_falta_stock') THEN RETURN NEW; END IF;
+  v_staff := COALESCE(public.has_role(auth.uid(),'admin'::app_role),false)
+          OR COALESCE(public.has_role(auth.uid(),'deposito'::app_role),false)
+          OR auth.role() = 'service_role';
+
+  IF NOT v_staff AND (
+       NEW.recibido_en IS DISTINCT FROM OLD.recibido_en
+    OR NEW.recibido_por IS DISTINCT FROM OLD.recibido_por
+    OR NEW.reemplazo_estado IS DISTINCT FROM OLD.reemplazo_estado
+    OR NEW.preparado_at IS DISTINCT FROM OLD.preparado_at
+    OR NEW.stock_devuelto_at IS DISTINCT FROM OLD.stock_devuelto_at
+    OR NEW.stock_descontado_at IS DISTINCT FROM OLD.stock_descontado_at
+    OR NEW.producto_reemplazo_id IS DISTINCT FROM OLD.producto_reemplazo_id
+    OR NEW.reemplazo_canal_entrega IS DISTINCT FROM OLD.reemplazo_canal_entrega
+    OR NEW.reemplazo_despachado_at IS DISTINCT FROM OLD.reemplazo_despachado_at
+    OR NEW.reemplazo_entregado_at IS DISTINCT FROM OLD.reemplazo_entregado_at
+    OR NEW.reemplazo_entregado_por IS DISTINCT FROM OLD.reemplazo_entregado_por
+    OR NEW.reemplazo_entrega_nota IS DISTINCT FROM OLD.reemplazo_entrega_nota
+  ) THEN
+    RAISE EXCEPTION 'Solo el personal autorizado puede registrar operaciones físicas';
+  END IF;
+
+  IF NEW.tipo = 'cambio' AND NEW.estado = 'en_deposito'
+     AND OLD.estado IS DISTINCT FROM NEW.estado
+     AND NEW.recibido_en IS NULL THEN
+    RAISE EXCEPTION 'No puede pasar a depósito sin recepción física';
+  END IF;
+
+  IF NEW.estado IN ('listo_retiro','entregado') AND
+       OLD.estado IS DISTINCT FROM NEW.estado AND
+       NOT (OLD.estado='devolucion_solicitada' AND NEW.estado='entregado') THEN
+    IF NEW.tipo = 'cambio' AND NEW.recibido_en IS NULL THEN
+      RAISE EXCEPTION 'Falta recibir la prenda original';
+    END IF;
+    IF NEW.reemplazo_estado NOT IN ('enviado','entregado')
+       AND NEW.stock_descontado_at IS NULL THEN
+      RAISE EXCEPTION 'Falta preparar el reemplazo';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$function$
+;
