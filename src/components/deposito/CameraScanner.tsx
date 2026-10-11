@@ -78,6 +78,7 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    let nativeTimer: number | null = null;
     setError(null);
     setOcrError(null);
     setZoomAvailable(false);
@@ -166,6 +167,43 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
         }
         if (cancelled) { controls.stop(); return; }
         controlsRef.current = controls;
+        // BarcodeDetector nativo, disponible en algunos Android: complementa ZXing
+        // sin reemplazarlo ni depender de servicios externos.
+        const NativeBarcodeDetector = (window as any).BarcodeDetector;
+        if (NativeBarcodeDetector) {
+          try {
+            const formats = ["qr_code", "code_128", "ean_13", "ean_8", "code_39", "upc_a", "upc_e", "data_matrix", "pdf417"];
+            const supported = await NativeBarcodeDetector.getSupportedFormats();
+            const chosen = formats.filter((format) => supported.includes(format));
+            if (chosen.length && !cancelled) {
+              const detector = new NativeBarcodeDetector({ formats: chosen });
+              const scanNative = async () => {
+                if (cancelled) return;
+                const video = videoRef.current;
+                try {
+                  if (video?.readyState && video.readyState >= 2 && !readingTextRef.current) {
+                    const found = (await detector.detect(video)) as Array<{
+                      rawValue: string;
+                      boundingBox?: { width: number; height: number };
+                    }>;
+                    if (cancelled) return;
+                    // Si hay varios QR, priorizar el más cercano / grande.
+                    const best = found?.filter((x) => x.rawValue)
+                      .sort((a, b) =>
+                        ((b.boundingBox?.width || 0) * (b.boundingBox?.height || 0)) -
+                        ((a.boundingBox?.width || 0) * (a.boundingBox?.height || 0)))[0];
+                    if (best) {
+                      onDecode({ getText: () => best.rawValue }, null, controls);
+                      if (!continuous) return;
+                    }
+                  }
+                } catch { /* ZXing sigue leyendo en paralelo. */ }
+                if (!cancelled) nativeTimer = window.setTimeout(() => { void scanNative(); }, 350);
+              };
+              nativeTimer = window.setTimeout(() => { void scanNative(); }, 450);
+            }
+          } catch { /* El dispositivo continúa con ZXing. */ }
+        }
 
         const stream = videoRef.current?.srcObject as MediaStream | null;
         const track = stream?.getVideoTracks()[0];
@@ -191,6 +229,7 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
 
     return () => {
       cancelled = true;
+      if (nativeTimer !== null) window.clearTimeout(nativeTimer);
       controlsRef.current?.stop();
       controlsRef.current = null;
       lastCodeRef.current = null;
@@ -361,7 +400,7 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
           )}
         </div>
 
-        {onDetectedText && ocrError && (
+        {ocrError && (
           <p role="alert" className="px-4 pt-2 text-sm text-amber-400 text-center">{ocrError}</p>
         )}
         <div className="px-4 pt-2 flex flex-wrap gap-2 justify-center">
