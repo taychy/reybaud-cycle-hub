@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useLocation, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, MessageCircle, ShoppingBag } from "lucide-react";
@@ -28,6 +28,9 @@ const prettyVariant = (key: string) => key.split("|").map((p) => p.split(":").sl
 
 const PublicProduct = () => {
   const { id } = useParams<{ id: string }>();
+  // Si se llegó desde la app del alumno, "Volver" regresa a esa pantalla.
+  const fromApp = (useLocation().state as { from?: string } | null)?.from;
+  const backTo = fromApp && fromApp.startsWith("/") ? fromApp : "/tienda";
   const [p, setP] = useState<PubProduct | null>(null);
   const [loading, setLoading] = useState(true);
   const [buyOpen, setBuyOpen] = useState(false);
@@ -93,8 +96,8 @@ const PublicProduct = () => {
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="max-w-3xl mx-auto px-4 py-5 space-y-5">
-        <Link to="/tienda" className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
-          <ArrowLeft className="w-3.5 h-3.5" /> Volver a la tienda
+        <Link to={backTo} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="w-3.5 h-3.5" /> {fromApp ? "Volver" : "Volver a la tienda"}
         </Link>
 
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
