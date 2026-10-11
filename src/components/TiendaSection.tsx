@@ -59,12 +59,14 @@ const ProductCard = ({
   const isInteractive = isPreorder || isInApp;
   const hasPromo = !isPreorder && !!promo && !promo.solo_variantes && promo.precio_efectivo < promo.precio_lista;
   const hasVariantPromo = !isPreorder && !!promo && promo.solo_variantes;
-  const Wrapper: any = isInteractive ? "div" : "a";
-  const wrapperProps = isInteractive
-    ? { className: `group flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:shadow-lg hover:shadow-primary/10` }
-    : { href: STORE_URL, target: "_blank", rel: "noopener noreferrer", className: "group flex flex-col rounded-xl border border-border bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10" };
+  // Toda la tarjeta abre el detalle interno (solo lectura, no crea pedidos).
+  const location = useLocation();
   return (
-    <Wrapper {...wrapperProps}>
+    <Link
+      to={`/tienda/producto/${product.id}`}
+      state={{ from: `${location.pathname}${location.search}` }}
+      className={`group flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10`}
+    >
       <div className="relative aspect-square bg-secondary overflow-hidden">
         <img
           src={product.image_url || jerseyImg}
