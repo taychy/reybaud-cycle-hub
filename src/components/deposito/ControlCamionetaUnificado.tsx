@@ -442,7 +442,7 @@ export default function ControlCamionetaUnificado({
               {isRunning && <Button size="sm" variant="outline" disabled={guardandoItem === it.id} onClick={() => {
                 if (!window.confirm("¿Verificaste físicamente este pedido en la camioneta?")) return;
                 if (Number(it.cantidad) > 1) {
-                  setCandidatos([it]); setCantidadManual((p) => ({ ...p, [it.id]: String(Math.max(1,vistos[it.id] || 1)) })); return;
+                  setCandidatos([it]); setCantidadManual((p) => ({ ...p, [it.id]: String(Math.max(1, Number(it.cantidad) || 1)) })); return;
                 }
                 void marcarVisto(it,1);
               }}>{guardandoItem === it.id ? "Guardando..." : "Lo veo · registrar manualmente"}</Button>}
@@ -491,10 +491,10 @@ export default function ControlCamionetaUnificado({
               <Input placeholder="Buscar cliente, prenda o número de pedido" value={buscando} onChange={(e) => setBuscando(e.target.value)} />
               {candidatos.length > 0 && <div className="rounded-lg border border-amber-500/50 p-3 space-y-3">
                 <p className="text-sm font-semibold">Revisá la etiqueta y elegí el pedido correcto.</p>
-                <p className="text-xs text-muted-foreground">Elegí solo lo que viste físicamente. No marcamos todos los pedidos con el mismo SKU.</p>
+                <p className="text-xs text-muted-foreground">Confirmá la cantidad de unidades que tenés físicamente. Sólo pasará a “Encontrados” cuando estén todas; nunca marcamos automáticamente otros pedidos del mismo producto.</p>
                 {candidatos.map((it) => <div key={it.id} className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
                   <div className="flex-1 text-xs">{ordenes[orderForItem[it.id]]?.order_number ? `Pedido #${ordenes[orderForItem[it.id]].order_number} · ` : ""}{it.cliente_nombre} · {it.producto} {it.variante}</div>
-                  <Input type="number" min={1} max={Math.max(1,Number(it.cantidad))} className="w-16 h-8" value={cantidadManual[it.id] || "1"}
+                  <span className="text-xs text-muted-foreground">Unidades: </span><Input aria-label={`Unidades vistas de ${it.cliente_nombre}`} type="number" min={1} max={Math.max(1,Number(it.cantidad))} className="w-16 h-8" value={cantidadManual[it.id] || "1"}
                     onChange={(e) => setCantidadManual((p) => ({...p,[it.id]:e.target.value}))} />
                   <Button size="sm" disabled={guardandoItem === it.id} onClick={() => { void registrarCandidato(it); }}>{guardandoItem === it.id ? "Guardando..." : "Registrar visto"}</Button>
                 </div>)}
