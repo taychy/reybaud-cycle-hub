@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { Search, ShoppingCart, Bell, ChevronRight, Tag, Flame, Star, Sparkles, Clock, Percent, ExternalLink, CalendarClock } from "lucide-react";
 import * as LucideIcons from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -118,7 +119,7 @@ const ProductCard = ({
           {isPreorder ? (
             <button
               type="button"
-              onClick={(e) => { e.preventDefault(); onReserve?.(product); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onReserve?.(product); }}
               className="mt-2 w-full text-[11px] font-heading font-bold uppercase tracking-wider bg-primary text-primary-foreground py-1.5 rounded hover:opacity-90 transition-opacity"
             >
               Reservar
@@ -126,7 +127,7 @@ const ProductCard = ({
           ) : isInApp ? (
             <button
               type="button"
-              onClick={(e) => { e.preventDefault(); onBuy?.(product); }}
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); onBuy?.(product); }}
               className="mt-2 w-full text-[11px] font-heading font-bold uppercase tracking-wider bg-primary text-primary-foreground py-1.5 rounded hover:opacity-90 transition-opacity"
             >
               Comprar
@@ -134,7 +135,7 @@ const ProductCard = ({
           ) : null}
         </div>
       </div>
-    </Wrapper>
+    </Link>
   );
 };
 
