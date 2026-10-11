@@ -1,5 +1,5 @@
 /** Meta tracking is disabled until the site has a configured Pixel ID and the visitor opts in. */
-const PIXEL_ID = import.meta.env.VITE_META_PIXEL_ID as string | undefined;
+const PIXEL_ID = (import.meta.env.VITE_META_PIXEL_ID as string | undefined) || "862321973574316";
 const CONSENT_KEY = "reybaud_meta_marketing_consent";
 let initialized = false;
 declare global {
