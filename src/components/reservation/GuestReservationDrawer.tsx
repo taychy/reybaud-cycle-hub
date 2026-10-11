@@ -146,7 +146,9 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     const balance = Math.max(0, total - sena);
     let accumulated = 0;
     let overdue = 0;
-    const localToday = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const dateParts = new Intl.DateTimeFormat("en-US", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(new Date());
+    const dateField = (name: string) => dateParts.find(part => part.type === name)?.value || "";
+    const localToday = `${dateField("year")}-${dateField("month")}-${dateField("day")}`;
     const rows = [...installments].sort((a,b) => a.numero - b.numero);
     rows.forEach((row,i) => {
       const value = row.monto_tipo === "porcentaje" ? row.monto_valor * total / 100
@@ -163,7 +165,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     ? (() => { try { return quoteArsTransfer(paymentPolicy, fxBook, dueFor(priceFor(selectedPkg).precio)); } catch { return null; } })()
     : null;
   const canSubmit = !!terms && (isBormio
-    ? (metodo === "efectivo_eur" || (metodo === "transferencia" && !!comprobante && !!quoteArs))
+    ? (!!planInfo && installments.length > 0 && (metodo === "efectivo_eur" || (metodo === "transferencia" && !!comprobante && !!quoteArs)))
     : (metodo === "mp" || (metodo === "transferencia" && !!comprobante)));
 
   const fileToBase64 = (file: File): Promise<string> =>
