@@ -194,6 +194,22 @@ const ScanSlot = ({
     setManualOpen(true);
   };
 
+  const handlePrintedText = (text: string) => {
+    // El OCR sólo es un apoyo para etiquetas que imprimen el SKU en texto.
+    // Nunca inferimos productos a partir de un nombre leído parcialmente.
+    const changeCode = text.match(/RBCAM1\s*:\s*[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0]?.replace(/\s/g, "");
+    const sku = text.match(/RYB-[A-Z0-9_-]+/i)?.[0];
+    if (changeCode || sku) {
+      void handleQrText(changeCode || sku!);
+    } else {
+      toast({
+        title: "No se encontró un código de producto legible",
+        description: "Acercá la etiqueta, usá Leer desde foto o elegí el producto en Manual.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const variantSpecs: { name: string; options: string[] }[] = (() => {
     const src = productLoaded?.variants || products.find((p) => p.id === productId)?.variants || [];
     if (!Array.isArray(src)) return [];
@@ -276,7 +292,7 @@ const ScanSlot = ({
         </div>
       )}
 
-      <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleQrText} />
+      <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)} onDetected={handleQrText} onDetectedText={handlePrintedText} />
 
       <Dialog open={manualOpen} onOpenChange={setManualOpen}>
         <DialogContent className="max-w-sm">
