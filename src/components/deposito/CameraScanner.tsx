@@ -3,12 +3,14 @@ import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { DecodeHintType, BarcodeFormat } from "@zxing/library";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X, Zap, ZapOff, Camera, Volume2, VolumeX } from "lucide-react";
+import { X, Zap, ZapOff, Camera, ScanText, Volume2, VolumeX } from "lucide-react";
 
 interface CameraScannerProps {
   open: boolean;
   onClose: () => void;
   onDetected: (code: string) => void;
+  /** Lectura de texto impreso en el dispositivo (sin IA ni créditos). */
+  onDetectedText?: (text: string) => void;
   /** Si true, no cierra el escáner al detectar; ideal para escanear varios ítems seguidos. */
   continuous?: boolean;
   /** Texto/nodo opcional bajo el marco (ej. contador de escaneos). */
@@ -31,17 +33,39 @@ const doBeep = (muted: boolean) => {
   if ("vibrate" in navigator) navigator.vibrate(80);
 };
 
-const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: CameraScannerProps) => {
+const OCR_SCRIPT = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+let scriptPromise: Promise<void> | null = null;
+const cargarOcrLocal = async (): Promise<any> => {
+  if ((window as any).Tesseract) return (window as any).Tesseract;
+  if (!scriptPromise) {
+    scriptPromise = new Promise<void>((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = OCR_SCRIPT;
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => { script.remove(); reject(new Error("No se pudo cargar el lector de texto")); };
+      document.head.appendChild(script);
+    }).catch((error) => { scriptPromise = null; throw error; });
+  }
+  await scriptPromise;
+  if (!(window as any).Tesseract) throw new Error("El lector de texto no está disponible");
+  return (window as any).Tesseract;
+};
+
+const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous = false, hint }: CameraScannerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const onDetectedRef = useRef(onDetected);
   const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
   const mutedRef = useRef(false);
+  const readingTextRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [torchOn, setTorchOn] = useState(false);
   const [torchSupported, setTorchSupported] = useState(false);
   const [muted, setMuted] = useState(false);
   const [flash, setFlash] = useState(false);
+  const [readingText, setReadingText] = useState(false);
+  const [ocrError, setOcrError] = useState<string | null>(null);
 
   useEffect(() => { onDetectedRef.current = onDetected; }, [onDetected]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
@@ -50,6 +74,7 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
     if (!open) return;
     let cancelled = false;
     setError(null);
+    setOcrError(null);
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -101,7 +126,7 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
         permStream?.getTracks().forEach((t) => t.stop());
 
         const onDecode = (result: any, _err: any, ctrl: IScannerControls) => {
-          if (cancelled) return;
+          if (cancelled || readingTextRef.current) return;
           if (!result) return;
           const text = result.getText?.() ?? String(result);
           if (!text) return;
@@ -160,6 +185,53 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
     };
   }, [open, continuous]);
 
+  const leerTexto = async () => {
+    if (readingTextRef.current || !onDetectedText) return;
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) {
+      setOcrError("La cámara todavía no está lista.");
+      return;
+    }
+    readingTextRef.current = true;
+    setReadingText(true);
+    setOcrError(null);
+    try {
+      // Tomamos la foto en resolución real, no la imagen reducida de la pantalla.
+      const canvas = document.createElement("canvas");
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const context = canvas.getContext("2d");
+      if (!context) throw new Error("No se pudo capturar la imagen");
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      let texto = "";
+      // Si Android dispone de OCR nativo, primero se utiliza sin descargar nada.
+      const NativeTextDetector = (window as any).TextDetector;
+      if (NativeTextDetector) {
+        try {
+          const blocks = await new NativeTextDetector().detect(canvas);
+          texto = (blocks as Array<{ rawValue?: string }>).map((b) => b.rawValue || "").join("\n").trim();
+        } catch { /* Usar el lector local alternativo. */ }
+      }
+      if (texto.length < 8) {
+        // OCR en el propio teléfono; no subimos imágenes, no usamos IA de pago.
+        const tesseract = await cargarOcrLocal();
+        const result = await tesseract.recognize(canvas, "spa");
+        texto = (result?.data?.text || "").trim();
+      }
+      if (!texto) {
+        setOcrError("No se pudo leer. Acercá la cámara hasta que el nombre y número se vean grandes y probá otra vez.");
+      } else {
+        onDetectedText(texto);
+      }
+    } catch {
+      setOcrError("No se pudo leer el texto en este dispositivo. Podés buscar el pedido manualmente.");
+    } finally {
+      readingTextRef.current = false;
+      setReadingText(false);
+    }
+  };
+
   const toggleTorch = async () => {
     const stream = videoRef.current?.srcObject as MediaStream | null;
     const track = stream?.getVideoTracks()[0];
@@ -193,7 +265,9 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
             </div>
           </div>
           <DrawerDescription>
-            Apuntá la cámara al código de barras o QR del producto.
+            {onDetectedText
+              ? "Apuntá al QR o código de barras. Para etiquetas con nombre o número impreso, acercate y tocá Leer texto."
+              : "Apuntá la cámara al código de barras o QR del producto."}
             {continuous && " Podés escanear varios seguidos."}
           </DrawerDescription>
         </DrawerHeader>
@@ -212,7 +286,9 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
                 muted
               />
               <div className="absolute inset-0 pointer-events-none flex items-center justify-center">
-                <div className="w-[72vw] max-w-72 aspect-square border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]" />
+                <div className={onDetectedText
+                  ? "w-[85vw] max-w-[420px] aspect-[4/3] border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"
+                  : "w-[72vw] max-w-72 aspect-square border-2 border-primary rounded-lg shadow-[0_0_0_9999px_rgba(0,0,0,0.5)]"} />
               </div>
               {flash && (
                 <div className="absolute inset-0 pointer-events-none bg-primary/30 animate-pulse" />
@@ -228,7 +304,16 @@ const CameraScanner = ({ open, onClose, onDetected, continuous = false, hint }: 
           )}
         </div>
 
-        <div className="p-4 flex gap-2 justify-center">
+        {onDetectedText && ocrError && (
+          <p role="alert" className="px-4 pt-2 text-sm text-amber-400 text-center">{ocrError}</p>
+        )}
+        <div className="p-4 flex flex-wrap gap-2 justify-center">
+          {onDetectedText && (
+            <Button onClick={() => { void leerTexto(); }} disabled={readingText || !!error}>
+              <ScanText className="w-4 h-4 mr-1" />
+              {readingText ? "Leyendo etiqueta..." : "Leer texto impreso"}
+            </Button>
+          )}
           {torchSupported && (
             <Button variant="outline" onClick={toggleTorch}>
               {torchOn ? <ZapOff className="w-4 h-4 mr-1" /> : <Zap className="w-4 h-4 mr-1" />}
