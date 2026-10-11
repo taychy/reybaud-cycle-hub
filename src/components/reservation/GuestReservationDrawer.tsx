@@ -60,7 +60,8 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   const [fxError, setFxError] = useState<string | null>(null);
   const [terms, setTerms] = useState(false);
   const [comprobante, setComprobante] = useState<File | null>(null);
-  const [planInfo, setPlanInfo] = useState<{ nombre: string; sena_tipo: string; sena_valor: number; cantidad_cuotas: number } | null>(null);
+  const [planInfo, setPlanInfo] = useState<{ id: string; nombre: string; sena_tipo: string; sena_valor: number; cantidad_cuotas: number } | null>(null);
+  const [installments, setInstallments] = useState<{ numero: number; monto_tipo: string; monto_valor: number; fecha_vencimiento: string | null }[]>([]);
   const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
 
   useEffect(() => {
@@ -107,18 +108,25 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   // Plan de pagos del paquete elegido (solo para mostrar el resumen)
   useEffect(() => {
     setPlanInfo(null);
+    setInstallments([]);
     if (!pkgId) return;
     let cancelled = false;
     (async () => {
       const activeStageId = (() => { const p = packages.find((x) => x.id === pkgId); return p ? priceFor(p).activeStage?.id ?? null : null; })();
       const base = () => supabase
         .from("event_package_payment_plans" as any)
-        .select("nombre, sena_tipo, sena_valor, cantidad_cuotas")
+        .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas")
         .eq("package_id", pkgId).eq("activo", true).is("archived_at", null)
         .order("version", { ascending: false }).limit(1);
       let { data } = activeStageId ? await base().eq("price_stage_id", activeStageId).maybeSingle() : { data: null as any };
       if (!data) ({ data } = await base().is("price_stage_id", null).maybeSingle());
-      if (!cancelled && data) setPlanInfo({ ...(data as any), sena_valor: Number((data as any).sena_valor) });
+      if (!cancelled && data) {
+        setPlanInfo({ ...(data as any), sena_valor: Number((data as any).sena_valor) });
+        const { data: rows } = await supabase.from("event_package_payment_plan_installments" as any)
+          .select("numero,monto_tipo,monto_valor,fecha_vencimiento")
+          .eq("plan_id", (data as any).id).order("numero", { ascending: true });
+        if (!cancelled) setInstallments(((rows as any[]) || []).map(row => ({ ...row, monto_valor: Number(row.monto_valor) })));
+      }
     })();
     return () => { cancelled = true; };
   }, [pkgId, packages, priceFor]);
@@ -130,10 +138,29 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     const s = Math.round((pct ? (total * v) / 100 : v) * 100) / 100;
     return s > 0 ? Math.min(s, total) : null;
   };
+  // Para Bormio, al reservar después de los vencimientos se suman las cuotas vencidas.
+  // Última cuota ajusta diferencias de redondeo, igual que el detalle público del plan.
+  const dueFor = (total: number): number => {
+    const sena = senaFor(total) ?? total;
+    if (!isBormio || !installments.length || !planInfo) return sena;
+    const balance = Math.max(0, total - sena);
+    let accumulated = 0;
+    let overdue = 0;
+    const localToday = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+    const rows = [...installments].sort((a,b) => a.numero - b.numero);
+    rows.forEach((row,i) => {
+      const value = row.monto_tipo === "porcentaje" ? row.monto_valor * total / 100
+        : row.monto_tipo === "porcentaje_saldo" ? row.monto_valor * balance / 100 : row.monto_valor;
+      const amount = i === rows.length - 1 ? Math.round((balance - accumulated) * 100)/100 : Math.round(value*100)/100;
+      accumulated += amount;
+      if (row.fecha_vencimiento && row.fecha_vencimiento <= localToday) overdue += amount;
+    });
+    return Math.min(total, Math.round((sena + overdue)*100)/100);
+  };
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const canNextFromStep2 = !!selectedPkg;
   const quoteArs = isBormio && paymentPolicy && fxBook && selectedPkg
-    ? (() => { try { return quoteArsTransfer(paymentPolicy, fxBook, senaFor(priceFor(selectedPkg).precio) ?? priceFor(selectedPkg).precio); } catch { return null; } })()
+    ? (() => { try { return quoteArsTransfer(paymentPolicy, fxBook, dueFor(priceFor(selectedPkg).precio)); } catch { return null; } })()
     : null;
   const canSubmit = !!terms && (isBormio
     ? (metodo === "efectivo_eur" || (metodo === "transferencia" && !!comprobante && !!quoteArs))
@@ -258,10 +285,11 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
 
           {step === 3 && selectedPkg && (
             <div className="space-y-4">
-              {(() => { const pr = priceFor(selectedPkg); const sena = senaFor(pr.precio); return (
+              {(() => { const pr = priceFor(selectedPkg); const sena = senaFor(pr.precio); const currentDue = isBormio ? dueFor(pr.precio) : (sena ?? pr.precio); return (
               <div className="p-4 rounded-xl border bg-muted/30">
-                <div className="text-xs text-muted-foreground mb-1">{sena != null ? "Seña a pagar ahora" : "Vas a pagar"}</div>
-                <div className="text-2xl font-bold text-primary">{fmtMoney(sena ?? pr.precio, pr.currency)}</div>
+                <div className="text-xs text-muted-foreground mb-1">{isBormio ? "Importe a pagar ahora" : sena != null ? "Seña a pagar ahora" : "Vas a pagar"}</div>
+                <div className="text-2xl font-bold text-primary">{fmtMoney(currentDue, pr.currency)}</div>
+                {isBormio && sena != null && currentDue > sena && <p className="text-xs text-muted-foreground">Incluye la seña de {fmtMoney(sena, pr.currency)} y cuotas ya vencidas.</p>}
                 <div className="text-sm mt-1">{selectedPkg.nombre}</div>
                 {sena != null && (
                   <div className="text-xs text-muted-foreground mt-1">
@@ -291,7 +319,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
               {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
               {isBormio && metodo === "efectivo_eur" && (
                 <div className="rounded-lg border p-3 text-sm">
-                  La reserva quedará pendiente hasta que Administración confirme la recepción de la seña en efectivo en EUR. Coordiná la entrega con Reybaud; no es un pago online.
+                  La reserva quedará pendiente hasta que Administración confirme la recepción del importe exigible en efectivo en EUR. Coordiná la entrega con Reybaud; no es un pago online.
                 </div>
               )}
               {metodo === "transferencia" && (
@@ -303,7 +331,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                     <BankRow label="Alias" value={BANK_INFO.alias} onCopy={() => { navigator.clipboard.writeText(BANK_INFO.alias); toast.success("Alias copiado"); }} />
                     <BankRow
                       label="Monto"
-                      value={isBormio ? (quoteArs ? fmtMoney(quoteArs.totalArs, "ARS") : "Cotización no disponible") : (() => { const pr = priceFor(selectedPkg); return fmtMoney(senaFor(pr.precio) ?? pr.precio, pr.currency); })()}
+                      value={isBormio ? (quoteArs ? fmtMoney(quoteArs.totalArs, "ARS") : "Cotización no disponible") : (() => { const pr = priceFor(selectedPkg); return fmtMoney(isBormio ? dueFor(pr.precio) : (senaFor(pr.precio) ?? pr.precio), pr.currency); })()}
                       strong
                     />
                     {isBormio && quoteArs && <p className="text-xs text-muted-foreground">Cotización de venta Reybaud: $ {quoteArs.referenceRate.toLocaleString("es-AR")} por EUR · Base $ {quoteArs.baseArs.toLocaleString("es-AR")} + 7% ($ {quoteArs.surchargeArs.toLocaleString("es-AR")}). La deuda se acredita en EUR sin sumar el recargo.</p>}
