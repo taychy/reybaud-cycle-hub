@@ -189,3 +189,5 @@
 - [ ] Plan Meta Pixel + CAPI: en espera de ID del Pixel, token y decisión sobre consentimiento
 - [x] Paso 3 invitado: mostrar seña €500 (no el total) en «Vas a pagar» y monto de transferencia
 - [ ] Ventana de reserva de alumno: no verificada en navegador (la cuenta de prueba no es alumno)
+
+- [x] Tienda alumno: tocar tarjeta abre /tienda/producto/:id (sin crear pedido)
