@@ -124,10 +124,10 @@ Deno.serve(async (req) => {
     let transferRate: number | null = null;
     if (isBormio && metodo_pago === "transferencia") {
       const { data: rates, error: fxErr } = await admin.from("app_config")
-        .select("key,value").in("key", ["fx_eur_sell_ars", "fx_eur_ars"]);
+        .select("key,value").in("key", ["fx_eur_sell_ars"]);
       if (fxErr) return jsonResp({ error: "No se pudo consultar la cotización actual" }, 503);
       const map = Object.fromEntries((rates || []).map((r: any) => [r.key, Number(r.value)]));
-      transferRate = map.fx_eur_sell_ars || map.fx_eur_ars || null;
+      transferRate = map.fx_eur_sell_ars || null;
       if (!transferRate || transferRate <= 0) return jsonResp({ error: "No hay cotización válida de EUR a ARS" }, 503);
     }
 
@@ -156,9 +156,11 @@ Deno.serve(async (req) => {
       const saldo = Math.max(0, amount_total - sena);
       let accumulated = 0;
       let overdue = 0;
-      const todayBA = new Intl.DateTimeFormat("en-CA", {
+      const dateParts = new Intl.DateTimeFormat("en-US", {
         timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit",
-      }).format(new Date());
+      }).formatToParts(new Date());
+      const dateField = (name: string) => dateParts.find(part => part.type === name)?.value || "";
+      const todayBA = `${dateField("year")}-${dateField("month")}-${dateField("day")}`;
       for (let i = 0; i < inst.length; i++) {
         const row = inst[i];
         const n = Number(row.monto_valor || 0);
