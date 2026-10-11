@@ -3,7 +3,7 @@ import { BrowserMultiFormatReader, IScannerControls } from "@zxing/browser";
 import { DecodeHintType, BarcodeFormat } from "@zxing/library";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
-import { X, Zap, ZapOff, Camera, ScanText, Volume2, VolumeX } from "lucide-react";
+import { X, Zap, ZapOff, Camera, ScanText, ImageUp, ZoomIn, ZoomOut, Volume2, VolumeX } from "lucide-react";
 
 interface CameraScannerProps {
   open: boolean;
@@ -54,6 +54,8 @@ const cargarOcrLocal = async (): Promise<any> => {
 
 const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous = false, hint }: CameraScannerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const zoomRangeRef = useRef<{ min: number; max: number } | null>(null);
   const controlsRef = useRef<IScannerControls | null>(null);
   const onDetectedRef = useRef(onDetected);
   const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
@@ -66,6 +68,9 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
   const [flash, setFlash] = useState(false);
   const [readingText, setReadingText] = useState(false);
   const [ocrError, setOcrError] = useState<string | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const [zoomAvailable, setZoomAvailable] = useState(false);
+  const [readingImage, setReadingImage] = useState(false);
 
   useEffect(() => { onDetectedRef.current = onDetected; }, [onDetected]);
   useEffect(() => { mutedRef.current = muted; }, [muted]);
@@ -75,6 +80,9 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
     let cancelled = false;
     setError(null);
     setOcrError(null);
+    setZoomAvailable(false);
+    setZoom(1);
+    zoomRangeRef.current = null;
 
     const hints = new Map();
     hints.set(DecodeHintType.POSSIBLE_FORMATS, [
@@ -163,6 +171,12 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
         const track = stream?.getVideoTracks()[0];
         const caps = (track?.getCapabilities?.() as any) || {};
         setTorchSupported(!!caps.torch);
+        if (typeof caps.zoom?.min === "number" && typeof caps.zoom?.max === "number"
+            && caps.zoom.max > caps.zoom.min) {
+          zoomRangeRef.current = { min: caps.zoom.min, max: caps.zoom.max };
+          setZoomAvailable(true);
+          setZoom(Math.max(caps.zoom.min, Math.min(caps.zoom.max, 1)));
+        }
         // Las etiquetas Niimbot se leen a corta distancia: mantener autofocus
         // continuo evita que el QR quede visible pero borroso.
         if (track && Array.isArray(caps.focusMode) && caps.focusMode.includes("continuous")) {
@@ -180,6 +194,7 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
       controlsRef.current?.stop();
       controlsRef.current = null;
       lastCodeRef.current = null;
+      zoomRangeRef.current = null;
     };
   }, [open, continuous]);
 
@@ -227,6 +242,50 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
     } finally {
       readingTextRef.current = false;
       setReadingText(false);
+    }
+  };
+
+  const changeZoom = async (factor: number) => {
+    const track = (videoRef.current?.srcObject as MediaStream | null)?.getVideoTracks()[0];
+    const range = zoomRangeRef.current;
+    if (!track || !range) return;
+    const nextZoom = Math.min(range.max, Math.max(range.min, factor));
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: nextZoom } as any] });
+      setZoom(nextZoom);
+    } catch {
+      setOcrError("No se pudo ajustar el zoom. Acercá la cámara al código.");
+    }
+  };
+
+  // Lee una foto de forma local cuando el autofocus del teléfono falla.
+  // No sube imágenes al servidor ni utiliza servicios de pago.
+  const readImageFile = async (file: File | null) => {
+    if (!file || readingImage) return;
+    setReadingImage(true);
+    setOcrError(null);
+    const url = URL.createObjectURL(file);
+    try {
+      const img = new Image();
+      const loaded = new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("Imagen inválida"));
+      });
+      img.src = url;
+      await loaded;
+      const hints = new Map();
+      hints.set(DecodeHintType.TRY_HARDER, true);
+      const imageReader = new BrowserMultiFormatReader(hints);
+      const result = await imageReader.decodeFromImageElement(img);
+      const code = result.getText();
+      if (!code) throw new Error("Código vacío");
+      onDetectedRef.current(code);
+    } catch {
+      setOcrError("No pude leer el QR de la foto. Probá acercarte más y encuadrar una sola etiqueta.");
+    } finally {
+      URL.revokeObjectURL(url);
+      if (fileRef.current) fileRef.current.value = "";
+      setReadingImage(false);
     }
   };
 
@@ -305,6 +364,24 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
         {onDetectedText && ocrError && (
           <p role="alert" className="px-4 pt-2 text-sm text-amber-400 text-center">{ocrError}</p>
         )}
+        <div className="px-4 pt-2 flex flex-wrap gap-2 justify-center">
+          <input ref={fileRef} type="file" accept="image/*" className="hidden"
+            onChange={(event) => { void readImageFile(event.target.files?.[0] || null); }} />
+          <Button variant="outline" onClick={() => fileRef.current?.click()}
+            disabled={readingImage || !!error}>
+            <ImageUp className="w-4 h-4 mr-1" />
+            {readingImage ? "Leyendo foto..." : "Leer desde foto"}
+          </Button>
+          {zoomAvailable && <>
+            <Button variant="outline" size="sm" aria-label="Alejar código" onClick={() => { void changeZoom(zoom / 1.5); }}>
+              <ZoomOut className="w-4 h-4" />
+            </Button>
+            <span className="text-xs text-muted-foreground self-center">{zoom.toFixed(1)}×</span>
+            <Button variant="outline" size="sm" aria-label="Acercar código" onClick={() => { void changeZoom(zoom * 1.5); }}>
+              <ZoomIn className="w-4 h-4" />
+            </Button>
+          </>}
+        </div>
         <div className="p-4 flex flex-wrap gap-2 justify-center">
           {onDetectedText && (
             <Button onClick={() => { void leerTexto(); }} disabled={readingText || !!error}>
