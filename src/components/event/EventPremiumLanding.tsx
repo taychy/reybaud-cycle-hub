@@ -46,7 +46,8 @@ export function getPremiumLanding(metadata: any): PremiumLandingConfig | null {
 export function LandingWhatsAppCta({ whatsapp, variant = "default" }: { whatsapp?: PremiumLandingConfig["whatsapp"]; variant?: "default" | "editorial" }) {
   if (!whatsapp) return null;
   const href = buildWhatsAppUrl(
-    whatsapp.message || "Hola, quiero recibir más información sobre el viaje.",
+    (whatsapp.message || "Hola, quiero recibir más información sobre el viaje.")
+      .replace(/postulaci[oó]n/gi, "reserva"),
     whatsapp.number,
   );
   const cls = variant === "editorial"
@@ -56,7 +57,7 @@ export function LandingWhatsAppCta({ whatsapp, variant = "default" }: { whatsapp
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
       <MessageCircle className={iconCls} aria-hidden="true" />
-      Hablar con Reybaud por WhatsApp
+      Consultar por WhatsApp
     </a>
   );
 }
