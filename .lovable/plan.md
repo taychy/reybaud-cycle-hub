@@ -1,124 +1,62 @@
-# Plan: medición con Meta (Pixel + Conversions API) para Bormio 2027, con reserva directa
+# Auditoría tienda: alumno vs invitado y pedido #105 (solo lectura)
 
-Este es solo un plan. No se cambió código, datos ni la configuración de publicación. La decisión comercial queda igual: reserva directa, seña de €500, precios y cuotas sin cambios.
+No se cambió código ni datos, y no se crearon pedidos ni pagos.
 
-## A. Qué se comprobó (código y base de datos)
-- No hay Meta Pixel en `index.html` ni en `src/`: no aparecen `fbq`, ID de pixel, GTM ni gtag.
-- Tampoco hay envíos a la Conversions API en las funciones del servidor.
-- No se guardan UTM, `fbclid`, `fbp` ni `fbc` en ningún lugar.
-- No hay aviso de cookies ni consentimiento. `src/pages/PrivacyPolicy.tsx` (128 líneas) no menciona a Meta.
-- Bormio está `publicado` y `is_active`, con audiencia `open` y 0 reservas. Paquetes: doble €3.890 e individual €4.490.
-- Flujo de reserva: `EventDetail.tsx` → `EventPackagesDrawer` → `ReservationDrawer` (alumno) o `GuestReservationDrawer` (invitado, usa la función `create-guest-reservation`). El paquete elegido se conserva con `initialPackageId`.
-- Pagos con Mercado Pago:
-  - `create-event-mp-preference` crea el intento de pago en `reservation_payment_intents`.
-  - `mp-webhook` (y `event-ars-mp-webhook` para pagos en pesos) guarda `reservation_payments` con `mp_payment_id`.
-  - Solo en esos webhooks, cuando `payment.status === "approved"`, el pago queda `status='validado'`.
-- Las transferencias las valida Administración (`admin-verificar-comprobante`).
-- `reservation_payments` guarda `equivalent_amount_event_currency`, `obligation_amount_contract` y `fx_surcharge_amount`. Sirven para informar el valor en EUR sin el recargo cambiario.
-- Ya existe una lista de contactos (`marketing_contacts`) con `origen`, `tags`, `opt_in_marketing`, `opt_out_at` y `telefono_normalizado`. Hay que reutilizarla, no crear un registro paralelo.
+## 1. Rutas y puntos donde se crea o avanza un pedido
 
-## B. Lo que no se puede ver desde el código (por verificar)
-- Si hay un pixel instalado por fuera: GTM agregado en el hosting, un plugin o el Administrador de eventos de Meta. Hay que revisarlo en Meta Events Manager → Fuentes de datos → "Diagnóstico" y en el sitio publicado.
-- A qué URL apuntan hoy los anuncios y con qué UTM.
-- Desde qué países llegan las visitas. Si llegan desde Europa, el consentimiento previo es obligatorio.
+Tienda pública (invitado):
+- Catálogo: `/tienda` → `src/pages/PublicStore.tsx`. La tarjeta completa es un `Link` a `/tienda/producto/:id` (línea 109).
+- Detalle y checkout: `/tienda/producto/:id` → `src/pages/PublicProduct.tsx`. Envía el formulario a la función `create-public-store-order`.
+- Creación del pedido: `supabase/functions/create-public-store-order/index.ts`, INSERT en `store_orders` en las líneas 117-138 (`origen_registro='tienda_publica'`, estado `pendiente_pago`) y en `store_order_items` en las líneas 145-157. Después crea la preferencia de Mercado Pago y guarda `mp_preference_id` (línea 232).
+- URLs públicas reales: https://reybaud-app.com/tienda y https://www.reybaud-app.com/tienda.
 
-## C. Datos que faltan (no se inventan)
-1. ID del Meta Pixel (Dataset ID).
-2. Token de acceso de la Conversions API. Se guarda como dato secreto del servidor y nunca en el código.
-3. Código de Test Events, solo para pruebas.
-4. Decisión sobre el aviso de cookies: banner en las regiones que lo exigen, o no medir con Meta en esas regiones.
-5. Aprobación de un texto nuevo para la política de privacidad.
-6. Dominio verificado en Meta (`reybaud-app.com`).
+Tienda del alumno (dentro de la app):
+- Catálogo: `src/components/TiendaSection.tsx` (y `HomeTrainingExtras.tsx`). No hay ruta de detalle ni carrito: la compra es de un solo producto.
+- Checkout: `src/components/store/BuyProductDialog.tsx`. Primero revisa duplicados de las últimas 24 h (líneas 135-170). Después crea el pedido con la RPC `crear_pedido_tienda_alumno` (línea 172) y llama a `create-store-order-mp-preference` (línea 192), que pasa el estado a `pendiente_pago` (líneas 99-108 de esa función).
+- Otro INSERT manual: `src/components/checkout/ManualPaymentConfirm.tsx:145`.
 
-## D. Eventos y dónde se envían
+Cambios de estado y stock:
+- Disparadores en `store_orders`: `trg_store_order_stock_egreso` (descuenta stock al insertar o cambiar `status`), `trg_store_orders_facturacion` y `trg_set_store_order_delivered_at`. **No existe un disparador que actualice `updated_at`.** Por eso `updated_at` = `created_at` en todos los pedidos, y ese dato no sirve para fechar cambios.
+- Paso a «en camioneta»: `src/pages/deposito/DepositoCamioneta.tsx:1039`, dentro de `addSelected`. Se quita al sacar el ítem de la carga (líneas 1063-1070).
 
-```text
-Evento            Navegador (Pixel)                         Servidor (CAPI)                     Cuándo NO se envía
-PageView          cambio de ruta (SPA, 1 por URL)           -                                   sin consentimiento
-ViewContent       landing del evento cargada                -                                   evento en borrador/oculto
-Contact           clic en "Hablar con Reybaud" (WhatsApp)   opcional, mismo event_id            no es una conversación real
-InitiateCheckout  abre ReservationDrawer/Guest              -                                   abrir la lista de paquetes
-Lead              reserva creada pendiente de pago          mismo event_id (crear reserva)      sin reserva real registrada
-Purchase          página de resultado del pago (best-effort) webhook approved / admin valida    reserva pendiente, clic WhatsApp, checkout abierto
-```
+## 2. Por qué tocar la tarjeta no abre el detalle (app del alumno)
 
-- **Lead** = reserva registrada en `event_reservations` antes de pagar. Es un dato real que se puede deducir. Los clics de WhatsApp son solo "Contact".
-- **Purchase:**
-  - `event_id = "purchase_" + reservation_payments.id`, compartido entre el navegador y el servidor para no contarlo dos veces.
-  - `order_id` = id de la reserva.
-  - `currency = "EUR"`.
-  - `value` = monto efectivamente pagado en EUR (`equivalent_amount_event_currency` u `obligation_amount_contract`), sin recargo en pesos. Para la seña normal son €500, no el precio total.
-  - El precio total se manda aparte en `custom_data.package_total`.
-- Las cuotas siguientes no se marcan como Purchase. Se envían como un evento propio `InstallmentPaid`, para no inflar los resultados.
-- Reserva confirmada sin pago (alta manual o efectivo anunciado): solo se registra en la app (`ReservationConfirmed`). No se manda como Purchase.
-- Limitación: WhatsApp se abre por fuera de la app. Sin integrar WhatsApp Business no se puede saber si la persona realmente mandó el mensaje.
+Evidencia en `TiendaSection.tsx`, líneas 59-66: si el producto se compra dentro de la app (`checkout_mode='in_app'`) o está en preventa, la tarjeta es un `div` sin acción. Solo el botón «Comprar» o «Reservar» hace algo (líneas 119 y 127). Los demás productos son un enlace a la tienda externa de Tiendanube (`STORE_URL`, línea 16). No existe una vista de detalle para el alumno. La tienda pública sí funciona bien, porque toda la tarjeta es un enlace.
 
-## E. Consentimiento y privacidad
-- Con el banner en las regiones que lo exigen, se lee el país desde `/cdn-cgi/trace`. Si falla, el banner se muestra.
-- Aceptar y rechazar tienen el mismo peso, y la elección se puede cambiar desde "Configurar cookies" en el pie.
-- Sin consentimiento no se carga el Pixel y no se envía CAPI en esas regiones.
-- Se guarda un registro del consentimiento: id de visitante, fecha, versión del texto y opciones elegidas.
-- Los eventos que llegan más tarde (el webhook de pago) miran el consentimiento vigente de esa reserva. Si la persona lo retiró, no se envían.
-- No se pone ningún dato personal en URLs ni en los parámetros de los eventos.
-- Datos para que Meta reconozca a la persona (email y teléfono): solo si se agrega una aceptación explícita para publicidad, y con hash SHA-256 normalizado hecho en el servidor. Si no se pide, solo se envían `fbp`, `fbc`, la IP y el navegador del cliente.
-- La política de privacidad debe nombrar a Meta, qué datos recibe, para qué (medición y optimización de anuncios) y cómo retirar el consentimiento.
+## 3. Pedido #105 (Sergio G Brukman)
 
-## F. Atribución
-- Al entrar a la app, guardar primera y última fuente en almacenamiento propio del navegador: `utm_*`, `fbclid` → `fbc`, la cookie `_fbp` (solo con consentimiento), la página de entrada y la fecha.
-- Asociar esa fuente a:
-  - el clic de WhatsApp (registro "click", no conversación);
-  - la reserva, cuando se crea;
-  - el pago, a través de la reserva.
-- Limpiar `fbclid` y UTM de la URL una vez guardados.
+Evidencia:
+- Se creó el 09/10 a las 02:40 UTC desde la tienda pública. Ese camino exige completar nombre, email, teléfono y forma de entrega, y enviar el formulario. Mirar la página no basta para crear un pedido.
+- Tiene `mp_preference_id`, así que se generó el link de pago. No tiene `mp_payment_id`, `mp_status` ni `pagado_at`: el pago nunca se aprobó.
+- Producto: 1 Jersey Negro Manga Larga Classique 2XL, entrega en clase KDT, $90.400.
+- El 10/10 a las 16:34 UTC se agregó un ítem del pedido a una caja de camioneta `en_ruta` (abierta desde el 29/07). Ese paso pasó el pedido a `en_camioneta`.
+- No hay registros en el historial de auditoría para este pedido.
 
-## G. Cambios de base de datos propuestos (no ejecutados)
-1. `marketing_consents`: id de visitante, `user_id` y `email` opcionales, elección, país, versión del aviso, fechas de aceptación y retiro.
-2. `marketing_touchpoints`: id de visitante, `event_id`, tipo (`landing_view`, `whatsapp_click`, `checkout_open`), primera y última fuente (jsonb), `fbp`, `fbc` y fecha. Inserción anónima con id generado en el cliente; lectura solo para admin.
-3. `event_reservations.attribution jsonb` (opcional, sin valor obligatorio): copia de la fuente y del id de consentimiento al reservar.
-4. `meta_capi_log`: `event_name`, `event_id` único (garantiza enviar una sola vez), `reservation_id`, `payment_id`, estado (`en_cola`, `enviado`, `error`, `omitido_sin_consentimiento`), intentos, último error resumido sin datos personales, `test_mode`.
-- Cada tabla nueva va con permisos explícitos, RLS e índices. Los contactos por WhatsApp de personas identificadas se vinculan a `marketing_contacts` existente.
+Causa (confirmada en el código): en «Agregar a la carga», `loadCandidates` (líneas 932-938) lista **todos** los pedidos no entregados ni cancelados, incluidos los que no están pagados. Además, la línea 993 preselecciona los de la misma sede. Nada bloquea los pedidos con `pendiente_pago` o `pendiente_pago_efectivo`, y la pantalla no muestra el estado del pago.
 
-## H. Archivos y funciones a tocar
-- Nuevos:
-  - `src/lib/metaPixel.ts`: carga condicionada, PageView en cambios de ruta y track con `event_id`.
-  - `src/lib/attribution.ts`: captura y guarda la fuente de la visita.
-  - `src/components/ConsentBanner.tsx`.
-- `src/App.tsx` o `src/main.tsx`: escuchar los cambios de ruta para PageView, una vez por URL.
-- `src/pages/EventDetail.tsx`: ViewContent en la landing pública, solo si está publicada.
-- `src/components/event/EventPremiumLanding.tsx` (`LandingWhatsAppCta`): Contact y registro "click".
-- `ReservationDrawer.tsx` y `GuestReservationDrawer.tsx`: InitiateCheckout al abrir. Al crear la reserva, Lead y envío de la atribución.
-- `supabase/functions/create-guest-reservation` y la creación de reserva del alumno: guardar la atribución y encolar Lead.
-- `supabase/functions/mp-webhook`, `event-ars-mp-webhook` y `admin-verificar-comprobante`: tras `approved`/`validado`, encolar Purchase o InstallmentPaid de forma idempotente.
-- Nueva función `meta-capi-send`:
-  - lee la cola y envía a la Graph API usando los datos secretos `META_PIXEL_ID` y `META_CAPI_TOKEN`;
-  - agrega `test_event_code` solo si está configurado el modo prueba;
-  - reintenta con espera creciente hasta 5 veces y registra en el log sin datos personales.
-- `src/pages/PaymentResult.tsx`: Purchase en el navegador con el mismo `event_id`, solo si el pago ya figura validado.
-- `src/pages/PrivacyPolicy.tsx`: texto nuevo.
-- Pantalla admin simple dentro del evento (pestaña "Consultas y conversiones"): clics de WhatsApp, checkouts abiertos, reservas, señas pagadas por fuente, y el estado de los envíos a Meta.
+Hipótesis (sin confirmar):
+- No se sabe qué usuario de depósito hizo la carga: `vehiculo_carga_items` no guarda autor y no hay historial.
+- Que el cliente haya abandonado el pago es probable, pero no está verificado.
 
-## I. QA sin transacciones reales
-1. Extensión Meta Pixel Helper y Test Events con `test_event_code` en la vista previa.
-2. Pruebas automáticas:
-   - el Purchase se arma solo con un pago `validado`;
-   - `value` es la seña en EUR sin recargo;
-   - el mismo `event_id` no se envía dos veces;
-   - sin consentimiento, no se envía nada.
-3. Webhook: reenviar un pago de prueba ya existente en modo test, o un payload simulado contra una reserva de prueba que se borra al terminar. Nunca una reserva o un pago reales.
-4. En producción: verificar solo PageView, ViewContent, Contact e InitiateCheckout, sin crear reservas. Purchase se valida con el primer pago real.
-5. Verificar que se recibe cada evento una sola vez, sin duplicados entre navegador y servidor.
+## 4. Otros pedidos afectados
 
-## J. Fases y forma de volver atrás
-1. Consentimiento, política de privacidad y atribución, sin Meta todavía.
-2. Pixel en el navegador: PageView, ViewContent, Contact e InitiateCheckout.
-3. CAPI con Lead y Purchase, más la pantalla admin.
-- Para volver atrás: un interruptor en `app_config` (`meta_tracking_enabled`) apaga el Pixel y la CAPI sin publicar. Las tablas nuevas no afectan reservas ni pagos.
+Pedidos sin `pagado_at` en estado logístico avanzado:
+- **#102** (tienda pública, efectivo): en camioneta desde el 09/10 a las 13:49, por el mismo mecanismo.
+- **#109** (manual, sin forma de pago): en camioneta, sin ítem de carga, así que el estado está desincronizado.
+- Entregados sin pago: #19 (MP cancelado), #20, #83 y #93. Hay que confirmar con caja si se cobraron por otra vía.
 
-## Decisiones previas necesarias
-- Pasar el ID del Pixel y el token de la CAPI, y confirmar si ya hay un pixel instalado por fuera.
-- Elegir: banner en las regiones que lo exigen, o no medir con Meta en esas regiones.
-- Confirmar si Purchase cuenta solo la seña (recomendado) y si las cuotas van como evento aparte.
-- Decidir si se agrega una aceptación para usar email y teléfono con Meta (por defecto no).
-- Aprobar la publicación cuando termine cada fase.
+Cualquier carga a la camioneta puede repetir el problema con pedidos sin pagar.
 
-Nota: `roadmap.md` se actualiza al salir de este modo de solo lectura.
+## 5. Correcciones propuestas (para aprobar después)
+
+1. **Carga a la camioneta:** excluir los pedidos sin `pagado_at` de los candidatos, salvo efectivo contra entrega si así se decide. No preseleccionar pedidos sin pago y mostrar una etiqueta «Sin pago».
+2. **Bloqueo en la base de datos:** un disparador que impida pasar a `en_camioneta`, `listo_retiro`, `enviado` o `entregado` sin `pagado_at`, con una excepción explícita y registrada para efectivo.
+3. **Disparador de `updated_at`** en `store_orders` y autor (`cargado_por`) en `vehiculo_carga_items`, para que cada cambio quede registrado.
+4. **App del alumno:** que toda la tarjeta (imagen y nombre) abra el mismo diálogo de compra, o una vista de detalle, sin crear ningún pedido hasta confirmar.
+5. **Datos reales:** no tocar #105, #102 ni #109 sin tu decisión. Opción: sacarlos de la carga para que vuelvan a `preparando`, previa verificación física.
+6. **Pruebas sin datos reales:** pruebas de la función de candidatos (excluye pedidos sin pago) y SQL reversible con BEGIN/ROLLBACK para el bloqueo de estados y para `updated_at`.
+
+## Decisiones pendientes
+
+- Si los pedidos en efectivo pueden viajar en la camioneta antes de cobrarse (cobro contra entrega).
+- Qué hacer con #105, #102 y #109.
