@@ -117,12 +117,10 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
         }
 
         const devices = await BrowserMultiFormatReader.listVideoInputDevices();
-        // En varios Android/iPhone en español la cámara figura como "posterior" o
-        // "mirando hacia atrás". Si no hay etiqueta, la trasera suele ser la última.
-        const back = devices.find((d) => /back|rear|trasera|posterior|atr[aá]s|environment/i.test(d.label));
-        const deviceId = back?.deviceId ?? devices.at(-1)?.deviceId;
-
-        // Cerrar el stream temporal antes de que ZXing abra el suyo
+        // Evitar lentes ultrawide o macro, que no enfocan bien QR térmicos.
+        const backCameras = devices.filter((d) => /back|rear|trasera|posterior|atr[aá]s|environment/i.test(d.label));
+        const mainCamera = backCameras.find((d) => !/ultra|wide|gran angular|macro|tele|depth|0\.5x/i.test(d.label));
+        const deviceId = (mainCamera || backCameras[0])?.deviceId;
         permStream?.getTracks().forEach((t) => t.stop());
 
         const onDecode = (result: any, _err: any, ctrl: IScannerControls) => {
@@ -141,22 +139,22 @@ const CameraScanner = ({ open, onClose, onDetected, onDetectedText, continuous =
           onDetectedRef.current(text);
         };
 
+        // decodeFromVideoDevice abre otra cámara con resolución por defecto.
+        // Conservar HD para que el QR de una etiqueta pequeña tenga suficientes píxeles.
         let controls: IScannerControls;
-        if (deviceId) {
-          controls = await reader.decodeFromVideoDevice(deviceId, videoRef.current!, onDecode);
-        } else {
-          controls = await reader.decodeFromConstraints(
-            {
-              video: {
-                facingMode: { ideal: "environment" },
-                width: { ideal: 1920 },
-                height: { ideal: 1080 },
-              },
-              audio: false,
-            },
-            videoRef.current!,
-            onDecode,
-          );
+        try {
+          controls = await reader.decodeFromConstraints({
+            video: {
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1920 }, height: { ideal: 1080 },
+              ...(deviceId ? { deviceId: { ideal: deviceId } } : {}),
+            }, audio: false,
+          }, videoRef.current!, onDecode);
+        } catch (firstError) {
+          if (!deviceId) throw firstError;
+          controls = await reader.decodeFromConstraints({
+            video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false,
+          }, videoRef.current!, onDecode);
         }
         if (cancelled) { controls.stop(); return; }
         controlsRef.current = controls;
