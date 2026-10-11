@@ -131,6 +131,47 @@ Deno.serve(async (req) => {
       if (!transferRate || transferRate <= 0) return jsonResp({ error: "No hay cotización válida de EUR a ARS" }, 503);
     }
 
+    // Importe exigible de Bormio: seña + cuotas ya vencidas.
+    // Se calcula antes de escribir la reserva; sin plan válido no se admite pago offline.
+    let bormioDueEur: number | null = null;
+    if (isBormio) {
+      const stageId = resolvedPrice?.stage_id ?? null;
+      const base = () => admin.from("event_package_payment_plans")
+        .select("id,sena_tipo,sena_valor").eq("package_id", pkg.id)
+        .is("archived_at", null).eq("activo", true)
+        .order("version", { ascending: false }).limit(1);
+      let paymentPlan: any = null;
+      if (stageId) paymentPlan = (await base().eq("price_stage_id", stageId).maybeSingle()).data;
+      if (!paymentPlan) paymentPlan = (await base().is("price_stage_id", null).maybeSingle()).data;
+      if (!paymentPlan) return jsonResp({ error: "No hay plan de pagos vigente para Bormio" }, 503);
+      const { data: inst, error: instErr } = await admin
+        .from("event_package_payment_plan_installments")
+        .select("numero,monto_tipo,monto_valor,fecha_vencimiento")
+        .eq("plan_id", paymentPlan.id).order("numero", { ascending: true });
+      if (instErr || !inst?.length) return jsonResp({ error: "No se pudo obtener el calendario de cuotas" }, 503);
+      const v = Number(paymentPlan.sena_valor || 0);
+      const sena = paymentPlan.sena_tipo === "porcentaje_paquete"
+        ? Math.round(amount_total * v) / 100 : v;
+      if (!(sena > 0)) return jsonResp({ error: "Seña no configurada" }, 503);
+      const saldo = Math.max(0, amount_total - sena);
+      let accumulated = 0;
+      let overdue = 0;
+      const todayBA = new Intl.DateTimeFormat("en-CA", {
+        timeZone: "America/Argentina/Buenos_Aires", year: "numeric", month: "2-digit", day: "2-digit",
+      }).format(new Date());
+      for (let i = 0; i < inst.length; i++) {
+        const row = inst[i];
+        const n = Number(row.monto_valor || 0);
+        const amount = i === inst.length - 1
+          ? Math.round((saldo - accumulated) * 100) / 100
+          : Math.round((row.monto_tipo === "porcentaje" ? n * amount_total / 100
+            : row.monto_tipo === "porcentaje_saldo" ? n * saldo / 100 : n) * 100) / 100;
+        accumulated += amount;
+        if (row.fecha_vencimiento && String(row.fecha_vencimiento) <= todayBA) overdue += amount;
+      }
+      bormioDueEur = Math.min(amount_total, Math.round((sena + overdue) * 100) / 100);
+    }
+
     // 2) Upsert del participante externo
     const { data: existingList } = await admin
       .from("event_external_participants")
@@ -238,7 +279,7 @@ Deno.serve(async (req) => {
         tipo: "guest_reservation_cash_pending",
         prioridad: "pago", reservation_id: reservationId,
         payload: { reservation_id: reservationId, event_id, package_nombre: pkg.nombre,
-          importe_sena_contractual: 500, moneda: "EUR", medio: "efectivo",
+          importe_a_pagar_eur: bormioDueEur, moneda: "EUR", medio: "efectivo",
           observacion: "Pendiente de coordinar y validar recepción de efectivo" },
         deduplication_key: `guest-cash-${reservationId}`,
       });
@@ -261,12 +302,12 @@ Deno.serve(async (req) => {
 
       // Cotización de referencia; Administración debe verificar el comprobante y la acreditación.
       // El recargo NO se suma al saldo a favor del participante.
-      const arsBase = isBormio && transferRate ? Math.round(500 * transferRate * 100) / 100 : null;
+      const arsBase = isBormio && transferRate && bormioDueEur ? Math.round(bormioDueEur * transferRate * 100) / 100 : null;
       const arsSurcharge = arsBase == null ? null : Math.round(arsBase * 0.07 * 100) / 100;
       const arsTotal = arsBase == null || arsSurcharge == null ? null : Math.round((arsBase + arsSurcharge) * 100) / 100;
       await admin
         .from("event_reservations")
-        .update({ admin_notes: `Comprobante invitado: ${path}${arsTotal !== null ? ` | Seña prevista EUR 500 · Cotización EUR/ARS ${transferRate} · Transferencia esperada ARS ${arsTotal} (incluye 7%)` : ""}` })
+        .update({ admin_notes: `Comprobante invitado: ${path}${arsTotal !== null ? ` | Importe exigible EUR ${bormioDueEur} · Cotización EUR/ARS ${transferRate} · Transferencia esperada ARS ${arsTotal} (incluye 7%)` : ""}` })
         .eq("id", reservationId);
 
       // Aviso a Administración: nunca bloquea la reserva si falla.
@@ -282,7 +323,7 @@ Deno.serve(async (req) => {
             package_nombre: pkg.nombre,
             monto: arsTotal ?? amount_total,
             currency: arsTotal != null ? "ARS" : currency,
-            seña_contractual_eur: isBormio ? 500 : null,
+            importe_exigible_eur: bormioDueEur,
             fx_rate: transferRate,
             fx_surcharge_pct: isBormio ? 7 : null,
             email, nombre, apellido, telefono, documento,
