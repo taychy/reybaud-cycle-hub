@@ -10,8 +10,11 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
-import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
+import { parsePaymentPolicy, quoteArsTransfer, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
+import { fetchFxBookForAnyUser, type FxBook } from "@/lib/fx";
 import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
+
+const BORMIO_EVENT_ID = "e726408b-bf46-45d6-9678-dc426a2d8641";
 
 const BANK_INFO = {
   titular: "Scarlett Tayna Barros Silva",
@@ -51,7 +54,10 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     documento: "", fecha_nacimiento: "",
     contacto_emergencia_nombre: "", contacto_emergencia_telefono: "",
   });
-  const [metodo, setMetodo] = useState<"mp" | "transferencia">("mp");
+  const isBormio = eventId === BORMIO_EVENT_ID;
+  const [metodo, setMetodo] = useState<"mp" | "transferencia" | "efectivo_eur">(isBormio ? "efectivo_eur" : "mp");
+  const [fxBook, setFxBook] = useState<FxBook | null>(null);
+  const [fxError, setFxError] = useState<string | null>(null);
   const [terms, setTerms] = useState(false);
   const [comprobante, setComprobante] = useState<File | null>(null);
   const [planInfo, setPlanInfo] = useState<{ nombre: string; sena_tipo: string; sena_valor: number; cantidad_cuotas: number } | null>(null);
@@ -59,6 +65,10 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
 
   useEffect(() => {
     if (!open) { setStep(1); setPkgId(""); setComprobante(null); setTerms(false); return; }
+    setMetodo(isBormio ? "efectivo_eur" : "mp");
+    setFxBook(null);
+    setFxError(null);
+    if (isBormio) fetchFxBookForAnyUser().then(setFxBook).catch(() => setFxError("No se pudo consultar la cotización de Reybaud. Intentá nuevamente más tarde."));
     (async () => {
       const [{ data }, { data: eventData }] = await Promise.all([
         supabase
@@ -122,7 +132,12 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   };
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const canNextFromStep2 = !!selectedPkg;
-  const canSubmit = terms && (metodo === "mp" || (metodo === "transferencia" && comprobante));
+  const quoteArs = isBormio && paymentPolicy && fxBook && selectedPkg
+    ? (() => { try { return quoteArsTransfer(paymentPolicy, fxBook, senaFor(priceFor(selectedPkg).precio) ?? priceFor(selectedPkg).precio); } catch { return null; } })()
+    : null;
+  const canSubmit = !!terms && (isBormio
+    ? (metodo === "efectivo_eur" || (metodo === "transferencia" && !!comprobante && !!quoteArs))
+    : (metodo === "mp" || (metodo === "transferencia" && !!comprobante)));
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((res, rej) => {
@@ -259,15 +274,26 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
               <div>
                 <Label>Método de pago</Label>
                 <RadioGroup value={metodo} onValueChange={(v) => setMetodo(v as any)} className="mt-2">
+                  {isBormio ? (
+                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                      <RadioGroupItem value="efectivo_eur" /> Efectivo en euros (coordinar entrega con Reybaud)
+                    </label>
+                  ) : (
+                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                      <RadioGroupItem value="mp" /> <CreditCard className="w-4 h-4" /> Mercado Pago
+                    </label>
+                  )}
                   <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
-                    <RadioGroupItem value="mp" /> <CreditCard className="w-4 h-4" /> Mercado Pago
-                  </label>
-                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
-                    <RadioGroupItem value="transferencia" /> <Upload className="w-4 h-4" /> Transferencia (adjuntá comprobante)
+                    <RadioGroupItem value="transferencia" /> <Upload className="w-4 h-4" /> {isBormio ? "Transferencia en pesos (+7%, adjuntá comprobante)" : "Transferencia (adjuntá comprobante)"}
                   </label>
                 </RadioGroup>
               </div>
               {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
+              {isBormio && metodo === "efectivo_eur" && (
+                <div className="rounded-lg border p-3 text-sm">
+                  La reserva quedará pendiente hasta que Administración confirme la recepción de la seña en efectivo en EUR. Coordiná la entrega con Reybaud; no es un pago online.
+                </div>
+              )}
               {metodo === "transferencia" && (
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl border bg-muted/30 space-y-3">
@@ -277,9 +303,11 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                     <BankRow label="Alias" value={BANK_INFO.alias} onCopy={() => { navigator.clipboard.writeText(BANK_INFO.alias); toast.success("Alias copiado"); }} />
                     <BankRow
                       label="Monto"
-                      value={(() => { const pr = priceFor(selectedPkg); return fmtMoney(senaFor(pr.precio) ?? pr.precio, pr.currency); })()}
+                      value={isBormio ? (quoteArs ? fmtMoney(quoteArs.totalArs, "ARS") : "Cotización no disponible") : (() => { const pr = priceFor(selectedPkg); return fmtMoney(senaFor(pr.precio) ?? pr.precio, pr.currency); })()}
                       strong
                     />
+                    {isBormio && quoteArs && <p className="text-xs text-muted-foreground">Cotización de venta Reybaud: $ {quoteArs.referenceRate.toLocaleString("es-AR")} por EUR · Base $ {quoteArs.baseArs.toLocaleString("es-AR")} + 7% ($ {quoteArs.surchargeArs.toLocaleString("es-AR")}). La deuda se acredita en EUR sin sumar el recargo.</p>}
+                    {isBormio && !quoteArs && <p role="alert" className="text-xs text-destructive">{fxError || "Esperando cotización; no es posible enviar la reserva por transferencia todavía."}</p>}
                     <p className="text-[11px] text-muted-foreground pt-1 border-t">
                       Transferí el monto exacto y adjuntá el comprobante abajo. Te confirmamos por email cuando lo validemos.
                     </p>
@@ -322,7 +350,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
           {step === 3 && (
             <Button className="flex-1" disabled={!canSubmit || loading} onClick={handleSubmit}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CreditCard className="w-4 h-4 mr-1" />}
-              {metodo === "mp" ? "Pagar con Mercado Pago" : "Enviar reserva"}
+              {metodo === "mp" ? "Pagar con Mercado Pago" : "Enviar reserva pendiente de pago"}
             </Button>
           )}
         </div>
