@@ -55,6 +55,7 @@ export default function ControlCamionetaUnificado({
   const [buscando, setBuscando] = useState("");
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [guardandoItem, setGuardandoItem] = useState<string | null>(null);
   const [candidatos, setCandidatos] = useState<Item[]>([]);
   const [codigoPendiente, setCodigoPendiente] = useState("");
   const [cantidadManual, setCantidadManual] = useState<Record<string, string>>({});
@@ -189,24 +190,42 @@ export default function ControlCamionetaUnificado({
     toast.success("Control de toda la camioneta iniciado");
   };
 
-  const marcarVisto = async (it: Item, cant?: number) => {
+  const marcarVisto = async (it: Item, cant?: number): Promise<boolean> => {
     const rId = rondas[it.carga_id];
-    if (!rId) { toast.error("Iniciá el control antes de escanear"); return; }
-    const cantidad = Math.min(Math.max(0,cant ?? 1),Number(it.cantidad) || 1);
-    const { data: auth } = await supabase.auth.getUser();
-    const now = new Date().toISOString();
-    const { error } = await (supabase as any).from("vehiculo_chequeo_scans").upsert({
-      chequeo_id:rId,item_id:it.id,cantidad_vista:cantidad,
-      scanned_at:now,scanned_by:auth.user?.id ?? null,
-    },{onConflict:"chequeo_id,item_id"});
-    if (error) { toast.error("No se pudo registrar el escaneo: " + error.message); return; }
-    await (supabase as any).from("vehiculo_carga_items")
-      .update({chequeado_at:now,chequeado_by:auth.user?.id ?? null}).eq("id",it.id);
-    setVistos((prev) => ({...prev,[it.id]:cantidad}));
-    toast.success(it.cliente_nombre + " · " + (it.producto || "Pedido") + " localizado");
+    if (!rId) { toast.error("Iniciá el control antes de escanear"); return false; }
+    if (guardandoItem === it.id) return false;
+    const total = Math.max(1, Number(it.cantidad) || 1);
+    const cantidad = Math.min(Math.max(1, cant ?? 1), total);
+    setGuardandoItem(it.id);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      const now = new Date().toISOString();
+      const { error } = await (supabase as any).from("vehiculo_chequeo_scans").upsert({
+        chequeo_id:rId,item_id:it.id,cantidad_vista:cantidad,
+        scanned_at:now,scanned_by:auth.user?.id ?? null,
+      },{onConflict:"chequeo_id,item_id"});
+      if (error) throw error;
+      const { error: itemError } = await (supabase as any).from("vehiculo_carga_items")
+        .update({chequeado_at:now,chequeado_by:auth.user?.id ?? null}).eq("id",it.id);
+      // El control físico se guarda en vehiculo_chequeo_scans. Un error accesorio
+      // al actualizar la fecha no debe volver a colocar el ítem como pendiente.
+      if (itemError) console.warn("Fecha de chequeo no actualizada", itemError.message);
+      setVistos((prev) => ({ ...prev, [it.id]: Math.max(prev[it.id] || 0, cantidad) }));
+      toast.success(cantidad >= total
+        ? it.cliente_nombre + " · pasó a En camioneta / encontrados"
+        : it.cliente_nombre + " · " + cantidad + " de " + total + " unidades vistas");
+      return true;
+    } catch (e: any) {
+      toast.error("No se pudo registrar como encontrado", {
+        description: e?.message || "Verificá tu conexión e intentá nuevamente.",
+      });
+      return false;
+    } finally {
+      setGuardandoItem(null);
+    }
   };
 
-  const decodificar = async (raw: string): Promise<Item[]> => {
+    const decodificar = async (raw: string): Promise<Item[]> => {
     const code = raw.trim();
     const uuid = uuidEn(code);
     let matched: Item[] = [];
@@ -299,11 +318,11 @@ export default function ControlCamionetaUnificado({
   };
 
   const registrarCandidato = async (it: Item) => {
-    await marcarVisto(it,Number(cantidadManual[it.id] || 1));
-    setCandidatos((prev) => prev.filter((x) => x.id !== it.id));
+    const ok = await marcarVisto(it, Number(cantidadManual[it.id] || 1));
+    if (ok) setCandidatos((prev) => prev.filter((x) => x.id !== it.id));
   };
 
-  const cerrar = async () => {
+    const cerrar = async () => {
     const n = sinEscanear.length;
     const ok = window.confirm("¿Cerrar el control completo? " + n +
       " pedido(s) no fueron encontrados durante el escaneo. Quedarán PENDIENTES DE REVISIÓN, nunca entregados automáticamente.");
@@ -420,13 +439,17 @@ export default function ControlCamionetaUnificado({
           ) : (
             <div className="flex flex-wrap items-center gap-2">
               <p className="text-xs text-muted-foreground flex-1">{vistos[it.id] > 0 ? "Vistas " + vistos[it.id] + " de " + Number(it.cantidad) + " unidades; falta completar." : "Todavía no se escaneó en esta ronda. No implica que se haya entregado."}</p>
-              {isRunning && <Button size="sm" variant="outline" onClick={() => {
+              {isRunning && <Button size="sm" variant="outline" disabled={guardandoItem === it.id} onClick={() => {
                 if (!window.confirm("¿Verificaste físicamente este pedido en la camioneta?")) return;
                 if (Number(it.cantidad) > 1) {
                   setCandidatos([it]); setCantidadManual((p) => ({ ...p, [it.id]: String(Math.max(1,vistos[it.id] || 1)) })); return;
                 }
                 void marcarVisto(it,1);
-              }}>Lo veo · registrar manualmente</Button>}
+              }}>{guardandoItem === it.id ? "Guardando..." : "Lo veo · registrar manualmente"}</Button>}
+              <Button size="sm" variant="outline" onClick={() => consultar(it)}>
+                <MessageCircle className="w-4 h-4 mr-1" /> Consultar si lo recibió
+              </Button>
+              {consulta && <p className="text-xs text-muted-foreground w-full">Consulta {new Date(consulta.consultado_at).toLocaleDateString("es-AR")} · {consulta.respuesta.replace(/_/g, " ")}</p>}
             </div>
           )
         ) : <p className="text-xs text-green-500">Detectado en esta ronda · sigue en la camioneta</p>}
@@ -473,7 +496,7 @@ export default function ControlCamionetaUnificado({
                   <div className="flex-1 text-xs">{ordenes[orderForItem[it.id]]?.order_number ? `Pedido #${ordenes[orderForItem[it.id]].order_number} · ` : ""}{it.cliente_nombre} · {it.producto} {it.variante}</div>
                   <Input type="number" min={1} max={Math.max(1,Number(it.cantidad))} className="w-16 h-8" value={cantidadManual[it.id] || "1"}
                     onChange={(e) => setCantidadManual((p) => ({...p,[it.id]:e.target.value}))} />
-                  <Button size="sm" onClick={() => registrarCandidato(it)}>Registrar visto</Button>
+                  <Button size="sm" disabled={guardandoItem === it.id} onClick={() => { void registrarCandidato(it); }}>{guardandoItem === it.id ? "Guardando..." : "Registrar visto"}</Button>
                 </div>)}
                 <Button variant="ghost" size="sm" onClick={() => setCandidatos([])}>Cerrar coincidencias</Button>
               </div>}
@@ -484,7 +507,7 @@ export default function ControlCamionetaUnificado({
               </div>
               <div className="space-y-2">
                 <h3 className="font-heading font-semibold uppercase text-sm">{isRunning ? "Pendientes de escaneo" : "No encontrados · revisar entrega"} ({sinEscanear.length + faltantes.length})</h3>
-                <p className="text-xs text-muted-foreground">Mientras controlás, los no escaneados y las cantidades incompletas quedan pendientes. Al finalizar, lo faltante se investiga; nunca se marca entregado automáticamente.</p>
+                <p className="text-xs text-muted-foreground">Los pedidos que marques como “Lo veo” pasan a “En camioneta · encontrados”. Si no aparece uno, podés consultar por WhatsApp si lo recibió. La consulta no confirma una entrega.</p>
                 {filtro([...sinEscanear,...faltantes]).map((it) => tarjeta(it,true))}
                 {sinEscanear.length === 0 && faltantes.length === 0 && <p className="text-xs text-muted-foreground">No hay pedidos por investigar.</p>}
               </div>
