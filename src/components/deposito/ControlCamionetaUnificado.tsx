@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { CheckCheck, Copy, MessageCircle, PackageSearch, ScanLine, Truck } from "lucide-react";
 import CameraScanner from "@/components/deposito/CameraScanner";
 import { avisoWaLink } from "@/lib/camionetaAviso";
+import { buscarPorEtiquetaImpresa } from "@/lib/camionetaLabelMatch";
 
 type Carga = { id: string; sede_id: string; estado: string };
 type Sede = { id: string; nombre: string };
@@ -255,7 +256,26 @@ export default function ControlCamionetaUnificado({
         return matched;
       }
     }
-    return [];
+    // También soporta códigos que traen el número de pedido como texto plano.
+    return buscarPorEtiquetaImpresa(code, ordered, orderForItem, ordenes);
+  };
+
+  const onTextRead = (texto: string) => {
+    const pendientes = esperado.filter((it) =>
+      (vistos[it.id] || 0) < Math.max(1, Number(it.cantidad)));
+    const found = buscarPorEtiquetaImpresa(texto, pendientes, orderForItem, ordenes);
+    if (!found.length) {
+      toast.error("No se identificó el pedido de esta etiqueta", {
+        description: "Acercá la cámara al nombre y número de pedido o buscalo manualmente. No se registró nada.",
+      });
+      return;
+    }
+    // El OCR no es una prueba inequívoca: confirmar SIEMPRE el ítem físicamente.
+    setCodigoPendiente(texto);
+    setCantidadManual({});
+    setCandidatos(found);
+    setScannerOpen(false);
+    toast.info("Revisá los datos y confirmá qué producto estás viendo.");
   };
 
   const onScan = async (code: string) => {
@@ -420,7 +440,7 @@ export default function ControlCamionetaUnificado({
         <DialogContent className="w-[96vw] max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading uppercase flex items-center gap-2"><Truck className="w-5 h-5" /> Control completo de camioneta</DialogTitle>
-            <DialogDescription>Una caja física para todas las sedes. Escaneá cada etiqueta y verificá el pedido antes de confirmarlo. No se registran entregas automáticamente.</DialogDescription>
+            <DialogDescription>Una caja física para todas las sedes. Leé QR, códigos de barras o texto impreso de las etiquetas y verificá cada pedido. Nunca se registran entregas automáticamente.</DialogDescription>
           </DialogHeader>
           <div className="flex flex-wrap gap-2 text-xs">
             {cargas.map((c) => <Badge key={c.id} variant="outline">{sedes.find((s) => s.id === c.sede_id)?.nombre || "Sede"}</Badge>)}
@@ -447,10 +467,10 @@ export default function ControlCamionetaUnificado({
               </div>}
               <Input placeholder="Buscar cliente, prenda o número de pedido" value={buscando} onChange={(e) => setBuscando(e.target.value)} />
               {candidatos.length > 0 && <div className="rounded-lg border border-amber-500/50 p-3 space-y-3">
-                <p className="text-sm font-semibold">La etiqueta corresponde a varios posibles ítems, o tiene más de una unidad.</p>
+                <p className="text-sm font-semibold">Revisá la etiqueta y elegí el pedido correcto.</p>
                 <p className="text-xs text-muted-foreground">Elegí solo lo que viste físicamente. No marcamos todos los pedidos con el mismo SKU.</p>
                 {candidatos.map((it) => <div key={it.id} className="flex flex-wrap items-center gap-2 border-b border-border pb-2">
-                  <div className="flex-1 text-xs">{it.cliente_nombre} · {it.producto} {it.variante}</div>
+                  <div className="flex-1 text-xs">{ordenes[orderForItem[it.id]]?.order_number ? `Pedido #${ordenes[orderForItem[it.id]].order_number} · ` : ""}{it.cliente_nombre} · {it.producto} {it.variante}</div>
                   <Input type="number" min={1} max={Math.max(1,Number(it.cantidad))} className="w-16 h-8" value={cantidadManual[it.id] || "1"}
                     onChange={(e) => setCantidadManual((p) => ({...p,[it.id]:e.target.value}))} />
                   <Button size="sm" onClick={() => registrarCandidato(it)}>Registrar visto</Button>
@@ -474,7 +494,8 @@ export default function ControlCamionetaUnificado({
         </DialogContent>
       </Dialog>
       <CameraScanner open={scannerOpen} onClose={() => setScannerOpen(false)}
-        onDetected={(code) => { void onScan(code); }} continuous
+        onDetected={(code) => { void onScan(code); }}
+        onDetectedText={onTextRead} continuous
         hint="Control de toda la camioneta · escaneá cada bolsa o etiqueta" />
       <Dialog open={!!consultaItem} onOpenChange={(v) => !v && setConsultaItem(null)}>
         <DialogContent className="max-w-md">
