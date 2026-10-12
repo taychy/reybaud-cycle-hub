@@ -31,8 +31,10 @@ export function getEventPriceDisplay(event: {
   // Explicit pricing_mode is the source of truth
   if (meta?.pricing_mode) {
     const pm = meta.pricing_mode as PricingMode;
+    // Si hay paquetes activos, su precio efectivo (etapa vigente) tiene prioridad:
+    // events.price puede estar desactualizado respecto a la disponibilidad real.
     const basePrice = pm === "con_valor"
-      ? (pkgMin != null && pkgMin > 0 ? Math.min(pkgMin, event.price ?? pkgMin) : event.price)
+      ? (pkgMin != null && pkgMin > 0 ? pkgMin : event.price)
       : null;
     return { mode: pm, price: basePrice, currency };
   }

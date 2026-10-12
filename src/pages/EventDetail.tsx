@@ -756,7 +756,7 @@ const EventDetail = () => {
                 return (
                 <div className="flex items-baseline justify-between">
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-heading">{showDesde ? "Desde · Precio por persona" : "Precio por persona"}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-heading">{showDesde ? "Desde · Precio por persona" : packagesCount === 1 ? "Precio del paquete disponible" : "Precio por persona"}</p>
                     {disc.discount ? (
                       <>
                         <p className="text-sm text-muted-foreground line-through">{formatPrice(disc.original, priceDisplay.currency)}</p>
