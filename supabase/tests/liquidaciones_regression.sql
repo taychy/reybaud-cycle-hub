@@ -45,7 +45,7 @@ BEGIN
   SELECT id INTO v_sede FROM public.sedes LIMIT 1;
 
   INSERT INTO public.coaches (nombre, email, estado, user_id)
-  VALUES ('ZZ Test Coach Liq', 'zz.test.liq@example.invalid', 'activo', (SELECT u.id FROM auth.users u WHERE NOT EXISTS (SELECT 1 FROM public.coaches c WHERE c.user_id = u.id) LIMIT 1))
+  VALUES ('ZZ Test Coach Liq', 'zz.test.liq@example.invalid', 'activo', (SELECT u.user_id FROM public.user_roles u WHERE NOT EXISTS (SELECT 1 FROM public.coaches c WHERE c.user_id = u.user_id) LIMIT 1))
   RETURNING id INTO v_coach;
 
   INSERT INTO public.honorarios (nombre_concepto, categoria, valor)
