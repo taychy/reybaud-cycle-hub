@@ -44,8 +44,8 @@ BEGIN
 
   SELECT id INTO v_sede FROM public.sedes LIMIT 1;
 
-  INSERT INTO public.coaches (nombre, email, estado)
-  VALUES ('ZZ Test Coach Liq', 'zz.test.liq@example.invalid', 'activo')
+  INSERT INTO public.coaches (nombre, email, estado, user_id)
+  VALUES ('ZZ Test Coach Liq', 'zz.test.liq@example.invalid', 'activo', v_admin)
   RETURNING id INTO v_coach;
 
   INSERT INTO public.honorarios (nombre_concepto, categoria, valor)
@@ -119,6 +119,20 @@ BEGIN
     RAISE EXCEPTION 'T6 FAIL: estado=% total=%', v_mov.estado_economico, v_mov.total;
   END IF;
   v_out := v_out || E'\nT6 PASS turnera sin honorario → pendiente_revision 0';
+
+  -- T6b: configurar honorario luego y recalcular; no toca movimientos con total > 0
+  UPDATE public.servicios_turnera SET honorario_id = v_hon WHERE id = v_serv_sin;
+  PERFORM public.recalcular_movimientos_turnera(v_coach, true);
+  SELECT * INTO v_mov FROM public.movimientos_liquidacion WHERE reserva_turnera_id = v_res2;
+  IF v_mov.total <> 0 THEN RAISE EXCEPTION 'T6b FAIL: dry-run modificó'; END IF;
+  PERFORM public.recalcular_movimientos_turnera(v_coach, false);
+  SELECT * INTO v_mov FROM public.movimientos_liquidacion WHERE reserva_turnera_id = v_res2;
+  IF v_mov.total <> 10000 OR v_mov.estado_economico <> 'liquidable' THEN
+    RAISE EXCEPTION 'T6b FAIL: recalculo total=% estado=%', v_mov.total, v_mov.estado_economico;
+  END IF;
+  SELECT count(*) INTO v_n FROM public.recalcular_movimientos_turnera(v_coach, true);
+  IF v_n <> 0 THEN RAISE EXCEPTION 'T6b FAIL: recalculo no idempotente (%)', v_n; END IF;
+  v_out := v_out || E'\nT6b PASS recálculo histórico idempotente, sin pisar correctos';
 
   ---------------------------------------------------------------- 7
   UPDATE public.coaches SET user_id = v_admin WHERE id = v_coach;
