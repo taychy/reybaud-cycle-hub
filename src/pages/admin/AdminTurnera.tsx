@@ -601,6 +601,7 @@ const AdminTurnera = () => {
                 <TableHead>Nota</TableHead>
                 <TableHead>Coach/Sede</TableHead>
                 <TableHead>Estado</TableHead>
+                <TableHead>Pago del alumno</TableHead>
                 <TableHead>Avisos</TableHead>
                 <TableHead className="w-10"></TableHead>
 
@@ -608,7 +609,7 @@ const AdminTurnera = () => {
             </TableHeader>
             <TableBody>
               {reservasFiltradas.length === 0 ? (
-                <TableRow><TableCell colSpan={8} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
+                <TableRow><TableCell colSpan={9} className="text-center text-muted-foreground">Sin reservas.</TableCell></TableRow>
               ) : (
                 reservasFiltradas.map(r => (
                   <TableRow key={r.id}>
@@ -645,6 +646,17 @@ const AdminTurnera = () => {
                           <SelectItem value="ausente_alumno">Ausente</SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {["aprobado", "pagado", "pagada", "acreditado"].includes(String(r.pago_estado || "").toLowerCase()) ? (
+                        <span className="text-xs font-semibold text-green-500">Pagado</span>
+                      ) : ["rechazado", "rejected", "observado"].includes(String(r.pago_estado || "").toLowerCase()) ? (
+                        <span className="text-xs font-semibold text-destructive">Pago observado</span>
+                      ) : ["en_revision", "en_revision_manual", "pending_verification"].includes(String(r.pago_estado || "").toLowerCase()) ? (
+                        <span className="text-xs font-semibold text-amber-500">En revisión</span>
+                      ) : (
+                        <span className="text-xs text-amber-500">Pendiente de pago</span>
+                      )}
                     </TableCell>
                     <TableCell>
                       <TurneraComunicacionesCell
