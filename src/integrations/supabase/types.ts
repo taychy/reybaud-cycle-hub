@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.1"
   }
   public: {
     Tables: {
@@ -16884,6 +16884,10 @@ export type Database = {
         Returns: number
       }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
+      _turnera_calcular_movimiento: {
+        Args: { p_servicio_id: string }
+        Returns: Record<string, unknown>
+      }
       accept_my_reservation_terms: {
         Args: { p_reservation_id: string; p_version: string }
         Returns: Json
@@ -18895,6 +18899,17 @@ export type Database = {
       recalc_gasto_ejecucion: {
         Args: { p_ejec_id: string }
         Returns: undefined
+      }
+      recalcular_movimientos_turnera: {
+        Args: { p_coach_id?: string; p_dry_run?: boolean }
+        Returns: {
+          aplicado: boolean
+          estado_nuevo: string
+          fecha: string
+          movimiento_id: string
+          total_anterior: number
+          total_nuevo: number
+        }[]
       }
       recalculate_reservation_amount_total: {
         Args: { p_reservation_id: string }

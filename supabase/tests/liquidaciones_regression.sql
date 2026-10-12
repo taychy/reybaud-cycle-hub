@@ -44,8 +44,8 @@ BEGIN
 
   SELECT id INTO v_sede FROM public.sedes LIMIT 1;
 
-  INSERT INTO public.coaches (nombre, email, estado)
-  VALUES ('ZZ Test Coach Liq', 'zz.test.liq@example.invalid', 'activo')
+  INSERT INTO public.coaches (nombre, email, estado, user_id)
+  VALUES ('ZZ Test Coach Liq', 'zz.test.liq@example.invalid', 'activo', (SELECT u.user_id FROM public.user_roles u WHERE NOT EXISTS (SELECT 1 FROM public.coaches c WHERE c.user_id = u.user_id) LIMIT 1))
   RETURNING id INTO v_coach;
 
   INSERT INTO public.honorarios (nombre_concepto, categoria, valor)
@@ -120,15 +120,33 @@ BEGIN
   END IF;
   v_out := v_out || E'\nT6 PASS turnera sin honorario → pendiente_revision 0';
 
-  ---------------------------------------------------------------- 7
-  UPDATE public.coaches SET user_id = v_admin WHERE id = v_coach;
-  PERFORM public.cargar_clase_manual_coach(v_fecha, 'grupal_1h30', v_hon, 'G3', NULL, 'manual test');
-  SELECT * INTO v_mov FROM public.movimientos_liquidacion
-    WHERE coach_id = v_coach AND origen = 'carga_coach' LIMIT 1;
-  IF v_mov.estado_economico <> 'pendiente_revision' THEN
-    RAISE EXCEPTION 'T7 FAIL: carga manual quedó %', v_mov.estado_economico;
+  -- T6b: configurar honorario luego y recalcular; no toca movimientos con total > 0
+  UPDATE public.servicios_turnera SET honorario_id = v_hon WHERE id = v_serv_sin;
+  PERFORM public.recalcular_movimientos_turnera(v_coach, true);
+  SELECT * INTO v_mov FROM public.movimientos_liquidacion WHERE reserva_turnera_id = v_res2;
+  IF v_mov.total <> 0 THEN RAISE EXCEPTION 'T6b FAIL: dry-run modificó'; END IF;
+  PERFORM public.recalcular_movimientos_turnera(v_coach, false);
+  SELECT * INTO v_mov FROM public.movimientos_liquidacion WHERE reserva_turnera_id = v_res2;
+  IF v_mov.total <> 10000 OR v_mov.estado_economico <> 'liquidable' THEN
+    RAISE EXCEPTION 'T6b FAIL: recalculo total=% estado=%', v_mov.total, v_mov.estado_economico;
   END IF;
-  v_out := v_out || E'\nT7 PASS carga manual siempre pendiente_revision';
+  SELECT count(*) INTO v_n FROM public.recalcular_movimientos_turnera(v_coach, true);
+  IF v_n <> 0 THEN RAISE EXCEPTION 'T6b FAIL: recalculo no idempotente (%)', v_n; END IF;
+  v_out := v_out || E'\nT6b PASS recálculo histórico idempotente, sin pisar correctos';
+
+  ---------------------------------------------------------------- 7
+  IF NOT EXISTS (SELECT 1 FROM public.coaches WHERE user_id = v_admin) THEN
+    UPDATE public.coaches SET user_id = v_admin WHERE id = v_coach;
+    PERFORM public.cargar_clase_manual_coach(v_fecha, 'grupal_1h30', v_hon, 'G3', NULL, 'manual test');
+    SELECT * INTO v_mov FROM public.movimientos_liquidacion
+      WHERE coach_id = v_coach AND origen = 'carga_coach' LIMIT 1;
+    IF v_mov.estado_economico <> 'pendiente_revision' THEN
+      RAISE EXCEPTION 'T7 FAIL: carga manual quedó %', v_mov.estado_economico;
+    END IF;
+    v_out := v_out || E'\nT7 PASS carga manual siempre pendiente_revision';
+  ELSE
+    v_out := v_out || E'\nT7 SKIP (el admin de prueba ya es profesor)';
+  END IF;
 
   ---------------------------------------------------------------- 8
   v_liq := public.preparar_liquidacion_mensual(v_coach, to_char(v_fecha,'YYYY-MM'));
@@ -137,15 +155,15 @@ BEGIN
   SELECT count(*) INTO v_n FROM public.liquidaciones_mensuales WHERE coach_id = v_coach;
   IF v_n <> 1 THEN RAISE EXCEPTION 'T8 FAIL: % liquidaciones', v_n; END IF;
   SELECT total_confirmado INTO v_mov.total FROM public.liquidaciones_mensuales WHERE id = v_liq;
-  IF v_mov.total <> 20000 THEN RAISE EXCEPTION 'T8 FAIL: total_confirmado=%', v_mov.total; END IF;
-  v_out := v_out || E'\nT8 PASS cierre mensual idempotente (confirmado 20000)';
+  IF v_mov.total <> 30000 THEN RAISE EXCEPTION 'T8 FAIL: total_confirmado=%', v_mov.total; END IF;
+  v_out := v_out || E'\nT8 PASS cierre mensual idempotente (confirmado 30000)';
 
   ---------------------------------------------------------------- 9
   UPDATE public.liquidaciones_mensuales SET estado = 'aprobada' WHERE id = v_liq; -- crea gasto vía trigger
   SELECT count(*) INTO v_n FROM public.gastos WHERE liquidacion_id = v_liq;
   IF v_n <> 1 THEN RAISE EXCEPTION 'T9 FAIL: aprobar creó % gastos', v_n; END IF;
-  PERFORM public.pay_liquidacion_coach(v_liq, v_coach, to_char(v_fecha,'YYYY-MM'), 20000, 'ARS');
-  PERFORM public.pay_liquidacion_coach(v_liq, v_coach, to_char(v_fecha,'YYYY-MM'), 20000, 'ARS');
+  PERFORM public.pay_liquidacion_coach(v_liq, v_coach, to_char(v_fecha,'YYYY-MM'), 30000, 'ARS');
+  PERFORM public.pay_liquidacion_coach(v_liq, v_coach, to_char(v_fecha,'YYYY-MM'), 30000, 'ARS');
   SELECT count(*) INTO v_n FROM public.gastos WHERE liquidacion_id = v_liq;
   IF v_n <> 1 THEN RAISE EXCEPTION 'T9 FAIL: pagar duplicó gasto (%)', v_n; END IF;
   IF NOT EXISTS (SELECT 1 FROM public.gastos WHERE liquidacion_id = v_liq AND estado_conciliacion = 'conciliado') THEN
