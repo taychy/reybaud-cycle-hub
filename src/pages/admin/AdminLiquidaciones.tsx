@@ -288,6 +288,11 @@ const AdminLiquidaciones = () => {
   };
 
   const updateEstadoLiq = async (liqId: string, nuevoEstado: string, coach: { id: string; nombre: string; confirmado: number }) => {
+    const sinHonorario = movimientos.filter((m) => m.coach_id === coach.id && Number(m.total || 0) <= 0 && m.estado_economico !== "no_liquidable");
+    if (["aprobada", "pagada"].includes(nuevoEstado) && sinHonorario.length > 0) {
+      toast({ title: "Liquidación con honorarios en $0", description: `Hay ${sinHonorario.length} movimiento(s) sin importe para revisar. No se puede aprobar ni pagar todavía.`, variant: "destructive" });
+      return;
+    }
     if (nuevoEstado === "pagada") {
       if (coach.confirmado <= 0) {
         toast({ title: "No hay monto confirmado para liquidar", description: "Revisá los movimientos del coach antes de marcar como pagada.", variant: "destructive" });
@@ -322,6 +327,11 @@ const AdminLiquidaciones = () => {
   };
 
   const updateMovEstado = async (movId: string, nuevoEstado: string) => {
+    const movimiento = [...movimientos, ...pendientesGlobales].find((m) => m.id === movId);
+    if (nuevoEstado === "liquidable" && movimiento && Number(movimiento.total || 0) <= 0) {
+      toast({ title: "Honorario sin calcular", description: "Este movimiento tiene importe $0. Revisá el honorario asociado al servicio antes de confirmarlo.", variant: "destructive" });
+      return;
+    }
     const { error } = await supabase.from("movimientos_liquidacion").update({ estado_economico: nuevoEstado } as any).eq("id", movId);
     if (error) { toast({ title: "Error", description: error.message, variant: "destructive" }); return; }
     toast({ title: nuevoEstado === "liquidable" ? "Movimiento confirmado" : "Movimiento excluido" });
