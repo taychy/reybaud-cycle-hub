@@ -50,9 +50,9 @@ export function LandingWhatsAppCta({ whatsapp, variant = "default" }: { whatsapp
     whatsapp.number,
   );
   const cls = variant === "editorial"
-    ? "inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/20 bg-[#1c1c1e] px-5 font-heading text-sm font-bold uppercase tracking-wider text-white transition-colors hover:border-[#e73531]/70 hover:bg-[#e73531]/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e73531]"
+    ? "inline-flex min-h-12 w-full items-center justify-center gap-2.5 rounded-xl border border-white/20 bg-[#1c1c1e] px-5 font-heading text-sm font-bold uppercase tracking-wider text-white transition-colors hover:border-primary/70 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary"
     : "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-border bg-card px-4 font-heading text-xs uppercase tracking-wide text-foreground transition-colors hover:border-primary/60 hover:bg-primary/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary";
-  const iconCls = variant === "editorial" ? "h-5 w-5 text-[#ff5754]" : "h-4 w-4 text-primary";
+  const iconCls = variant === "editorial" ? "h-5 w-5 text-primary" : "h-4 w-4 text-primary";
   return (
     <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>
       <MessageCircle className={iconCls} aria-hidden="true" />
