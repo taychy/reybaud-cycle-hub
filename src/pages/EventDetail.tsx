@@ -1355,7 +1355,7 @@ const EventDetail = () => {
                 <span className="font-heading text-2xl font-black text-white">{formatPrice(premiumPrice.price, premiumPrice.currency)}</span>
               </p>
             )}
-            <a href="#precio" className="inline-flex min-h-11 min-w-[165px] items-center justify-center rounded-xl bg-[#e73531] px-5 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+            <a href="#precio" className="inline-flex min-h-11 min-w-[165px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
               Ver paquetes
             </a>
           </div>
