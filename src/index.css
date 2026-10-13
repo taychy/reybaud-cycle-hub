@@ -76,6 +76,18 @@
     --ring: var(--alpine-red);
   }
 
+  /* Dorado exclusivo de la landing itinerante de Italia, Austria y Suiza.
+     El resto de Reybaud conserva sus colores. */
+  .alpine-event.alpine-gold {
+    --alpine-red: 43 78% 55%;
+    --primary-foreground: 0 0% 8%;
+    --accent-foreground: 0 0% 8%;
+  }
+
+  .alpine-event.alpine-gold .alpine-preparation {
+    background: linear-gradient(180deg, #272317, #1c1c1e);
+  }
+
   .gold-gradient {
     background: linear-gradient(135deg, hsl(27 90% 55%), hsl(27 85% 65%));
   }
