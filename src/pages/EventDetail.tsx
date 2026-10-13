@@ -483,6 +483,7 @@ const EventDetail = () => {
   // Borrador: solo visible para admins (RLS). Vista previa privada sin reservas ni cobros.
   const isDraftPreview = event.estado_publicacion === "borrador";
   const premiumLanding = getPremiumLanding(event.metadata);
+  const isBormioLanding = !!premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641";
   const editorialAlpine = premiumLanding?.layout_variant === "editorial_alpine";
   const premiumDates = premiumDateSummary(event);
   const premiumPrice = getEventPriceDisplay({ ...event, currency: packagesCurrency || event.currency, packages_min_price: packagesMinPrice });
@@ -496,7 +497,7 @@ const EventDetail = () => {
   const isOpenAudience = publicAudience === "open";
 
   return (
-    <div className={`min-h-screen bg-background flex flex-col ${premiumLanding ? "alpine-event" : ""}`}>
+    <div className={`min-h-screen bg-background flex flex-col ${premiumLanding ? "alpine-event" : ""} ${isBormioLanding ? "alpine-gold" : ""}`}>
       {/* Hero Image */}
       <div className="relative">
         {editorialAlpine ? (
@@ -542,7 +543,7 @@ const EventDetail = () => {
           className="absolute z-30 top-4 right-4 w-9 h-9 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background"
           aria-label={isFavorite(event.id) ? "Quitar de favoritos" : "Agregar a favoritos"}
         >
-          <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? "fill-red-500 text-red-500" : "text-foreground/70"}`} />
+          <Heart className={`w-5 h-5 transition-colors ${isFavorite(event.id) ? (isBormioLanding ? "fill-primary text-primary" : "fill-red-500 text-red-500") : "text-foreground/70"}`} />
         </Button>
         {!editorialAlpine && (
         <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
@@ -831,7 +832,7 @@ const EventDetail = () => {
                 <EventPackagesDrawer
                 eventId={id}
                 premium
-                triggerClassName={editorialAlpine ? "h-12 w-full rounded-xl border-0 bg-[#e73531] font-semibold text-white hover:bg-[#d72e29] hover:text-white" : undefined}
+                triggerClassName={editorialAlpine ? "h-12 w-full rounded-xl border-0 bg-primary font-semibold text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground focus-visible:ring-primary" : undefined}
                 onReserve={
                   allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? (pkgId: string | null) => {
@@ -1354,7 +1355,7 @@ const EventDetail = () => {
                 <span className="font-heading text-2xl font-black text-white">{formatPrice(premiumPrice.price, premiumPrice.currency)}</span>
               </p>
             )}
-            <a href="#precio" className="inline-flex min-h-11 min-w-[165px] items-center justify-center rounded-xl bg-[#e73531] px-5 text-sm font-semibold text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-white">
+            <a href="#precio" className="inline-flex min-h-11 min-w-[165px] items-center justify-center rounded-xl bg-primary px-5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
               Ver paquetes
             </a>
           </div>
