@@ -33,7 +33,7 @@ export default function AlpineEditorialHero({
       </div>
       <div className="relative z-10 mx-auto max-w-5xl">
         {capacity != null && (
-          <p className="mb-5 inline-flex max-w-full items-center rounded-lg bg-[#e73531] px-3 py-2 font-heading text-xs font-semibold uppercase tracking-widest text-white sm:text-sm">
+          <p className="mb-5 inline-flex max-w-full items-center rounded-lg bg-primary px-3 py-2 font-heading text-xs font-semibold uppercase tracking-widest text-primary-foreground sm:text-sm">
             Viaje itinerante · Solo {capacity} cupos
           </p>
         )}
@@ -53,9 +53,9 @@ export default function AlpineEditorialHero({
             </div>
           </div>
           {price != null && (
-            <a href="#precio" className="ml-auto text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#e73531]" aria-label="Ver precios y paquetes">
+            <a href="#precio" className="ml-auto text-right focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" aria-label="Ver precios y paquetes">
               <span className="block text-[11px] uppercase tracking-[0.15em] text-zinc-400">Desde</span>
-              <span className="font-heading text-3xl font-black text-[#ff5754] sm:text-4xl">{formatPrice(price, currency || "EUR")}</span>
+              <span className="font-heading text-3xl font-black text-primary sm:text-4xl">{formatPrice(price, currency || "EUR")}</span>
             </a>
           )}
         </div>
