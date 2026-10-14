@@ -191,3 +191,5 @@
 - [ ] Ventana de reserva de alumno: no verificada en navegador (la cuenta de prueba no es alumno)
 
 - [x] Tienda alumno: tocar tarjeta abre /tienda/producto/:id (sin crear pedido)
+
+- [x] Rectificar pagos directos Fernando→Ingrid (ARS 840.000) y unificar saldo efectivo de transferencias
