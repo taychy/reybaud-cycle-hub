@@ -26,6 +26,9 @@ import ProgramCommercialPanel from "@/components/admin/ProgramCommercialPanel";
 import { PHASE_LABELS, resolveCommercialPhase } from "@/lib/programCommercialPhase";
 import { computeEnrollmentStatus, fmtFechaLargaAR, type ProgramStageLike } from "@/lib/programEnrollment";
 import ProgramPreinscriptosTab from "@/components/admin/ProgramPreinscriptosTab";
+import ProgramSedeFilterSelect from "@/components/admin/ProgramSedeFilterSelect";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SEDE_ALL, SEDE_NONE, matchesSedeId, sedeLabel, type SedeOpt } from "@/lib/programSedeFilter";
 
 
 const sb: any = supabase;
@@ -62,6 +65,7 @@ interface Inscripto {
   created_at: string;
   chequeado_admin: boolean | null;
   mp_status: string | null;
+  programa_sede_id: string | null;
   alumno?: {
     nombre: string | null;
     apellido: string | null;
@@ -126,16 +130,19 @@ const AdminProgramaDetalle = () => {
   const [duplicados, setDuplicados] = useState<any[]>([]);
   const [bajaSubId, setBajaSubId] = useState<string | null>(null);
   const [preinscCount, setPreinscCount] = useState<number | null>(null);
+  const [programSedes, setProgramSedes] = useState<SedeOpt[]>([]);
+  const [sedeFilter, setSedeFilter] = useState<string>(SEDE_ALL);
+  const [savingSedeId, setSavingSedeId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!cohortId) return;
     (async () => {
       setLoading(true);
-      const [{ data: p }, { data: subs }, { data: st }] = await Promise.all([
+      const [{ data: p }, { data: subs }, { data: st }, { data: ps }] = await Promise.all([
         sb.from("planes").select("*").eq("id", cohortId).maybeSingle(),
         sb
           .from("suscripciones")
-          .select("id, alumno_id, estado, fecha_inicio, fecha_fin, precio_final, metodo_pago, origen_registro, notas, created_at, chequeado_admin, mp_status")
+          .select("id, alumno_id, estado, fecha_inicio, fecha_fin, precio_final, metodo_pago, origen_registro, notas, created_at, chequeado_admin, mp_status, programa_sede_id")
           .eq("plan_id", cohortId)
           .order("created_at", { ascending: false }),
         sb
@@ -143,7 +150,13 @@ const AdminProgramaDetalle = () => {
           .select("id, nombre, precio, precio_cuota, cuotas_cantidad, fecha_desde, fecha_hasta, activo")
           .eq("plan_id", cohortId)
           .order("orden", { ascending: true }),
+        sb.from("planes_sedes").select("sede_id, sedes(id, nombre)").eq("plan_id", cohortId),
       ]);
+      setProgramSedes(
+        ((ps || []) as any[])
+          .map((r) => ({ id: r.sedes?.id || r.sede_id, nombre: r.sedes?.nombre || "Sede" }))
+          .sort((a, b) => a.nombre.localeCompare(b.nombre, "es")),
+      );
       setPlan(p as PlanRow);
       setPriceStages((st || []) as ProgramStageLike[]);
       const list = (subs || []) as Inscripto[];
@@ -295,10 +308,47 @@ const AdminProgramaDetalle = () => {
     );
   };
 
+  const matchesView = (i: Inscripto) =>
+    matchesSearch(i) && matchesSedeId(i.programa_sede_id, sedeFilter, programSedes);
   const activos = inscriptos.filter((i) => !BAJA_STATES.includes(i.estado));
   const bajas = inscriptos.filter((i) => BAJA_STATES.includes(i.estado));
-  const filteredActivos = activos.filter(matchesSearch);
-  const filteredBajas = bajas.filter(matchesSearch);
+  const filteredActivos = activos.filter(matchesView);
+  const filteredBajas = bajas.filter(matchesView);
+
+  /** Corrige la sede usando el campo existente `suscripciones.programa_sede_id` (el trigger valida cupo). */
+  const updateSede = async (i: Inscripto, value: string) => {
+    const next = value === SEDE_NONE ? null : value;
+    if (next === (i.programa_sede_id ?? null)) return;
+    setSavingSedeId(i.id);
+    const { error } = await sb.from("suscripciones").update({ programa_sede_id: next }).eq("id", i.id);
+    setSavingSedeId(null);
+    if (error) {
+      toast({ title: "No se pudo cambiar la sede", description: error.message, variant: "destructive" });
+      return;
+    }
+    setInscriptos((prev) => prev.map((s) => (s.id === i.id ? { ...s, programa_sede_id: next } : s)));
+    toast({ title: "Sede actualizada", description: sedeLabel(next, programSedes) || "Sin sede asignada" });
+  };
+
+  const sedeActiva = sedeFilter !== SEDE_ALL;
+  const searchBar = (
+    <div className="flex flex-col sm:flex-row gap-2">
+      <Input
+        placeholder="Buscar por nombre, email o teléfono…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="max-w-md"
+      />
+      <ProgramSedeFilterSelect sedes={programSedes} value={sedeFilter} onChange={setSedeFilter} />
+    </div>
+  );
+  const filterNote = (shown: number, total: number) =>
+    sedeActiva || search.trim() ? (
+      <p className="text-xs text-muted-foreground">
+        Vista filtrada{sedeActiva ? ` por sede: ${sedeFilter === SEDE_NONE ? "Sin sede asignada" : sedeLabel(sedeFilter, programSedes)}` : ""}
+        {" "}· mostrando {shown} de {total}. Los totales del programa no cambian.
+      </p>
+    ) : null;
   const duplicadosIds = new Set(
     duplicados.flatMap((d) => (d.nivel_confianza === "ALTA" ? [d.alumno_1_id, d.alumno_2_id] : [])),
   );
@@ -339,6 +389,7 @@ const AdminProgramaDetalle = () => {
                 <TableRow>
                   <TableHead>Alumno</TableHead>
                   <TableHead>Contacto</TableHead>
+                  <TableHead>Sede</TableHead>
                   <TableHead>Estado</TableHead>
                   <TableHead>Método</TableHead>
                   <TableHead>Precio</TableHead>
@@ -366,6 +417,29 @@ const AdminProgramaDetalle = () => {
                       <TableCell className="text-xs">
                         <div>{i.alumno?.email || "—"}</div>
                         <div className="text-muted-foreground">{i.alumno?.telefono || ""}</div>
+                      </TableCell>
+                      <TableCell className="text-xs min-w-[150px]">
+                        {allowBaja && programSedes.length > 0 ? (
+                          <Select
+                            value={sedeLabel(i.programa_sede_id, programSedes) ? i.programa_sede_id! : SEDE_NONE}
+                            onValueChange={(v) => updateSede(i, v)}
+                            disabled={savingSedeId === i.id}
+                          >
+                            <SelectTrigger className="h-8 text-xs" aria-label="Sede del participante">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {programSedes.map((s) => (
+                                <SelectItem key={s.id} value={s.id}>{s.nombre}</SelectItem>
+                              ))}
+                              <SelectItem value={SEDE_NONE}>Sin sede asignada</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          sedeLabel(i.programa_sede_id, programSedes) || (
+                            <span className="text-muted-foreground">Sin sede asignada</span>
+                          )
+                        )}
                       </TableCell>
                       <TableCell>{estadoBadge(i.estado)}</TableCell>
                       <TableCell className="text-xs">
@@ -622,12 +696,8 @@ const AdminProgramaDetalle = () => {
         </TabsList>
 
         <TabsContent value="inscriptos" className="space-y-3">
-          <Input
-            placeholder="Buscar por nombre, email o teléfono…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="max-w-md"
-          />
+          {searchBar}
+          {filterNote(filteredActivos.length, activos.length)}
           {renderTable(filteredActivos, true)}
         </TabsContent>
 
@@ -638,6 +708,9 @@ const AdminProgramaDetalle = () => {
             hasSlug={!!(plan as any).preinscripcion_slug}
             reloadKey={reloadKey}
             onCount={setPreinscCount}
+            sedes={programSedes}
+            sedeFilter={sedeFilter}
+            onSedeFilterChange={setSedeFilter}
           />
         </TabsContent>
 
@@ -645,6 +718,8 @@ const AdminProgramaDetalle = () => {
           <p className="text-xs text-muted-foreground">
             Inscripciones canceladas. No ocupan cupo y no cuentan como inscriptos activos.
           </p>
+          {searchBar}
+          {filterNote(filteredBajas.length, bajas.length)}
           {renderTable(filteredBajas, false)}
         </TabsContent>
 
