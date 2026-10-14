@@ -1,62 +1,55 @@
-# Auditoría tienda: alumno vs invitado y pedido #105 (solo lectura)
+# Auditoría (solo lectura): Fernando Strada / Ingrid Epp — Training Camp San Luis
 
-No se cambió código ni datos, y no se crearon pedidos ni pagos.
+No se modificó nada. Evento `67b4e85d-…`, paquete `0089ec6a-…` (Hab. individual con PC).
 
-## 1. Rutas y puntos donde se crea o avanza un pedido
+## Evidencia
 
-Tienda pública (invitado):
-- Catálogo: `/tienda` → `src/pages/PublicStore.tsx`. La tarjeta completa es un `Link` a `/tienda/producto/:id` (línea 109).
-- Detalle y checkout: `/tienda/producto/:id` → `src/pages/PublicProduct.tsx`. Envía el formulario a la función `create-public-store-order`.
-- Creación del pedido: `supabase/functions/create-public-store-order/index.ts`, INSERT en `store_orders` en las líneas 117-138 (`origen_registro='tienda_publica'`, estado `pendiente_pago`) y en `store_order_items` en las líneas 145-157. Después crea la preferencia de Mercado Pago y guarda `mp_preference_id` (línea 232).
-- URLs públicas reales: https://reybaud-app.com/tienda y https://www.reybaud-app.com/tienda.
+**Reserva de Ingrid** `d7b9ca7f-b707-4c2f-97a4-4d332cc98fee` — estado `cancelada` (cupo transferido), total guardado $1.249.000.
+| Pago | Fecha | Importe | Estado |
+|---|---|---|---|
+| `0f47d3e6` transferencia | 16/07 | $350.000 | validado |
+| `396e25d8` MP | 30/07 | $246.975 | rechazado (no suma) |
+| `b6a2b0b0` MP | 30/07 | $246.975 | validado |
+| `d3dd4a82` MP | 31/08 | $243.950 | validado |
+Total pagado real a Reybaud: **$840.925**. Ingrid no tiene crédito ni saldo a rendir: lo pagado se lo devuelve Fernando directamente (Reybaud caja $0).
 
-Tienda del alumno (dentro de la app):
-- Catálogo: `src/components/TiendaSection.tsx` (y `HomeTrainingExtras.tsx`). No hay ruta de detalle ni carrito: la compra es de un solo producto.
-- Checkout: `src/components/store/BuyProductDialog.tsx`. Primero revisa duplicados de las últimas 24 h (líneas 135-170). Después crea el pedido con la RPC `crear_pedido_tienda_alumno` (línea 172) y llama a `create-store-order-mp-preference` (línea 192), que pasa el estado a `pendiente_pago` (líneas 99-108 de esa función).
-- Otro INSERT manual: `src/components/checkout/ManualPaymentConfirm.tsx:145`.
+**Reserva de Fernando** `30c0259f-ebb5-45b8-a767-075aa95d7d16` — `reserva_confirmada`, total $1.196.690.
+- Pago MP `ed1b113b` (mp 181483222127), 05/10, **$355.765 validado**.
+- Columna guardada `balance_due` = **$840.925** (no incluye pagos directos entre participantes).
 
-Cambios de estado y stock:
-- Disparadores en `store_orders`: `trg_store_order_stock_egreso` (descuenta stock al insertar o cambiar `status`), `trg_store_orders_facturacion` y `trg_set_store_order_delivered_at`. **No existe un disparador que actualice `updated_at`.** Por eso `updated_at` = `created_at` en todos los pedidos, y ese dato no sirve para fechar cambios.
-- Paso a «en camioneta»: `src/pages/deposito/DepositoCamioneta.tsx:1039`, dentro de `addSelected`. Se quita al sacar el ítem de la carga (líneas 1063-1070).
+**Transferencia** `e939fd47-…` — estado `payment_agreement_defined` (no completada). Acuerdo: directo a Ingrid $840.925 + Reybaud $355.765.
 
-## 2. Por qué tocar la tarjeta no abre el detalle (app del alumno)
+**Pagos directos Fernando → Ingrid registrados (los $840.000 sí existen, mal cargados):**
+| ID | Cargado | Importe | Fecha de pago escrita | Nota |
+|---|---|---|---|---|
+| `e695f78c` | 12/10 | **$840,925** (punto decimal) | `0026-10-05` | comprobante PDF, control 1120 |
+| `3a9a563e` | 13/10 | **$840,08408** | 2026-10-08 | "error al escribir el monto… compensar" |
+| `bdfa6a1b` | 13/10 | **$839.243,99** | `0206-10-08` | sin comprobante |
+Suma = $840.924,999 ≈ $840.925. Los tres están `confirmed`.
 
-Evidencia en `TiendaSection.tsx`, líneas 59-66: si el producto se compra dentro de la app (`checkout_mode='in_app'`) o está en preventa, la tarjeta es un `div` sin acción. Solo el botón «Comprar» o «Reservar» hace algo (líneas 119 y 127). Los demás productos son un enlace a la tienda externa de Tiendanube (`STORE_URL`, línea 16). No existe una vista de detalle para el alumno. La tienda pública sí funciona bien, porque toda la tarjeta es un enlace.
+## Diferencias exactas
+- Fernando: 1.196.690 − 355.765 − 840.924,999 = **≈ $0,001** de saldo efectivo.
+- Fernando dice haber pagado $840.000; el acuerdo y lo cargado son $840.925 → diferencia de **$925** a confirmar con el comprobante.
+- Saldo visible $840.925 vs saldo efectivo ≈ $0.
 
-## 3. Pedido #105 (Sergio G Brukman)
+## Causa
+**Confirmada:**
+1. El monto del pago directo se escribió con punto como miles ($840,925 en vez de $840.925); se "compensó" con dos registros más en vez de anular el primero. El total cuadra, pero hay 3 filas, montos con centésimas raras y 2 fechas imposibles (años 0026 y 0206).
+2. `event_reservations.balance_due` de Fernando nunca descuenta pagos directos; solo la función `reservation_effective_payment_summary` los suma. En `ReservationStatusCard.tsx` el saldo efectivo solo se aplica a una parte (línea ~281); los bloques de Saldo (≈625, 849, 874, 918–958) y la cuota única (`3535132d`, pagado $355.765, `parcial`) siguen leyendo los valores guardados → muestra $840.925.
+3. La transferencia sigue sin cerrar; el residuo de $0,001 (redondeo de 840,08408) podría impedir "Listo para cerrar".
 
-Evidencia:
-- Se creó el 09/10 a las 02:40 UTC desde la tienda pública. Ese camino exige completar nombre, email, teléfono y forma de entrega, y enviar el formulario. Mirar la página no basta para crear un pedido.
-- Tiene `mp_preference_id`, así que se generó el link de pago. No tiene `mp_payment_id`, `mp_status` ni `pagado_at`: el pago nunca se aprobó.
-- Producto: 1 Jersey Negro Manga Larga Classique 2XL, entrega en clase KDT, $90.400.
-- El 10/10 a las 16:34 UTC se agregó un ítem del pedido a una caja de camioneta `en_ruta` (abierta desde el 29/07). Ese paso pasó el pedido a `en_camioneta`.
-- No hay registros en el historial de auditoría para este pedido.
+**Hipótesis (sin confirmar):** qué pantalla exacta ve el usuario como "resumen"; si el pago real fue $840.000 o $840.925.
 
-Causa (confirmada en el código): en «Agregar a la carga», `loadCandidates` (líneas 932-938) lista **todos** los pedidos no entregados ni cancelados, incluidos los que no están pagados. Además, la línea 993 preselecciona los de la misma sede. Nada bloquea los pedidos con `pendiente_pago` o `pendiente_pago_efectivo`, y la pantalla no muestra el estado del pago.
+## Impacto
+- Fernando ve deuda inexistente y podría recibir recordatorios de cobro.
+- Riesgo de que KPIs/deudores cuenten $840.925 como pendiente.
+- Datos de auditoría sucios (fechas 0026/0206). Sin impacto en caja Reybaud ni en Ingrid.
 
-Hipótesis (sin confirmar):
-- No se sabe qué usuario de depósito hizo la carga: `vehiculo_carga_items` no guarda autor y no hay historial.
-- Que el cliente haya abandonado el pago es probable, pero no está verificado.
+## Propuesta (no ejecutada, requiere autorización)
+1. Datos: anular (`voided_at` + motivo) `e695f78c`, `3a9a563e` y `bdfa6a1b` y registrar uno solo por el monto real del comprobante (control 1120), fecha 05/10/2026. Si fue $840.000, decidir si los $925 quedan como saldo de Fernando o se condonan.
+2. Cerrar la transferencia (`completed`) y que el saldo de Fernando y su cuota reflejen el pago directo.
+3. Código: validar en `TransferAgreementPanel` monto entero en ARS (rechazar decimales de 3+ dígitos) y fecha con año razonable; usar el saldo efectivo en todos los bloques de Saldo de `ReservationStatusCard` y en deudores/recordatorios; redondear a centavos en el resumen.
+4. Pruebas: unit tests para la validación y para el saldo efectivo con pagos directos.
 
-## 4. Otros pedidos afectados
-
-Pedidos sin `pagado_at` en estado logístico avanzado:
-- **#102** (tienda pública, efectivo): en camioneta desde el 09/10 a las 13:49, por el mismo mecanismo.
-- **#109** (manual, sin forma de pago): en camioneta, sin ítem de carga, así que el estado está desincronizado.
-- Entregados sin pago: #19 (MP cancelado), #20, #83 y #93. Hay que confirmar con caja si se cobraron por otra vía.
-
-Cualquier carga a la camioneta puede repetir el problema con pedidos sin pagar.
-
-## 5. Correcciones propuestas (para aprobar después)
-
-1. **Carga a la camioneta:** excluir los pedidos sin `pagado_at` de los candidatos, salvo efectivo contra entrega si así se decide. No preseleccionar pedidos sin pago y mostrar una etiqueta «Sin pago».
-2. **Bloqueo en la base de datos:** un disparador que impida pasar a `en_camioneta`, `listo_retiro`, `enviado` o `entregado` sin `pagado_at`, con una excepción explícita y registrada para efectivo.
-3. **Disparador de `updated_at`** en `store_orders` y autor (`cargado_por`) en `vehiculo_carga_items`, para que cada cambio quede registrado.
-4. **App del alumno:** que toda la tarjeta (imagen y nombre) abra el mismo diálogo de compra, o una vista de detalle, sin crear ningún pedido hasta confirmar.
-5. **Datos reales:** no tocar #105, #102 ni #109 sin tu decisión. Opción: sacarlos de la carga para que vuelvan a `preparando`, previa verificación física.
-6. **Pruebas sin datos reales:** pruebas de la función de candidatos (excluye pedidos sin pago) y SQL reversible con BEGIN/ROLLBACK para el bloqueo de estados y para `updated_at`.
-
-## Decisiones pendientes
-
-- Si los pedidos en efectivo pueden viajar en la camioneta antes de cobrarse (cobro contra entrega).
-- Qué hacer con #105, #102 y #109.
+## Decisión necesaria
+¿El pago real a Ingrid fue $840.000 o $840.925?
