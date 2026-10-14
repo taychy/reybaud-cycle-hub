@@ -1,0 +1,1 @@
+ALTER VIEW public.vw_cuenta_corriente_movimientos SET (security_invoker = true);
