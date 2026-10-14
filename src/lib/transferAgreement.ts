@@ -56,3 +56,17 @@ export function canCompleteTransfer(x: TransferExecution, refundDone: boolean, r
   if (refundRequired && !refundDone) return false;
   return true;
 }
+
+// Validación de un pago directo entre participantes (espejo del trigger
+// validate_transfer_direct_payment). Rechaza importes con más de 2 decimales
+// (p. ej. "840.925" escrito con punto de miles) y fechas con años absurdos.
+export function validateDirectPaymentInput(rawAmount: string, date: string, today = new Date()): string[] {
+  const e: string[] = [];
+  const s = String(rawAmount ?? "").trim();
+  if (!/^\d+(\.\d{1,2})?$/.test(s) || !(Number(s) > 0)) e.push("Importe inválido: sin puntos de miles y como máximo 2 decimales.");
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date ?? "");
+  const max = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+  const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : null;
+  if (!m || Number(m[1]) < 2020 || !d || d > max) e.push("Fecha de pago inválida.");
+  return e;
+}

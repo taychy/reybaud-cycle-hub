@@ -8,7 +8,7 @@ import { formatPrice } from "@/lib/currency";
 import { useToast } from "@/hooks/use-toast";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
 import {
-  validateTransferAgreement, transferModeLabel, transferExecutionLabel, canCompleteTransfer, type TransferMode,
+  validateTransferAgreement, validateDirectPaymentInput, transferModeLabel, transferExecutionLabel, canCompleteTransfer, type TransferMode,
 } from "@/lib/transferAgreement";
 
 interface Props {
@@ -79,7 +79,8 @@ export default function TransferAgreementPanel({ transfer: t, currency, onChange
 
   const registerDirect = async () => {
     const amt = Number(dpAmount || 0);
-    if (!(amt > 0) || !dpDate) { toast({ title: "Completá importe y fecha", variant: "destructive" }); return; }
+    const dpErr = validateDirectPaymentInput(dpAmount, dpDate);
+    if (dpErr.length) { toast({ title: dpErr[0], variant: "destructive" }); return; }
     if (directConfirmed + amt > directAgreed) { toast({ title: "Supera el monto directo acordado", variant: "destructive" }); return; }
     setBusy(true);
     let proofPath: string | null = null;
@@ -161,7 +162,7 @@ export default function TransferAgreementPanel({ transfer: t, currency, onChange
                 {t.status !== "completed" && directConfirmed < directAgreed && (
                   showForm ? (
                     <div className="space-y-2">
-                      <label className="block text-xs">Importe<Input type="number" min={0} value={dpAmount} onChange={(e) => setDpAmount(e.target.value)} /></label>
+                      <label className="block text-xs">Importe<Input type="text" inputMode="decimal" placeholder="840000" value={dpAmount} onChange={(e) => setDpAmount(e.target.value)} /></label>
                       <label className="block text-xs">Fecha del pago<Input type="date" value={dpDate} onChange={(e) => setDpDate(e.target.value)} /></label>
                       <label className="block text-xs">Comprobante<Input type="file" accept="image/*,application/pdf" onChange={(e) => setDpFile(e.target.files?.[0] || null)} /></label>
                       <Textarea placeholder="Notas" value={dpNotes} onChange={(e) => setDpNotes(e.target.value)} />
