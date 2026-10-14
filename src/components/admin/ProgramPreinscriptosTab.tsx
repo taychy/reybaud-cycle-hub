@@ -12,6 +12,8 @@ import {
 import { Loader2, RefreshCw, Eye, UserX, Undo2, Tag, Mail, RotateCcw, Copy, MessageCircle } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import ProgramSedeFilterSelect from "@/components/admin/ProgramSedeFilterSelect";
+import { SEDE_ALL, SEDE_NONE, matchesSedeId, resolveSedeByName, sedeLabel, type SedeOpt } from "@/lib/programSedeFilter";
 import { normalizePhoneAr, buildWaLink, buildPreinscriptoWaMessage } from "@/lib/whatsappPreinscripto";
 import {
   resolvePreinscriptoStatus, findSedeAnswer, PREINSCRIPTO_STATUS_LABEL, NO_CONTINUA_ENTRY_STATE,
@@ -70,9 +72,12 @@ interface Props {
   hasSlug: boolean;
   reloadKey?: number;
   onCount?: (n: number) => void;
+  sedes?: SedeOpt[];
+  sedeFilter?: string;
+  onSedeFilterChange?: (v: string) => void;
 }
 
-export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloadKey, onCount }: Props) {
+export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloadKey, onCount, sedes = [], sedeFilter = SEDE_ALL, onSedeFilterChange }: Props) {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("todos");
@@ -215,6 +220,7 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
 
   const visible = rows.filter((r) => {
     if (filter !== "todos" && r.status !== filter) return false;
+    if (!matchesSedeId(resolveSedeByName(r.sede, sedes), sedeFilter, sedes)) return false;
     const q = search.trim().toLowerCase();
     if (!q) return true;
     return r.nombre.toLowerCase().includes(q) || r.email.toLowerCase().includes(q) || (r.telefono || "").includes(q);
@@ -269,7 +275,15 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
           {loading ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1" />} Actualizar
         </Button>
       </div>
-      <Input placeholder="Buscar por nombre, email o teléfono…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+      <div className="flex flex-col sm:flex-row gap-2">
+        <Input placeholder="Buscar por nombre, email o teléfono…" value={search} onChange={(e) => setSearch(e.target.value)} className="max-w-md" />
+        <ProgramSedeFilterSelect sedes={sedes} value={sedeFilter} onChange={(v) => onSedeFilterChange?.(v)} />
+      </div>
+      {(sedeFilter !== SEDE_ALL || search.trim()) && (
+        <p className="text-xs text-muted-foreground">
+          Vista filtrada{sedeFilter !== SEDE_ALL ? ` por sede: ${sedeFilter === SEDE_NONE ? "Sin sede asignada" : sedeLabel(sedeFilter, sedes)}` : ""} · mostrando {visible.length} de {rows.length}. La sede sale de la respuesta del formulario; los contadores de arriba no cambian.
+        </p>
+      )}
 
       {loading && rows.length === 0 ? (
         <p className="text-sm text-muted-foreground animate-pulse">Cargando…</p>
@@ -298,7 +312,11 @@ export default function ProgramPreinscriptosTab({ planId, moneda, hasSlug, reloa
                     <div className="break-all">{r.email}</div>
                     {r.telefono && <div className="text-muted-foreground">{r.telefono}</div>}
                   </TableCell>
-                  <TableCell className="max-w-[110px]">{r.sede || "—"}</TableCell>
+                  <TableCell className="max-w-[130px]">
+                    {sedeLabel(resolveSedeByName(r.sede, sedes), sedes) || (
+                      <span className="text-muted-foreground">Sin sede asignada{r.sede ? ` (${r.sede})` : ""}</span>
+                    )}
+                  </TableCell>
                   <TableCell className="whitespace-nowrap">
                     {new Date(r.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "2-digit" })}
                   </TableCell>
