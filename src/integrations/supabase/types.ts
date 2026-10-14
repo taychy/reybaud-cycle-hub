@@ -17765,6 +17765,10 @@ export type Database = {
         Args: { p_gasto_id: string }
         Returns: boolean
       }
+      direct_confirmed_for_replacement: {
+        Args: { p_reservation_id: string }
+        Returns: number
+      }
       eliminar_gasto_categoria: {
         Args: { _categoria_id: string }
         Returns: string
