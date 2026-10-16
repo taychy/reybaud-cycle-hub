@@ -1431,7 +1431,7 @@ const ReservationStatusCard = ({
         onOpenChange={(v) => { if (!v) setChoiceSurvey(null); }}
         survey={choiceSurvey}
         reservationId={reservation.id}
-        alumnoId={alumnoId}
+        alumnoId={(reservation as any).alumno_id ?? alumnoId}
         currentAnswer={choiceSurvey ? checklistData[choiceSurveyStepKey(choiceSurvey.key)]?.data?.respuesta ?? null : null}
         onSaved={loadChecklistData}
       />
