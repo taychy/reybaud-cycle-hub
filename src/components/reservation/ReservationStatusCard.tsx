@@ -25,6 +25,9 @@ import TripDocumentDrawer from "./TripDocumentDrawer";
 import TripExtrasDrawer from "./TripExtrasDrawer";
 import TripFoodSurveyDrawer from "./TripFoodSurveyDrawer";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
+import TripChoiceSurveyDrawer from "./TripChoiceSurveyDrawer";
+import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
+import { Shirt } from "lucide-react";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 import StudentInstallmentsPlan, { StudentInstallmentsPlanHandle } from "./StudentInstallmentsPlan";
 import { StudentTermsPendingBanner } from "./ReservationTermsPending";
@@ -193,7 +196,7 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
-  actionType: "bike" | "pedals" | "document" | "payment" | "extras" | "food" | "none";
+  actionType: "bike" | "pedals" | "document" | "payment" | "extras" | "food" | "choice" | "none";
 }
 
 const buildChecklist = (reservation: Reservation, meta: any, checklistData: Record<string, any>): ChecklistItem[] => {
@@ -273,6 +276,12 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
       actionType: "food",
     });
   }
+  for (const sv of getChoiceSurveys(meta)) {
+    const sk = choiceSurveyStepKey(sv.key);
+    const ans = checklistData[sk]?.data?.respuesta;
+    const opt = sv.options.find((o) => o.value === ans);
+    base.push({ id: sk, label: sv.title, description: opt ? `Tu respuesta: ${opt.label} · tocá para cambiarla` : sv.question, icon: Shirt, completed: !!checklistData[sk]?.completed, actionType: "choice" });
+  }
   return base;
 };
 
@@ -332,6 +341,8 @@ const ReservationStatusCard = ({
   });
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
   const [showFoodDrawer, setShowFoodDrawer] = useState(false);
+  const [choiceSurvey, setChoiceSurvey] = useState<ChoiceSurveyConfig | null>(null);
+  const openChoice = (id: string) => setChoiceSurvey(getChoiceSurveys(eventMetadata).find((x) => choiceSurveyStepKey(x.key) === id) ?? null);
   const [lodging, setLodging] = useState<{
     package_nombre: string | null; room_nombre: string | null; room_tipo: string | null;
     room_genero: string | null; room_capacidad: number | null; roommates: string[] | null;
@@ -532,6 +543,7 @@ const ReservationStatusCard = ({
     if (!nextPrep) return null;
     const action =
       nextPrep.id === "extras" ? openFirstPrepDrawer :
+      nextPrep.actionType === "choice" ? () => openChoice(nextPrep.id) :
       nextPrep.actionType === "food" ? () => setShowFoodDrawer(true) :
       nextPrep.actionType === "bike" ? () => setShowBikeDrawer(true) :
       nextPrep.actionType === "pedals" ? () => setShowPedalsDrawer(true) :
@@ -1139,6 +1151,7 @@ const ReservationStatusCard = ({
                   else if (item.actionType === "payment") scrollToPlan();
                   else if (item.actionType === "extras") openFirstPrepDrawer();
                   else if (item.actionType === "food") setShowFoodDrawer(true);
+                  else if (item.actionType === "choice") openChoice(item.id);
                   else if (item.actionType === "document" && item.id === "pasaje") setShowTransportDrawer(true);
                   else if (item.actionType === "document") {
                     const configs: Record<string, { title: string; description: string; helpText: string; icon: React.ReactNode }> = {
@@ -1413,6 +1426,15 @@ const ReservationStatusCard = ({
         onSaved={loadChecklistData}
       />
 
+      <TripChoiceSurveyDrawer
+        open={!!choiceSurvey}
+        onOpenChange={(v) => { if (!v) setChoiceSurvey(null); }}
+        survey={choiceSurvey}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
+        currentAnswer={choiceSurvey ? checklistData[choiceSurveyStepKey(choiceSurvey.key)]?.data?.respuesta ?? null : null}
+        onSaved={loadChecklistData}
+      />
       <TripFoodSurveyDrawer
         open={showFoodDrawer}
         onOpenChange={setShowFoodDrawer}

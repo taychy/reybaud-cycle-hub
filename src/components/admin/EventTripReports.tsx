@@ -17,6 +17,8 @@ import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag, Ut
 import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
 import { nocheTimingShortLabel } from "@/lib/nocheExtra";
 import { formatPrice } from "@/lib/currency";
+import EventChoiceSurveyReport, { useChoiceSurveys } from "./EventChoiceSurveyReport";
+import { Shirt } from "lucide-react";
 
 
 
@@ -69,6 +71,7 @@ const downloadCSV = (rows: string[][], filename: string) => {
 const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const choiceSurveys = useChoiceSurveys(eventId, open);
   const [addonRows, setAddonRows] = useState<any[]>([]);
   const [foodRows, setFoodRows] = useState<any[]>([]);
   const [gastronomyCatalog, setGastronomyCatalog] = useState<any[]>([]);
@@ -350,9 +353,18 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
               <TabsTrigger value="habitaciones" className="flex-1"><BedDouble className="w-3.5 h-3.5 mr-1.5" />Habitaciones</TabsTrigger>
               <TabsTrigger value="extras" className="flex-1"><ShoppingBag className="w-3.5 h-3.5 mr-1.5" />Extras</TabsTrigger>
               <TabsTrigger value="gastronomia" className="flex-1"><Utensils className="w-3.5 h-3.5 mr-1.5" />Gastronomía</TabsTrigger>
+              {choiceSurveys.map((sv) => (
+                <TabsTrigger key={sv.key} value={`encuesta_${sv.key}`} className="flex-1"><Shirt className="w-3.5 h-3.5 mr-1.5" />{sv.report_label || "Encuesta"}</TabsTrigger>
+              ))}
               <TabsTrigger value="seguro" className="flex-1"><ShieldCheck className="w-3.5 h-3.5 mr-1.5" />Seguro</TabsTrigger>
             </TabsList>
 
+
+            {choiceSurveys.map((sv) => (
+              <TabsContent key={sv.key} value={`encuesta_${sv.key}`} className="mt-4">
+                <EventChoiceSurveyReport survey={sv} rows={rows} eventTitle={eventTitle} />
+              </TabsContent>
+            ))}
 
             <TabsContent value="habitaciones" className="space-y-3 mt-4">
               <div className="flex items-center justify-between">

@@ -351,6 +351,13 @@
       "when": 1792161562456,
       "tag": "0049_shared_room_assignment",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1792177603583,
+      "tag": "0050_trip_choice_survey_guard",
+      "breakpoints": true
     }
   ]
 }
