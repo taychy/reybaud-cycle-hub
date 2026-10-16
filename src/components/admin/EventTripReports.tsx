@@ -349,7 +349,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
         ) : (
           <Tabs defaultValue="habitaciones">
-            <TabsList className="w-full">
+            <TabsList className="w-full h-auto flex-wrap sm:flex-nowrap justify-start gap-1">
               <TabsTrigger value="habitaciones" className="flex-1"><BedDouble className="w-3.5 h-3.5 mr-1.5" />Habitaciones</TabsTrigger>
               <TabsTrigger value="extras" className="flex-1"><ShoppingBag className="w-3.5 h-3.5 mr-1.5" />Extras</TabsTrigger>
               <TabsTrigger value="gastronomia" className="flex-1"><Utensils className="w-3.5 h-3.5 mr-1.5" />Gastronomía</TabsTrigger>
