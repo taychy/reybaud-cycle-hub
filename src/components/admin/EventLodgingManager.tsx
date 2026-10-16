@@ -1,3 +1,4 @@
+import SharedRoomAssignmentPanel from "./SharedRoomAssignmentPanel";
 /**
  * Gestión de alojamiento por evento:
  *   • Definir habitaciones/cabañas físicas (nombre, capacidad, género, paquete)
@@ -656,6 +657,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
           </div>
         ) : (
           <div className="space-y-4">
+            <SharedRoomAssignmentPanel eventId={eventId} />
             {/* Totales */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-2">
               <MetricCard label="Reservas activas" value={activeReservations.length} icon={<Users className="w-4 h-4" />} />

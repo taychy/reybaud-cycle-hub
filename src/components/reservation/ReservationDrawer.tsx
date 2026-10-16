@@ -1,4 +1,6 @@
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
+import { SharedRoomChoice, sharedRoomValid, type SharedRoomMode } from "./SharedRoomChoice";
+import { fetchSharedRoomQuote, buildSharedRoomConsent, isQuoteReady, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -94,8 +96,13 @@ interface ReservationDrawerProps {
 
 const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, eventNature = "propio_con_reserva", promo = null, initialPackageId = null, onPackageChange }: ReservationDrawerProps) => {
   const { toast } = useToast();
-  const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "form" | "submitting" | "success">("summary");
+  const [step, setStep] = useState<"summary" | "package" | "room" | "mates" | "shared" | "form" | "submitting" | "success">("summary");
   const [notes, setNotes] = useState("");
+  const [sharedQuote, setSharedQuote] = useState<SharedRoomQuote | null>(null);
+  const [sharedMode, setSharedMode] = useState<SharedRoomMode>(null);
+  const [sharedCompanion, setSharedCompanion] = useState("");
+  const [sharedAccepted, setSharedAccepted] = useState(false);
+  const [declaredMethod, setDeclaredMethod] = useState<"transferencia" | "efectivo" | null>(null);
   const [packages, setPackages] = useState<PackageRow[]>([]);
   const [loadingPackages, setLoadingPackages] = useState(false);
   const [selectedPackageId, setSelectedPackageId] = useState<string | null>(null);
@@ -115,6 +122,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const paymentPolicy = parsePaymentPolicy(event.metadata);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+  const declaresMethod = !isInscriptionOnly && (event.metadata as any)?.reservation_declared_payment === true;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const anyPackagePaid = packages.some((p) => p.precio > 0);
   const isPaid = (event.price != null && event.price > 0) || anyPackagePaid;
@@ -380,11 +388,14 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     else setStep("form");
   };
 
-  const goAfterPackage = () => {
+  const goAfterPackage = async () => {
     if (!selectedPackageId) {
       toast({ title: "Elegí un paquete para continuar.", variant: "destructive" });
       return;
     }
+    const q = await fetchSharedRoomQuote(event.id, selectedPackageId);
+    setSharedQuote(q);
+    if (q.applies) { setStep("shared"); return; }
     // El admin puede desactivar la elección de habitación/compañeros para este evento
     // (ej: camps donde la habitación ya viene definida por el paquete).
     const roomSelectionEnabled = event.metadata?.room_selection_enabled !== false;
@@ -438,6 +449,15 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   };
 
   const handleSubmit = async () => {
+    if (sharedQuote?.applies && !sharedRoomValid(sharedQuote, sharedMode, sharedCompanion, sharedAccepted)) {
+      toast({ title: "Completá la opción de habitación doble.", variant: "destructive" });
+      setStep("shared");
+      return;
+    }
+    if (declaresMethod && !declaredMethod) {
+      toast({ title: "Elegí cómo vas a pagar.", variant: "destructive" });
+      return;
+    }
     const reglamento = extractReglamentoWithDefaults(event.metadata, event.type);
     const reglamentoExists = hasAnyReglamento(reglamento);
     if (reglamentoExists && !acceptedTerms) {
@@ -474,7 +494,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       reservation_status: reservationStatus,
       payment_status: paymentStatus,
       estado: reservationStatus,
-      metodo_pago: isInscriptionOnly ? "no_aplica" : "pendiente",
+      // Medio declarado ≠ pago acreditado: queda pendiente de verificación administrativa.
+      metodo_pago: isInscriptionOnly ? "no_aplica" : (declaresMethod && declaredMethod) ? declaredMethod : "pendiente",
       amount_total: effectivePrice,
       amount_paid: 0,
       price_snapshot: effectivePrice,
@@ -497,7 +518,12 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       package_nombre_snapshot: selectedPackage?.nombre || null,
       genero_habitacion: roomGender,
       tipo_vinculo: roomCapacity === 2 && shareChoice === "share" && mates.some((m) => m.nombre.trim()) ? vinculo : null,
-      prefiere_asignacion: shareChoice === "assign",
+      prefiere_asignacion: sharedQuote?.applies ? sharedMode === "asignacion" : shareChoice === "assign",
+      ...(sharedQuote?.applies ? {
+        rooming_acompanante_nombre: sharedMode === "acompanante" ? sharedCompanion.trim() : null,
+        rooming_asignacion_consentimiento: sharedMode === "asignacion" && isQuoteReady(sharedQuote)
+          ? buildSharedRoomConsent(sharedQuote, "alumno") : null,
+      } : {}),
       terminos_aceptados_at: acceptedAt,
       terminos_version_aceptada: acceptedVersion,
       terminos_snapshot: acceptedSnapshot,
@@ -1123,6 +1149,31 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
           )}
 
 
+          {step === "shared" && selectedPackage && (
+            <>
+              <SharedRoomChoice
+                quote={sharedQuote}
+                mode={sharedMode}
+                onModeChange={setSharedMode}
+                companion={sharedCompanion}
+                onCompanionChange={setSharedCompanion}
+                accepted={sharedAccepted}
+                onAcceptedChange={setSharedAccepted}
+              />
+              <div className="flex gap-2">
+                <Button variant="outline" className="flex-1" onClick={() => setStep("package")}>Volver</Button>
+                <Button
+                  variant="gold"
+                  className="flex-1"
+                  disabled={!sharedRoomValid(sharedQuote, sharedMode, sharedCompanion, sharedAccepted)}
+                  onClick={() => setStep("form")}
+                >
+                  Continuar <ArrowRight className="w-4 h-4 ml-1" />
+                </Button>
+              </div>
+            </>
+          )}
+
           {/* ── Step: Form ── */}
           {step === "form" && (
             <>
@@ -1251,8 +1302,23 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
 
               {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
 
+              {declaresMethod && (
+                <div className="space-y-2">
+                  <Label className="text-xs text-muted-foreground">¿Cómo vas a pagar la seña?</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["transferencia", "efectivo"] as const).map((m) => (
+                      <button key={m} type="button" onClick={() => setDeclaredMethod(m)}
+                        className={`rounded-xl border p-3 text-sm font-semibold capitalize ${declaredMethod === m ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Elegir el medio no registra un pago: queda pendiente hasta que Administración lo verifique.</p>
+                </div>
+              )}
+
               <div className="flex gap-2">
-                <Button variant="outline" className="flex-1" onClick={() => setStep(matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
+                <Button variant="outline" className="flex-1" onClick={() => setStep(sharedQuote?.applies ? "shared" : matesNeeded > 0 && packageHasGenderConfig ? "mates" : packageHasGenderConfig ? "room" : hasPackages ? "package" : "summary")}>
                   Volver
                 </Button>
                 <Button
@@ -1261,7 +1327,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                   onClick={handleSubmit}
                   disabled={
                     (hasAnyReglamento(extractReglamentoWithDefaults(event.metadata, event.type)) && !acceptedTerms) ||
-                    (hasPaymentPlan && !acceptedPaymentPlan)
+                    (hasPaymentPlan && !acceptedPaymentPlan) ||
+                    (declaresMethod && !declaredMethod)
                   }
                 >
                   <labels.confirmIcon className="w-4 h-4 mr-2" /> {labels.confirmBtn}

@@ -5251,6 +5251,10 @@ export type Database = {
           prefiere_asignacion: boolean
           price_snapshot: number | null
           reservation_status: string
+          rooming_acompanante_nombre: string | null
+          rooming_asignacion_consentimiento: Json | null
+          rooming_asignacion_estado: string | null
+          rooming_asignacion_updated_at: string | null
           terminos_aceptados_at: string | null
           terminos_pendientes: boolean
           terminos_snapshot: Json | null
@@ -5307,6 +5311,10 @@ export type Database = {
           prefiere_asignacion?: boolean
           price_snapshot?: number | null
           reservation_status?: string
+          rooming_acompanante_nombre?: string | null
+          rooming_asignacion_consentimiento?: Json | null
+          rooming_asignacion_estado?: string | null
+          rooming_asignacion_updated_at?: string | null
           terminos_aceptados_at?: string | null
           terminos_pendientes?: boolean
           terminos_snapshot?: Json | null
@@ -5363,6 +5371,10 @@ export type Database = {
           prefiere_asignacion?: boolean
           price_snapshot?: number | null
           reservation_status?: string
+          rooming_acompanante_nombre?: string | null
+          rooming_asignacion_consentimiento?: Json | null
+          rooming_asignacion_estado?: string | null
+          rooming_asignacion_updated_at?: string | null
           terminos_aceptados_at?: string | null
           terminos_pendientes?: boolean
           terminos_snapshot?: Json | null
@@ -17066,6 +17078,15 @@ export type Database = {
         Args: { p_note?: string; p_price?: number; p_reservation_id: string }
         Returns: Json
       }
+      admin_set_rooming_asignacion: {
+        Args: {
+          p_acompanante?: string
+          p_estado: string
+          p_nota?: string
+          p_reservation_id: string
+        }
+        Returns: Json
+      }
       admin_update_turnera_reservation: {
         Args: {
           p_coach_id: string
@@ -19510,6 +19531,10 @@ export type Database = {
       }
       set_unidad_routing: {
         Args: { p_activa: boolean; p_motivo?: string; p_unidad: string }
+        Returns: Json
+      }
+      shared_room_assignment_quote: {
+        Args: { p_event_id: string; p_package_id: string }
         Returns: Json
       }
       solicitar_cambio_agenda: {
