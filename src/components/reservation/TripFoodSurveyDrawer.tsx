@@ -88,11 +88,13 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           }
           setPkgName(name);
           setIncluded(inc);
-          const { data: rows } = await supabase
+          // Solo datos propios: por alumno (otras reservas suyas) o por esta reserva.
+          let q = supabase
             .from("reservation_checklist_data")
             .select("reservation_id, step_key, data, updated_at")
-            .in("step_key", ["gastronomia", "alimentacion"])
-            .order("updated_at", { ascending: false });
+            .in("step_key", ["gastronomia", "alimentacion"]);
+          q = alumnoId ? q.eq("alumno_id", alumnoId) : q.eq("reservation_id", reservationId);
+          const { data: rows } = await q.order("updated_at", { ascending: false }).limit(20);
           const list = (rows as any[]) || [];
           current = list.find((r) => r.reservation_id === reservationId && r.step_key === "gastronomia") ?? null;
           legacy = list.find((r) => r.reservation_id === reservationId && r.step_key === "alimentacion") ?? null;
