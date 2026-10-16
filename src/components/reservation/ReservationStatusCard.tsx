@@ -532,6 +532,7 @@ const ReservationStatusCard = ({
     if (!nextPrep) return null;
     const action =
       nextPrep.id === "extras" ? openFirstPrepDrawer :
+      nextPrep.actionType === "food" ? () => setShowFoodDrawer(true) :
       nextPrep.actionType === "bike" ? () => setShowBikeDrawer(true) :
       nextPrep.actionType === "pedals" ? () => setShowPedalsDrawer(true) :
       nextPrep.id === "pasaje" ? () => setShowTransportDrawer(true) :
