@@ -344,6 +344,13 @@
       "when": 1792158843359,
       "tag": "0048_trip_food_survey_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1792161562456,
+      "tag": "0049_shared_room_assignment",
+      "breakpoints": true
     }
   ]
 }
