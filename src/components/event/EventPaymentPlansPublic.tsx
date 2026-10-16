@@ -170,7 +170,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
         <Wallet className="w-4 h-4 text-primary" />
         <h3 className="font-heading font-semibold text-sm text-foreground">Paquetes y plan de pagos</h3>
       </div>
-      <div className="divide-y divide-border/40">
+      <div className={packages.length === 2 ? "grid gap-3 sm:grid-cols-2" : "divide-y divide-border/40"}>
         {packages.map((pkg) => {
           const sena = pkg.plan ? computeAmount(pkg.plan.sena_tipo, pkg.plan.sena_valor, pkg.precio) : 0;
           const cuotas = pkg.plan?.installments ?? [];
@@ -182,7 +182,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           const isSelected = selectable && selectedId === pkg.id;
           const open = !!openIds[pkg.id] || isSelected;
           return (
-            <div key={pkg.id} className={selectable ? `my-1 rounded-lg border transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-transparent"}` : undefined}>
+            <div key={pkg.id} className={packages.length === 2 ? `rounded-lg border px-2 transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-border/60"}` : selectable ? `my-1 rounded-lg border transition-colors ${isSelected ? "border-primary bg-primary/10" : "border-transparent"}` : undefined}>
               <button
                 type="button"
                 aria-expanded={open}
