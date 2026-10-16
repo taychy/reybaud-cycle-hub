@@ -19,6 +19,9 @@ import TripTokenExtrasCard from "@/components/reservation/TripTokenExtrasCard";
 import TripFormDrawer from "@/components/reservation/TripFormDrawer";
 import TripFoodSurveyDrawer from "@/components/reservation/TripFoodSurveyDrawer";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
+import TripChoiceSurveyDrawer from "@/components/reservation/TripChoiceSurveyDrawer";
+import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
+import { Shirt } from "lucide-react";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 
 interface ReservationData {
@@ -85,7 +88,7 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
-  actionType: "bike" | "pedals" | "document" | "form" | "food" | "none";
+  actionType: "bike" | "pedals" | "document" | "form" | "food" | "choice" | "none";
   stepKey?: string;
 }
 
@@ -107,6 +110,12 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
     list = list.filter(item => item.id !== "alimentacion");
     list.push({ id: "gastronomia", label: "Encuesta gastronómica", description: "Alimentación, alergias y pensión completa", icon: Utensils, completed: !!checklistData["gastronomia"]?.completed, actionType: "food", stepKey: "gastronomia" });
   }
+  for (const sv of getChoiceSurveys(meta)) {
+    const sk = choiceSurveyStepKey(sv.key);
+    const ans = checklistData[sk]?.data?.respuesta;
+    const opt = sv.options.find((o) => o.value === ans);
+    list.push({ id: sk, label: sv.title, description: opt ? `Tu respuesta: ${opt.label} · tocá para cambiarla` : sv.question, icon: Shirt, completed: !!checklistData[sk]?.completed, actionType: "choice", stepKey: sk });
+  }
   return list;
 };
 
@@ -125,6 +134,7 @@ const ExternalTripView = () => {
 
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showFoodDrawer, setShowFoodDrawer] = useState(false);
+  const [choiceSurvey, setChoiceSurvey] = useState<ChoiceSurveyConfig | null>(null);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
   const [showTransportDrawer, setShowTransportDrawer] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
@@ -211,7 +221,8 @@ const ExternalTripView = () => {
   };
 
   const handleChecklistAction = (item: ChecklistItem) => {
-    if (item.actionType === "food") setShowFoodDrawer(true);
+    if (item.actionType === "choice") setChoiceSurvey(getChoiceSurveys(event?.metadata).find((x) => choiceSurveyStepKey(x.key) === item.stepKey) ?? null);
+    else if (item.actionType === "food") setShowFoodDrawer(true);
     else if (item.actionType === "bike") setShowBikeDrawer(true);
     else if (item.actionType === "pedals") setShowPedalsDrawer(true);
     else if (item.actionType === "document" && item.stepKey === "pasaje") setShowTransportDrawer(true);
@@ -479,6 +490,16 @@ const ExternalTripView = () => {
         reservationId={reservation.id}
         alumnoId={reservation.alumno_id}
         token={token ?? undefined}
+        onSaved={reloadChecklist}
+      />
+      <TripChoiceSurveyDrawer
+        open={!!choiceSurvey}
+        onOpenChange={(v) => { if (!v) setChoiceSurvey(null); }}
+        survey={choiceSurvey}
+        reservationId={reservation.id}
+        alumnoId={reservation.alumno_id}
+        token={token ?? undefined}
+        currentAnswer={choiceSurvey ? checklistData[choiceSurveyStepKey(choiceSurvey.key)]?.data?.respuesta ?? null : null}
         onSaved={reloadChecklist}
       />
       <TripFormDrawer
