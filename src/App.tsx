@@ -321,7 +321,6 @@ const App = () => (
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="/encuesta-talles/:slug" element={<ChoiceSurveyPage />} />
-          <Route path="/encuesta/:slug" element={<ChoiceSurveyPage />} />
           <Route path="/preventa/:productId" element={<PublicPreorderPage />} />
           <Route path="/pagar-preventa/:preorderId" element={<PreorderPagoRedirect />} />
           <Route path="/pagar-preventas-alumno/:alumnoId" element={<PreorderAlumnoPagoRedirect />} />
