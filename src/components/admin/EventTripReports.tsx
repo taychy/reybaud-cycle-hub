@@ -7,6 +7,7 @@
  * Ambos exportables a CSV.
  */
 import { useEffect, useState, useMemo } from "react";
+import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS } from "@/lib/foodSurvey";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -162,9 +163,9 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         resIds.length
           ? (supabase as any)
               .from("reservation_checklist_data")
-              .select("reservation_id, completed, data")
+              .select("reservation_id, completed, data, step_key, updated_at")
               .in("reservation_id", resIds)
-              .eq("step_key", "alimentacion")
+              .in("step_key", ["alimentacion", "gastronomia"])
           : Promise.resolve({ data: [] as any[] }),
         (supabase as any)
           .from("event_addons")
@@ -298,6 +299,8 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         return scoped.length === 0 || (!!r.package_id && scoped.includes(r.package_id));
       });
       const food: any = foodMap.get(r.reservation_id);
+      const survey: any = (foodRows as any[]).find((f: any) => f.reservation_id === r.reservation_id && f.step_key === "gastronomia");
+      const sd = survey?.data || null;
       const data = food?.data || {};
       const includedByPackage = gastronomyCatalog.length > 0 && applicable.length === 0;
       return {
@@ -308,15 +311,21 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         alergias: data.alergias || "",
         restricciones: data.restricciones || "",
         alimentacion_completada: !!food?.completed,
+        encuesta_estado: FOOD_STATUS_LABELS[foodSurveyStatus(sd)],
+        encuesta_detalle: describeFoodSurvey(sd),
+        encuesta_obs: sd?.observaciones || "",
+        encuesta_actualizada: sd?.actualizado_at ? new Date(sd.actualizado_at).toLocaleString("es-AR") : "",
+        pension_solicitud: sd?.pension_interes ? "Solicita pensión completa" : "",
       };
     });
   }, [rows, foodRows, addonRows, gastronomyCatalog]);
 
   const exportGastronomia = () => {
-    const header = ["Nombre", "Apellido", "Paquete", "Gastronomía base", "Comidas extra", "Dieta", "Alergias", "Restricciones", "Ficha alimentación"];
+    const header = ["Nombre", "Apellido", "Paquete", "Gastronomía base", "Comidas extra", "Dieta", "Alergias", "Restricciones", "Ficha alimentación", "Encuesta", "Detalle encuesta", "Observaciones", "Solicitud pensión", "Actualizada"];
     const body = gastronomyRows.map((r) => [
       r.nombre, r.apellido, r.package_nombre ?? "", r.gastronomia_base, r.comidas_extra,
       r.dieta, r.alergias, r.restricciones, r.alimentacion_completada ? "Completa" : "Pendiente",
+      r.encuesta_estado, r.encuesta_detalle, r.encuesta_obs, r.pension_solicitud, r.encuesta_actualizada,
     ]);
     downloadCSV([header, ...body], `gastronomia_${eventTitle.replace(/\s+/g, "_")}.csv`);
   };
@@ -496,7 +505,12 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                               {r.alergias && <div className="text-[10px] text-amber-500">Alergias: {r.alergias}</div>}
                               {r.restricciones && <div className="text-[10px] text-muted-foreground">Restricciones: {r.restricciones}</div>}
                             </>
-                          ) : <span className="text-amber-500">Pendiente</span>}
+                          ) : <span className="text-muted-foreground">Ficha anterior: sin datos</span>}
+                          <div className="mt-1"><Badge variant="outline" className="text-[10px]">Encuesta: {r.encuesta_estado}</Badge></div>
+                          {r.encuesta_estado !== "Sin respuesta" && <div className="text-[10px]">{r.encuesta_detalle}</div>}
+                          {r.encuesta_obs && <div className="text-[10px] text-muted-foreground">Obs: {r.encuesta_obs}</div>}
+                          {r.pension_solicitud && <div className="text-[10px] text-primary">{r.pension_solicitud} (solicitud, no compra)</div>}
+                          {r.encuesta_actualizada && <div className="text-[10px] text-muted-foreground">Actualizada {r.encuesta_actualizada}</div>}
                         </td>
                       </tr>
                     ))}

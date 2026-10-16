@@ -473,6 +473,14 @@ const ExternalTripView = () => {
         token={token ?? undefined}
         onSaved={reloadChecklist}
       />
+      <TripFoodSurveyDrawer
+        open={showFoodDrawer}
+        onOpenChange={setShowFoodDrawer}
+        reservationId={reservation.id}
+        alumnoId={reservation.alumno_id}
+        token={token ?? undefined}
+        onSaved={reloadChecklist}
+      />
       <TripFormDrawer
         open={formDrawer.open}
         onOpenChange={(v) => setFormDrawer((prev) => ({ ...prev, open: v }))}
