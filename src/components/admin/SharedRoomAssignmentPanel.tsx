@@ -26,7 +26,8 @@ interface Row {
  * se marca aquí para revisión (requiere cupo físico, validado en servidor) y se
  * ejecuta con el cambio de paquete existente, que conserva pagos y ajusta la diferencia.
  */
-export default function SharedRoomAssignmentPanel({ eventId, deadline }: { eventId: string; deadline: string | null }) {
+export default function SharedRoomAssignmentPanel({ eventId }: { eventId: string }) {
+  const [deadline, setDeadline] = useState<string | null>(null);
   const [rows, setRows] = useState<Row[]>([]);
   const [edit, setEdit] = useState<Record<string, { estado?: RoomingEstado; acomp?: string }>>({});
   const [saving, setSaving] = useState<string | null>(null);
@@ -39,6 +40,8 @@ export default function SharedRoomAssignmentPanel({ eventId, deadline }: { event
       .not("rooming_asignacion_estado", "is", null)
       .neq("reservation_status", "cancelada");
     setRows((data as Row[]) || []);
+    const { data: ev } = await supabase.from("events").select("metadata").eq("id", eventId).maybeSingle();
+    setDeadline(((ev as any)?.metadata?.shared_room_assignment?.deadline as string) || null);
   }, [eventId]);
 
   useEffect(() => { load(); }, [load]);
