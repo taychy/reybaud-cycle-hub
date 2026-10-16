@@ -23,7 +23,8 @@ interface GuestPayload {
   fecha_nacimiento?: string;
   contacto_emergencia_nombre?: string;
   contacto_emergencia_telefono?: string;
-  metodo_pago: "mp" | "transferencia";
+  metodo_pago: "mp" | "transferencia" | "efectivo";
+  habitacion_compartida?: { modo?: string; acompanante_nombre?: string | null; consentimiento?: { acepta?: boolean } | null } | null;
   accepted_terms: boolean;
   comprobante_base64?: string | null;
   comprobante_filename?: string | null;
@@ -60,7 +61,7 @@ Deno.serve(async (req) => {
     const fecha_nacimiento = raw.fecha_nacimiento ? String(raw.fecha_nacimiento).slice(0, 10) : null;
     const contacto_emergencia_nombre = String(raw.contacto_emergencia_nombre ?? "").trim() || null;
     const contacto_emergencia_telefono = String(raw.contacto_emergencia_telefono ?? "").trim() || null;
-    const metodo_pago = raw.metodo_pago === "transferencia" ? "transferencia" : "mp";
+    const metodo_pago = raw.metodo_pago === "transferencia" ? "transferencia" : raw.metodo_pago === "efectivo" ? "efectivo" : "mp";
     const accepted_terms = !!raw.accepted_terms;
 
     if (!event_id || !package_id || !nombre || !apellido || !email) {
@@ -72,9 +73,6 @@ Deno.serve(async (req) => {
     if (!accepted_terms) {
       return jsonResp({ error: "Debés aceptar los términos" }, 400);
     }
-    if (metodo_pago === "transferencia" && !raw.comprobante_base64) {
-      return jsonResp({ error: "Adjuntá el comprobante de transferencia" }, 400);
-    }
 
     const admin = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -84,10 +82,16 @@ Deno.serve(async (req) => {
     // 1) Validar evento y paquete
     const { data: eventRow } = await admin
       .from("events")
-      .select("id, title, date, is_active")
+      .select("id, title, date, is_active, metadata")
       .eq("id", event_id)
       .maybeSingle();
     if (!eventRow) return jsonResp({ error: "Evento no encontrado" }, 404);
+    // Viajes con medio declarado (transferencia/efectivo): el pago queda pendiente de verificación.
+    const declaresMethod = (eventRow as any).metadata?.reservation_declared_payment === true;
+    if (metodo_pago === "efectivo" && !declaresMethod) return jsonResp({ error: "Medio de pago no disponible" }, 400);
+    if (metodo_pago === "transferencia" && !raw.comprobante_base64 && !declaresMethod) {
+      return jsonResp({ error: "Adjuntá el comprobante de transferencia" }, 400);
+    }
 
     const { data: pkg } = await admin
       .from("event_packages")
@@ -111,6 +115,33 @@ Deno.serve(async (req) => {
     const resolvedPrice = Array.isArray(priceRows) ? priceRows[0] : priceRows;
     const amount_total = Number(resolvedPrice?.precio ?? pkg.precio ?? 0);
     const currency = resolvedPrice?.currency || pkg.currency || "ARS";
+
+    // 2.0) Habitación doble compartida: el importe se cotiza en servidor; el trigger revalida.
+    let roomingFields: Record<string, unknown> = {};
+    const { data: sharedQuote } = await admin.rpc("shared_room_assignment_quote", { p_event_id: event_id, p_package_id: pkg.id });
+    if ((sharedQuote as any)?.applies) {
+      const hc = raw.habitacion_compartida || null;
+      const modo = hc?.modo;
+      if (modo === "acompanante") {
+        const nombreAcomp = String(hc?.acompanante_nombre ?? "").trim().slice(0, 120);
+        if (nombreAcomp.length < 3) return jsonResp({ error: "Indicá el nombre del acompañante" }, 400);
+        roomingFields = { prefiere_asignacion: false, rooming_acompanante_nombre: nombreAcomp };
+      } else if (modo === "asignacion") {
+        const q = sharedQuote as any;
+        if (q.blocked) return jsonResp({ error: "La asignación de acompañante no está disponible" }, 400);
+        if (hc?.consentimiento?.acepta !== true) return jsonResp({ error: "Falta aceptar la condición de habitación doble compartida" }, 400);
+        roomingFields = {
+          prefiere_asignacion: true,
+          rooming_asignacion_consentimiento: {
+            acepta: true, texto: (hc.consentimiento as any).texto ?? null, version: q.version, deadline: q.deadline,
+            difference: q.difference, single_price: q.single_price, double_price: q.double_price,
+            currency: q.currency, aceptado_at: new Date().toISOString(), canal: "invitado",
+          },
+        };
+      } else {
+        return jsonResp({ error: "Elegí la opción de habitación doble" }, 400);
+      }
+    }
 
     // 2) Upsert del participante externo
     const { data: existingList } = await admin
@@ -171,9 +202,10 @@ Deno.serve(async (req) => {
         amount_total,
         amount_paid: 0,
         balance_due: amount_total,
-        reservation_status: metodo_pago === "transferencia" ? "pendiente_verificacion" : "pendiente_pago",
+        reservation_status: metodo_pago === "mp" ? "pendiente_pago" : "pendiente_verificacion",
         payment_status: "pendiente",
-        metodo_pago: metodo_pago === "transferencia" ? "transferencia" : "mercado_pago",
+        metodo_pago: metodo_pago === "mp" ? "mercado_pago" : metodo_pago,
+        ...roomingFields,
         moneda: currency,
         external_email: email,
         external_first_name: nombre,
@@ -214,6 +246,18 @@ Deno.serve(async (req) => {
     }
 
     // 4) Transferencia: subir comprobante + notificar admin
+    if (metodo_pago === "efectivo" || (metodo_pago === "transferencia" && !raw.comprobante_base64)) {
+      try {
+        await admin.from("admin_notification_events").insert({
+          tipo: "guest_reservation_pago_declarado",
+          prioridad: "pago",
+          reservation_id: reservationId,
+          payload: { reservation_id: reservationId, event_id, event_nombre: eventRow.title, package_nombre: pkg.nombre, metodo_declarado: metodo_pago, email, nombre, apellido },
+          deduplication_key: `guest-declared-${reservationId}`,
+        });
+      } catch (e) { console.error("[create-guest-reservation] admin notification", e); }
+      return jsonResp({ ok: true, mode: "transfer", reservation_id: reservationId, participant_id: participantId, access_token: accessToken });
+    }
     if (metodo_pago === "transferencia") {
       const bytes = base64ToBytes(String(raw.comprobante_base64));
       const ext = (raw.comprobante_filename?.split(".").pop() || "bin").toLowerCase();
