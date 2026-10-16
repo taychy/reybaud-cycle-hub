@@ -59,6 +59,7 @@ export interface TripTokenPackage {
   descripcion: string | null;
   personas_por_habitacion: number | null;
   sin_alojamiento: boolean | null;
+  incluye_gastronomia?: boolean | null;
 }
 
 export interface TripTokenLodging {
@@ -78,6 +79,7 @@ export interface TripTokenGetResponse {
   checklist: TripTokenChecklistRow[];
   package?: TripTokenPackage | null;
   lodging?: TripTokenLodging | null;
+  food_history?: { step_key: string; data: any; updated_at: string } | null;
 }
 
 export const tripTokenGet = async (token: string) => {

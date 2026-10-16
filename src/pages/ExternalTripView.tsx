@@ -17,6 +17,8 @@ import TripTransportDrawer from "@/components/reservation/TripTransportDrawer";
 import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import TripTokenExtrasCard from "@/components/reservation/TripTokenExtrasCard";
 import TripFormDrawer from "@/components/reservation/TripFormDrawer";
+import TripFoodSurveyDrawer from "@/components/reservation/TripFoodSurveyDrawer";
+import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 
 interface ReservationData {
@@ -83,7 +85,7 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
-  actionType: "bike" | "pedals" | "document" | "form" | "none";
+  actionType: "bike" | "pedals" | "document" | "form" | "food" | "none";
   stepKey?: string;
 }
 
@@ -97,10 +99,15 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
   ];
 
   const enabledSteps = meta?.checklist_steps;
-  if (enabledSteps && Array.isArray(enabledSteps)) {
-    return items.filter(item => enabledSteps.includes(item.id));
+  let list = enabledSteps && Array.isArray(enabledSteps)
+    ? items.filter(item => enabledSteps.includes(item.id))
+    : items;
+  // Encuesta gastronómica habilitada por viaje: reemplaza la ficha genérica de alimentación.
+  if (isFoodSurveyEnabled(meta)) {
+    list = list.filter(item => item.id !== "alimentacion");
+    list.push({ id: "gastronomia", label: "Encuesta gastronómica", description: "Alimentación, alergias y pensión completa", icon: Utensils, completed: !!checklistData["gastronomia"]?.completed, actionType: "food", stepKey: "gastronomia" });
   }
-  return items;
+  return list;
 };
 
 const ExternalTripView = () => {
@@ -117,6 +124,7 @@ const ExternalTripView = () => {
   const [lodging, setLodging] = useState<TripTokenLodging | null>(null);
 
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
+  const [showFoodDrawer, setShowFoodDrawer] = useState(false);
   const [showPedalsDrawer, setShowPedalsDrawer] = useState(false);
   const [showTransportDrawer, setShowTransportDrawer] = useState(false);
   const [docDrawer, setDocDrawer] = useState<{ open: boolean; stepKey: string; title: string; description: string; helpText: string; icon: React.ReactNode }>({
@@ -203,7 +211,8 @@ const ExternalTripView = () => {
   };
 
   const handleChecklistAction = (item: ChecklistItem) => {
-    if (item.actionType === "bike") setShowBikeDrawer(true);
+    if (item.actionType === "food") setShowFoodDrawer(true);
+    else if (item.actionType === "bike") setShowBikeDrawer(true);
     else if (item.actionType === "pedals") setShowPedalsDrawer(true);
     else if (item.actionType === "document" && item.stepKey === "pasaje") setShowTransportDrawer(true);
     else if (item.actionType === "document" && item.stepKey) {
@@ -461,6 +470,14 @@ const ExternalTripView = () => {
         description={docDrawer.description}
         helpText={docDrawer.helpText}
         icon={docDrawer.icon}
+        token={token ?? undefined}
+        onSaved={reloadChecklist}
+      />
+      <TripFoodSurveyDrawer
+        open={showFoodDrawer}
+        onOpenChange={setShowFoodDrawer}
+        reservationId={reservation.id}
+        alumnoId={reservation.alumno_id}
         token={token ?? undefined}
         onSaved={reloadChecklist}
       />

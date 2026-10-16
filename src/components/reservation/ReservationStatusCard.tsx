@@ -23,6 +23,8 @@ import TripPedalsDrawer from "./TripPedalsDrawer";
 import TripTransportDrawer from "./TripTransportDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
 import TripExtrasDrawer from "./TripExtrasDrawer";
+import TripFoodSurveyDrawer from "./TripFoodSurveyDrawer";
+import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 import StudentInstallmentsPlan, { StudentInstallmentsPlanHandle } from "./StudentInstallmentsPlan";
 import { StudentTermsPendingBanner } from "./ReservationTermsPending";
@@ -191,7 +193,7 @@ interface ChecklistItem {
   description: string;
   icon: typeof Bike;
   completed: boolean;
-  actionType: "bike" | "pedals" | "document" | "payment" | "extras" | "none";
+  actionType: "bike" | "pedals" | "document" | "payment" | "extras" | "food" | "none";
 }
 
 const buildChecklist = (reservation: Reservation, meta: any, checklistData: Record<string, any>): ChecklistItem[] => {
@@ -256,11 +258,22 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
   ];
 
   const enabledSteps = meta?.checklist_steps;
-  if (enabledSteps && Array.isArray(enabledSteps)) {
-    return items.filter(item => enabledSteps.includes(item.id));
-  }
+  const base = enabledSteps && Array.isArray(enabledSteps)
+    ? items.filter(item => enabledSteps.includes(item.id))
+    : items;
 
-  return items;
+  // Encuesta gastronómica: solo en viajes que la habilitan por metadata.
+  if (isFoodSurveyEnabled(meta)) {
+    base.push({
+      id: "gastronomia",
+      label: "Encuesta gastronómica",
+      description: "Alimentación, alergias y pensión completa",
+      icon: Package,
+      completed: !!checklistData["gastronomia"]?.completed,
+      actionType: "food",
+    });
+  }
+  return base;
 };
 
 const ReservationStatusCard = ({
@@ -318,6 +331,7 @@ const ReservationStatusCard = ({
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
+  const [showFoodDrawer, setShowFoodDrawer] = useState(false);
   const [lodging, setLodging] = useState<{
     package_nombre: string | null; room_nombre: string | null; room_tipo: string | null;
     room_genero: string | null; room_capacidad: number | null; roommates: string[] | null;
@@ -518,6 +532,7 @@ const ReservationStatusCard = ({
     if (!nextPrep) return null;
     const action =
       nextPrep.id === "extras" ? openFirstPrepDrawer :
+      nextPrep.actionType === "food" ? () => setShowFoodDrawer(true) :
       nextPrep.actionType === "bike" ? () => setShowBikeDrawer(true) :
       nextPrep.actionType === "pedals" ? () => setShowPedalsDrawer(true) :
       nextPrep.id === "pasaje" ? () => setShowTransportDrawer(true) :
@@ -1123,6 +1138,7 @@ const ReservationStatusCard = ({
                   else if (item.actionType === "pedals") setShowPedalsDrawer(true);
                   else if (item.actionType === "payment") scrollToPlan();
                   else if (item.actionType === "extras") openFirstPrepDrawer();
+                  else if (item.actionType === "food") setShowFoodDrawer(true);
                   else if (item.actionType === "document" && item.id === "pasaje") setShowTransportDrawer(true);
                   else if (item.actionType === "document") {
                     const configs: Record<string, { title: string; description: string; helpText: string; icon: React.ReactNode }> = {
@@ -1394,6 +1410,14 @@ const ReservationStatusCard = ({
         description={docDrawer.description}
         icon={docDrawer.icon}
         helpText={docDrawer.helpText}
+        onSaved={loadChecklistData}
+      />
+
+      <TripFoodSurveyDrawer
+        open={showFoodDrawer}
+        onOpenChange={setShowFoodDrawer}
+        reservationId={reservation.id}
+        alumnoId={alumnoId}
         onSaved={loadChecklistData}
       />
 

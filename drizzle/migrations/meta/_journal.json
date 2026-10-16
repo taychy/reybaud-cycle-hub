@@ -337,6 +337,13 @@
       "when": 1791995914454,
       "tag": "0047_restore_cc_view_security_invoker",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1792158843359,
+      "tag": "0048_trip_food_survey_guard",
+      "breakpoints": true
     }
   ]
 }
