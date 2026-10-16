@@ -164,13 +164,13 @@ serve(async (req) => {
         if (reservation.package_id) {
           const { data: pkg } = await supabase
             .from("event_packages")
-            .select("id, nombre, descripcion, personas_por_habitacion, sin_alojamiento")
+            .select("id, nombre, descripcion, personas_por_habitacion, sin_alojamiento, incluye_gastronomia")
             .eq("id", reservation.package_id)
             .maybeSingle();
           packageInfo = pkg ?? null;
         }
         if (!packageInfo && reservation.package_nombre_snapshot) {
-          packageInfo = { id: null, nombre: reservation.package_nombre_snapshot, descripcion: null, personas_por_habitacion: null, sin_alojamiento: null };
+          packageInfo = { id: null, nombre: reservation.package_nombre_snapshot, descripcion: null, personas_por_habitacion: null, sin_alojamiento: null, incluye_gastronomia: null };
         }
 
         let lodging: any = null;
@@ -206,8 +206,24 @@ serve(async (req) => {
           lodging = room ? { ...room, roommates: names } : null;
         }
 
+        // Datos alimentarios previos del mismo participante (solo propios) para confirmar/actualizar.
+        let foodHistory: any = null;
+        if (reservation.alumno_id) {
+          const { data: hist } = await supabase
+            .from("reservation_checklist_data")
+            .select("step_key, data, updated_at, reservation_id")
+            .eq("alumno_id", reservation.alumno_id)
+            .in("step_key", ["gastronomia", "alimentacion"])
+            .neq("reservation_id", reservation.id)
+            .order("updated_at", { ascending: false })
+            .limit(1);
+          const h = hist?.[0];
+          if (h) foodHistory = { step_key: h.step_key, data: h.data, updated_at: h.updated_at };
+        }
+
         return json({
           ok: true,
+          food_history: foodHistory,
           reservation,
           event: eventRes.data ?? null,
           participant: partExtRes.data ?? partAluRes.data ?? null,
@@ -254,7 +270,7 @@ serve(async (req) => {
           .from("reservation_checklist_data")
           .update(payload)
           .eq("id", existing.id);
-        if (uErr) return json({ error: "update_failed", detail: uErr.message }, 500);
+        if (uErr) return json({ error: "update_failed", detail: uErr.message }, uErr.message?.includes("reserva_no_activa") || uErr.message?.includes("_invalido") ? 400 : 500);
         return json({ ok: true, id: existing.id });
       }
 
@@ -263,7 +279,7 @@ serve(async (req) => {
         .insert(payload)
         .select("id")
         .single();
-      if (iErr) return json({ error: "insert_failed", detail: iErr.message }, 500);
+      if (iErr) return json({ error: "insert_failed", detail: iErr.message }, iErr.message?.includes("reserva_no_activa") || iErr.message?.includes("_invalido") ? 400 : 500);
       return json({ ok: true, id: ins.id });
     }
 
