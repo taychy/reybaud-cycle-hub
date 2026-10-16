@@ -1,6 +1,6 @@
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { SharedRoomChoice, sharedRoomValid, type SharedRoomMode } from "./SharedRoomChoice";
-import { fetchSharedRoomQuote, buildSharedRoomConsent, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
+import { fetchSharedRoomQuote, buildSharedRoomConsent, isQuoteReady, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -521,7 +521,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
       prefiere_asignacion: sharedQuote?.applies ? sharedMode === "asignacion" : shareChoice === "assign",
       ...(sharedQuote?.applies ? {
         rooming_acompanante_nombre: sharedMode === "acompanante" ? sharedCompanion.trim() : null,
-        rooming_asignacion_consentimiento: sharedMode === "asignacion" && sharedQuote.applies && !sharedQuote.blocked
+        rooming_asignacion_consentimiento: sharedMode === "asignacion" && isQuoteReady(sharedQuote)
           ? buildSharedRoomConsent(sharedQuote, "alumno") : null,
       } : {}),
       terminos_aceptados_at: acceptedAt,

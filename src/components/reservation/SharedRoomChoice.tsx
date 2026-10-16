@@ -2,7 +2,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { UserPlus, Sparkles, AlertTriangle } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
-import { SHARED_ROOM_CONSENT_TEXT, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
+import { SHARED_ROOM_CONSENT_TEXT, isQuoteReady, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
 
 export type SharedRoomMode = "acompanante" | "asignacion" | null;
 
@@ -18,7 +18,7 @@ interface Props {
 
 /** Paso «Alojamiento» de la habitación doble: acompañante propio o pedido de asignación. */
 export function SharedRoomChoice({ quote, mode, onModeChange, companion, onCompanionChange, accepted, onAcceptedChange }: Props) {
-  const ok = quote && quote.applies && !quote.blocked ? quote : null;
+  const ok = isQuoteReady(quote) ? quote : null;
   const blocked = quote && quote.applies && quote.blocked;
   const opt = (active: boolean) =>
     `rounded-xl border p-3 text-left ${active ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`;

@@ -13,7 +13,7 @@ import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide
 import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
 import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
 import { SharedRoomChoice, sharedRoomValid, type SharedRoomMode } from "./SharedRoomChoice";
-import { fetchSharedRoomQuote, buildSharedRoomConsent, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
+import { fetchSharedRoomQuote, buildSharedRoomConsent, isQuoteReady, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
 
 const BANK_INFO = {
   titular: "Scarlett Tayna Barros Silva",
@@ -166,7 +166,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
         payload.habitacion_compartida = {
           modo: sharedMode,
           acompanante_nombre: sharedMode === "acompanante" ? sharedCompanion.trim() : null,
-          consentimiento: sharedMode === "asignacion" && sharedQuote && sharedQuote.applies && !sharedQuote.blocked
+          consentimiento: sharedMode === "asignacion" && sharedQuote && isQuoteReady(sharedQuote)
             ? buildSharedRoomConsent(sharedQuote, "invitado") : null,
         };
       }

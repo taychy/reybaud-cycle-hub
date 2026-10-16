@@ -33,6 +33,10 @@ export const ROOMING_ESTADO_LABEL: Record<RoomingEstado, string> = {
   revision_conversion: "Revisión conversión a individual",
 };
 
+export type ReadyQuote = Extract<SharedRoomQuote, { blocked: false }>;
+export const isQuoteReady = (q: SharedRoomQuote | null | undefined): q is ReadyQuote =>
+  !!q && q.applies === true && (q as any).blocked === false;
+
 export function normalizeQuote(raw: any): SharedRoomQuote {
   if (!raw || raw.applies !== true) return { applies: false };
   if (raw.blocked) return { applies: true, blocked: true, reason: String(raw.reason || "Importe no definido") };
