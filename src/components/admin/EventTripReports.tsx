@@ -71,6 +71,7 @@ const downloadCSV = (rows: string[][], filename: string) => {
 const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) => {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
+  const choiceSurveys = useChoiceSurveys(eventId, open);
   const [addonRows, setAddonRows] = useState<any[]>([]);
   const [foodRows, setFoodRows] = useState<any[]>([]);
   const [gastronomyCatalog, setGastronomyCatalog] = useState<any[]>([]);
