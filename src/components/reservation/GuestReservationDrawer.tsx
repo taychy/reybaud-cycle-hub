@@ -12,6 +12,8 @@ import { toast } from "sonner";
 import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
 import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
 import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
+import { SharedRoomChoice, sharedRoomValid, type SharedRoomMode } from "./SharedRoomChoice";
+import { fetchSharedRoomQuote, buildSharedRoomConsent, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
 
 const BANK_INFO = {
   titular: "Scarlett Tayna Barros Silva",
@@ -51,14 +53,19 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     documento: "", fecha_nacimiento: "",
     contacto_emergencia_nombre: "", contacto_emergencia_telefono: "",
   });
-  const [metodo, setMetodo] = useState<"mp" | "transferencia">("mp");
+  const [metodo, setMetodo] = useState<"mp" | "transferencia" | "efectivo">("mp");
+  const [declaresMethod, setDeclaresMethod] = useState(false);
+  const [sharedQuote, setSharedQuote] = useState<SharedRoomQuote | null>(null);
+  const [sharedMode, setSharedMode] = useState<SharedRoomMode>(null);
+  const [sharedCompanion, setSharedCompanion] = useState("");
+  const [sharedAccepted, setSharedAccepted] = useState(false);
   const [terms, setTerms] = useState(false);
   const [comprobante, setComprobante] = useState<File | null>(null);
   const [planInfo, setPlanInfo] = useState<{ nombre: string; sena_tipo: string; sena_valor: number; cantidad_cuotas: number } | null>(null);
   const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
 
   useEffect(() => {
-    if (!open) { setStep(1); setPkgId(""); setComprobante(null); setTerms(false); return; }
+    if (!open) { setStep(1); setPkgId(""); setComprobante(null); setTerms(false); setSharedMode(null); setSharedCompanion(""); setSharedAccepted(false); return; }
     (async () => {
       const [{ data }, { data: eventData }] = await Promise.all([
         supabase
@@ -70,6 +77,9 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
         supabase.from("events").select("metadata").eq("id", eventId).maybeSingle(),
       ]);
       setPaymentPolicy(parsePaymentPolicy((eventData as any)?.metadata));
+      const declares = (eventData as any)?.metadata?.reservation_declared_payment === true;
+      setDeclaresMethod(declares);
+      if (declares) setMetodo("transferencia");
       const list = (data as Pkg[]) || [];
       setPackages(list);
       if (initialPackageId && list.some((p) => p.id === initialPackageId)) setPkgId(initialPackageId);
@@ -93,6 +103,18 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   }, [stagesByPkg]);
 
   const selectedPkg = packages.find((p) => p.id === pkgId);
+
+  useEffect(() => {
+    setSharedQuote(null); setSharedMode(null); setSharedAccepted(false);
+    if (!pkgId) return;
+    let cancelled = false;
+    fetchSharedRoomQuote(eventId, pkgId).then((q) => { if (!cancelled) setSharedQuote(q); });
+    return () => { cancelled = true; };
+  }, [pkgId, eventId]);
+  const sharedApplies = !!sharedQuote?.applies;
+  const sharedOk = sharedRoomValid(sharedQuote, sharedMode, sharedCompanion, sharedAccepted);
+  const nextStep = (s: number) => (s === 1 ? (selectedPkg ? (sharedApplies ? 3 : 4) : 2) : s === 2 ? (sharedApplies ? 3 : 4) : 4);
+  const prevStep = (s: number) => (s === 4 ? (sharedApplies ? 3 : 2) : s - 1);
 
   // Plan de pagos del paquete elegido (solo para mostrar el resumen)
   useEffect(() => {
@@ -122,7 +144,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   };
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
   const canNextFromStep2 = !!selectedPkg;
-  const canSubmit = terms && (metodo === "mp" || (metodo === "transferencia" && comprobante));
+  const canSubmit = terms && sharedOk && (metodo === "mp" || metodo === "efectivo" || (metodo === "transferencia" && (comprobante || declaresMethod)));
 
   const fileToBase64 = (file: File): Promise<string> =>
     new Promise((res, rej) => {
@@ -140,6 +162,14 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
         event_id: eventId, package_id: selectedPkg.id,
         ...form, metodo_pago: metodo, accepted_terms: terms,
       };
+      if (sharedApplies) {
+        payload.habitacion_compartida = {
+          modo: sharedMode,
+          acompanante_nombre: sharedMode === "acompanante" ? sharedCompanion.trim() : null,
+          consentimiento: sharedMode === "asignacion" && sharedQuote && sharedQuote.applies && !sharedQuote.blocked
+            ? buildSharedRoomConsent(sharedQuote, "invitado") : null,
+        };
+      }
       if (metodo === "transferencia" && comprobante) {
         payload.comprobante_base64 = await fileToBase64(comprobante);
         payload.comprobante_filename = comprobante.name;
@@ -171,7 +201,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
       <SheetContent side="bottom" className="h-[95vh] overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Reservar mi lugar</SheetTitle>
-          <SheetDescription>{eventName} · Paso {step} de 3</SheetDescription>
+          <SheetDescription>{eventName} · Paso {step === 4 ? (sharedApplies ? 4 : 3) : step} de {sharedApplies ? 4 : 3}</SheetDescription>
         </SheetHeader>
 
         <div className="mt-6 space-y-4 pb-24">
@@ -242,6 +272,18 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
           )}
 
           {step === 3 && selectedPkg && (
+            <SharedRoomChoice
+              quote={sharedQuote}
+              mode={sharedMode}
+              onModeChange={setSharedMode}
+              companion={sharedCompanion}
+              onCompanionChange={setSharedCompanion}
+              accepted={sharedAccepted}
+              onAcceptedChange={setSharedAccepted}
+            />
+          )}
+
+          {step === 4 && selectedPkg && (
             <div className="space-y-4">
               {(() => { const pr = priceFor(selectedPkg); const sena = senaFor(pr.precio); return (
               <div className="p-4 rounded-xl border bg-muted/30">
@@ -259,13 +301,23 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
               <div>
                 <Label>Método de pago</Label>
                 <RadioGroup value={metodo} onValueChange={(v) => setMetodo(v as any)} className="mt-2">
+                  {!declaresMethod && (
+                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                      <RadioGroupItem value="mp" /> <CreditCard className="w-4 h-4" /> Mercado Pago
+                    </label>
+                  )}
                   <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
-                    <RadioGroupItem value="mp" /> <CreditCard className="w-4 h-4" /> Mercado Pago
+                    <RadioGroupItem value="transferencia" /> <Upload className="w-4 h-4" /> Transferencia{declaresMethod ? "" : " (adjuntá comprobante)"}
                   </label>
-                  <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
-                    <RadioGroupItem value="transferencia" /> <Upload className="w-4 h-4" /> Transferencia (adjuntá comprobante)
-                  </label>
+                  {declaresMethod && (
+                    <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
+                      <RadioGroupItem value="efectivo" /> <CreditCard className="w-4 h-4" /> Efectivo
+                    </label>
+                  )}
                 </RadioGroup>
+                {declaresMethod && (
+                  <p className="text-[11px] text-muted-foreground mt-2">Elegir el medio no registra un pago: queda pendiente hasta que Administración lo verifique.</p>
+                )}
               </div>
               {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
               {metodo === "transferencia" && (
@@ -285,7 +337,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                     </p>
                   </div>
                   <div>
-                    <Label>Comprobante *</Label>
+                    <Label>Comprobante{declaresMethod ? " (opcional, podés enviarlo después)" : " *"}</Label>
                     <Input type="file" accept="image/*,application/pdf" onChange={(e) => setComprobante(e.target.files?.[0] || null)} />
                   </div>
                 </div>
@@ -311,15 +363,15 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
         </div>
 
         <div className="fixed bottom-0 left-0 right-0 bg-background border-t p-4 flex gap-2">
-          {step > 1 && <Button variant="outline" onClick={() => setStep(step - 1)} disabled={loading}><ArrowLeft className="w-4 h-4 mr-1" /> Atrás</Button>}
-          {step < 3 && (
+          {step > 1 && <Button variant="outline" onClick={() => setStep(prevStep(step))} disabled={loading}><ArrowLeft className="w-4 h-4 mr-1" /> Atrás</Button>}
+          {step < 4 && (
             <Button
               className="flex-1"
-              disabled={step === 1 ? !canNextFromStep1 : !canNextFromStep2}
-              onClick={() => setStep(step === 1 && selectedPkg ? 3 : step + 1)}
+              disabled={step === 1 ? !canNextFromStep1 : step === 2 ? !canNextFromStep2 : !sharedOk}
+              onClick={() => setStep(nextStep(step))}
             >Continuar <ArrowRight className="w-4 h-4 ml-1" /></Button>
           )}
-          {step === 3 && (
+          {step === 4 && (
             <Button className="flex-1" disabled={!canSubmit || loading} onClick={handleSubmit}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <CreditCard className="w-4 h-4 mr-1" />}
               {metodo === "mp" ? "Pagar con Mercado Pago" : "Enviar reserva"}
