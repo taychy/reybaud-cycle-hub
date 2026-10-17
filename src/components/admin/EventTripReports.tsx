@@ -339,7 +339,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto min-w-0 [&>*]:min-w-0">
         <DialogHeader>
           <DialogTitle>Reportes del viaje — {eventTitle}</DialogTitle>
           <DialogDescription>Habitaciones, extras contratados y lista consolidada para seguro.</DialogDescription>
@@ -362,7 +362,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
             {choiceSurveys.map((sv) => (
               <TabsContent key={sv.key} value={`encuesta_${sv.key}`} className="mt-4">
-                <EventChoiceSurveyReport survey={sv} rows={rows} eventTitle={eventTitle} />
+                <EventChoiceSurveyReport eventId={eventId} survey={sv} rows={rows} eventTitle={eventTitle} />
               </TabsContent>
             ))}
 

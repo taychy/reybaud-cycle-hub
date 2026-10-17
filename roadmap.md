@@ -199,3 +199,9 @@
 - [x] Reporte, editor, CSV y métricas sin duplicar fuentes
 - [x] Registrar exclusivamente las seis reservas autorizadas con control de concurrencia
 - [x] Verificar métricas, seguridad, CSV y reporte desktop/mobile; sin publicar
+
+## Clasique · Jerseys de staff
+- [x] Registro especializado con validación, idempotencia, RLS y auditoría
+- [x] Registrar solo Jackeline XXS, Jorge XS y Claudio S; verificar Tamara/Andrea intactas
+- [x] Sección editable staff, subtotales y CSV combinados
+- [x] Pruebas de recuentos, seguridad y desktop/mobile; sin publicar
