@@ -4789,6 +4789,103 @@ export type Database = {
           },
         ]
       }
+      event_kit_additional_jerseys: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          quantity: number
+          recipient_class: string
+          recipient_name: string
+          recorded_by: string
+          size: string
+          staff_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          quantity?: number
+          recipient_class?: string
+          recipient_name: string
+          recorded_by?: string
+          size: string
+          staff_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          quantity?: number
+          recipient_class?: string
+          recipient_name?: string
+          recorded_by?: string
+          size?: string
+          staff_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_kit_additional_jerseys_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_kit_additional_jerseys_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json
+          before_data: Json | null
+          created_at: string
+          entry_id: string
+          id: string
+          recorded_by: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data: Json
+          before_data?: Json | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          recorded_by: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json
+          before_data?: Json | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_kit_additional_jerseys_log_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "event_kit_additional_jerseys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_package_change_requests: {
         Row: {
           alumno_id: string | null
@@ -17903,6 +18000,7 @@ export type Database = {
         }
         Returns: Json
       }
+      event_kit_staff_key: { Args: { p_name: string }; Returns: string }
       event_terms_snapshot: { Args: { p_event_id: string }; Returns: Json }
       expire_descuentos_alumno: { Args: never; Returns: number }
       expire_overdue_pausas: {
