@@ -379,6 +379,13 @@
       "when": 1792207666308,
       "tag": "0053_event_kit_staff_jerseys",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1792207956300,
+      "tag": "0054_kit_staff_explicit_privileges",
+      "breakpoints": true
     }
   ]
 }
