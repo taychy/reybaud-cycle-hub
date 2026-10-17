@@ -201,7 +201,7 @@
 - [x] Verificar métricas, seguridad, CSV y reporte desktop/mobile; sin publicar
 
 ## Clasique · Jerseys de staff
-- [ ] Registro especializado con validación, idempotencia, RLS y auditoría
-- [ ] Registrar solo Jackeline XXS, Jorge XS y Claudio S; verificar Tamara/Andrea intactas
-- [ ] Sección editable staff, subtotales y CSV combinados
-- [ ] Pruebas de recuentos, seguridad y desktop/mobile; sin publicar
+- [x] Registro especializado con validación, idempotencia, RLS y auditoría
+- [x] Registrar solo Jackeline XXS, Jorge XS y Claudio S; verificar Tamara/Andrea intactas
+- [x] Sección editable staff, subtotales y CSV combinados
+- [x] Pruebas de recuentos, seguridad y desktop/mobile; sin publicar
