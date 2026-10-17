@@ -198,4 +198,4 @@
 - [x] Registro separado, validación y auditoría con acceso exclusivo admin
 - [x] Reporte, editor, CSV y métricas sin duplicar fuentes
 - [x] Registrar exclusivamente las seis reservas autorizadas con control de concurrencia
-- [ ] Verificar métricas, seguridad y reporte en navegador; sin publicar
+- [x] Verificar métricas, seguridad, CSV y reporte desktop/mobile; sin publicar

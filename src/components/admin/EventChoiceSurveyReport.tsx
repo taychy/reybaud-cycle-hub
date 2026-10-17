@@ -13,7 +13,7 @@ import ChoiceSurveyAdminEditor from './ChoiceSurveyAdminEditor';
 import { resolveChoiceSources, summarizeChoiceSources, type ChoiceAdminEntry } from '@/lib/choiceSurveyAdmin';
 import {
   CHOICE_STATUS_LABELS, choiceAnswerStatus, choiceSurveyStepKey, getChoiceSurveys, isActiveReservation,
-  summarizeChoiceSurvey, type ChoiceAnswerStatus, type ChoiceSurveyConfig,
+  summarizeChoiceSurvey, type ChoiceSurveyConfig,
 } from "@/lib/choiceSurvey";
 
 export interface ChoiceReportRow {
@@ -134,9 +134,9 @@ const EventChoiceSurveyReport = ({ survey, rows, eventTitle }: { survey: ChoiceS
           <SelectTrigger className="sm:w-52"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos</SelectItem>
-            <SelectItem value="confirmado">Confirmados</SelectItem>
-            <SelectItem value="requiere_confirmar">Requiere confirmar</SelectItem>
-            <SelectItem value="sin_respuesta">No respondió</SelectItem>
+            <SelectItem value="confirmado">Talle confirmado · encuesta</SelectItem>
+            <SelectItem value="requiere_confirmar">Requiere confirmar · encuesta</SelectItem>
+            <SelectItem value="sin_respuesta">No respondió · encuesta</SelectItem>
             <SelectItem value="admin_confirmed">Confirmado por admin</SelectItem>
             <SelectItem value="admin_pending">Pendiente admin / alternativas</SelectItem>
             <SelectItem value="conflict">Discrepancias</SelectItem>

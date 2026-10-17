@@ -13,6 +13,7 @@ BEGIN
  END;
 END $$;
 RESET ROLE;
+SELECT set_config('request.jwt.claims','{}',true);
 DO $$
 BEGIN
  BEGIN
