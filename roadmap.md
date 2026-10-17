@@ -193,3 +193,9 @@
 - [x] Tienda alumno: tocar tarjeta abre /tienda/producto/:id (sin crear pedido)
 
 - [x] Rectificar pagos directos Fernando→Ingrid (ARS 840.000) y unificar saldo efectivo de transferencias
+
+## Talles administrativos de encuestas operativas
+- [x] Registro separado, validación y auditoría con acceso exclusivo admin
+- [x] Reporte, editor, CSV y métricas sin duplicar fuentes
+- [x] Registrar exclusivamente las seis reservas autorizadas con control de concurrencia
+- [ ] Verificar métricas, seguridad y reporte en navegador; sin publicar
