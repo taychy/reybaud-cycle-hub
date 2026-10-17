@@ -10,6 +10,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Download, Loader2, Pencil } from "lucide-react";
 import ChoiceSurveyAdminEditor from './ChoiceSurveyAdminEditor';
+import StaffJerseysEditor from './StaffJerseysEditor';
+import { summarizeJerseyOrder, type StaffJersey } from '@/lib/staffJerseys';
 import { resolveChoiceSources, summarizeChoiceSources, type ChoiceAdminEntry } from '@/lib/choiceSurveyAdmin';
 import {
   CHOICE_STATUS_LABELS, choiceAnswerStatus, choiceSurveyStepKey, getChoiceSurveys, isActiveReservation,
@@ -38,7 +40,8 @@ export const useChoiceSurveys = (eventId: string, open: boolean) => {
   return surveys;
 };
 
-const EventChoiceSurveyReport = ({ survey, rows, eventTitle }: { survey: ChoiceSurveyConfig; rows: ChoiceReportRow[]; eventTitle: string }) => {
+const EventChoiceSurveyReport = ({ eventId, survey, rows, eventTitle }: { eventId: string; survey: ChoiceSurveyConfig; rows: ChoiceReportRow[]; eventTitle: string }) => {
+  const [staff, setStaff] = useState<StaffJersey[]>([]);
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [adminEntries, setAdminEntries] = useState<Record<string, ChoiceAdminEntry>>({});
   const [editing, setEditing] = useState<string | null>(null);
@@ -51,16 +54,17 @@ const EventChoiceSurveyReport = ({ survey, rows, eventTitle }: { survey: ChoiceS
 
   useEffect(() => {
     const ids = active.map((r) => r.reservation_id);
-    if (!ids.length) { setAnswers({}); setAdminEntries({}); setLoading(false); return; }
     setLoading(true);
     setError('');
     let cancelled = false;
     Promise.all([
       supabase.from("reservation_checklist_data").select("reservation_id, data").in("reservation_id", ids).eq("step_key", choiceSurveyStepKey(survey.key)),
       supabase.from('event_choice_survey_admin_entries').select('*').in('reservation_id', ids).eq('survey_key', survey.key),
-    ]).then(([responses, entries]) => {
+      survey.key === 'talle_camiseta' ? supabase.from('event_kit_additional_jerseys').select('*').eq('event_id', eventId).eq('active', true).order('recipient_name') : Promise.resolve({ data: [], error: null }),
+    ]).then(([responses, entries, staffResult]) => {
         if (cancelled) return;
-        if (responses.error || entries.error) { setError('No se pudo cargar el reporte completo. Reintentá antes de preparar el pedido.'); setLoading(false); return; }
+        if (responses.error || entries.error || staffResult.error) { setError('No se pudo cargar el reporte completo. Reintentá antes de preparar el pedido.'); setLoading(false); return; }
+        setStaff(staffResult.data || []);
         const m: Record<string, any> = {};
         (responses.data || []).forEach((d) => { m[d.reservation_id] = d.data; });
         const admin: Record<string, ChoiceAdminEntry> = {};
@@ -69,10 +73,11 @@ const EventChoiceSurveyReport = ({ survey, rows, eventTitle }: { survey: ChoiceS
         setAnswers(m); setLoading(false);
       });
     return () => { cancelled = true; };
-  }, [active, survey.key, revision]);
+  }, [active, eventId, survey.key, revision]);
 
   const summary = useMemo(() => summarizeChoiceSurvey(survey, active.map((r) => answers[r.reservation_id])), [survey, active, answers]);
   const order = useMemo(() => summarizeChoiceSources(survey, active.map(r => ({ answer: answers[r.reservation_id], admin: adminEntries[r.reservation_id] }))), [survey, active, answers, adminEntries]);
+  const combined = useMemo(() => summarizeJerseyOrder(survey, order.counts, staff), [survey, order, staff]);
   const label = (v?: string) => survey.options.find((o) => o.value === v)?.label ?? "";
 
   const list = active
@@ -83,10 +88,13 @@ const EventChoiceSurveyReport = ({ survey, rows, eventTitle }: { survey: ChoiceS
 
   const exportCsv = () => {
     const lines = [
-      ["Reserva", "Apellido", "Nombre", "Tipo", "Paquete", "Respuesta encuesta", "Estado encuesta", "Talle administración", "Alternativas admin", "Observaciones admin", "Origen", "Estado", "Talle para pedido", "Respondido", "Actualizado encuesta", "Actualizado admin"],
-      ...list.map(({ r, a, st, admin, effective }) => [r.reservation_id, r.apellido, r.nombre, r.is_external ? "Externo" : "Alumno", r.package_nombre ?? "", label(a?.respuesta), CHOICE_STATUS_LABELS[st], label(admin?.confirmed_value ?? undefined), admin?.candidates.join('/') ?? '', admin?.notes ?? '', effective.origin, effective.status, label(effective.value ?? undefined), fmt(a?.respondido_at), fmt(a?.actualizado_at), fmt(admin?.updated_at)]),
-      [], ["Pedido a proveedor · totales globales vigentes, sin duplicados ni discrepancias"],
-      ...order.counts.map((o) => [o.label, String(o.count)]),
+      ["Reserva", "Apellido", "Nombre", "Tipo", "Paquete", "Respuesta encuesta", "Estado encuesta", "Talle administración", "Alternativas admin", "Observaciones admin", "Origen", "Estado", "Talle para pedido", "Respondido", "Actualizado encuesta", "Actualizado admin", "Cantidad"],
+      ...list.map(({ r, a, st, admin, effective }) => [r.reservation_id, r.apellido, r.nombre, r.is_external ? "Externo" : "Alumno", r.package_nombre ?? "", label(a?.respuesta), CHOICE_STATUS_LABELS[st], label(admin?.confirmed_value ?? undefined), admin?.candidates.join('/') ?? '', admin?.notes ?? '', effective.origin, effective.status, label(effective.value ?? undefined), fmt(a?.respondido_at), fmt(a?.actualizado_at), fmt(admin?.updated_at), effective.value ? '1' : '0']),
+      ...staff.filter(s => s.active).map(s => ['', '', s.recipient_name, 'Staff', '', '', 'No aplica', s.size, '', '', 'Staff · Administración', 'Confirmado', s.size, '', '', fmt(s.updated_at), String(s.quantity)]),
+      [], ["Pedido total a Clasique · totales globales sin duplicados ni discrepancias"],
+      ['Talle', 'Participantes', 'Staff', 'Total'],
+      ...combined.counts.map((o) => [o.label, String(o.participants), String(o.staff), String(o.total)]),
+      ['Subtotal participantes', String(combined.participants)], ['Subtotal staff', String(combined.staff)], ['TOTAL', String(combined.total)],
       ["Requiere confirmar", String(summary.requiereConfirmar)], ["No respondió", String(summary.sinRespuesta)],
     ];
     const blob = new Blob(["\uFEFF" + lines.map((l) => l.map(csvCell).join(",")).join("\n")], { type: "text/csv;charset=utf-8" });
@@ -120,13 +128,14 @@ const EventChoiceSurveyReport = ({ survey, rows, eventTitle }: { survey: ChoiceS
         ))}
       </div>
 
-      <div className="rounded-lg border p-3 space-y-2">
-        <p className="text-xs font-medium">Pedido a proveedor (solo confirmados)</p>
-        <div className="flex flex-wrap gap-2">
-          {order.counts.map((o) => <Badge key={o.value} variant="outline">{o.label}: {o.count}</Badge>)}
-        </div>
-        <p className="text-[11px] text-muted-foreground">Encuesta y Administración, sin duplicados. Alternativas y discrepancias quedan fuera del pedido. Totales globales de reservas vigentes.</p>
-      </div>
+      <section aria-label="Pedido total a Clasique" className="border-y py-3 space-y-2">
+        <h3 className="text-sm font-semibold">{survey.key === 'talle_camiseta' ? 'PEDIDO TOTAL A CLASIQUE' : 'Pedido a proveedor'}</h3>
+        <p className="text-sm">Participantes: <strong>{combined.participants}</strong> · Staff: <strong>{combined.staff}</strong> · Total: <strong>{combined.total}</strong></p>
+        <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="text-muted-foreground"><th className="text-left py-1">Talle</th><th>Participantes</th><th>Staff</th><th>Total</th></tr></thead><tbody>{combined.counts.map(o => <tr key={o.value} className="border-t"><td className="py-1">{o.label}</td><td className="text-center">{o.participants}</td><td className="text-center">{o.staff}</td><td className="text-center font-semibold">{o.total}</td></tr>)}</tbody></table></div>
+        <p className="text-xs text-muted-foreground">Reservas vigentes: {summary.total} · Sin talle final / revisión: {order.pending}</p>
+      </section>
+      {survey.key === 'talle_camiseta' && <StaffJerseysEditor eventId={eventId} survey={survey} entries={staff} onSaved={() => setRevision(v => v + 1)} />}
+      <h3 className="font-semibold border-t pt-4">PARTICIPANTES · Reservas vigentes</h3>
 
       <div className="flex flex-col sm:flex-row gap-2">
         <Input placeholder="Buscar participante" value={q} onChange={(e) => setQ(e.target.value)} />

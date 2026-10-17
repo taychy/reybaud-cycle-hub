@@ -15,5 +15,5 @@
 - ARCA/WSFE: el ticket WSAA se reutiliza desde `afip_wsaa_tickets` vía `obtenerTicketWsaa` (`_shared/facturacion-emision.ts`); número y fecha se piden a ARCA justo antes de cada FECAESolicitar; fecha ≥ último autorizado. Why: evitar rechazos 10016 y TA duplicado.
 - Noches extra: modalidad = addon de noche en reservation_addons; habitación compartida en extra_night_pairings, historial en extra_night_changes; nunca toca paquete ni rooming principal. Why: separar del alojamiento base y reusar el recálculo de saldos.
 - Condiciones de reservas: alta admin queda `terminos_pendientes` (trigger, token único 30 días); aceptar solo vía `_accept_reservation_terms`; texto desde `event_terms_snapshot` (espejo SQL de eventReglamentoDefaults.ts, mantener iguales); pagos validados bloqueados si pendiente. Why: misma trazabilidad, sin flujo paralelo.
-- Shared rooms: metadata.shared_room_assignment; SQL shared_room_assignment_quote + trigger. Why: authoritative pricing.
-- Admin survey sizes: separate event_choice_survey_admin_entries + audit log; unresolved conflicts excluded from orders. Why: preserve provenance.
+- Shared rooms: metadata.shared_room_assignment + SQL quote/trigger. Why: authoritative pricing.
+- Kit sources: participant admin sizes and staff jerseys stay separate, audited; staff uses event/name uniqueness and soft removal, never profiles/reservations; conflicts excluded. Why: provenance.

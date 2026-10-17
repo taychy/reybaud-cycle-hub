@@ -362,7 +362,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
             {choiceSurveys.map((sv) => (
               <TabsContent key={sv.key} value={`encuesta_${sv.key}`} className="mt-4">
-                <EventChoiceSurveyReport survey={sv} rows={rows} eventTitle={eventTitle} />
+                <EventChoiceSurveyReport eventId={eventId} survey={sv} rows={rows} eventTitle={eventTitle} />
               </TabsContent>
             ))}
 
