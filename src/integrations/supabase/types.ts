@@ -4310,6 +4310,107 @@ export type Database = {
           },
         ]
       }
+      event_choice_survey_admin_entries: {
+        Row: {
+          candidates: string[]
+          confirmed_value: string | null
+          created_at: string
+          created_by: string | null
+          id: string
+          notes: string
+          recorded_by: string
+          reservation_id: string
+          status: string
+          survey_key: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          candidates?: string[]
+          confirmed_value?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string
+          recorded_by?: string
+          reservation_id: string
+          status?: string
+          survey_key: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          candidates?: string[]
+          confirmed_value?: string | null
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          notes?: string
+          recorded_by?: string
+          reservation_id?: string
+          status?: string
+          survey_key?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_choice_survey_admin_entries_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_choice_survey_admin_entries_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      event_choice_survey_admin_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          after_data: Json
+          before_data: Json | null
+          created_at: string
+          entry_id: string
+          id: string
+          recorded_by: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          after_data: Json
+          before_data?: Json | null
+          created_at?: string
+          entry_id: string
+          id?: string
+          recorded_by: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          after_data?: Json
+          before_data?: Json | null
+          created_at?: string
+          entry_id?: string
+          id?: string
+          recorded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_choice_survey_admin_log_entry_id_fkey"
+            columns: ["entry_id"]
+            isOneToOne: false
+            referencedRelation: "event_choice_survey_admin_entries"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_cost_actuals: {
         Row: {
           categoria: string
