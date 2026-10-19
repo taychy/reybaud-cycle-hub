@@ -205,3 +205,11 @@
 - [x] Registrar solo Jackeline XXS, Jorge XS y Claudio S; verificar Tamara/Andrea intactas
 - [x] Sección editable staff, subtotales y CSV combinados
 - [x] Pruebas de recuentos, seguridad y desktop/mobile; sin publicar
+
+## San Luis · Reprogramación organizada por Reybaud
+- [ ] Auditar acceso, fechas, paquetes y fuentes financieras sin cambios históricos
+- [ ] Elección segura y editable, consentimiento e historial; público desactivado
+- [ ] Gestión administrativa, fuente/nota, filtros, estado y CSV sin tokens
+- [ ] Política 100% y jersey optativo; andamiaje financiero bloqueado y conciliable
+- [ ] Tests de acceso/decisión/importes/crédito/transferencias y verificación desktop/mobile
+- [ ] Habilitación pública y operaciones reales: bloqueadas hasta revisión y autorización
