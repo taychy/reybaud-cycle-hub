@@ -1,55 +1,59 @@
-# Auditoría (solo lectura): Fernando Strada / Ingrid Epp — Training Camp San Luis
+# Reprogramación San Luis · Primera versión segura
 
-No se modificó nada. Evento `67b4e85d-…`, paquete `0089ec6a-…` (Hab. individual con PC).
+## Alcance
+Implementar en Reybaud una elección real y editable por reserva, registro administrativo, estados e historial. Acceso público desactivado y operaciones financieras bloqueadas hasta revisión. No publicar, desplegar funciones, enviar mensajes ni modificar reservas, pagos, términos, fechas, paquetes o habitaciones existentes.
 
-## Evidencia
+## Auditoría confirmada · 19/10/2026
+- 32 reservas confirmadas y 8 canceladas.
+- Tres transferencias existentes: en reventa, acuerdo definido y acuerdo pendiente; conservarlas.
+- Octubre sigue publicado/activo con fechas **22–25/10/2026**. Mostrar la propuesta **5–9/11/2026** sólo dentro del nuevo módulo, sin modificar el evento.
+- Cinco paquetes inactivos con precios actuales $75.000 o $75.293: requieren revisión antes de cotizar o vender modalidades nuevas.
+- Enero sigue en borrador con fechas **17–24/01/2027**, distintas de la comunicación previa **20–27/01**; no cambiarlas.
+- Hay tokens personales, acceso por sesión, encuestas Clasique con fuentes administrativas separadas, devoluciones y pagos directos fuera de caja Reybaud.
 
-**Reserva de Ingrid** `d7b9ca7f-b707-4c2f-97a4-4d332cc98fee` — estado `cancelada` (cupo transferido), total guardado $1.249.000.
-| Pago | Fecha | Importe | Estado |
-|---|---|---|---|
-| `0f47d3e6` transferencia | 16/07 | $350.000 | validado |
-| `396e25d8` MP | 30/07 | $246.975 | rechazado (no suma) |
-| `b6a2b0b0` MP | 30/07 | $246.975 | validado |
-| `d3dd4a82` MP | 31/08 | $243.950 | validado |
-Total pagado real a Reybaud: **$840.925**. Ingrid no tiene crédito ni saldo a rendir: lo pagado se lo devuelve Fernando directamente (Reybaud caja $0).
+## 1. Elección y confirmación
+- Seis opciones sin preselección: 5–8/11 (3 noches), 6–9/11 (3 noches), 5–9/11 (4 noches), devolución, crédito para otro Training Camp o ayuda.
+- Link individual seguro y acceso desde Mis Reservas, visibles al participante sólo al habilitar el módulo.
+- Token personal existente o sesión/OTP verificada; sin búsqueda por email arbitrario ni exposición de terceros. Reutilizar ingreso y retorno seguro.
+- Confirmación y consentimiento versionado: es una **solicitud**, no cancela, libera cupos ni ejecuta dinero.
+- Fecha/hora, origen, estado, actor e historial; edición con idempotencia y control de concurrencia.
+- Página estilo Reybaud para móvil/escritorio, estado de confirmación y consulta opcional a WhatsApp escuela. Sin mensajes automáticos.
 
-**Reserva de Fernando** `30c0259f-ebb5-45b8-a767-075aa95d7d16` — `reserva_confirmada`, total $1.196.690.
-- Pago MP `ed1b113b` (mp 181483222127), 05/10, **$355.765 validado**.
-- Columna guardada `balance_due` = **$840.925** (no incluye pagos directos entre participantes).
+## 2. Política especial y jersey
+- Por cambio organizado: **100% efectivamente abonado menos reintegros previos, sin penalidad**; no modificar el motor de cancelación voluntaria.
+- Separar pagos a Reybaud, pagos directos efectuados y reintegros directos recibidos. Transferencias o monedas ambiguas quedan **pendientes de conciliación**, sin prometer un importe ejecutable ni negar derechos.
+- Sólo para devolución/crédito: jersey optativo **$50.000 ARS**, Sí/No sin preselección; dejar la pregunta sin contestar no autoriza deducción.
+- Mostrar abonado, reintegros previos, jersey condicionado y neto estimado. No conserva el 100%.
+- Si elige Sí: confirmar/corregir talle usando encuesta y fuente administrativa, conservando discrepancias; retiro o envío y consentimiento específico.
+- Sin descuento hasta validar stock, talle, entrega, consentimiento y saldo suficiente. Envío adicional sólo informado y aprobado; nunca cargo automático. No inventar stock ni plazos.
+- Crédito nominal ARS para otro Training Camp, uso parcial/remanente, sin indexación ni vencimiento definido. Sin inventar plazo de reintegro.
 
-**Transferencia** `e939fd47-…` — estado `payment_agreement_defined` (no completada). Acuerdo: directo a Ingrid $840.925 + Reybaud $355.765.
+## 3. Gestión administrativa
+- Integrar **Reprogramación San Luis** en Gestión de reservas, reutilizando las pantallas existentes.
+- Contadores/filtros por elección, respuesta, revisión, jersey y conciliación; respuesta por persona, modalidad/noches, importes y fuentes, talle/entrega, notas y fechas.
+- Registro en nombre del participante con fuente, nota y constancia del consentimiento comunicado; no sembrar respuestas.
+- Estados de solicitud separados de devolución/crédito real. Pendientes y cumplidos desde registros reales; disponible/usado sólo si existen movimientos reales.
+- Historial y CSV sin tokens ni datos bancarios, protegido contra fórmulas.
+- Cupos potencialmente liberables y reemplazos por evaluar con modalidad 3/4 noches, no sólo paquete. No cancelar, liberar ni emparejar automáticamente.
 
-**Pagos directos Fernando → Ingrid registrados (los $840.000 sí existen, mal cargados):**
-| ID | Cargado | Importe | Fecha de pago escrita | Nota |
-|---|---|---|---|---|
-| `e695f78c` | 12/10 | **$840,925** (punto decimal) | `0026-10-05` | comprobante PDF, control 1120 |
-| `3a9a563e` | 13/10 | **$840,08408** | 2026-10-08 | "error al escribir el monto… compensar" |
-| `bdfa6a1b` | 13/10 | **$839.243,99** | `0206-10-08` | sin comprobante |
-Suma = $840.924,999 ≈ $840.925. Los tres están `confirmed`.
+## 4. Andamiaje financiero bloqueado
+- Registro comercial separado de notas de crédito fiscales, por beneficiario y reserva fuente, con emisión/aplicación/reversión e idempotencia.
+- Libro mayor protegido, sin escritura directa: restricciones de doble emisión y saldo, referencias conciliables y bloqueo transaccional para futuras operaciones.
+- **Deshabilitar** emisión, aplicación, reversión, devolución, compra de jersey y ejecución de reemplazos hasta probar su integración completa. No crear saldos gastables, obligaciones financieras ni movimientos de cuenta corriente en esta versión.
+- Nunca llamar `start_reservation_transfer` al responder: cancela y libera habitación inmediatamente. Pagos directos supervisados requieren consentimiento/comprobante y caja Reybaud $0.
 
-## Diferencias exactas
-- Fernando: 1.196.690 − 355.765 − 840.924,999 = **≈ $0,001** de saldo efectivo.
-- Fernando dice haber pagado $840.000; el acuerdo y lo cargado son $840.925 → diferencia de **$925** a confirmar con el comprobante.
-- Saldo visible $840.925 vs saldo efectivo ≈ $0.
+## Detalles técnicos
+- Configuración reutilizable por evento separada de fechas y términos históricos; interruptor público apagado por defecto.
+- Cambios aditivos mínimos: configuración, solicitudes, historial y andamiaje del libro mayor referenciados a reservas existentes.
+- RLS permisiva y GRANT explícitos; roles servidor mediante `has_role(..., 'admin')` / `is_super_admin`, nunca cast de super_admin a app_role.
+- Escrituras sólo por funciones servidoras con validación de identidad, pertenencia, estado, activación, consentimiento y opciones. Montos calculados en servidor, nunca confiados al cliente.
+- Snapshots acotados de condiciones y resumen económico al responder; historial sin credenciales; control de versiones y concurrencia.
+- Ruta independiente `/reprogramacion/:eventId`, sin tocar `/encuesta/:token` ni `/encuesta-talles/:slug`.
+- Reversión operativa por desactivación; ningún cambio a lógica ordinaria ni despliegue de funciones.
 
-## Causa
-**Confirmada:**
-1. El monto del pago directo se escribió con punto como miles ($840,925 en vez de $840.925); se "compensó" con dos registros más en vez de anular el primero. El total cuadra, pero hay 3 filas, montos con centésimas raras y 2 fechas imposibles (años 0026 y 0206).
-2. `event_reservations.balance_due` de Fernando nunca descuenta pagos directos; solo la función `reservation_effective_payment_summary` los suma. En `ReservationStatusCard.tsx` el saldo efectivo solo se aplica a una parte (línea ~281); los bloques de Saldo (≈625, 849, 874, 918–958) y la cuota única (`3535132d`, pagado $355.765, `parcial`) siguen leyendo los valores guardados → muestra $840.925.
-3. La transferencia sigue sin cerrar; el residuo de $0,001 (redondeo de 840,08408) podría impedir "Listo para cerrar".
-
-**Hipótesis (sin confirmar):** qué pantalla exacta ve el usuario como "resumen"; si el pago real fue $840.000 o $840.925.
-
-## Impacto
-- Fernando ve deuda inexistente y podría recibir recordatorios de cobro.
-- Riesgo de que KPIs/deudores cuenten $840.925 como pendiente.
-- Datos de auditoría sucios (fechas 0026/0206). Sin impacto en caja Reybaud ni en Ingrid.
-
-## Propuesta (no ejecutada, requiere autorización)
-1. Datos: anular (`voided_at` + motivo) `e695f78c`, `3a9a563e` y `bdfa6a1b` y registrar uno solo por el monto real del comprobante (control 1120), fecha 05/10/2026. Si fue $840.000, decidir si los $925 quedan como saldo de Fernando o se condonan.
-2. Cerrar la transferencia (`completed`) y que el saldo de Fernando y su cuota reflejen el pago directo.
-3. Código: validar en `TransferAgreementPanel` monto entero en ARS (rechazar decimales de 3+ dígitos) y fecha con año razonable; usar el saldo efectivo en todos los bloques de Saldo de `ReservationStatusCard` y en deudores/recordatorios; redondear a centavos en el resumen.
-4. Pruebas: unit tests para la validación y para el saldo efectivo con pagos directos.
-
-## Decisión necesaria
-¿El pago real a Ingrid fue $840.000 o $840.925?
+## Pruebas y entrega
+- Tests de seis decisiones, 3/4 noches, 100% sin retención, reintegros previos y jersey $50.000 condicionado.
+- Tests de identidad/token/rol, acceso apagado, reserva ajena/cancelada, idempotencia, concurrencia y fuente administrativa.
+- Restricciones y bloqueo financiero del crédito; transferencias intactas y pagos directos sin doble contabilización.
+- Pruebas SQL reversibles y verificación visual móvil/escritorio; ninguna respuesta de prueba permanente en reservas reales.
+- Informar pruebas pasadas y pendientes, enlace PREVIEW y bloqueos antes de habilitar: proveedores/costos, habitaciones 3/4 noches, jersey, conciliación de transferencias, integración financiera, fechas públicas y autorización administrativa.
