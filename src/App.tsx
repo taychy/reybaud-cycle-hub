@@ -91,6 +91,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EventTerms from "./pages/EventTerms";
 import ExternalTripView from "./pages/ExternalTripView";
 import ChoiceSurveyPage from "./pages/ChoiceSurveyPage";
+import EventRescheduling from "./pages/EventRescheduling";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
 import PublicStore from "./pages/PublicStore";
 import PublicProduct from "./pages/PublicProduct";
@@ -321,6 +322,7 @@ const App = () => (
           <Route path="/reservar/:slug" element={<BookingFlow />} />
           <Route path="/viaje/mi-reserva" element={<ExternalTripView />} />
           <Route path="/encuesta-talles/:slug" element={<ChoiceSurveyPage />} />
+          <Route path="/reprogramacion/:eventId" element={<EventRescheduling />} />
           <Route path="/preventa/:productId" element={<PublicPreorderPage />} />
           <Route path="/pagar-preventa/:preorderId" element={<PreorderPagoRedirect />} />
           <Route path="/pagar-preventas-alumno/:alumnoId" element={<PreorderAlumnoPagoRedirect />} />

@@ -39,6 +39,10 @@ const MisReservas = () => {
         return;
       }
       const action = params.get("action");
+      if (action === "reprogramacion") {
+        navigate(`/reprogramacion/${eventId}?reserva=${encodeURIComponent(id)}`, { replace: true });
+        return;
+      }
       const qs = new URLSearchParams();
       qs.set("reserva", id);
       if (action) qs.set("action", action);

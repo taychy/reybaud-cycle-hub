@@ -31,6 +31,7 @@ import { Shirt } from "lucide-react";
 import { buildWhatsAppUrl, buildRecordHoraHelpMessage } from "@/lib/contactInfo";
 import StudentInstallmentsPlan, { StudentInstallmentsPlanHandle } from "./StudentInstallmentsPlan";
 import { StudentTermsPendingBanner } from "./ReservationTermsPending";
+import ReschedulingEntry from "@/components/rescheduling/ReschedulingEntry";
 
 interface Reservation {
   id: string;
@@ -780,6 +781,7 @@ const ReservationStatusCard = ({
   return (
     <>
       <div className="space-y-4 animate-fade-in">
+        <ReschedulingEntry eventId={eventId} reservationId={reservation.id} />
 
         {/* ═══ 1. STATUS BANNER — human-friendly ═══ */}
         <div className={`rounded-xl border-2 p-5 ${tone.border} ${tone.bg}`}>
