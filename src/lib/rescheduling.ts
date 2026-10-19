@@ -7,6 +7,11 @@ export interface ReschedulingReservation { reservation_id: string; participant: 
 export interface ReschedulingContext { available: boolean; admin?: boolean; auth_required?: boolean; campaign?: ReschedulingCampaign; reservations?: ReschedulingReservation[]; transfers?: { id: string; status: string; original_reservation_id: string; replacement_reservation_id: string | null; package_id: string | null }[] }
 export const REVIEW_LABELS: Record<string,string> = {pendiente:'Pendiente', en_revision:'En revisión', validada:'Solicitud validada · sin ejecución', requiere_contacto:'Requiere contacto'};
 export const isFinancialChoice = (choice: string) => ['refund','credit'].includes(choice);
+export function reschedulingInput(input: {choice:string;consent:boolean;source:string;note:string;jersey_requested:boolean|null;jersey_size:string;delivery:string;jersey_consent:boolean}) {
+  const financial=isFinancialChoice(input.choice);
+  const requested=financial ? input.jersey_requested : null;
+  return {...input,jersey_requested:requested,jersey_size:requested===true ? input.jersey_size : null,delivery:requested===true ? input.delivery : null,jersey_consent:requested===true && input.jersey_consent};
+}
 export function jerseyEstimate(financial: ReschedulingFinancial, price: number, requested: boolean | null) {
   const remaining = Math.max(0, Number(financial.estimated_remaining));
   return { remaining, conditionalDeduction: requested === true ? price : 0, conditionalNet: requested === true && remaining >= price ? remaining-price : remaining,

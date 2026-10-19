@@ -1,7 +1,10 @@
 import { describe,it,expect } from 'vitest';
-import { jerseyEstimate, compatibleReschedulingOptions,isFinancialChoice,csvCell,type ReschedulingFinancial } from './rescheduling';
+import { jerseyEstimate, compatibleReschedulingOptions,isFinancialChoice,reschedulingInput,csvCell,type ReschedulingFinancial } from './rescheduling';
 const f: ReschedulingFinancial={paid_reybaud:100000,direct_paid:0,direct_received:0,effective_paid:100000,previous_refunds:10000,estimated_remaining:90000,requires_reconciliation:false,has_transfer:false,refund_obligation:null,credit_available:0,credit_used:0,finance_enabled:false};
 describe('organizer rescheduling policy',()=>{
+ const input={choice:'refund',consent:true,source:'',note:'',jersey_requested:true,jersey_size:'M',delivery:'retiro',jersey_consent:true};
+ it('No removes previous jersey size and authorization',()=>expect(reschedulingInput({...input,jersey_requested:false})).toMatchObject({jersey_requested:false,jersey_size:null,delivery:null,jersey_consent:false}));
+ it('attendance never sends previous financial jersey data',()=>expect(reschedulingInput({...input,choice:'attend_5_9'})).toMatchObject({jersey_requested:null,jersey_size:null,delivery:null,jersey_consent:false}));
  it('refund keeps 100% actually paid minus prior refunds, with no retention',()=>expect(jerseyEstimate(f,50000,false).conditionalNet).toBe(90000));
  it('credit has the same nominal ARS entitlement',()=>{expect(isFinancialChoice('credit')).toBe(true);expect(jerseyEstimate(f,50000,null).conditionalNet).toBe(90000)});
  it('jersey costs exactly ARS 50000 but no deduction is executed',()=>{const x=jerseyEstimate(f,50000,true);expect(x.conditionalDeduction).toBe(50000);expect(x.conditionalNet).toBe(40000);expect(x.executableDeduction).toBe(0)});
