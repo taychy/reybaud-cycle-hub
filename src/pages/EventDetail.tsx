@@ -1,3 +1,4 @@
+import MaratonaEditorialLanding from "@/components/event/MaratonaEditorialLanding";
 import { useEffect, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -495,6 +496,10 @@ const EventDetail = () => {
   const heroContain = hero.fit === "contain";
   const publicAudience = resolveEventPublicAudience(event);
   const isOpenAudience = publicAudience === "open";
+
+  if ((premiumLanding as any)?.layout_variant === "editorial_maratona") {
+    return <MaratonaEditorialLanding title={premiumLanding?.headline || event.title} metadata={event.metadata} onBack={handleBack} />;
+  }
 
   return (
     <div className={`min-h-screen bg-background flex flex-col ${premiumLanding ? "alpine-event" : ""} ${isBormioLanding ? "alpine-gold" : ""}`}>
