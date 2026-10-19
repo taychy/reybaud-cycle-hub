@@ -1,3 +1,5 @@
+-- Requires an authorized privileged test runner; restricted query access cannot execute this suite.
+-- All changes are rolled back. Do not broaden application grants to run it.
 BEGIN;
 DO $$ DECLARE ev uuid:='67b4e85d-b00b-4b74-9644-99458d948c65'; rid uuid; tok text; ctx jsonb; command uuid; rev integer:=0; ch text; result jsonb; before_res text; after_res text;before_pay text;before_transfer text; BEGIN
  SELECT id,access_token INTO rid,tok FROM public.event_reservations WHERE event_id=ev AND reservation_status='reserva_confirmada' AND id NOT IN(SELECT original_reservation_id FROM public.reservation_transfers) ORDER BY id LIMIT 1;
@@ -33,7 +35,7 @@ DO $$ DECLARE ev uuid:='67b4e85d-b00b-4b74-9644-99458d948c65'; rid uuid; tok tex
  SELECT revision INTO rev FROM public.reservation_rescheduling_requests WHERE reservation_id=rid;
  command:=gen_random_uuid();PERFORM public.admin_review_rescheduling(rid,rev,'validada','QA sin ejecución',command);PERFORM public.admin_review_rescheduling(rid,rev,'validada','QA sin ejecución',command);
  IF (SELECT review_status FROM public.reservation_rescheduling_requests WHERE reservation_id=rid)<>'validada' THEN RAISE EXCEPTION 'Admin review failed';END IF;
- IF (SELECT after_data->>'actor_id' FROM public.reservation_rescheduling_history WHERE command_id=command)<>auth.uid()::text THEN RAISE EXCEPTION 'Missing admin audit actor';END IF;
+ IF (SELECT actor_id FROM public.reservation_rescheduling_history WHERE command_id=command) IS DISTINCT FROM auth.uid() THEN RAISE EXCEPTION 'Missing admin audit actor';END IF;
  IF (SELECT md5(jsonb_agg(to_jsonb(r) ORDER BY id)::text) FROM public.event_reservations r WHERE event_id=ev)<>before_res THEN RAISE EXCEPTION 'Reservation mutated';END IF;
  IF (SELECT md5(jsonb_agg(to_jsonb(p) ORDER BY p.id)::text) FROM public.reservation_payments p JOIN public.event_reservations r ON r.id=p.reservation_id WHERE r.event_id=ev)<>before_pay THEN RAISE EXCEPTION 'Payments mutated';END IF;
  IF (SELECT md5(jsonb_agg(to_jsonb(t) ORDER BY id)::text) FROM public.reservation_transfers t WHERE event_id=ev)<>before_transfer THEN RAISE EXCEPTION 'Transfer mutated';END IF;
