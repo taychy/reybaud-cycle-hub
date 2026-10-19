@@ -1,7 +1,7 @@
 - Simulador de costos: distribuir escenarios con `src/lib/scenarioDistribution.ts` (suma = participantes; nunca copiar cupos). Why: resultados coherentes.
 - Pagos internacionales de eventos: `src/lib/eventPaymentPolicy.ts` solo si existe `events.metadata.payment_policy`; recargo ARS una vez sobre la cotización central, nunca como saldo; aviso solo en la confirmación de reserva. Why: saldo contractual EUR trazable.
 - Auditoría humana de viajes: checklist en `src/lib/tripTechnicalAudit.ts`, estado en `events.metadata.technical_audit` (mezclar solo el ítem sobre metadata fresca). Why: sin migraciones ni pisar datos.
-- Event presentation uses metadata, image_url fallback, scoped premium theme, literal dates and package currency; optional Drive videos use lazy preview and external fallback, never downloads. Why: isolate trips and avoid misleading data or duplicated media.
+- Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview + external fallback, never downloads. Why: isolate trips; no misleading data.
 - Liquidaciones: links seguros por profesor/mes y envíos en liquidacion_links/liquidacion_submissions; acceso público solo vía RPCs SECURITY DEFINER; valor de honorario siempre resuelto en servidor; recordatorios idempotentes vía liquidacion_reminder_log. Why: evitar duplicados y exposición de datos.
 - Audiencia pública de eventos: resolver `metadata.public_audience` (`open` o `students_only`) con compatibilidad para `active_students_only`. Why: comunicar apertura sin cambiar la reserva.
 - Programas de formación: fase comercial con `src/lib/programCommercialPhase.ts` (espejo de SQL `program_commercial_phase`); cupo por sede en `planes_sedes` validado por trigger en `suscripciones.programa_sede_id`; lista de espera en `program_waitlist_entries` solo vía RPC `join_program_waitlist`. Why: una sola URL por programa y sin sobrecupo por sede.
@@ -15,6 +15,6 @@
 - ARCA/WSFE: el ticket WSAA se reutiliza desde `afip_wsaa_tickets` vía `obtenerTicketWsaa` (`_shared/facturacion-emision.ts`); número y fecha se piden a ARCA justo antes de cada FECAESolicitar; fecha ≥ último autorizado. Why: evitar rechazos 10016 y TA duplicado.
 - Noches extra: modalidad = addon de noche en reservation_addons; habitación compartida en extra_night_pairings, historial en extra_night_changes; nunca toca paquete ni rooming principal. Why: separar del alojamiento base y reusar el recálculo de saldos.
 - Condiciones de reservas: alta admin queda `terminos_pendientes` (trigger, token único 30 días); aceptar solo vía `_accept_reservation_terms`; texto desde `event_terms_snapshot` (espejo SQL de eventReglamentoDefaults.ts, mantener iguales); pagos validados bloqueados si pendiente. Why: misma trazabilidad, sin flujo paralelo.
-- Shared rooms: metadata.shared_room_assignment + SQL quote/trigger. Why: authoritative pricing.
-- Rescheduling: organizer-change requests use isolated RPCs/history; public off and credit ledger write-locked until integration. Why: no implicit financial or room changes.
+- Shared rooms: use metadata.shared_room_assignment + SQL quote/trigger. Why: authoritative pricing.
+- Rescheduling: isolated RPCs/history; public off, credit ledger write-locked pending integration. Why: no implicit money/room changes.
 - Kit sources: participant admin sizes and staff jerseys stay separate, audited; staff uses event/name uniqueness and soft removal, never profiles/reservations; conflicts excluded. Why: provenance.
