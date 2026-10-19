@@ -207,9 +207,10 @@
 - [x] Pruebas de recuentos, seguridad y desktop/mobile; sin publicar
 
 ## San Luis · Reprogramación organizada por Reybaud
-- [ ] Auditar acceso, fechas, paquetes y fuentes financieras sin cambios históricos
-- [ ] Elección segura y editable, consentimiento e historial; público desactivado
-- [ ] Gestión administrativa, fuente/nota, filtros, estado y CSV sin tokens
-- [ ] Política 100% y jersey optativo; andamiaje financiero bloqueado y conciliable
-- [ ] Tests de acceso/decisión/importes/crédito/transferencias y verificación desktop/mobile
+- [x] Auditar acceso, fechas, paquetes y fuentes financieras sin cambios históricos
+- [x] Elección segura y editable, consentimiento e historial; público desactivado
+- [x] Gestión administrativa, fuente/nota, filtros, estado y CSV sin tokens
+- [x] Política 100% y jersey optativo; andamiaje financiero bloqueado y conciliable
+- [x] 10 tests de cálculo, crédito/jersey/transferencias; panel real, CSV y desktop/mobile; compilación OK
+- [ ] Prueba transaccional SQL de guardado/revisión y acceso: preparada; bloqueada por permisos del ejecutor de pruebas (no ampliar permisos)
 - [ ] Habilitación pública y operaciones reales: bloqueadas hasta revisión y autorización

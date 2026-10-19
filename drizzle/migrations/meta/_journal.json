@@ -393,6 +393,13 @@
       "when": 1792427755887,
       "tag": "0055_organizer_rescheduling_requests",
       "breakpoints": true
+    },
+    {
+      "idx": 56,
+      "version": "7",
+      "when": 1792447000570,
+      "tag": "0056_rescheduling_verified_identity_and_currency",
+      "breakpoints": true
     }
   ]
 }
