@@ -41,6 +41,7 @@ import {
 
 import TripSummary from "@/components/reservation/TripSummary";
 import EventTripReports from "@/components/admin/EventTripReports";
+import ReschedulingAdminPanel from "@/components/admin/ReschedulingAdminPanel";
 import EventLodgingManager from "@/components/admin/EventLodgingManager";
 import ValidatePaymentDrawer from "@/components/admin/ValidatePaymentDrawer";
 import ReservationInstallmentsPanel from "@/components/admin/ReservationInstallmentsPanel";
@@ -1660,6 +1661,7 @@ const AdminEventReservations = ({
             <Button variant="outline" size="sm" className="h-10" onClick={() => setShowTripReports(true)}>
               <FileText className="w-4 h-4 mr-1.5" /> Reportes
             </Button>
+            <ReschedulingAdminPanel eventId={eventId} />
           </>
         )}
         <Button variant="outline" size="sm" className="h-10" onClick={() => { setShowAddStudent(true); setStudentSearch(""); setStudentResults([]); setAddExternalMode(false); }}>
