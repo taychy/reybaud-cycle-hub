@@ -7,6 +7,7 @@ import heroFallback from "@/assets/maratona-hero.jpg";
  * Landing editorial exclusiva para eventos con `premium_landing.layout_variant === "editorial_maratona"`.
  * Solo lee datos públicos aprobados (precios finales y alquiler); nunca muestra `metadata.budget`.
  * La foto de portada es reemplazable vía `premium_landing.hero_image`.
+ * La foto secundaria (`secondary_image`) se muestra con su crédito y licencia enlazados debajo.
  */
 interface Props {
   title: string;
