@@ -7,6 +7,7 @@ import heroFallback from "@/assets/maratona-hero.jpg";
  * Landing editorial exclusiva para eventos con `premium_landing.layout_variant === "editorial_maratona"`.
  * Solo lee datos públicos aprobados (precios finales y alquiler); nunca muestra `metadata.budget`.
  * La foto de portada es reemplazable vía `premium_landing.hero_image`.
+ * La foto secundaria (`secondary_image`) se muestra con su crédito y licencia enlazados debajo.
  */
 interface Props {
   title: string;
@@ -56,6 +57,19 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack }: Pr
   const combo = eur(pricing.alps_participant_eur);
   const bike = eur(rental.maratona_eur ?? pricing.rental_extra_eur);
   const bikeBoth = eur(rental.maratona_eur_when_renting_both_trips ?? pricing.rental_both_trips_eur);
+
+  // La foto secundaria es un paisaje real del Passo Pordoi (no la Maratona en curso).
+  // El crédito de licencia solo se muestra si existe secondary_image: con el fallback
+  // local la atribución no correspondería a la foto mostrada.
+  const txt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const secondary = txt(pl.secondary_image);
+  const secondaryCredit = txt(pl.secondary_image_credit);
+  const secondaryCreditUrl = txt(pl.secondary_image_credit_url);
+  const secondaryLicenseUrl = txt(pl.secondary_image_license_url);
+  // "Foto: Dmitry Djouce · CC BY 4.0" → autor/archivo + licencia, cada uno con su enlace.
+  const creditParts = secondaryCredit ? secondaryCredit.split("·").map((s) => s.trim()).filter(Boolean) : [];
+  const creditAuthor = creditParts[0] || secondaryCredit || "Ver foto original";
+  const creditLicense = creditParts[1] || "Licencia";
 
   const Cta = ({ label = "Quiero vivir la Maratona", className = "" }: { label?: string; className?: string }) => (
     <a href={wa} target="_blank" rel="noopener noreferrer" className={"inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl bg-primary px-6 font-heading text-sm font-bold uppercase tracking-wider text-primary-foreground transition-transform hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary " + className}>
@@ -125,12 +139,32 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack }: Pr
           <p className="text-xs text-zinc-400">Programa sujeto a ajustes operativos del proveedor y del organizador de la carrera.</p>
         </section>
 
-        <section className="relative overflow-hidden rounded-3xl">
-          <img src={pl.secondary_image || heroFallback} alt="" loading="lazy" width={1920} height={1088} className="h-64 w-full object-cover object-[30%_center] sm:h-96" />
-          <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent p-6 sm:p-10">
-            <p className="max-w-lg font-heading text-2xl font-bold uppercase leading-tight sm:text-4xl">Campolongo, Pordoi, Sella, Gardena, Falzarego.</p>
+        <figure className="overflow-hidden rounded-3xl border border-white/10">
+          <div className="relative">
+            <img src={secondary || heroFallback} alt={secondary ? "Passo Pordoi, puerto de montaña real de las Dolomitas: fotografía de paisaje, no la carrera en curso" : "Vista de las Dolomitas"} loading="lazy" width={1920} height={1088} className="h-64 w-full object-cover object-[30%_center] sm:h-96" />
+            <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/80 to-transparent p-6 sm:p-10">
+              <p className="max-w-lg font-heading text-2xl font-bold uppercase leading-tight sm:text-4xl">Campolongo, Pordoi, Sella, Gardena, Falzarego.</p>
+            </div>
           </div>
-        </section>
+          {secondary && (
+            <figcaption className="flex flex-wrap items-center gap-x-3 gap-y-1 bg-[#1c1c1e] px-4 py-3 text-xs leading-relaxed text-zinc-300 sm:text-sm">
+              <span className="flex flex-wrap items-center gap-x-1.5">
+                {secondaryCreditUrl ? (
+                  <a href={secondaryCreditUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-primary/70 underline-offset-2 transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{creditAuthor}</a>
+                ) : (
+                  <span>{creditAuthor}</span>
+                )}
+                {secondaryLicenseUrl && (
+                  <>
+                    <span aria-hidden="true" className="text-zinc-500">·</span>
+                    <a href={secondaryLicenseUrl} target="_blank" rel="noopener noreferrer" className="underline decoration-primary/70 underline-offset-2 transition-colors hover:text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">{creditLicense}</a>
+                  </>
+                )}
+              </span>
+              <span className="text-zinc-400">Paisaje real del Passo Pordoi; no muestra la carrera en curso.</span>
+            </figcaption>
+          )}
+        </figure>
 
         <section id="incluye" className="space-y-8">
           <div><p className={eyebrow}>Servicios</p><h2 className={h2 + " mt-2"}>Todo lo que necesitás, organizado</h2></div>
