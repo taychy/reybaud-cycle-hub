@@ -57,6 +57,19 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack }: Pr
   const bike = eur(rental.maratona_eur ?? pricing.rental_extra_eur);
   const bikeBoth = eur(rental.maratona_eur_when_renting_both_trips ?? pricing.rental_both_trips_eur);
 
+  // La foto secundaria es un paisaje real del Passo Pordoi (no la Maratona en curso).
+  // El crédito de licencia solo se muestra si existe secondary_image: con el fallback
+  // local la atribución no correspondería a la foto mostrada.
+  const txt = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const secondary = txt(pl.secondary_image);
+  const secondaryCredit = txt(pl.secondary_image_credit);
+  const secondaryCreditUrl = txt(pl.secondary_image_credit_url);
+  const secondaryLicenseUrl = txt(pl.secondary_image_license_url);
+  // "Foto: Dmitry Djouce · CC BY 4.0" → autor/archivo + licencia, cada uno con su enlace.
+  const creditParts = secondaryCredit ? secondaryCredit.split("·").map((s) => s.trim()).filter(Boolean) : [];
+  const creditAuthor = creditParts[0] || secondaryCredit || "Ver foto original";
+  const creditLicense = creditParts[1] || "Licencia";
+
   const Cta = ({ label = "Quiero vivir la Maratona", className = "" }: { label?: string; className?: string }) => (
     <a href={wa} target="_blank" rel="noopener noreferrer" className={"inline-flex min-h-12 items-center justify-center gap-2.5 rounded-xl bg-primary px-6 font-heading text-sm font-bold uppercase tracking-wider text-primary-foreground transition-transform hover:scale-[1.02] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary " + className}>
       <MessageCircle className="h-5 w-5" aria-hidden="true" /> {label}
