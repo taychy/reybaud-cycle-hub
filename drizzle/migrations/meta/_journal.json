@@ -386,6 +386,13 @@
       "when": 1792207956300,
       "tag": "0054_kit_staff_explicit_privileges",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1792427755887,
+      "tag": "0055_organizer_rescheduling_requests",
+      "breakpoints": true
     }
   ]
 }

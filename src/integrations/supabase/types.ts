@@ -5401,6 +5401,53 @@ export type Database = {
           },
         ]
       }
+      event_rescheduling_campaigns: {
+        Row: {
+          consent_text: string
+          created_at: string
+          event_id: string
+          jersey_price: number
+          options: Json
+          policy_text: string
+          policy_version: string
+          proposed_end: string
+          proposed_start: string
+          public_enabled: boolean
+        }
+        Insert: {
+          consent_text: string
+          created_at?: string
+          event_id: string
+          jersey_price?: number
+          options: Json
+          policy_text: string
+          policy_version: string
+          proposed_end: string
+          proposed_start: string
+          public_enabled?: boolean
+        }
+        Update: {
+          consent_text?: string
+          created_at?: string
+          event_id?: string
+          jersey_price?: number
+          options?: Json
+          policy_text?: string
+          policy_version?: string
+          proposed_end?: string
+          proposed_start?: string
+          public_enabled?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rescheduling_campaigns_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_reservations: {
         Row: {
           accepted_terms: boolean
@@ -11849,6 +11896,157 @@ export type Database = {
           },
         ]
       }
+      reservation_rescheduling_history: {
+        Row: {
+          actor_id: string | null
+          after_data: Json
+          before_data: Json | null
+          command_id: string
+          created_at: string
+          id: string
+          origin: string
+          reservation_id: string
+          revision: number
+        }
+        Insert: {
+          actor_id?: string | null
+          after_data: Json
+          before_data?: Json | null
+          command_id: string
+          created_at?: string
+          id?: string
+          origin: string
+          reservation_id: string
+          revision: number
+        }
+        Update: {
+          actor_id?: string | null
+          after_data?: Json
+          before_data?: Json | null
+          command_id?: string
+          created_at?: string
+          id?: string
+          origin?: string
+          reservation_id?: string
+          revision?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_rescheduling_history_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_rescheduling_history_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      reservation_rescheduling_requests: {
+        Row: {
+          actor_id: string | null
+          admin_note: string
+          choice: string
+          command_id: string
+          consent_at: string
+          consent_text: string
+          created_at: string
+          delivery: string | null
+          event_id: string
+          jersey_consent: boolean
+          jersey_requested: boolean | null
+          jersey_size: string | null
+          note: string
+          origin: string
+          policy_version: string
+          reservation_id: string
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          revision: number
+          snapshot: Json
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id?: string | null
+          admin_note?: string
+          choice: string
+          command_id: string
+          consent_at: string
+          consent_text: string
+          created_at?: string
+          delivery?: string | null
+          event_id: string
+          jersey_consent?: boolean
+          jersey_requested?: boolean | null
+          jersey_size?: string | null
+          note?: string
+          origin: string
+          policy_version: string
+          reservation_id: string
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision?: number
+          snapshot: Json
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string | null
+          admin_note?: string
+          choice?: string
+          command_id?: string
+          consent_at?: string
+          consent_text?: string
+          created_at?: string
+          delivery?: string | null
+          event_id?: string
+          jersey_consent?: boolean
+          jersey_requested?: boolean | null
+          jersey_size?: string | null
+          note?: string
+          origin?: string
+          policy_version?: string
+          reservation_id?: string
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          revision?: number
+          snapshot?: Json
+          source?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_rescheduling_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_rescheduling_campaigns"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "reservation_rescheduling_requests_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_rescheduling_requests_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       reservation_roommates: {
         Row: {
           alumno_id: string | null
@@ -14583,6 +14781,116 @@ export type Database = {
           },
         ]
       }
+      training_camp_credit_accounts: {
+        Row: {
+          balance: number
+          beneficiary_alumno_id: string | null
+          beneficiary_external_id: string | null
+          created_at: string
+          currency: string
+          id: string
+          source_reservation_id: string
+        }
+        Insert: {
+          balance?: number
+          beneficiary_alumno_id?: string | null
+          beneficiary_external_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          source_reservation_id: string
+        }
+        Update: {
+          balance?: number
+          beneficiary_alumno_id?: string | null
+          beneficiary_external_id?: string | null
+          created_at?: string
+          currency?: string
+          id?: string
+          source_reservation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_camp_credit_accounts_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_accounts_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      training_camp_credit_ledger: {
+        Row: {
+          account_id: string
+          actor_id: string
+          amount: number
+          created_at: string
+          id: string
+          idempotency_key: string
+          kind: string
+          reverses_id: string | null
+          target_reservation_id: string | null
+        }
+        Insert: {
+          account_id: string
+          actor_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          idempotency_key: string
+          kind: string
+          reverses_id?: string | null
+          target_reservation_id?: string | null
+        }
+        Update: {
+          account_id?: string
+          actor_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          idempotency_key?: string
+          kind?: string
+          reverses_id?: string | null
+          target_reservation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_camp_credit_ledger_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "training_camp_credit_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_ledger_reverses_id_fkey"
+            columns: ["reverses_id"]
+            isOneToOne: true
+            referencedRelation: "training_camp_credit_ledger"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_ledger_target_reservation_id_fkey"
+            columns: ["target_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_ledger_target_reservation_id_fkey"
+            columns: ["target_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       training_templates: {
         Row: {
           created_at: string
@@ -17088,6 +17396,9 @@ export type Database = {
         Args: { p_actual: string; p_devuelto: number; p_sugerido: number }
         Returns: string
       }
+      _rescheduling_admin: { Args: never; Returns: boolean }
+      _rescheduling_financial: { Args: { p_id: string }; Returns: Json }
+      _rescheduling_size: { Args: { p_id: string }; Returns: Json }
       _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
@@ -17257,6 +17568,17 @@ export type Database = {
       admin_renew_reservation_terms_link: {
         Args: { p_reservation_id: string }
         Returns: Json
+      }
+      admin_rescheduling_report: { Args: { p_event_id: string }; Returns: Json }
+      admin_review_rescheduling: {
+        Args: {
+          p_command_id: string
+          p_note: string
+          p_reservation_id: string
+          p_revision: number
+          p_status: string
+        }
+        Returns: undefined
       }
       admin_revoke_cuenta_token: {
         Args: { p_token_id: string }
@@ -18515,6 +18837,14 @@ export type Database = {
         Returns: Json
       }
       get_reingreso_status: { Args: { p_alumno_id: string }; Returns: Json }
+      get_rescheduling_context: {
+        Args: {
+          p_event_id: string
+          p_reservation_id?: string
+          p_token?: string
+        }
+        Returns: Json
+      }
       get_reserva_turnera_by_token: {
         Args: { _id: string; _token: string }
         Returns: {
@@ -19793,6 +20123,17 @@ export type Database = {
       store_order_estados_comprometidos: { Args: never; Returns: string[] }
       submit_liquidacion_by_token: {
         Args: { p_items: Json; p_observaciones?: string; p_token: string }
+        Returns: Json
+      }
+      submit_rescheduling_request: {
+        Args: {
+          p_command_id: string
+          p_event_id: string
+          p_expected_revision: number
+          p_input: Json
+          p_reservation_id: string
+          p_token?: string
+        }
         Returns: Json
       }
       submit_survey_response: {
