@@ -9,7 +9,7 @@ import { RadioGroup,RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { CheckCircle2,Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/currency';
-import { isFinancialChoice,jerseyEstimate,REVIEW_LABELS,type ReschedulingCampaign,type ReschedulingReservation } from '@/lib/rescheduling';
+import { isFinancialChoice,jerseyEstimate,reschedulingInput,REVIEW_LABELS,type ReschedulingCampaign,type ReschedulingReservation } from '@/lib/rescheduling';
 export default function ReschedulingForm({campaign,row,admin=false,token,onSaved}:{campaign:ReschedulingCampaign;row:ReschedulingReservation;admin?:boolean;token?:string;onSaved:()=>void}) {
  const [choice,setChoice]=useState(row.request?.choice ?? '');
  const [jersey,setJersey]=useState(row.request?.jersey_requested === true ? 'yes' : row.request?.jersey_requested===false ? 'no' : '');
@@ -24,7 +24,7 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
  const change=(fn:()=>void)=>{fn();setSaved(false);setCommand(crypto.randomUUID());};
  const save=async()=>{
   setBusy(true);setError('');
-  try { const {error:e}=await supabase.rpc('submit_rescheduling_request',{p_event_id:campaign.event_id,p_reservation_id:row.reservation_id,p_expected_revision:row.request?.revision ?? 0,p_command_id:command,p_token:token ?? undefined,p_input:{choice,consent,source,note,jersey_requested:financial ? jersey==='yes' ? true : jersey==='no' ? false : null : null,jersey_size:size,delivery,jersey_consent:jerseyConsent}});
+  try { const {error:e}=await supabase.rpc('submit_rescheduling_request',{p_event_id:campaign.event_id,p_reservation_id:row.reservation_id,p_expected_revision:row.request?.revision ?? 0,p_command_id:command,p_token:token ?? undefined,p_input:reschedulingInput({choice,consent,source,note,jersey_requested:jersey==='yes' ? true : jersey==='no' ? false : null,jersey_size:size,delivery,jersey_consent:jerseyConsent})});
    if(e) throw e;setSaved(true);setConsent(false);setJerseyConsent(false);onSaved();
   }catch(e:unknown){setError(e instanceof Error ? e.message : String((e as {message?:string})?.message ?? 'No pudimos guardar la solicitud.'));}finally{setBusy(false)}
  };
@@ -60,6 +60,6 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
   <Label className="flex items-start gap-3"><Checkbox checked={consent} onCheckedChange={v=>change(()=>setConsent(v===true))}/><span className="text-sm leading-relaxed">{admin ? 'Dejo constancia de que el participante comunicó y consintió esta decisión. ' : ''}{campaign.consent_text}</span></Label>
   <Button className="w-full" onClick={save} disabled={!valid || busy}>{busy && <Loader2 className="mr-2 w-4 h-4 animate-spin"/>}{row.request ? 'Actualizar solicitud' : 'Confirmar solicitud'}</Button>
   {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-  {saved && <p role="status" className="flex items-start gap-2 text-sm text-primary"><CheckCircle2 className="w-5 h-5 shrink-0"/>Solicitud guardada. Tu reserva y tus pagos no se modificaron.</p>}
+  {saved && <div role="status" className="space-y-2 border-t border-border pt-3"><p className="flex items-start gap-2 text-sm text-primary"><CheckCircle2 className="w-5 h-5 shrink-0"/>Solicitud guardada. Tu reserva y tus pagos no se modificaron.</p><p className="text-sm">{campaign.options.find(o=>o.value===choice)?.label}</p>{financial && <p className="text-sm text-muted-foreground">{jersey==='yes' ? `Jersey solicitado: ${size} · ${delivery}. Deducción pendiente de validación, no ejecutada.` : 'Sin deducción de jersey autorizada.'}</p>}</div>}
  </section>;
 }

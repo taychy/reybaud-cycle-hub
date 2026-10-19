@@ -23,6 +23,7 @@ import TripChoiceSurveyDrawer from "@/components/reservation/TripChoiceSurveyDra
 import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
 import { Shirt } from "lucide-react";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
+import ReschedulingEntry from "@/components/rescheduling/ReschedulingEntry";
 
 interface ReservationData {
   id: string;
@@ -264,6 +265,7 @@ const ExternalTripView = () => {
       </div>
 
       <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
+        <ReschedulingEntry eventId={event.id} reservationId={reservation.id} token={reservation.access_token} />
 
         {/* Status banner */}
         <div className={`rounded-xl border-2 p-4 ${tone.border} ${tone.bg}`}>

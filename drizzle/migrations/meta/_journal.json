@@ -400,6 +400,13 @@
       "when": 1792447000570,
       "tag": "0056_rescheduling_verified_identity_and_currency",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "7",
+      "when": 1792447291305,
+      "tag": "0057_rescheduling_review_serialization_and_refund_reconciliation",
+      "breakpoints": true
     }
   ]
 }
