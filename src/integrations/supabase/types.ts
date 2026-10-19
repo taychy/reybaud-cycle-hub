@@ -17399,6 +17399,7 @@ export type Database = {
       _rescheduling_admin: { Args: never; Returns: boolean }
       _rescheduling_financial: { Args: { p_id: string }; Returns: Json }
       _rescheduling_size: { Args: { p_id: string }; Returns: Json }
+      _rescheduling_verified_email: { Args: never; Returns: boolean }
       _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
