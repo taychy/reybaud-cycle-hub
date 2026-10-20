@@ -550,20 +550,20 @@ Deno.serve(async (req) => {
             .in("email", marketingSentEmails);
         }
 
-        await admin.from("broadcasts").update({
-          status: failed === recipients.length ? "failed" : "sent",
-          sent_count: sent,
-          failed_count: failed,
-          sent_at: new Date().toISOString(),
-        }).eq("id", bc.id);
+        const finalRows=await allRows(admin.from('broadcast_recipients').select('status').eq('broadcast_id',bc.id).order('id'));
+        const finalSent=finalRows.filter(r=>r.status==='sent').length;
+        const finalFailed=finalRows.filter(r=>r.status==='failed').length;
+        const incomplete=finalRows.length!==recipients.length || finalRows.some(r=>r.status==='pending');
+        const {error:finalError}=await admin.from('broadcasts').update({status:incomplete || finalSent===0?'failed':'sent',sent_count:finalSent,failed_count:finalFailed,sent_at:incomplete?null:new Date().toISOString()}).eq('id',bc.id);
+        if(finalError) throw finalError;
       };
 
       // @ts-ignore EdgeRuntime existe en Supabase Edge Functions
       if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
         // @ts-ignore
-        EdgeRuntime.waitUntil(processBroadcast().catch((e) => console.error("processBroadcast error", e)));
+        EdgeRuntime.waitUntil(processBroadcast().catch(async(e) => {console.error('processBroadcast error',e); await admin.from('broadcasts').update({status:'failed'}).eq('id',bc.id);}));
       } else {
-        processBroadcast().catch((e) => console.error("processBroadcast error", e));
+        processBroadcast().catch(async(e) => {console.error('processBroadcast error',e); await admin.from('broadcasts').update({status:'failed'}).eq('id',bc.id);});
       }
 
       return new Response(JSON.stringify({
@@ -658,7 +658,7 @@ Deno.serve(async (req) => {
         const s = (agg as any[] || []).filter(x => x.status === "sent").length;
         const f = (agg as any[] || []).filter(x => x.status === "failed").length;
         await admin.from("broadcasts").update({
-          status: f === (bc.total_recipients || 0) ? "failed" : "sent",
+          status: s===0 || agg.some(r=>r.status==='pending') ? "failed" : "sent",
           sent_count: s,
           failed_count: f,
         }).eq("id", bc.id);
