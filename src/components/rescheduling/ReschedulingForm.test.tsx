@@ -3,8 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import ReschedulingForm from './ReschedulingForm';
 import type { ReschedulingCampaign, ReschedulingReservation } from '@/lib/rescheduling';
 
-const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
+const { rpc, timing } = vi.hoisted(() => ({ rpc: vi.fn(), timing: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc } }));
+vi.mock('@/lib/reschedulingPolicy',()=>({refundTiming:timing}));
 const campaign: ReschedulingCampaign = {
  event_id:'test-event',public_enabled:true,jersey_price:50000,consent_text:'Acepto registrar esta solicitud para revisión.',policy_text:'',policy_version:'v1',
  options:[{value:'attend_5_8',label:'Asisto del 5 al 8 de noviembre',nights:3},{value:'attend_6_9',label:'Asisto del 6 al 9 de noviembre',nights:3},{value:'attend_5_9',label:'Asisto del 5 al 9 de noviembre',nights:4},{value:'refund',label:'Solicito devolución'},{value:'credit',label:'Solicito crédito'},{value:'help',label:'Necesito ayuda'}],
@@ -18,10 +19,13 @@ const next=()=>fireEvent.click(screen.getByRole('button',{name:'Continuar'}));
 const back=()=>fireEvent.click(screen.getByRole('button',{name:'Volver'}));
 const select=(name:RegExp)=>fireEvent.click(screen.getByRole('radio',{name}));
 const start=(r=row)=>render(<ReschedulingForm campaign={campaign} row={r} token="test-guest-session" onSaved={vi.fn()}/>);
-beforeEach(()=>{rpc.mockReset();rpc.mockResolvedValue({error:null});});
+beforeEach(()=>{rpc.mockReset();rpc.mockResolvedValue({error:null});timing.mockReset();timing.mockReturnValue(null);});
 afterEach(cleanup);
 
 describe('rescheduling wizard decisions and submission',()=>{
+ it('resolves campaign timeframe for refund details and review but passes credit separately',()=>{
+  start();select(/pido la devolución/);next();expect(timing).toHaveBeenLastCalledWith('refund',campaign.policy_text);select(/^No$/);next();expect(timing).toHaveBeenLastCalledWith('refund',campaign.policy_text);back();back();select(/pido crédito/);next();expect(timing).toHaveBeenLastCalledWith('credit',campaign.policy_text);next();expect(timing).toHaveBeenLastCalledWith('credit',campaign.policy_text);expect(rpc).not.toHaveBeenCalled();
+ });
  it('starts with no decision, no dates and no consent; cannot continue',()=>{
   start();expect(screen.getAllByRole('radio')).toHaveLength(4);
   for(const radio of screen.getAllByRole('radio')) expect(radio).toHaveAttribute('aria-checked','false');
