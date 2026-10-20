@@ -498,7 +498,7 @@ const EventDetail = () => {
   const isOpenAudience = publicAudience === "open";
 
   if ((premiumLanding as any)?.layout_variant === "editorial_maratona") {
-    return <MaratonaEditorialLanding title={premiumLanding?.headline || event.title} metadata={event.metadata} onBack={handleBack} />;
+    return <MaratonaEditorialLanding title={premiumLanding?.headline || event.title} metadata={event.metadata} onBack={handleBack} eventId={event.id} contact={alumno ? {name: `${alumno.nombre} ${alumno.apellido}`, email: alumno.email || "", phone: alumno.telefono || ""} : undefined} />;
   }
 
   return (
