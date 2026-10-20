@@ -12,7 +12,7 @@ import { getSafeReturnTo } from '@/lib/pendingOtp';
 import ReschedulingForm from '@/components/rescheduling/ReschedulingForm';
 import logo from '@/assets/logo.png';
 
-type View = 'loading'|'closed'|'verify'|'login'|'form'|'error';
+type View = 'loading'|'closed'|'verify'|'login'|'form'|'error'|'admin';
 export default function EventRescheduling() {
  const {eventId=''}=useParams();const [params]=useSearchParams();const navigate=useNavigate();
  const token=params.get('token') ?? undefined;const reservationId=params.get('reserva') ?? undefined;
@@ -22,7 +22,8 @@ export default function EventRescheduling() {
   try{
    const {data:{session}}=await supabase.auth.getSession();
    if(session){const c=await reschedulingContext(eventId,reservationId);if(!c.available){setView('closed');return;}
-    if((c.reservations?.length ?? 0)>0 || c.admin){setCtx(c);setAccess(undefined);setView('form');return;}
+    if(!token && (c.reservations?.length ?? 0)>0){setCtx(c);setAccess(undefined);setView('form');return;}
+    if(!token && c.admin_hint){setView('admin');return;}
     setOtherSession(!!token);}
    if(!token || !reservationId){const c=await reschedulingContext(eventId);if(!c.available){setView('closed');return;}setView('login');return;}
    const guest=readGuestSession(reservationId);
@@ -57,11 +58,11 @@ export default function EventRescheduling() {
    <Button className="w-full" disabled={busy||!identityInputValid({dni,first,last})} onClick={verify}>{busy&&<Loader2 className="w-4 h-4 mr-2 animate-spin"/>}Continuar</Button>
    {verifyError && <p role="alert" className="text-sm text-destructive">{verifyError}</p>}
   </section>}
+  {view==='admin' && <p className="text-sm">Para gestionar solicitudes, entrá a Administración &gt; Eventos &gt; San Luis.</p>}
   {view==='login' && <section className="space-y-3"><p className="text-sm">Abrí el enlace personal que te enviamos, o ingresá con el código que te mandamos al email de tu reserva.</p><Button onClick={login}>Recibir código por email</Button></section>}
   {view==='form' && ctx?.campaign && <>
-   {ctx.admin && <p className="text-sm text-primary">Vista administrativa. Registrar en nombre del participante requiere fuente y constancia real.</p>}
    {ctx.reservations?.length===0 && <p className="text-sm">No hay una reserva vigente disponible para este acceso.</p>}
-   {ctx.reservations?.map(row=><ReschedulingForm key={row.reservation_id} campaign={ctx.campaign as NonNullable<ReschedulingContext['campaign']>} row={row} admin={ctx.admin} token={access} onSaved={load}/>)}
+   {ctx.reservations?.map(row=><ReschedulingForm key={row.reservation_id} campaign={ctx.campaign as NonNullable<ReschedulingContext['campaign']>} row={row} token={access} onSaved={load}/>)}
   </>}
   <Button asChild variant="outline" className="w-full"><a href={buildWhatsAppUrl('Hola, quiero consultar por la reprogramación del Training Camp San Luis.')} target="_blank" rel="noopener noreferrer"><MessageCircle className="w-4 h-4 mr-2"/>Necesito ayuda</a></Button>
  </div></main>;
