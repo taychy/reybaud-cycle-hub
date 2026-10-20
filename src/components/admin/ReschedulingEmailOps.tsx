@@ -12,10 +12,48 @@ import { EMAIL_AUTH_CHECKS, emailSendBlockers, nextEmailBatch, type CommRow, typ
 const TEMPLATE_VERSION = 'san-luis-nov-2026-v1';
 
 async function call(body: Record<string, unknown>) {
-  const { data, error } = await supabase.functions.invoke('send-rescheduling-email', { body });
+  // El panel puede permanecer abierto mientras expira el JWT. Resolver una
+  // sesión válida ANTES de cada envío y pasarla explícitamente a la Edge Function.
+  // La autorización de administrador continúa verificándose en el servidor.
+  const { data: initial, error: sessionError } = await supabase.auth.getSession();
+  let session = initial.session;
+  if (sessionError || !session) {
+    throw new Error('Tu sesión venció. Ingresá nuevamente a Reybaud desde reybaud-app.com y volvé a intentar.');
+  }
+
+  const aboutToExpire = !session.expires_at || session.expires_at * 1000 < Date.now() + 120_000;
+  if (!aboutToExpire) {
+    const { data: verified, error: verifyError } = await supabase.auth.getUser();
+    if (verifyError || !verified.user || verified.user.id !== session.user.id) {
+      const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+      if (refreshError || !refreshed.session) {
+        throw new Error('No pudimos validar tu sesión. Cerrá sesión e ingresá de nuevo desde reybaud-app.com.');
+      }
+      session = refreshed.session;
+    }
+  } else {
+    const { data: refreshed, error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError || !refreshed.session) {
+      throw new Error('Tu sesión venció. Cerrá sesión e ingresá de nuevo desde reybaud-app.com.');
+    }
+    session = refreshed.session;
+  }
+
+  const { data, error } = await supabase.functions.invoke('send-rescheduling-email', {
+    body,
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
   if (error) {
+    const status = error instanceof FunctionsHttpError ? error.context.status : undefined;
     const txt = error instanceof FunctionsHttpError ? await error.context.text() : error.message;
-    let msg = txt; try { msg = JSON.parse(txt).error ?? txt; } catch { /* texto plano */ }
+    let msg = txt;
+    try { msg = JSON.parse(txt).error ?? txt; } catch { /* respuesta no JSON */ }
+    if (status === 401 || msg === 'No autorizado') {
+      throw new Error('El servidor no reconoció tu sesión. Ingresá de nuevo desde reybaud-app.com; no se inició este lote.');
+    }
+    if (status === 403 || msg === 'Acceso no autorizado') {
+      throw new Error('El servidor no reconoció tus permisos de administración. No se inició este lote; contactá a soporte.');
+    }
     throw new Error(msg || 'El servicio de envío no respondió');
   }
   return data;
