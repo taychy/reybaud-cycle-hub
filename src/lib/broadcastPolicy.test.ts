@@ -16,4 +16,7 @@ describe('mailing safety rules', () => {
   it('excludes invalid addresses',()=>expect(evaluate([{email:'test.invalid'},{email:'a@b.invalid'}]).eligible).toHaveLength(0));
   it('checks manually selected marketing contacts too',()=>expect(evaluate([{email,contact_type:'marketing'}],undefined,undefined,new Set([email])).eligible).toHaveLength(0));
   it('stable fingerprints ignore object key ordering',()=>expect(canonical({b:2,a:1})).toBe(canonical({a:1,b:2})));
+  it('exception still deduplicates recipients',()=>expect(evaluate([{email},{email:' PERSON@EXAMPLE.ORG '}],frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Excepción autorizada de campaña'})).eligible).toHaveLength(1));
+  it('retains administrative exclusions under an exception',()=>expect(evaluateRecipients([{email}],new Set(),new Set(),new Map(),frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Excepción autorizada de campaña'}),new Set([email]),now).eligible).toHaveLength(0));
+  it.each([0,366,1.5])('rejects invalid frequency %s',days=>expect(()=>frequencyPolicy({marketing_frequency_days:days})).toThrow());
 });
