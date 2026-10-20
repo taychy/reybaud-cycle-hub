@@ -77,7 +77,7 @@ const EventPackagesDrawer = ({
   }, [eventId, soldOut, waitlistEnabled]);
 
   const goToWaitlist = () => {
-    if (onWaitlist) goToWaitlist();
+    if (onWaitlist) onWaitlist();
     else window.location.assign(`/eventos/${eventId}/lista-espera`);
   };
 
