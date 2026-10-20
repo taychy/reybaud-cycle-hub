@@ -41,14 +41,14 @@ const INCLUDED = [
   "Asistencia mecánica",
   "Claudio Reybaud acompañando al grupo",
   "Retiro del kit de carrera",
-  "Inscripción a la Maratona ofrecida por el proveedor (cupo sujeto a confirmación administrativa)",
+  "Inscripción a la Maratona",
   "Hospitality en la llegada de la carrera",
 ];
-const NOT_INCLUDED = ["Pasajes aéreos", "Seguro de viaje (a confirmar, no incluido por ahora)", "Gastos personales"];
+const NOT_INCLUDED = ["Pasajes aéreos", "Seguro de viaje", "Gastos personales"];
 
 const FAQ = [
   ["¿La bicicleta está incluida?", "Sí. Cannondale SuperSix EVO / Scott Addict, Shimano 105 electrónico, modelo y talle según disponibilidad. Si llevás tu bicicleta: Solo Maratona €3.100 (−€400); para participantes de La Conquista Alpina €2.800 (−€200). La tarifa €3.000 con bicicleta requiere alquilar en ambos viajes, previa validación."],
-  ["¿Puedo hacer ambas experiencias?", "Sí. En habitación doble y con bicicletas: La Conquista Alpina €3.890 + Maratona €3.000 = €6.890. Es el subtotal de los dos programas, NO el costo total del período. Del 21/6 al 5/7 son 15 días calendario, con 7 noches de La Conquista Alpina y 5 de Maratona. Las 2 noches y el traslado intermedio del 28 al 30/6 están pendientes de cotización y NO incluidos. Esta solicitud solo corresponde a Maratona; La Conquista Alpina se reserva por separado."],
+  ["¿Puedo hacer ambas experiencias?", "Sí. En habitación doble: La Conquista Alpina €3.890 + Maratona €3.000 con bicicleta = €6.890; con bicicleta propia en la Maratona, su precio baja a €2.800 y el subtotal combinado a €6.690. Es el subtotal de los dos programas, NO el costo total del período. Del 21/6 al 5/7 son 15 días calendario, con 7 noches de La Conquista Alpina y 5 de Maratona. Las 2 noches y el traslado intermedio del 28 al 30/6 están pendientes de cotización y NO incluidos. Esta solicitud solo corresponde a Maratona; La Conquista Alpina se reserva por separado."],
   ["¿Qué días tengo que volar?", "Llegada a Venecia el 30 de junio antes de las 12 h, regreso el 5 de julio en vuelos posteriores a las 15 h. Consultanos antes de comprar pasajes."],
   ["¿Cómo es la habitación?", "El alojamiento es en habitación doble. No hay habitaciones individuales disponibles por alta demanda hotelera."],
   ["¿Tengo que prepararme?", "Sí, es una prueba de montaña exigente. El programa incluye reconocimiento de puertos y acompañamiento en destino; el plan de entrenamiento previo está incluido. Escribinos y te explicamos."],
@@ -64,6 +64,10 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
   useEffect(()=>{let active=true;void supabase.rpc('event_booking_request_options',{p_event_id:eventId}).then(({data,error})=>{if(!active)return;if(error){setLoadError('No se pudieron cargar las modalidades. Reintentá más tarde.');return;}setPackages((data as unknown as {packages?:BookingRequestPackage[]})?.packages??[]);});return()=>{active=false};},[eventId]);
   const solo = chooseBookingPackage(packages,false,!ownBike);
   const combo = chooseBookingPackage(packages,true,!ownBike);
+  const alpsDoublePrice = Number(metadata?.linked_alps?.double_room_alps_eur);
+  const combinedPrice = combo && Number.isFinite(alpsDoublePrice) && alpsDoublePrice > 0
+    ? alpsDoublePrice + Number(combo.price)
+    : null;
   const wa = buildWhatsAppUrl(pl.whatsapp?.message || "Hola, quiero consultar por Maratona dles Dolomites 2027.", pl.whatsapp?.number);
   const reserve = (p?:BookingRequestPackage) => {if(p)setSelected(p);else document.getElementById('precio')?.scrollIntoView({behavior:'smooth'});};
 
@@ -210,10 +214,10 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
           <article className="rounded-lg border border-primary bg-card p-6 sm:p-8">
             <Route className="h-7 w-7 text-primary"/><h3 className="mt-3 font-heading text-2xl font-bold uppercase">La Conquista Alpina + Maratona · dos grandes desafíos</h3>
             <p className="mt-2 text-sm text-muted-foreground">21 de junio — 5 de julio de 2027 · 15 días calendario en Europa</p>
-            <p className="mt-5 font-heading text-5xl font-black text-primary">€6.890</p>
-            <p className="mt-3 font-medium">Subtotal por persona de los dos programas en habitación doble y con bicicletas incluidas: €3.890 La Conquista Alpina + €3.000 Maratona.</p>
-            <p className="mt-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">NO es el costo total del período. Incluye 7 noches de La Conquista Alpina y 5 noches de Maratona. Las 2 noches del 28 al 30/6 y el traslado intermedio siguen pendientes de cotización y NO están incluidos en €6.890.</p>
-            <Button className="mt-5" disabled={!chooseBookingPackage(packages,true,true)} onClick={()=>reserve(chooseBookingPackage(packages,true,true))}>Reservar segmento Maratona</Button>
+            <p className="mt-5 font-heading text-5xl font-black text-primary">{combinedPrice !== null ? formatPrice(combinedPrice, "EUR") : "Consultando…"}</p>
+            <p className="mt-3 font-medium">Subtotal por persona de los dos programas en habitación doble: {Number.isFinite(alpsDoublePrice) && alpsDoublePrice > 0 ? formatPrice(alpsDoublePrice, "EUR") : "—"} La Conquista Alpina (bicicleta incluida) + {combo ? formatPrice(combo.price, "EUR") : "—"} Maratona ({ownBike ? "bicicleta propia" : "bicicleta incluida"}).</p>
+            <p className="mt-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">NO es el costo total del período. Incluye 7 noches de La Conquista Alpina y 5 noches de Maratona. Las 2 noches del 28 al 30/6 y el traslado intermedio siguen pendientes de cotización y NO están incluidos en {combinedPrice !== null ? formatPrice(combinedPrice, "EUR") : "este subtotal"}.</p>
+            <Button className="mt-5" disabled={!combo} onClick={()=>reserve(combo)}>Reservar segmento Maratona {ownBike ? "con bicicleta propia" : "con bicicleta incluida"}</Button>
             <p className="mt-2 text-sm text-muted-foreground">La Conquista Alpina conserva su reserva independiente: este botón no crea una segunda reserva de La Conquista Alpina.</p>
           </article>
           <div className="flex gap-4 border-y border-border py-5"><Route className="h-7 w-7 shrink-0 text-primary"/><div><p className="font-heading font-bold uppercase">Si venís de La Conquista Alpina</p><p className="mt-1 text-sm text-muted-foreground">La Conquista Alpina termina el 28/6 y Maratona empieza el 30/6. Las dos noches y traslados de conexión se cotizan aparte, no incluidos.</p></div></div>
