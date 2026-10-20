@@ -96,6 +96,7 @@ import PublicPreorderPage from "./pages/PublicPreorderPage";
 import PublicStore from "./pages/PublicStore";
 import PublicProduct from "./pages/PublicProduct";
 import EventInterest from "./pages/EventInterest";
+import BroadcastUnsubscribe from "./pages/BroadcastUnsubscribe";
 import EventSurvey from "./pages/EventSurvey";
 import PublicRoadbookTeaser from "./pages/PublicRoadbookTeaser";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
@@ -193,6 +194,7 @@ const App = () => (
           <Route path="/terminos-eventos" element={<EventTerms />} />
           <Route path="/instalar" element={<Install />} />
           <Route path="/formacion-inicial" element={<FormacionInicial />} />
+          <Route path="/baja-mailing" element={<BroadcastUnsubscribe />} />
           <Route path="/coach/registro" element={<CoachRegister />} />
           <Route path="/coach" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachDashboard /></ProtectedRoute>} />
           <Route path="/coach/alumnos" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachAlumnos /></ProtectedRoute>} />
