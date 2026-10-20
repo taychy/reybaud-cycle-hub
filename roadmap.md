@@ -223,9 +223,9 @@
 - [ ] Activación y ejecución monetaria: bloqueadas, requieren validación y autorización posterior
 
 ## San Luis · Preparación final de publicación controlada
-- [ ] Reauditar autorización, enlaces personales, seis elecciones y configuración real
-- [ ] Reejecutar pruebas unitarias, SQL reversible e invariancia; QA preview escritorio/celular
-- [ ] Checklist de salida, textos personalizados sin tokens y procedimiento post-publicación
+- [x] Reauditar autorización, enlaces personales, seis elecciones y configuración real (32 vigentes; 23 a conciliar)
+- [x] 22 pruebas unitarias, SQL reversible de decisiones/propuestas e invariancia; QA preview escritorio/celular (sin guardar desde navegador)
+- [x] Checklist en SAN_LUIS_PUBLICACION_CONTROLADA.md, textos personalizados sin tokens y procedimiento post-publicación; URL real HTTP 200, formulario cerrado
 - [ ] Publicar y habilitar recepción de decisiones — bloqueado hasta aprobación humana; dinero siempre bloqueado
 
 ## Maratona · Solicitudes de reserva y segunda edición comercial

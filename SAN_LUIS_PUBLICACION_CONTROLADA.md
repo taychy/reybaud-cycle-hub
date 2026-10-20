@@ -47,3 +47,14 @@ Son comunicaciones operativas individuales: no habilitar campañas, envíos auto
 
 ## Límites de QA
 La activación de prueba sólo puede ocurrir dentro de BEGIN…ROLLBACK; no es habilitación pública. Las pruebas de concurrencia de versión/reintentos no equivalen a carga simultánea entre múltiples sesiones. No habilitar ejecución monetaria por el éxito de este QA.
+
+## Evidencias de esta revisión
+- Vitest: 22/22 pruebas aprobadas (`rescheduling.test.ts`, `reschedulingSettlement.test.ts`). Compilación automática OK.
+- SQL reversible de acceso: token válido/ inválido/ otra reserva, seis elecciones por token y admin, consentimiento, historial, reintento, versión obsoleta, revisión admin, aislamiento de filas y bloqueo de crédito. Finalizó con ROLLBACK.
+- La primera ejecución detectó una aserción incorrecta del test: una lectura sin filas fue considerada fuga y una actualización sin filas fue considerada activación. Se corrigió el test para comprobar filas visibles/afectadas; no hubo fuga ni se cambiaron permisos.
+- SQL reversible de propuestas: ARS con reintegro previo, anulados/rechazados excluidos, terceros separados de caja, moneda ambigua, recibo duplicado, sobreautorización, jersey sí/no, monto 49.999, falta de stock, fuente obsoleta, doble clic y colisión de comando. Finalizó con ROLLBACK.
+- Navegador preview: escritorio 1280×1800 y celular 390×844, público cerrado, 32 formularios admin, seis elecciones sin seleccionar, jersey sin preselección y confirmación bloqueada sin consentimiento/fuente. Sin guardar decisiones desde navegador; cero errores de página.
+- Reporte administrativo autorizado: 23/32 reservas a conciliar y 9 sin alertas. No impide registrar decisión.
+- Producción consultada sin tokens: HTTP 200 y “En revisión administrativa”; la observación histórica de 404 ya no es vigente. Esta revisión NO publicó ninguna versión.
+- No se probó un registro participante con formulario público activado en navegador ni un E2E de producción: sólo SQL reversible y navegación administrativa. No se midió concurrencia simultánea entre sesiones. Requiere entorno aislado o decisión real autorizada posterior.
+- Cambios: `ReschedulingForm.tsx` (confirmación explícita y renovar consentimiento), `rescheduling_regression.sql` (aislamiento de token y permisos), este checklist y `roadmap.md`. Ninguna migración, despliegue ni cambio financiero.
