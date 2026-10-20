@@ -17,7 +17,7 @@ const BroadcastUnsubscribe = () => {
 
   useEffect(() => {
     const token = searchParams.get("token");
-    if (!token || !/^[a-f0-9]{64}$/.test(token)) {
+    if (!isValidUnsubscribeToken(token)) {
       setStatus("missing");
       return;
     }
