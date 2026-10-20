@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { isValidUnsubscribeToken } from "@/lib/broadcastUnsubscribe";
 
 type Status = "processing" | "done" | "invalid" | "missing";
 
