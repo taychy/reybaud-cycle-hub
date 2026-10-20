@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Wallet, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/drawer";
 import EventPaymentPlansPublic from "./EventPaymentPlansPublic";
 import { formatPrice } from "@/lib/currency";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Props {
   eventId: string;
@@ -56,6 +57,29 @@ const EventPackagesDrawer = ({
     onSelectedPackageChange?.(id);
   };
   const needsSelection = selectPackage && !!onReserve;
+  const [eventSoldOut, setEventSoldOut] = useState(soldOut);
+  const [eventWaitlistEnabled, setEventWaitlistEnabled] = useState(waitlistEnabled);
+
+  useEffect(() => {
+    setEventSoldOut(soldOut);
+    setEventWaitlistEnabled(waitlistEnabled);
+    if (soldOut || waitlistEnabled) return;
+    supabase
+      .from("events")
+      .select("estado_publicacion, waitlist_habilitada")
+      .eq("id", eventId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return;
+        setEventSoldOut(data.estado_publicacion === "agotado");
+        setEventWaitlistEnabled(!!data.waitlist_habilitada);
+      });
+  }, [eventId, soldOut, waitlistEnabled]);
+
+  const goToWaitlist = () => {
+    if (onWaitlist) goToWaitlist();
+    else window.location.assign(`/eventos/${eventId}/lista-espera`);
+  };
 
   return (
     <>
@@ -76,7 +100,7 @@ const EventPackagesDrawer = ({
               Precios y paquetes
             </DrawerTitle>
             <DrawerDescription className="text-xs">
-              {soldOut
+              {eventSoldOut
                 ? "Cupos completos. Podés consultar los paquetes y precios; si se libera un lugar, podés anotarte en la lista de espera."
                 : needsSelection
                   ? "Elegí un paquete para ver qué incluye y su plan de pagos."
@@ -90,23 +114,23 @@ const EventPackagesDrawer = ({
               onSelect={needsSelection ? (p) => { setSelected(p.id); setSelectedInfo(p); } : undefined}
             />
           </div>
-          {(onReserve || (soldOut && waitlistEnabled && onWaitlist)) && (
+          {(onReserve || (eventSoldOut && eventWaitlistEnabled)) && (
             <div className="px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] border-t border-border/50 bg-background/95 backdrop-blur sticky bottom-0">
               {needsSelection && selected && selectedInfo && (
                 <p className="mb-2 text-xs text-muted-foreground text-center">
                   Elegiste <strong className="text-foreground">{selectedInfo.nombre}</strong> · {formatPrice(selectedInfo.precio, selectedInfo.currency)}
                 </p>
               )}
-              {soldOut ? (
+              {eventSoldOut ? (
                 <>
                   <p className="mb-2 text-xs text-center font-medium text-primary">Cupos completos</p>
-                  {waitlistEnabled && onWaitlist && (
+                  {eventWaitlistEnabled && (
                     <Button
                       variant="gold"
                       className="w-full h-12 text-sm"
                       onClick={() => {
                         setOpen(false);
-                        onWaitlist();
+                        goToWaitlist();
                       }}
                     >
                       Anotarme a la lista de espera
