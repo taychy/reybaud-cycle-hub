@@ -5478,6 +5478,7 @@ export type Database = {
           proposed_end: string
           proposed_start: string
           public_enabled: boolean
+          resale_enabled: boolean
         }
         Insert: {
           consent_text: string
@@ -5490,6 +5491,7 @@ export type Database = {
           proposed_end: string
           proposed_start: string
           public_enabled?: boolean
+          resale_enabled?: boolean
         }
         Update: {
           consent_text?: string
@@ -5502,6 +5504,7 @@ export type Database = {
           proposed_end?: string
           proposed_start?: string
           public_enabled?: boolean
+          resale_enabled?: boolean
         }
         Relationships: [
           {
@@ -10758,6 +10761,193 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      rescheduling_seat_history: {
+        Row: {
+          action: string
+          actor_id: string
+          after_data: Json
+          before_data: Json | null
+          command_id: string
+          created_at: string
+          id: string
+          reason: string
+          release_id: string
+        }
+        Insert: {
+          action: string
+          actor_id: string
+          after_data: Json
+          before_data?: Json | null
+          command_id: string
+          created_at?: string
+          id?: string
+          reason: string
+          release_id: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string
+          after_data?: Json
+          before_data?: Json | null
+          command_id?: string
+          created_at?: string
+          id?: string
+          reason?: string
+          release_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescheduling_seat_history_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "rescheduling_seat_releases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rescheduling_seat_occupancies: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          nights: unknown
+          release_id: string
+          replacement_reservation_id: string
+          window_choice: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          nights: unknown
+          release_id: string
+          replacement_reservation_id: string
+          window_choice: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          nights?: unknown
+          release_id?: string
+          replacement_reservation_id?: string
+          window_choice?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescheduling_seat_occupancies_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "rescheduling_seat_releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescheduling_seat_occupancies_replacement_reservation_id_fkey"
+            columns: ["replacement_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescheduling_seat_occupancies_replacement_reservation_id_fkey"
+            columns: ["replacement_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      rescheduling_seat_releases: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          confirmed_at: string | null
+          confirmed_by: string | null
+          created_at: string
+          event_id: string
+          id: string
+          kind: string
+          offered_at: string | null
+          offered_by: string | null
+          package_id: string | null
+          reason: string
+          request_revision: number
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+          source_reservation_id: string
+          state: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          event_id: string
+          id?: string
+          kind: string
+          offered_at?: string | null
+          offered_by?: string | null
+          package_id?: string | null
+          reason: string
+          request_revision: number
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source_reservation_id: string
+          state: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          confirmed_at?: string | null
+          confirmed_by?: string | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          kind?: string
+          offered_at?: string | null
+          offered_by?: string | null
+          package_id?: string | null
+          reason?: string
+          request_revision?: number
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+          source_reservation_id?: string
+          state?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescheduling_seat_releases_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "event_rescheduling_campaigns"
+            referencedColumns: ["event_id"]
+          },
+          {
+            foreignKeyName: "rescheduling_seat_releases_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescheduling_seat_releases_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
       }
       rescheduling_settlement_proposals: {
         Row: {
@@ -17706,7 +17896,23 @@ export type Database = {
         Args: { p_reservation_id: string }
         Returns: Json
       }
+      admin_rescheduling_inventory: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
       admin_rescheduling_report: { Args: { p_event_id: string }; Returns: Json }
+      admin_rescheduling_seat_action: {
+        Args: {
+          p_action: string
+          p_command_id: string
+          p_expected_version: number
+          p_reason: string
+          p_replacement_reservation_id?: string
+          p_reservation_id: string
+          p_window?: string
+        }
+        Returns: Json
+      }
       admin_rescheduling_settlement_preview: {
         Args: { p_reservation_id: string }
         Returns: Json
