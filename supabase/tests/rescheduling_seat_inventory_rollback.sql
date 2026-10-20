@@ -27,7 +27,7 @@ BEGIN
  s:=admin_rescheduling_seat_action(rid,'confirm_renunciation','Renuncia verificada QA',0,cmd);
  s:=admin_rescheduling_seat_action(rid,'confirm_renunciation','Renuncia verificada QA',0,cmd);
  IF (SELECT count(*) FROM rescheduling_seat_history h JOIN rescheduling_seat_releases r ON r.id=h.release_id WHERE r.source_reservation_id=rid)<>1 THEN RAISE EXCEPTION 'double click duplicated'; END IF;
- BEGIN PERFORM admin_rescheduling_seat_action(rid,'confirm_renunciation','otra',0,gen_random_uuid()); RAISE EXCEPTION 'stale version accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'El cupo cambió%' THEN RAISE; END IF; END;
+ BEGIN PERFORM admin_rescheduling_seat_action(rid,'confirm_renunciation','otra vez',0,gen_random_uuid()); RAISE EXCEPTION 'stale version accepted'; EXCEPTION WHEN raise_exception THEN IF SQLERRM NOT LIKE 'El cupo cambió%' THEN RAISE; END IF; END;
  -- Validated but not approved: still zero
  inv:=admin_rescheduling_inventory(ev);
  IF (SELECT sum((p->>'released')::int+(p->>'sellable')::int) FROM jsonb_array_elements(inv->'packages') p)<>0 THEN RAISE EXCEPTION 'confirmation released seat'; END IF;
