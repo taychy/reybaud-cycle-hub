@@ -53,7 +53,7 @@ DO $$ DECLARE ev uuid:='67b4e85d-b00b-4b74-9644-99458d948c65'; rid uuid; tok tex
 END $$;
 SET LOCAL ROLE anon;
 DO $$ BEGIN
- BEGIN PERFORM * FROM public.reservation_rescheduling_requests;RAISE EXCEPTION 'Anonymous table read allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN IF EXISTS(SELECT 1 FROM public.reservation_rescheduling_requests) THEN RAISE EXCEPTION 'Anonymous row exposed';END IF;EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  BEGIN PERFORM public._rescheduling_financial('00000000-0000-0000-0000-000000000001');RAISE EXCEPTION 'Anonymous private helper allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
 END $$;
 RESET ROLE;
@@ -61,7 +61,7 @@ SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims','{"sub":"00000000-0000-0000-0000-000000000001","role":"authenticated"}',true);
 DO $$ BEGIN
  IF EXISTS(SELECT 1 FROM public.reservation_rescheduling_requests) THEN RAISE EXCEPTION 'Nonadmin RLS read allowed';END IF;
- BEGIN UPDATE public.event_rescheduling_campaigns SET public_enabled=true; RAISE EXCEPTION 'Client enabled public';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
- BEGIN DELETE FROM public.reservation_rescheduling_history WHERE revision=1;RAISE EXCEPTION 'Audit deletion allowed';EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN UPDATE public.event_rescheduling_campaigns SET public_enabled=true; IF FOUND THEN RAISE EXCEPTION 'Client enabled public';END IF;EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ BEGIN DELETE FROM public.reservation_rescheduling_history WHERE revision=1;IF FOUND THEN RAISE EXCEPTION 'Audit deletion allowed';END IF;EXCEPTION WHEN insufficient_privilege THEN NULL;END;
 END $$;
 ROLLBACK;
