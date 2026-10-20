@@ -1,3 +1,8 @@
+## San Luis · Cambio seguro de cuenta (20/10)
+- [ ] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
+- [ ] Prioridad del enlace personal, aislamiento de identidad y pruebas de sesiones
+- [ ] Verificar móvil/escritorio y publicación sin regresar la política v3
+
 
 ## Tienda · Prendas de prueba (cierre)
 - [x] Corregir `prueba_usar_como_cambio` (sin `cambio_in` sobre la prenda de prueba; crear cambio real ligado por `prueba_origen_id`)

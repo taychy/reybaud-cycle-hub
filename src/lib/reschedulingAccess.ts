@@ -30,6 +30,9 @@ export function identityInputValid(i: { dni: string; first: string; last: string
 }
 
 const GUEST_KEY = (r: string) => `rs_guest_${r}`;
+export function clearGuestSession(reservationId: string, storage: Storage = sessionStorage) {
+  storage.removeItem(GUEST_KEY(reservationId));
+}
 export function storeGuestSession(reservationId: string, session: string, expiresAt: string, storage: Storage = sessionStorage) {
   storage.setItem(GUEST_KEY(reservationId), JSON.stringify({ session, expiresAt }));
 }
