@@ -1482,6 +1482,32 @@ export type Database = {
           },
         ]
       }
+      broadcast_dispatch_claims: {
+        Row: {
+          broadcast_id: string
+          claimed_at: string
+          email: string
+        }
+        Insert: {
+          broadcast_id: string
+          claimed_at?: string
+          email: string
+        }
+        Update: {
+          broadcast_id?: string
+          claimed_at?: string
+          email?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "broadcast_dispatch_claims_broadcast_id_fkey"
+            columns: ["broadcast_id"]
+            isOneToOne: false
+            referencedRelation: "broadcasts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       broadcast_recipients: {
         Row: {
           alumno_id: string | null
@@ -1528,6 +1554,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      broadcast_send_guards: {
+        Row: {
+          actor_id: string
+          audience_hash: string
+          broadcast_id: string | null
+          claimed_at: string | null
+          created_at: string
+          eligible_count: number
+          id: string
+          payload_hash: string
+          test_accepted_at: string | null
+          test_message_id: string | null
+        }
+        Insert: {
+          actor_id: string
+          audience_hash: string
+          broadcast_id?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          eligible_count: number
+          id?: string
+          payload_hash: string
+          test_accepted_at?: string | null
+          test_message_id?: string | null
+        }
+        Update: {
+          actor_id?: string
+          audience_hash?: string
+          broadcast_id?: string | null
+          claimed_at?: string | null
+          created_at?: string
+          eligible_count?: number
+          id?: string
+          payload_hash?: string
+          test_accepted_at?: string | null
+          test_message_id?: string | null
+        }
+        Relationships: []
       }
       broadcast_sender_config: {
         Row: {
@@ -17976,6 +18041,19 @@ export type Database = {
         Args: { _alumno_id: string; _plan_id: string }
         Returns: Json
       }
+      claim_broadcast_recipient: {
+        Args: { p_broadcast: string; p_email: string }
+        Returns: boolean
+      }
+      claim_broadcast_send: {
+        Args: {
+          p_actor: string
+          p_audience: string
+          p_guard: string
+          p_payload: string
+        }
+        Returns: string
+      }
       claim_facturacion_auto: {
         Args: { p_limit?: number }
         Returns: {
@@ -19181,6 +19259,10 @@ export type Database = {
             Returns: boolean
           }
       is_super_admin: { Args: { _user_id: string }; Returns: boolean }
+      issue_broadcast_unsubscribe: {
+        Args: { p_email: string }
+        Returns: string
+      }
       join_program_waitlist: {
         Args: {
           _cohort_slug: string
@@ -20302,6 +20384,7 @@ export type Database = {
         Returns: undefined
       }
       unassign_mp_movement: { Args: { _movement_id: string }; Returns: Json }
+      unsubscribe_broadcast: { Args: { p_token: string }; Returns: boolean }
       update_event_gasto: {
         Args: {
           p_categoria: string
