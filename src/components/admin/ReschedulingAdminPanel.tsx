@@ -197,8 +197,8 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
         <Textarea id="sanluis-review-note" aria-label="Constancia administrativa" placeholder="Ej.: Confirmé la elección del participante y la baja de su plaza por WhatsApp." value={note} onChange={e=>setNote(e.target.value)} maxLength={2000}/>
        </div>
        <div className="flex flex-wrap gap-2">
-        {row.request.choice!=='help' && <Button disabled={loading||note.trim().length<10} onClick={()=>void review('validada')}>
-         {loading?'Guardando…': row.request.choice==='refund'?'Aprobar baja y liberar plaza':row.request.choice==='credit'?'Aprobar crédito solicitado y liberar plaza':'Confirmar asistencia a noviembre'}
+        {row.request.choice!=='help' && <Button className="h-auto min-h-10 whitespace-normal text-left" disabled={loading||note.trim().length<10} onClick={()=>void review('validada')}>
+         {loading?'Guardando…': row.request.choice==='refund'||row.request.choice==='credit'?'Aprobar baja y liberar plaza':'Confirmar asistencia a noviembre'}
         </Button>}
         <Button variant="outline" disabled={loading||note.trim().length<10} onClick={()=>void review('requiere_contacto')}>Necesita contacto</Button>
         <Button variant="outline" disabled={loading||note.trim().length<10} onClick={()=>void review('en_revision')}>Dejar en revisión</Button>
