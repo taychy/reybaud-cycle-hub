@@ -274,7 +274,7 @@ const EventCard = ({
               const isWaitlistState =
                 event.estado_publicacion === "proximamente" ||
                 event.estado_publicacion === "agotado";
-              if (!rescheduled && !hasUserLink && isWaitlistState && event.waitlist_habilitada) {
+              if (!rescheduled && isWaitlistState && event.waitlist_habilitada) {
                 window.location.href = `/eventos/${event.id}/lista-espera`;
                 return;
               }

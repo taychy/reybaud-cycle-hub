@@ -1,6 +1,7 @@
 ## San Luis · Presentación reprogramada (20/10)
-- [ ] Corregir título, distintivo y fecha en catálogo, carrusel y detalle sin modificar datos
-- [ ] Verificar presentación y acceso existente; no publicar por pedido expreso
+- [x] Título, distintivo y fecha corregidos en catálogo, carrusel y detalle mediante helper aislado, sin modificar datos
+- [x] 22 pruebas OK; tarjeta y detalle desktop/móvil 320/390; sesión propia conserva Ver estado y reserva
+- [x] Sin publicación ni despliegue por pedido expreso; pendiente únicamente autorización futura para publicar
 
 ## San Luis · Cambio seguro de cuenta (20/10)
 - [x] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
