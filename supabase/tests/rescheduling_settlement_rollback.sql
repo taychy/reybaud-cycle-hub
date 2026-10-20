@@ -11,7 +11,7 @@ BEGIN
  t:=public._rescheduling_settlement_totals(s||'{"payments":[{"status":"validado","currency":"EUR","amount":100000}]}'::jsonb);
  IF (t->>'paid_ars')::numeric<>0 OR NOT (t->>'blocked')::boolean THEN RAISE EXCEPTION 'Multicurrency failed'; END IF;
  t:=public._rescheduling_settlement_totals(s||'{"payments":[{"status":"validado","currency":"ARS","amount":100000,"payment_reference":"same"},{"status":"validado","currency":"ARS","amount":100000,"payment_reference":"same"}]}'::jsonb);
- IF NOT (t->>'blocked')::boolean THEN RAISE EXCEPTION 'Duplicate receipt allowed'; END IF;
+ IF NOT (t->>'blocked')::boolean OR (t->>'paid_ars')::numeric<>100000 THEN RAISE EXCEPTION 'Duplicate receipt counted or allowed'; END IF;
  t:=public._rescheduling_settlement_totals(s||'{"refunds":[{"moneda":"ARS","monto":100001}]}'::jsonb);
  IF NOT (t->>'blocked')::boolean THEN RAISE EXCEPTION 'Overrefund allowed'; END IF;
  PERFORM set_config('request.jwt.claims','{}',true);
