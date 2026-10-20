@@ -12,6 +12,7 @@ import { csvCell,REVIEW_LABELS,isFinancialChoice,type ReschedulingContext,type R
 import ReschedulingForm from '@/components/rescheduling/ReschedulingForm';
 import ReschedulingSettlementPanel from './ReschedulingSettlementPanel';
 import { settlementState, type SettlementPreview } from '@/lib/reschedulingSettlement';
+import ReschedulingCommsPanel from './ReschedulingCommsPanel';
 import { ReschedulingSeatActions, ReschedulingSeatSummary } from './ReschedulingSeatPanel';
 import type { SeatInventory } from '@/lib/reschedulingSeats';
 export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
@@ -36,6 +37,7 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
  if(!ctx?.available && !error)return null;
  return <>
   <Button variant="outline" size="sm" onClick={()=>setOpen(true)}><CalendarDays className="w-4 h-4 mr-2"/>Reprogramación San Luis</Button>
+  <ReschedulingCommsPanel eventId={eventId} publicEnabled={!!campaign?.public_enabled}/>
   <Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-6xl max-h-[92vh] overflow-y-auto min-w-0 [&>*]:min-w-0"><DialogHeader><DialogTitle>Reprogramación San Luis</DialogTitle><DialogDescription>5–9 noviembre 2026 · Solicitudes separadas de reservas y pagos.</DialogDescription></DialogHeader>
    <div className="flex flex-wrap gap-2"><Badge variant="outline">Público {campaign?.public_enabled?'habilitado':'desactivado'}</Badge><Badge variant="outline"><LockKeyhole className="w-3 h-3 mr-1"/>Operaciones financieras bloqueadas</Badge></div>
    <p className="text-sm text-muted-foreground">Antes de habilitar: costos/proveedores, habitaciones de 3 y 4 noches, talles/stock/entrega, conciliación, reemplazos y venta futura. Fechas actuales intactas: octubre 22–25; enero 17–24/01, a revisar contra 20–27/01.</p>

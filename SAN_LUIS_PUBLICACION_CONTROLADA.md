@@ -27,3 +27,8 @@ Evento: Training Camp San Luis (reprogramado al 5–9/11/2026). Público y reven
 
 ## Recibir decisión ≠ ejecutar
 Registrar una elección no cancela reservas, no mueve dinero, no emite crédito ni libera cupo.
+
+## Enlace personal y comunicación
+- Enlace: `https://reybaud-app.com/reprogramacion/<evento>?reserva=<id>&token=<token personal>`; se copia solo desde «Comunicar reprogramación» (el token se ve enmascarado).
+- Con sesión propia de la reserva: encuesta directa. Sin sesión (o con sesión de otra persona): DNI, nombre y apellido, validados en servidor; abre una sesión de invitado de 2 horas solo para esa reserva. El token solo no muestra datos. 5 intentos fallidos por reserva cada 15 minutos.
+- Email: vista previa lista; envío real pendiente de aprobación. WhatsApp: sin integración oficial; copiar/abrir manual y registrar «enviado» con constancia.

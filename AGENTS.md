@@ -16,6 +16,6 @@
 - Noches extra: modalidad = addon de noche en reservation_addons; habitación compartida en extra_night_pairings, historial en extra_night_changes; nunca toca paquete ni rooming principal. Why: separar del alojamiento base y reusar el recálculo de saldos.
 - Condiciones de reservas: alta admin queda `terminos_pendientes` (trigger, token único 30 días); aceptar solo vía `_accept_reservation_terms`; texto desde `event_terms_snapshot` (espejo SQL de eventReglamentoDefaults.ts, mantener iguales); pagos validados bloqueados si pendiente. Why: misma trazabilidad, sin flujo paralelo.
 - Shared rooms: metadata.shared_room_assignment + SQL trigger. Why: authority.
-- Rescheduling: append-only proposal RPCs; closed seat inventory only via admin_rescheduling_seat_action (validated renunciation→explicit release→offer→one replacement, no overlapping nights). Why: no money/room changes or double sale.
+- Rescheduling: access = own session or token+DNI/name via verify_rescheduling_identity (2h rsg_ session); closed seats only via admin_rescheduling_seat_action. Why: no data leak, double sale or money moves.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
 - Pending intake reuses event_waitlist_entries; server prices/consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
