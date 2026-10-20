@@ -9,9 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Download, RefreshCw, ExternalLink, LockKeyhole } from 'lucide-react';
 import { formatPrice } from '@/lib/currency';
 import { csvCell } from '@/lib/rescheduling';
+import { getPaymentProofSignedUrl } from '@/lib/paymentProofs';
 import { canValidateSettlement, proposalJerseyAmount, settlementState, SETTLEMENT_LABELS, type SettlementPreview, type SettlementState } from '@/lib/reschedulingSettlement';
 
-export default function ReschedulingSettlementPanel({ reservationId, requestRevision }: { reservationId: string; requestRevision?: number }) {
+export default function ReschedulingSettlementPanel({ reservationId, requestRevision, onSaved }: { reservationId: string; requestRevision?: number; onSaved?: () => void }) {
  const [preview, setPreview] = useState<SettlementPreview>();
  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
  const [state, setState] = useState<SettlementState>('estimated');
@@ -44,8 +45,15 @@ export default function ReschedulingSettlementPanel({ reservationId, requestRevi
    const command = pending.current?.command; if (!command) return;
    const { data, error: e } = await supabase.rpc('admin_save_rescheduling_settlement', { ...args, p_command_id: command });
    if (e) { setError(e.message); return; }
-   setPreview(data as unknown as SettlementPreview); setNote(''); pending.current = undefined;
+   setPreview(data as unknown as SettlementPreview); setNote(''); pending.current = undefined; onSaved?.();
   } finally { saving.current = false; setBusy(false); }
+ };
+ const openProof = async (path: string) => {
+  const tab = window.open('', '_blank');
+  if (tab) tab.opener = null;
+  const url = await getPaymentProofSignedUrl(path);
+  if (!url) { tab?.close(); setError('No se pudo abrir el comprobante. Revisá el archivo original.'); return; }
+  if (tab) tab.location.href = url;
  };
  const exportCsv = () => {
   if (!preview) return;
@@ -70,8 +78,8 @@ export default function ReschedulingSettlementPanel({ reservationId, requestRevi
    ['Directos efectuados ARS · caja $0', formatPrice(preview.totals.direct_paid_ars)], ['Directos recibidos ARS · caja $0', formatPrice(preview.totals.direct_received_ars)],
   ].map(([label, value]) => <div key={label}><p className="text-muted-foreground">{label}</p><strong>{value}</strong></div>)}</div>
   <p className="text-sm">Crédito {preview.request?.choice === 'credit' ? 'solicitado · NO DISPONIBLE' : 'no solicitado'} · disponible efectivamente: $0 (emisión bloqueada).</p>
-  <details open><summary className="cursor-pointer text-sm font-medium">Pagos originales y comprobantes ({preview.payments.length})</summary><div className="space-y-2 mt-2">{preview.payments.map(p => <div key={p.id} className="border-b border-border pb-2 text-sm"><p>{formatPrice(p.amount, p.currency)} · {p.currency} · {p.method} · {p.date}</p><p className="text-muted-foreground">{p.status} · {p.included ? 'Recibo ARS a revisar' : 'Excluido del neto ARS'}{p.reference ? ` · ref. ${p.reference}` : ''}</p>{p.proof && <a className="text-primary underline" href={p.proof} target="_blank" rel="noopener noreferrer">Comprobante <ExternalLink className="inline h-3 w-3"/></a>}</div>)}{!preview.payments.length && <p className="text-sm text-muted-foreground">Sin recibos registrados.</p>}</div></details>
-  <details><summary className="cursor-pointer text-sm font-medium">Reintegros reales ({preview.refunds.length}) y pagos directos ({preview.directs.length})</summary><div className="text-sm space-y-2 mt-2">{preview.refunds.map((r, i) => <p key={`r${i}`}>Devuelto: {formatPrice(r.amount, r.currency)} · {r.currency} · {r.date} · {r.method}</p>)}{preview.directs.map((d, i) => <p key={`d${i}`}>Directo {d.direction}: {formatPrice(d.amount, d.currency)} · {d.currency} · {d.voided ? 'anulado, excluido' : d.status} · no es caja Reybaud</p>)}</div></details>
+  <details open><summary className="cursor-pointer text-sm font-medium">Pagos originales y comprobantes ({preview.payments.length})</summary><div className="space-y-2 mt-2">{preview.payments.map(p => <div key={p.id} className="border-b border-border pb-2 text-sm break-words"><p>{formatPrice(p.amount, p.currency)} · {p.currency} · {p.method} · {p.date}</p><p className="text-muted-foreground">{p.status} · {p.included ? 'Recibo ARS a revisar' : 'Excluido del neto ARS'}{p.reference ? ` · ref. ${p.reference}` : ''}</p>{p.proof && <Button variant="link" size="sm" onClick={() => { if (p.proof) void openProof(p.proof); }}>Comprobante <ExternalLink className="inline h-3 w-3 ml-1"/></Button>}</div>)}{!preview.payments.length && <p className="text-sm text-muted-foreground">Sin recibos registrados.</p>}</div></details>
+  <details><summary className="cursor-pointer text-sm font-medium">Reintegros reales ({preview.refunds.length}) y pagos directos ({preview.directs.length})</summary><div className="text-sm space-y-2 mt-2">{preview.refunds.map((r, i) => <p key={`r${i}`}>Devuelto: {formatPrice(r.amount, r.currency)} · {r.currency} · {r.date} · {r.method}</p>)}{preview.directs.map((d, i) => <div key={`d${i}`}><p>Directo {d.direction}: {formatPrice(d.amount, d.currency)} · {d.currency} · {d.voided ? 'anulado, excluido' : d.status} · no es caja Reybaud</p>{d.proof && <Button variant="link" size="sm" onClick={() => { if (d.proof) void openProof(d.proof); }}>Comprobante directo</Button>}</div>)}</div></details>
   <p className="text-sm text-muted-foreground">Fuentes existentes a revisar: ajustes de reserva {preview.existing.adjustments}, ajustes/créditos de ficha {preview.existing.credits}, imputaciones de ficha {preview.existing.imputations}, transferencias {preview.existing.transfers}. No se suman como recibos.</p>
   {preview.proposal && <div className="text-sm border-l-2 border-border pl-3"><strong>Propuesta v{preview.proposal.version} {preview.stale ? '· no vigente' : ''}</strong><p>Autorizado: {preview.proposal.authorized_amount === null ? 'Sin monto autorizado' : formatPrice(preview.proposal.authorized_amount)} · jersey propuesto {formatPrice(preview.proposal.jersey_amount)} · ejecutado $0</p><p>{preview.proposal.note}</p></div>}
   {check('reconciled', 'Revisé recibos, reintegros y beneficiario; conciliación completa')}
