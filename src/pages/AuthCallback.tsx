@@ -5,6 +5,7 @@ import { AlertTriangle, RefreshCw, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import logo from "@/assets/logo.png";
+import { reschedulingLoginReturn } from '@/lib/reschedulingLoginReturn';
 import { clearPendingOtpState, getSafeReturnTo, loadPendingOtpState, loadOAuthReturnTo, clearOAuthReturnTo } from "@/lib/pendingOtp";
 
 /**
@@ -84,6 +85,15 @@ const AuthCallback = () => {
       const pendingOtp = loadPendingOtpState();
       const returnTo = getSafeReturnTo(pendingOtp?.returnTo) || loadOAuthReturnTo();
       if (returnTo) clearOAuthReturnTo();
+      const surveyReturn = reschedulingLoginReturn(returnTo);
+      if (surveyReturn) {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (cancelled) return;
+        if (!user || error) { setErrorMessage('No pudimos validar la sesión. Volvé a ingresar.'); setStatus('error'); return; }
+        clearPendingOtpState();
+        navigate(surveyReturn, { replace: true });
+        return;
+      }
       const portalContext = pendingOtp?.context; // "main" = student, "staff" = admin/coach
 
       const { getAvailablePortals, getRememberedPortal, PORTAL_PATHS } = await import("@/lib/portalPreference");

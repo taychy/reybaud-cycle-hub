@@ -9,6 +9,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp
 import logo from "@/assets/logo.png";
 import { toast } from "sonner";
 import LanguageSelector from "@/components/LanguageSelector";
+import { reschedulingLoginReturn } from '@/lib/reschedulingLoginReturn';
 import { lovable } from "@/integrations/lovable/index";
 import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpErrorMessage, getSafeReturnTo, loadPendingOtpState, normalizeOtpCode, OTP_LENGTH, savePendingOtpState, startOtpRequest, saveOAuthReturnTo, loadOAuthReturnTo, clearOAuthReturnTo } from "@/lib/pendingOtp";
 
@@ -91,6 +92,15 @@ const Login = () => {
 
       const targetReturnTo = getSafeReturnTo(returnTo || otpReturnTo) || loadOAuthReturnTo();
       if (targetReturnTo) clearOAuthReturnTo();
+
+      const surveyReturn = reschedulingLoginReturn(targetReturnTo);
+      if (surveyReturn) {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!user || error) { setCheckingSession(false); return; }
+        clearPendingOtpState();
+        navigate(surveyReturn, { replace: true });
+        return;
+      }
 
       const userId = session.user.id;
       const userEmail = session.user.email?.toLowerCase().trim();

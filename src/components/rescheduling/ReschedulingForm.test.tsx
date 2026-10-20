@@ -6,7 +6,7 @@ import type { ReschedulingCampaign, ReschedulingReservation } from '@/lib/resche
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock('@/integrations/supabase/client', () => ({ supabase: { rpc } }));
 const campaign: ReschedulingCampaign = {
- event_id:'test-event',public_enabled:true,jersey_price:50000,consent_text:'Acepto registrar esta solicitud para revisión.',policy_text:'',policy_version:'v1',
+ event_id:'test-event',public_enabled:true,jersey_price:50000,consent_text:'Acepto registrar esta solicitud para revisión.',policy_text:'Plazo de reintegro: 5 a 7 días hábiles.',policy_version:'v3-habiles',
  options:[{value:'attend_5_8',label:'Asisto del 5 al 8 de noviembre',nights:3},{value:'attend_6_9',label:'Asisto del 6 al 9 de noviembre',nights:3},{value:'attend_5_9',label:'Asisto del 5 al 9 de noviembre',nights:4},{value:'refund',label:'Solicito devolución'},{value:'credit',label:'Solicito crédito'},{value:'help',label:'Necesito ayuda'}],
 };
 const row: ReschedulingReservation = {
@@ -22,6 +22,9 @@ beforeEach(()=>{rpc.mockReset();rpc.mockResolvedValue({error:null});});
 afterEach(cleanup);
 
 describe('rescheduling wizard decisions and submission',()=>{
+ it('preserves the refund policy timing in details and review, never in credit',()=>{
+  start();select(/pido la devolución/);next();expect(screen.getByText('Plazo de reintegro: 5 a 7 días hábiles.')).toBeInTheDocument();select(/^No$/);next();expect(screen.getByText('Plazo de reintegro: 5 a 7 días hábiles.')).toBeInTheDocument();back();back();select(/pido crédito/);next();expect(screen.queryByText(/5 a 7 días/)).toBeNull();next();expect(screen.queryByText(/5 a 7 días/)).toBeNull();expect(rpc).not.toHaveBeenCalled();
+ });
  it('starts with no decision, no dates and no consent; cannot continue',()=>{
   start();expect(screen.getAllByRole('radio')).toHaveLength(4);
   for(const radio of screen.getAllByRole('radio')) expect(radio).toHaveAttribute('aria-checked','false');
