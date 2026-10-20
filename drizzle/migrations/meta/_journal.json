@@ -477,6 +477,20 @@
       "when": 1792468579578,
       "tag": "0067_fix_rescheduling_email_claim_ambiguity",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "7",
+      "when": 1792470252944,
+      "tag": "0068_rescheduling_public_no_implicit_admin",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "7",
+      "when": 1792470394691,
+      "tag": "0069_rescheduling_admin_report_explicit_listing",
+      "breakpoints": true
     }
   ]
 }
