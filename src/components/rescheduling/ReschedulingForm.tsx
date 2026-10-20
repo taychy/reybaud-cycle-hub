@@ -10,8 +10,9 @@ import { Label } from '@/components/ui/label';
 import { CheckCircle2,Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/currency';
 import { isFinancialChoice,jerseyEstimate,reschedulingInput,REVIEW_LABELS,type ReschedulingCampaign,type ReschedulingReservation } from '@/lib/rescheduling';
+import { choiceGroup,mainGroups } from '@/lib/reschedulingAccess';
 export default function ReschedulingForm({campaign,row,admin=false,token,onSaved}:{campaign:ReschedulingCampaign;row:ReschedulingReservation;admin?:boolean;token?:string;onSaved:()=>void}) {
- const [choice,setChoice]=useState(row.request?.choice ?? '');
+ const [choice,setChoice]=useState(row.request?.choice ?? '');const [group,setGroup]=useState(choiceGroup(row.request?.choice ?? ''));
  const [jersey,setJersey]=useState(row.request?.jersey_requested === true ? 'yes' : row.request?.jersey_requested===false ? 'no' : '');
  const [size,setSize]=useState(row.request?.jersey_size ?? '');
  const [delivery,setDelivery]=useState(row.request?.delivery ?? '');
@@ -30,8 +31,11 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
  };
  return <section className="space-y-5 min-w-0">
   <header><h2 className="text-lg font-heading">{row.participant}</h2><p className="text-sm text-muted-foreground">{row.package ?? 'Reserva actual'} · {row.request ? REVIEW_LABELS[row.request.review_status] : 'Sin respuesta'}</p></header>
-  <RadioGroup aria-label="Tu elección para San Luis" value={choice} onValueChange={v=>change(()=>{setChoice(v);setConsent(false)})} className="gap-2">
-   {campaign.options.map(o=><Label key={o.value} className="flex items-start gap-3 border border-border rounded-lg p-3 cursor-pointer"><RadioGroupItem value={o.value} className="mt-0.5 shrink-0"/><span className="text-sm leading-relaxed">{o.label}{o.nights ? <span className="block text-muted-foreground">{o.nights} noches</span> : null}</span></Label>)}
+  <RadioGroup aria-label="Tu elección para San Luis" value={group} onValueChange={v=>change(()=>{setGroup(v);setChoice(v==='attend'?'':v);setConsent(false)})} className="gap-2">
+   {mainGroups(campaign).map(o=><Label key={o.value} className="flex items-start gap-3 border border-border rounded-lg p-3 cursor-pointer"><RadioGroupItem value={o.value} className="mt-0.5 shrink-0"/><span className="text-sm leading-relaxed">{o.label}{o.hint && <span className="block text-muted-foreground">{o.hint}</span>}</span></Label>)}
+  </RadioGroup>
+  {group==='attend' && <RadioGroup aria-label="Fechas en las que viajás" value={choice} onValueChange={v=>change(()=>{setChoice(v);setConsent(false)})} className="gap-2 pl-4">
+   {campaign.options.filter(o=>o.value.startsWith('attend_')).map(o=><Label key={o.value} className="flex items-start gap-3 border border-border rounded-lg p-3 cursor-pointer"><RadioGroupItem value={o.value} className="mt-0.5 shrink-0"/><span className="text-sm">{o.label.replace(/^Asisto /,'')}<span className="block text-muted-foreground">{o.nights} noches</span></span></Label>)}
   </RadioGroup>
   {financial && <div className="space-y-4 border-y border-border py-4">
    <p className="text-sm">Por el cambio organizado por Reybaud, corresponde el 100% de lo efectivamente abonado, menos reintegros previos, sin retención ni penalidad.</p>
