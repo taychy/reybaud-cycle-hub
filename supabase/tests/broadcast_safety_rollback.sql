@@ -1,0 +1,35 @@
+BEGIN;
+DO $$
+DECLARE raw_token text; bid uuid; guard uuid; actor uuid; blocked boolean:=false;
+BEGIN
+  SELECT user_id INTO actor FROM public.user_roles WHERE role='admin' LIMIT 1;
+  IF actor IS NULL THEN RAISE EXCEPTION 'admin fixture required'; END IF;
+  PERFORM set_config('request.jwt.claim.role','service_role',true);
+  INSERT INTO public.marketing_contacts(email,opt_in_marketing) VALUES('mailing-rollback-fixture@example.invalid',true);
+  raw_token:=public.issue_broadcast_unsubscribe('mailing-rollback-fixture@example.invalid');
+  IF length(raw_token)<>64 THEN RAISE EXCEPTION 'token entropy'; END IF;
+  IF EXISTS(SELECT 1 FROM public.email_unsubscribe_tokens WHERE email='mailing-rollback-fixture@example.invalid' AND token=raw_token) THEN RAISE EXCEPTION 'raw token stored'; END IF;
+  PERFORM set_config('request.jwt.claim.role','anon',true);
+  IF public.unsubscribe_broadcast('invalid') THEN RAISE EXCEPTION 'invalid token accepted'; END IF;
+  IF NOT public.unsubscribe_broadcast(raw_token) OR NOT public.unsubscribe_broadcast(raw_token) THEN RAISE EXCEPTION 'unsubscribe not idempotent'; END IF;
+  IF EXISTS(SELECT 1 FROM public.marketing_contacts WHERE email='mailing-rollback-fixture@example.invalid' AND opt_in_marketing) THEN RAISE EXCEPTION 'opt-out missing'; END IF;
+  IF NOT EXISTS(SELECT 1 FROM public.suppressed_emails WHERE email='mailing-rollback-fixture@example.invalid') THEN RAISE EXCEPTION 'suppression missing'; END IF;
+  BEGIN PERFORM public.issue_broadcast_unsubscribe('forbidden@example.invalid'); EXCEPTION WHEN OTHERS THEN blocked:=true; END;
+  IF NOT blocked THEN RAISE EXCEPTION 'anon can issue tokens'; END IF;
+  PERFORM set_config('request.jwt.claim.role','service_role',true);
+  INSERT INTO public.broadcast_send_guards(actor_id,payload_hash,audience_hash,eligible_count) VALUES(actor,'qa-payload','qa-audience',1) RETURNING id INTO guard;
+  blocked:=false;
+  BEGIN PERFORM public.claim_broadcast_send(guard,actor,'qa-payload','qa-audience'); EXCEPTION WHEN OTHERS THEN blocked:=true; END;
+  IF NOT blocked THEN RAISE EXCEPTION 'send without test permitted'; END IF;
+  UPDATE public.broadcast_send_guards SET test_accepted_at=now() WHERE id=guard;
+  blocked:=false;
+  BEGIN PERFORM public.claim_broadcast_send(guard,actor,'qa-payload','stale-audience'); EXCEPTION WHEN OTHERS THEN blocked:=true; END;
+  IF NOT blocked THEN RAISE EXCEPTION 'stale preview permitted'; END IF;
+  bid:=public.claim_broadcast_send(guard,actor,'qa-payload','qa-audience');
+  IF public.claim_broadcast_send(guard,actor,'qa-payload','qa-audience')<>bid THEN RAISE EXCEPTION 'double click duplicates campaign'; END IF;
+  INSERT INTO public.broadcasts(id,subject,content_html,sender_email,sender_name) VALUES(bid,'ROLLBACK FIXTURE','Never sent','fixture@example.invalid','QA');
+  IF NOT public.claim_broadcast_recipient(bid,'claim-fixture@example.invalid') THEN RAISE EXCEPTION 'first dispatch claim failed'; END IF;
+  IF public.claim_broadcast_recipient(bid,'claim-fixture@example.invalid') THEN RAISE EXCEPTION 'duplicate dispatch claim'; END IF;
+  IF public.claim_broadcast_recipient(bid,'mailing-rollback-fixture@example.invalid') THEN RAISE EXCEPTION 'suppressed dispatch permitted'; END IF;
+END $$;
+ROLLBACK;

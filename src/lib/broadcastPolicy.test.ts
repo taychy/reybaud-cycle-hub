@@ -1,0 +1,22 @@
+import { describe, expect, it } from 'vitest';
+import { evaluateRecipients, frequencyPolicy, canonical, type Candidate } from '../../supabase/functions/_shared/broadcastPolicy';
+const now = Date.UTC(2026,9,20);
+const email = 'person@example.org';
+const evaluate = (rows: Candidate[] = [{email}], policy = frequencyPolicy({}), suppressed = new Set<string>(), out = new Set<string>(), last = new Map<string,string>()) => evaluateRecipients(rows,suppressed,out,last,policy,new Set(),now);
+describe('mailing safety rules', () => {
+  it('defaults to seven days',()=>expect(frequencyPolicy({}).days).toBe(7));
+  it('excludes a recipient sent six days ago',()=>expect(evaluate(undefined,undefined,undefined,undefined,new Map([[email,new Date(now-6*86400000).toISOString()]])).eligible).toHaveLength(0));
+  it('allows exactly seven days',()=>expect(evaluate(undefined,undefined,undefined,undefined,new Map([[email,new Date(now-7*86400000).toISOString()]])).eligible).toHaveLength(1));
+  it('uses configurable frequency',()=>expect(evaluate(undefined,frequencyPolicy({marketing_frequency_days:3}),undefined,undefined,new Map([[email,new Date(now-4*86400000).toISOString()]])).eligible).toHaveLength(1));
+  it('requires an explicit exception reason',()=>expect(()=>frequencyPolicy({marketing_ignore_frequency:true})).toThrow());
+  it('exception permits recent recipients',()=>expect(evaluate(undefined,frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Campaña excepcional autorizada'}),undefined,undefined,new Map([[email,new Date(now).toISOString()]])).eligible).toHaveLength(1));
+  it('exception never skips suppression',()=>expect(evaluate(undefined,frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Campaña excepcional autorizada'}),new Set([email])).eligible).toHaveLength(0));
+  it('exception never skips opt-out',()=>expect(evaluate(undefined,frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Campaña excepcional autorizada'}),undefined,new Set([email])).eligible).toHaveLength(0));
+  it('deduplicates case and whitespace',()=>expect(evaluate([{email},{email:' PERSON@EXAMPLE.ORG '}]).eligible).toHaveLength(1));
+  it('excludes invalid addresses',()=>expect(evaluate([{email:'test.invalid'},{email:'a@b.invalid'}]).eligible).toHaveLength(0));
+  it('checks manually selected marketing contacts too',()=>expect(evaluate([{email,contact_type:'marketing'}],undefined,undefined,new Set([email])).eligible).toHaveLength(0));
+  it('stable fingerprints ignore object key ordering',()=>expect(canonical({b:2,a:1})).toBe(canonical({a:1,b:2})));
+  it('exception still deduplicates recipients',()=>expect(evaluate([{email},{email:' PERSON@EXAMPLE.ORG '}],frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Excepción autorizada de campaña'})).eligible).toHaveLength(1));
+  it('retains administrative exclusions under an exception',()=>expect(evaluateRecipients([{email}],new Set(),new Set(),new Map(),frequencyPolicy({marketing_ignore_frequency:true,marketing_frequency_reason:'Excepción autorizada de campaña'}),new Set([email]),now).eligible).toHaveLength(0));
+  it.each([0,366,1.5])('rejects invalid frequency %s',days=>expect(()=>frequencyPolicy({marketing_frequency_days:days})).toThrow());
+});
