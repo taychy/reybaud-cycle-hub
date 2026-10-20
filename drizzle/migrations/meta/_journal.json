@@ -407,6 +407,34 @@
       "when": 1792447291305,
       "tag": "0057_rescheduling_review_serialization_and_refund_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792456810486,
+      "tag": "0058_rescheduling_preparatory_settlement_proposals",
+      "breakpoints": true
+    },
+    {
+      "idx": 59,
+      "version": "7",
+      "when": 1792457076103,
+      "tag": "0059_rescheduling_settlement_preview_and_summary",
+      "breakpoints": true
+    },
+    {
+      "idx": 60,
+      "version": "7",
+      "when": 1792457255465,
+      "tag": "0060_rescheduling_preview_empty_request_guard",
+      "breakpoints": true
+    },
+    {
+      "idx": 61,
+      "version": "7",
+      "when": 1792457333078,
+      "tag": "0061_rescheduling_receipt_deduplication",
+      "breakpoints": true
     }
   ]
 }

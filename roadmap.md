@@ -215,3 +215,9 @@
 - [x] Prueba SQL reversible: seis elecciones, lectura, reintentos, revisión, consentimiento, historial, bloqueo público/financiero e invariancia de reservas/pagos/transferencias; sin ampliar permisos
 - [x] Enlace desde reserva externa, limpieza de autorización jersey al cambiar elección y confirmación detallada
 - [ ] Habilitación pública y operaciones reales: bloqueadas hasta revisión y autorización
+
+## San Luis · Conciliación y propuestas preparatorias
+- [x] Vista previa financiera servidor, alertas y propuestas aisladas versionadas (sin ejecución)
+- [x] Gestión admin, filtros, CSV e historial; refresco y detección de cambios de fuentes
+- [x] 25 tests automáticos, QA SQL reversible con deduplicación e idempotencia, navegador desktop/mobile e invariancia histórica
+- [ ] Activación y ejecución monetaria: bloqueadas, requieren validación y autorización posterior
