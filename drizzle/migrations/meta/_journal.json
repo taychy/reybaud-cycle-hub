@@ -407,6 +407,13 @@
       "when": 1792447291305,
       "tag": "0057_rescheduling_review_serialization_and_refund_reconciliation",
       "breakpoints": true
+    },
+    {
+      "idx": 58,
+      "version": "7",
+      "when": 1792456810486,
+      "tag": "0058_rescheduling_preparatory_settlement_proposals",
+      "breakpoints": true
     }
   ]
 }

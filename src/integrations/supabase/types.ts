@@ -10694,6 +10694,72 @@ export type Database = {
         }
         Relationships: []
       }
+      rescheduling_settlement_proposals: {
+        Row: {
+          actor_id: string
+          authorized_amount: number | null
+          calculated_amount: number
+          checks: Json
+          command_id: string
+          command_payload: Json
+          created_at: string
+          id: string
+          jersey_amount: number
+          note: string
+          reservation_id: string
+          source_hash: string
+          state: string
+          version: number
+        }
+        Insert: {
+          actor_id: string
+          authorized_amount?: number | null
+          calculated_amount: number
+          checks: Json
+          command_id: string
+          command_payload: Json
+          created_at?: string
+          id?: string
+          jersey_amount?: number
+          note: string
+          reservation_id: string
+          source_hash: string
+          state: string
+          version: number
+        }
+        Update: {
+          actor_id?: string
+          authorized_amount?: number | null
+          calculated_amount?: number
+          checks?: Json
+          command_id?: string
+          command_payload?: Json
+          created_at?: string
+          id?: string
+          jersey_amount?: number
+          note?: string
+          reservation_id?: string
+          source_hash?: string
+          state?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescheduling_settlement_proposals_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescheduling_settlement_proposals_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       reservas_turnera: {
         Row: {
           acepto_politica: boolean
@@ -17398,6 +17464,11 @@ export type Database = {
       }
       _rescheduling_admin: { Args: never; Returns: boolean }
       _rescheduling_financial: { Args: { p_id: string }; Returns: Json }
+      _rescheduling_settlement_sources: {
+        Args: { p_id: string }
+        Returns: Json
+      }
+      _rescheduling_settlement_totals: { Args: { p: Json }; Returns: Json }
       _rescheduling_size: { Args: { p_id: string }; Returns: Json }
       _rescheduling_verified_email: { Args: never; Returns: boolean }
       _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
@@ -17571,6 +17642,10 @@ export type Database = {
         Returns: Json
       }
       admin_rescheduling_report: { Args: { p_event_id: string }; Returns: Json }
+      admin_rescheduling_settlement_preview: {
+        Args: { p_reservation_id: string }
+        Returns: Json
+      }
       admin_review_rescheduling: {
         Args: {
           p_command_id: string
@@ -17584,6 +17659,16 @@ export type Database = {
       admin_revoke_cuenta_token: {
         Args: { p_token_id: string }
         Returns: undefined
+      }
+      admin_save_rescheduling_settlement: {
+        Args: {
+          p_command_id: string
+          p_input: Json
+          p_reservation_id: string
+          p_source_hash: string
+          p_version: number
+        }
+        Returns: Json
       }
       admin_set_extra_night: {
         Args: {
