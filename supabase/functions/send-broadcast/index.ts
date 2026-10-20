@@ -120,7 +120,21 @@ async function loadPromoProducts(admin: any, ids?: string[] | null) {
   return (data || []).sort((a: any, b: any) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
-function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "") {
+const PUBLIC_ORIGIN = "https://reybaud-app.com";
+
+// Emite un token de baja individual (hash en BD, token crudo solo en el link).
+// Devuelve null si falla: en ese caso NO se envía, porque todo correo debe
+// llevar un enlace de baja funcional.
+async function issueUnsubscribeUrl(admin: any, email: string): Promise<string | null> {
+  const { data, error } = await admin.rpc("issue_broadcast_unsubscribe", { p_email: email });
+  if (error || !data) {
+    console.error("issue_broadcast_unsubscribe failed", { email, error: error?.message });
+    return null;
+  }
+  return `${PUBLIC_ORIGIN}/baja-mailing?token=${data}`;
+}
+
+function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "", unsubscribeUrl?: string) {
   const safe = content.includes("<") && content.includes(">")
     ? content
     : linkifyPlain(escapeHtml(content)).replace(/\n/g, "<br/>");
