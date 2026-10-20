@@ -1,4 +1,4 @@
-- Scenario distributions: use `src/lib/scenarioDistribution.ts` (sum=participants, never copy capacities). Why: consistent totals.
+- Scenarios: `src/lib/scenarioDistribution.ts`; sum=participants, never copy capacities. Why: consistent totals.
 - Pagos internacionales de eventos: `src/lib/eventPaymentPolicy.ts` solo si existe `events.metadata.payment_policy`; recargo ARS una vez sobre la cotización central, nunca como saldo; aviso solo en la confirmación de reserva. Why: saldo contractual EUR trazable.
 - Trip audits: `src/lib/tripTechnicalAudit.ts`, state in `events.metadata.technical_audit`; merge only the item into fresh metadata. Why: no migrations or overwrites.
 - Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview + external fallback, never downloads. Why: isolate trips; no misleading data.
@@ -15,7 +15,7 @@
 - ARCA/WSFE: el ticket WSAA se reutiliza desde `afip_wsaa_tickets` vía `obtenerTicketWsaa` (`_shared/facturacion-emision.ts`); número y fecha se piden a ARCA justo antes de cada FECAESolicitar; fecha ≥ último autorizado. Why: evitar rechazos 10016 y TA duplicado.
 - Noches extra: modalidad = addon de noche en reservation_addons; habitación compartida en extra_night_pairings, historial en extra_night_changes; nunca toca paquete ni rooming principal. Why: separar del alojamiento base y reusar el recálculo de saldos.
 - Condiciones de reservas: alta admin queda `terminos_pendientes` (trigger, token único 30 días); aceptar solo vía `_accept_reservation_terms`; texto desde `event_terms_snapshot` (espejo SQL de eventReglamentoDefaults.ts, mantener iguales); pagos validados bloqueados si pendiente. Why: misma trazabilidad, sin flujo paralelo.
-- Shared rooms: metadata.shared_room_assignment + SQL quote/trigger. Why: authority.
+- Shared rooms: metadata.shared_room_assignment + SQL quote/trigger. Why: authoritative.
 - Rescheduling: append-only proposal RPCs, source hashes and blocking alerts; public/credit off. Why: no money/room changes.
 - Kit: separate audited admin/staff sizes; event/name uniqueness, soft removal; conflicts excluded. Why: provenance.
 
