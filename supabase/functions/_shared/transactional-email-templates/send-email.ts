@@ -2,6 +2,7 @@ import * as React from 'npm:react@18.3.1'
 import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { EmailAPIError, sendLovableEmail } from 'npm:@lovable.dev/email-js@0.1.0'
 import { TEMPLATES } from './registry.ts'
+import { renderReschedulingEmail } from './render-rescheduling.ts'
 
 // Server-only: reads LOVABLE_API_KEY. Import from edge functions only — never
 // expose sending to the browser.
@@ -59,8 +60,11 @@ export async function sendTemplateEmail(
 
   const templateData = options.templateData ?? {}
   const element = React.createElement(template.component, templateData)
-  const html = await renderAsync(element)
-  const text = await renderAsync(element, { plainText: true })
+  const rescheduling = templateName === 'rescheduling-choice'
+    ? await renderReschedulingEmail(templateData)
+    : undefined
+  const html = rescheduling?.html ?? await renderAsync(element)
+  const text = rescheduling?.text ?? await renderAsync(element, { plainText: true })
   const subject =
     typeof template.subject === 'function'
       ? template.subject(templateData)
