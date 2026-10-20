@@ -6,6 +6,7 @@
 
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { sendLegacyEmailPayload } from '../_shared/send-managed-email.ts';
+import { ensureCurrentFxBook, convertWithBook } from '../_shared/fx-rates.ts';
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -166,6 +167,20 @@ Deno.serve(async (req) => {
     const depositPaymentLabel = String(meta?.payment_links?.deposit_label || "Pagar seña").trim();
     const depositAmount = Number(meta?.payment_links?.deposit_amount || 0);
     const depositCurrency = String(meta?.payment_links?.deposit_currency || "EUR").toUpperCase();
+    let depositUsdAmount: number | null = null;
+    let depositUsdRate: number | null = null;
+    let fxUpdatedAt = "";
+    if (depositAmount > 0 && depositCurrency === "EUR") {
+      try {
+        const fxBook = await ensureCurrentFxBook(supabase);
+        const conv = convertWithBook(fxBook, depositAmount, "EUR", "USD");
+        depositUsdAmount = Math.round(conv.amount * 100) / 100;
+        depositUsdRate = Math.round(conv.rate * 100000) / 100000;
+        fxUpdatedAt = fxBook.updatedAt || fxBook.bcraDate || "";
+      } catch (e) {
+        console.error("[send-reservation-confirmation] fx EUR/USD", e);
+      }
+    }
     const packageNombre = (reservation as any).package_nombre_snapshot || null;
     const total = (reservation as any).amount_total ?? (reservation as any).price_snapshot ?? 0;
     const paid = (reservation as any).amount_paid ?? 0;
@@ -251,11 +266,12 @@ Deno.serve(async (req) => {
     ${depositPaymentUrl ? `
       <div style="border:1px solid #f0d6bf;border-radius:10px;padding:16px 18px;margin:12px 0;background:#fffaf5;text-align:center;">
         <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#121212;">Pago de la seña</p>
-        ${depositAmount > 0 ? `<p style="margin:0 0 12px;font-size:13px;color:#666;">Importe: ${escapeHtml(fmtCurrency(depositAmount, depositCurrency))}</p>` : ""}
+        ${depositAmount > 0 ? `<p style="margin:0 0 8px;font-size:13px;color:#666;">Importe: ${escapeHtml(fmtCurrency(depositAmount, depositCurrency))}</p>` : ""}
+        ${depositUsdAmount != null ? `<p style="margin:0 0 12px;font-size:13px;color:#444;"><strong>Si preferís pagar en USD:</strong> ${escapeHtml(fmtCurrency(depositUsdAmount, "USD"))}<br><span style="font-size:11px;color:#888;">Cotización Reybaud vigente en la app${depositUsdRate ? ` · 1 EUR = USD ${depositUsdRate.toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 5 })}` : ""}${fxUpdatedAt ? ` · actualizada ${escapeHtml(fmtDate(fxUpdatedAt))}` : ""}. El importe puede variar hasta el momento efectivo del pago.</span></p>` : ""}
         <a href="${escapeHtml(depositPaymentUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 28px;background:#E8832A;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
           ${escapeHtml(depositPaymentLabel)}
         </a>
-        <p style="margin:10px 0 0;font-size:11px;color:#888;">El pago se realiza en la plataforma externa indicada por Reybaud.</p>
+        <p style="margin:10px 0 0;font-size:11px;color:#888;">Una vez realizado el pago, respondé este mismo mail adjuntando una captura o comprobante de la confirmación para que podamos verificarlo y registrarlo en tu reserva.</p>
       </div>
     ` : ""}
 
@@ -291,7 +307,7 @@ Deno.serve(async (req) => {
       `Fecha: ${fmtDate(event.date)}${event.end_date ? " – " + fmtDate(event.end_date) : ""}`,
       packageNombre ? `Paquete: ${packageNombre}` : null,
       `Total: ${fmtCurrency(total, currency)} · Pagado: ${fmtCurrency(paid, currency)} · Saldo: ${fmtCurrency(balance, currency)}`,
-      depositPaymentUrl ? `Pagar seña${depositAmount > 0 ? ` (${fmtCurrency(depositAmount, depositCurrency)})` : ""}: ${depositPaymentUrl}` : null,
+      depositPaymentUrl ? `Pagar seña${depositAmount > 0 ? ` (${fmtCurrency(depositAmount, depositCurrency)})` : ""}: ${depositPaymentUrl}${depositUsdAmount != null ? `\nSi preferís pagar en USD: ${fmtCurrency(depositUsdAmount, "USD")} según Cotización Reybaud vigente en la app. El importe puede variar hasta el momento del pago.` : ""}\nDespués de pagar, respondé este mismo mail con una captura o comprobante de la confirmación.` : null,
       ``,
       `Ver tu reserva: ${eventLink}`,
       reglamentoUrl ? `Reglamento (PDF): ${reglamentoUrl}` : null,
