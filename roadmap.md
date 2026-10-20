@@ -1,3 +1,7 @@
+## San Luis · Presentación reprogramada (20/10)
+- [ ] Corregir título, distintivo y fecha en catálogo, carrusel y detalle sin modificar datos
+- [ ] Verificar presentación y acceso existente; no publicar por pedido expreso
+
 ## San Luis · Cambio seguro de cuenta (20/10)
 - [x] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
 - [x] Prioridad del enlace personal, aislamiento de identidad; 728 tests y SQL reversible OK
