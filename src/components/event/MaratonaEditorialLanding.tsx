@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { chooseBookingPackage, type BookingRequestPackage } from "@/lib/eventBookingRequest";
 import EventBookingRequestDialog from "./EventBookingRequestDialog";
+import EventReglamentoSection from "./EventReglamentoSection";
 import { ArrowLeft, Bike, CalendarDays, Check, Flag, Hotel, MapPin, MessageCircle, Mountain, Route, X } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
@@ -222,6 +223,11 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
           </article>
           <div className="flex gap-4 border-y border-border py-5"><Route className="h-7 w-7 shrink-0 text-primary"/><div><p className="font-heading font-bold uppercase">Si venís de La Conquista Alpina</p><p className="mt-1 text-sm text-muted-foreground">La Conquista Alpina termina el 28/6 y Maratona empieza el 30/6. Las dos noches y traslados de conexión se cotizan aparte, no incluidos.</p></div></div>
           <Button asChild variant="outline"><a href={wa} target="_blank" rel="noopener noreferrer"><MessageCircle className="mr-2 h-4 w-4"/>Consultar por WhatsApp</a></Button>
+        </section>
+
+        <section id="condiciones" className="scroll-mt-6 space-y-6" aria-label="Políticas y condiciones del viaje">
+          <div><p className={eyebrow}>Antes de reservar</p><h2 className={h2 + " mt-2"}>Políticas y condiciones</h2></div>
+          <EventReglamentoSection metadata={metadata} />
         </section>
 
         <section id="faq" className="space-y-6">
