@@ -10,6 +10,10 @@ const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const FREQUENCY_DAYS = 7;
+// Campañas con excepción puntual autorizada a la regla de 7 días (Scarlett Tayná, 20/10/2026).
+const FREQUENCY_EXCEPTION_SUBJECTS = [
+  "🚴 ¿Conocés a alguien que necesite aprender a rodar en pelotón?",
+];
 
 interface SegmentFilters {
   audience?: ("students" | "coaches" | "marketing" | "waitlist")[];
@@ -25,6 +29,7 @@ interface SegmentFilters {
   marketing_tags?: string[];           // tags a matchear (OR)
   marketing_contact_ids?: string[];    // selección puntual
   marketing_ignore_frequency?: boolean;
+  marketing_frequency_reason?: string; // motivo obligatorio de la excepción
   // waitlist
   waitlist_event_ids?: string[];       // eventos cuyas listas de espera se incluyen
   waitlist_estados?: string[];         // nuevo | contactado | convertido | descartado
@@ -308,7 +313,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
 
-  rows = rows.filter((a: any) => a.email && a.email.includes("@"));
+  rows = rows.filter((a: any) => a.email && a.email.includes("@") && !/\.invalid$/i.test(String(a.email).trim()));
 
   // exclude suppressed (rebotes / quejas)
   const emails = rows.map((r: any) => r.email.toLowerCase());
@@ -415,6 +420,16 @@ Deno.serve(async (req) => {
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
     const body: SendBody = await req.json();
     const filters = body.segment_filters || {};
+    // Excepción a la regla de 7 días: solo campañas autorizadas y con motivo escrito.
+    if (filters.marketing_ignore_frequency && body.mode !== "test") {
+      const reason = (filters.marketing_frequency_reason || "").trim();
+      const subj = (body.subject || "").trim();
+      if (reason.length < 15 || (body.mode !== "preview_count" && !FREQUENCY_EXCEPTION_SUBJECTS.includes(subj))) {
+        return new Response(JSON.stringify({
+          error: "La excepción a la frecuencia de 7 días requiere motivo y solo está autorizada para campañas aprobadas.",
+        }), { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      }
+    }
 
     let senderEmail = body.sender_email;
     let senderName = body.sender_name;
@@ -480,6 +495,18 @@ Deno.serve(async (req) => {
       if (!body.subject || !body.content_html) {
         return new Response(JSON.stringify({ error: "Faltan subject o content_html" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      // Anti-duplicado: no se puede enviar dos veces la misma campaña (mismo asunto).
+      const { data: dup } = await admin
+        .from("broadcasts")
+        .select("id, status")
+        .eq("subject", body.subject)
+        .in("status", ["sending", "sent"])
+        .limit(1);
+      if (dup && dup.length) {
+        return new Response(JSON.stringify({ error: "Esta campaña ya fue enviada o está en curso", broadcast_id: dup[0].id }), {
+          status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
       const allRecipients = await loadRecipients(admin, filters);

@@ -69,6 +69,7 @@ const emptyComposer = {
   marketing_tipos: [] as string[],
   marketing_tags: [] as string[],
   marketing_ignore_frequency: false,
+  marketing_frequency_reason: "",
   waitlist_event_ids: [] as string[],
   waitlist_estados: ["nuevo", "contactado"] as string[],
   promo_product_ids: [] as string[],
@@ -190,6 +191,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
     marketing_tipos: composer.marketing_tipos.length ? composer.marketing_tipos : undefined,
     marketing_tags: composer.marketing_tags.length ? composer.marketing_tags : undefined,
     marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
+    marketing_frequency_reason: composer.marketing_ignore_frequency ? composer.marketing_frequency_reason.trim() || undefined : undefined,
     waitlist_event_ids: composer.waitlist_event_ids.length ? composer.waitlist_event_ids : undefined,
     waitlist_estados: composer.waitlist_estados.length ? composer.waitlist_estados : undefined,
     cta_url: composer.cta_url || undefined,
@@ -386,6 +388,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       marketing_tipos: seg.marketing_tipos || [],
       marketing_tags: seg.marketing_tags || [],
       marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
+      marketing_frequency_reason: seg.marketing_frequency_reason || "",
       waitlist_event_ids: seg.waitlist_event_ids || [],
       waitlist_estados: seg.waitlist_estados || ["nuevo", "contactado"],
       promo_product_ids: (b as any).promo_product_ids || [],
@@ -781,6 +784,15 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                     Ignorar tope de frecuencia (por defecto excluye contactos que recibieron una campaña en los últimos 7 días).
                   </span>
                 </label>
+                {composer.marketing_ignore_frequency && (
+                  <textarea
+                    className="w-full rounded-md border bg-background p-2 text-xs"
+                    rows={2}
+                    placeholder="Motivo de la excepción (obligatorio, mínimo 15 caracteres). Solo se acepta en campañas autorizadas."
+                    value={composer.marketing_frequency_reason}
+                    onChange={(e) => setComposer({ ...composer, marketing_frequency_reason: e.target.value })}
+                  />
+                )}
                 <p className="text-[10px] text-muted-foreground">
                   Sólo se envía a contactos con <b>opt-in activo</b>. Los rebotes/bajas (suppressed_emails) se descartan siempre.
                 </p>
