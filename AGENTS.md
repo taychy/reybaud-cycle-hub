@@ -1,4 +1,4 @@
-- Scenarios: `src/lib/scenarioDistribution.ts`; sum=participants, never copy capacities. Why: consistent totals.
+- Scenarios: `src/lib/scenarioDistribution.ts`; sum=participants, never copy capacities. Why: correct totals.
 - Pagos internacionales de eventos: `src/lib/eventPaymentPolicy.ts` solo si existe `events.metadata.payment_policy`; recargo ARS una vez sobre la cotización central, nunca como saldo; aviso solo en la confirmación de reserva. Why: saldo contractual EUR trazable.
 - Trip audits: `src/lib/tripTechnicalAudit.ts`, state in `events.metadata.technical_audit`; merge only the item into fresh metadata. Why: no migrations or overwrites.
 - Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview + external fallback, never downloads. Why: isolate trips; no misleading data.
@@ -17,7 +17,7 @@
 - Condiciones de reservas: alta admin queda `terminos_pendientes` (trigger, token único 30 días); aceptar solo vía `_accept_reservation_terms`; texto desde `event_terms_snapshot` (espejo SQL de eventReglamentoDefaults.ts, mantener iguales); pagos validados bloqueados si pendiente. Why: misma trazabilidad, sin flujo paralelo.
 - Shared rooms: metadata.shared_room_assignment + SQL quote/trigger. Why: authoritative.
 - Rescheduling: append-only proposal RPCs, source hashes and blocking alerts; public/credit off. Why: no money/room changes.
-- Kit: separate audited admin/staff sizes; event/name uniqueness, soft removal; conflicts excluded. Why: provenance.
+- Kit: audited admin/staff sizes separately; unique event/name, soft removal; exclude conflicts. Why: provenance.
 
 - Pending intake reuses event_waitlist_entries/metadata package IDs; server prices/contact consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
 
