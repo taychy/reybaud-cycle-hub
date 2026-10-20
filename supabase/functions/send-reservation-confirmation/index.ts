@@ -162,6 +162,10 @@ Deno.serve(async (req) => {
       .order("numero", { ascending: true });
 
     const meta: any = event.metadata || {};
+    const depositPaymentUrl = String(meta?.payment_links?.deposit_url || "").trim();
+    const depositPaymentLabel = String(meta?.payment_links?.deposit_label || "Pagar seña").trim();
+    const depositAmount = Number(meta?.payment_links?.deposit_amount || 0);
+    const depositCurrency = String(meta?.payment_links?.deposit_currency || "EUR").toUpperCase();
     const packageNombre = (reservation as any).package_nombre_snapshot || null;
     const total = (reservation as any).amount_total ?? (reservation as any).price_snapshot ?? 0;
     const paid = (reservation as any).amount_paid ?? 0;
@@ -244,6 +248,17 @@ Deno.serve(async (req) => {
 
     ${sectionCard("Resumen de tu reserva", resumenHtml + cuotasHtml)}
 
+    ${depositPaymentUrl ? `
+      <div style="border:1px solid #f0d6bf;border-radius:10px;padding:16px 18px;margin:12px 0;background:#fffaf5;text-align:center;">
+        <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#121212;">Pago de la seña</p>
+        ${depositAmount > 0 ? `<p style="margin:0 0 12px;font-size:13px;color:#666;">Importe: ${escapeHtml(fmtCurrency(depositAmount, depositCurrency))}</p>` : ""}
+        <a href="${escapeHtml(depositPaymentUrl)}" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:13px 28px;background:#E8832A;color:#fff;text-decoration:none;border-radius:8px;font-size:14px;font-weight:700;">
+          ${escapeHtml(depositPaymentLabel)}
+        </a>
+        <p style="margin:10px 0 0;font-size:11px;color:#888;">El pago se realiza en la plataforma externa indicada por Reybaud.</p>
+      </div>
+    ` : ""}
+
     ${policySections.join("")}
 
     ${reglamentoUrl ? `
@@ -276,6 +291,7 @@ Deno.serve(async (req) => {
       `Fecha: ${fmtDate(event.date)}${event.end_date ? " – " + fmtDate(event.end_date) : ""}`,
       packageNombre ? `Paquete: ${packageNombre}` : null,
       `Total: ${fmtCurrency(total, currency)} · Pagado: ${fmtCurrency(paid, currency)} · Saldo: ${fmtCurrency(balance, currency)}`,
+      depositPaymentUrl ? `Pagar seña${depositAmount > 0 ? ` (${fmtCurrency(depositAmount, depositCurrency)})` : ""}: ${depositPaymentUrl}` : null,
       ``,
       `Ver tu reserva: ${eventLink}`,
       reglamentoUrl ? `Reglamento (PDF): ${reglamentoUrl}` : null,
