@@ -233,3 +233,9 @@
 - [x] Capa admin: renuncia validada → aprobación explícita de liberación → oferta → un reemplazo sin noches solapadas; auditoría e idempotencia
 - [x] Resumen admin por paquete/noches; cero vendibles; pruebas unitarias y SQL reversible
 - [ ] Habilitar reventa, precio de reventa y alta de reservas de reemplazo: requieren decisión y autorización
+
+## San Luis · Enlace personal y comunicación
+- [x] Enlace personal → sesión propia o DNI+nombre+apellido validados en servidor; token solo no abre datos; sesión invitado 2 h; límite de intentos
+- [x] Encuesta en 3 opciones + ayuda, fechas como subelección; confirmación «no se devolvió ni acreditó»
+- [x] Panel «Comunicar reprogramación»: 32 vigentes, validez/duplicados, vistas previas, estados y registro manual de WhatsApp
+- [ ] Envío real de email (transaccional) y WhatsApp: pendientes de aprobación; requieren public_enabled

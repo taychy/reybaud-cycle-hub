@@ -46,7 +46,7 @@ export default function ReschedulingCommsPanel({ eventId, publicEnabled }: { eve
         </tr>)}</tbody></table></div>
     </DialogContent></Dialog>
     <Dialog open={!!preview} onOpenChange={o => { if (!o) setPreview(undefined); }}><DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
-      {preview && (() => { const r = rows.find(x => x.reservation_id === preview.reservation_id) ?? preview; const l = link(r); const mail = emailBody(r.first_name, l); const wa = whatsappText(r.first_name, l); const p = phone(r); return <>
+      {preview && (() => { const r = rows.find(x => x.reservation_id === preview.reservation_id) ?? preview; const l = link(r); const mail = emailBody(r.first_name.trim(), l); const wa = whatsappText(r.first_name.trim(), l); const p = phone(r); return <>
         <DialogHeader><DialogTitle>{r.participant}</DialogTitle><DialogDescription>Enlace: {maskLink(l)}</DialogDescription></DialogHeader>
         <section className="space-y-2 text-sm"><h3 className="font-medium flex gap-2 items-center"><Mail className="w-4 h-4" />Email</h3>
           <p><strong>Asunto:</strong> {mail.subject}</p><pre className="whitespace-pre-wrap text-xs border border-border rounded p-3">{mail.text.replace(l, `[${mail.button}]`)}</pre>
