@@ -22,7 +22,7 @@ export default function EventRescheduling() {
   try{
    const {data:{session}}=await supabase.auth.getSession();
    if(session){const c=await reschedulingContext(eventId,reservationId);if(!c.available){setView('closed');return;}
-    if(!token && (c.reservations?.length ?? 0)>0){setCtx(c);setAccess(undefined);setView('form');return;}
+    if((c.reservations?.length ?? 0)>0){setCtx(c);setAccess(undefined);setView('form');return;}
     if(!token && c.admin_hint){setView('admin');return;}
     setOtherSession(!!token);}
    if(!token || !reservationId){const c=await reschedulingContext(eventId);if(!c.available){setView('closed');return;}setView('login');return;}
