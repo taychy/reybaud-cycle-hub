@@ -478,46 +478,15 @@ Deno.serve(async (req) => {
       if(!body.confirmed || !body.preview_id) throw new Error('Falta confirmación y vista previa');
       const selection=await loadRecipients(admin,filters,body.excluded_emails);
       const recipients=selection.eligible;
-      const {data:bid,error:claimError}=await admin.rpc('claim_broadcast_send',{p_guard:body.preview_id,p_actor:user.id,p_payload:await digest(campaignPayload(body)),p_audience:await digest(recipients.map(r=>r.email).sort())});
-      if(claimError) throw claimError;
-      const {data:existing,error:existingError}=await admin.from('broadcasts').select('id,status,total_recipients').eq('id',bid).maybeSingle();
-      if(existingError) throw existingError;
-      if(existing) return new Response(JSON.stringify({ok:true,broadcast_id:existing.id,total:existing.total_recipients,status:existing.status,duplicate:true}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
-      if (!recipients.length) {
-        return new Response(JSON.stringify({ error: "Sin destinatarios" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const { data: bc, error: bcErr } = await admin.from("broadcasts").insert({
-        id:bid,
-        subject: body.subject,
-        content_html: body.content_html,
-        preheader: body.preheader,
-        sender_email: senderEmail,
-        sender_name: senderName,
-        reply_to: replyTo,
-        segment_filters: filters as any,
-        status: "sending",
-        total_recipients: recipients.length,
-        created_by: user.id,
-        promo_product_ids: body.promo_product_ids || [],
-      }).select().single();
-      if (bcErr) throw bcErr;
-
+      if (!recipients.length) throw new Error('Sin destinatarios');
       const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
-
-      const {error:recipientError}=await admin.from("broadcast_recipients").insert(
-        recipients.map((r: any) => ({
-          broadcast_id: bc.id,
-          alumno_id: r.contact_type === "alumno" ? r.id : null,
-          email: r.email,
-          name: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
-          status: "pending",
-        }))
-      );
-
-      if(recipientError) throw recipientError;
+      const {data:prepared,error:prepareError}=await admin.rpc('prepare_broadcast_send',{
+        p_guard:body.preview_id,p_actor:user.id,p_payload:await digest(campaignPayload(body)),p_audience:await digest(recipients.map(r=>r.email).sort()),
+        p_campaign:{subject:body.subject,content_html:body.content_html,preheader:body.preheader,sender_email:senderEmail,sender_name:senderName,reply_to:replyTo,segment_filters:filters,promo_product_ids:body.promo_product_ids||[]},p_recipients:recipients
+      });
+      if(prepareError || !prepared) throw prepareError || new Error('No se pudo preparar el envío');
+      const bc={id:prepared.id};
+      if(prepared.duplicate) return new Response(JSON.stringify({ok:true,broadcast_id:bc.id,duplicate:true,total:recipients.length}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
 
       // Ejecutar el envío en background para evitar el timeout de 150s.
       const processBroadcast = async () => {

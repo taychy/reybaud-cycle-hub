@@ -1,4 +1,4 @@
-- Simulador de costos: distribuir with `src/lib/scenarioDistribution.ts` (sum=participants, never copy capacities). Why: consistent totals.
+- Scenario distributions: use `src/lib/scenarioDistribution.ts` (sum=participants, never copy capacities). Why: consistent totals.
 - Pagos internacionales de eventos: `src/lib/eventPaymentPolicy.ts` solo si existe `events.metadata.payment_policy`; recargo ARS una vez sobre la cotización central, nunca como saldo; aviso solo en la confirmación de reserva. Why: saldo contractual EUR trazable.
 - Auditoría humana de viajes: checklist en `src/lib/tripTechnicalAudit.ts`, estado en `events.metadata.technical_audit` (mezclar solo el ítem sobre metadata fresca). Why: sin migraciones ni pisar datos.
 - Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview + external fallback, never downloads. Why: isolate trips; no misleading data.
