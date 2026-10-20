@@ -248,3 +248,9 @@
 - [x] Correo HTML/texto sin caracteres corruptos; versión v2-ascii desplegada y verificada mediante preview autenticado (sin enviar)
 - [x] 713 pruebas Vitest + 2 Deno; compilación OK; móvil 320/390 y escritorio, sesión real propia y acceso anónimo verificados sin guardar
 - [ ] Publicar y verificar producción: espera decisión sobre 6 hallazgos críticos previos informados; no se modificaron ni ignoraron
+
+## San Luis · Plazo y explicación del jersey
+- [x] Copy simple del jersey; plazo solo devolución en detalles/resumen; 716 Vitest + 2 Deno, compilación OK
+- [x] App publicada (20261020.1004); correo v3-refund-5-7 desplegado y verificado mediante preview autenticado HTML/texto sin U+FFFD, sin envío
+- [x] Política v2 actualizada con auditoría; 1 solicitud conserva v1, 32 reservas vigentes, encuesta/reventa sin cambios; móvil 320 px y crédito sin plazo verificados en producción sin guardar
+- [ ] Precisar desde cuándo se cuentan los 5 a 7 días y si son hábiles o calendario: requiere definición de administración

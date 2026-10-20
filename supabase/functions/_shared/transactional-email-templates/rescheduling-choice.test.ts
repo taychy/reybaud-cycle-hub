@@ -7,7 +7,7 @@ function assert(condition: boolean, message: string) {
 Deno.test('San Luis actual sender renders UTF-8 HTML and plain text without replacement characters', async () => {
   const sample = 'https://reybaud-app.com/reprogramacion/ejemplo'
   const rendered = await renderReschedulingEmail({ firstName: 'María Núñez', link: sample })
-  assert(rendered.template_version === 'san-luis-nov-2026-v2-ascii', 'Wrong template version')
+  assert(rendered.template_version === 'san-luis-nov-2026-v3-refund-5-7', 'Wrong template version')
   assert(rendered.subject === 'Training Camp San Luis · Elegí cómo querés continuar', 'Subject changed')
   for (const body of [rendered.html, rendered.text]) {
     assert(!body.includes('\uFFFD'), 'Corrupt Unicode')
@@ -15,6 +15,9 @@ Deno.test('San Luis actual sender renders UTF-8 HTML and plain text without repl
     assert(body.includes('- Pedir un crédito nominal en pesos para otro Training Camp.'), 'Credit bullet corrupt')
     assert(body.includes('devolución del 100%'), 'Refund policy changed')
     assert(body.includes('reintegros previos'), 'Reimbursements omitted')
+    assert(body.includes('Plazo de reintegro: de 5 a 7 días.'), 'Refund timeframe missing')
+    assert(body.indexOf('Plazo de reintegro') > body.indexOf('- Pedir la devolución'), 'Not scoped to refund')
+    assert(body.indexOf('Plazo de reintegro') < body.indexOf('- Pedir un crédito'), 'Credit must not inherit refund timeframe')
     assert(body.includes('Si tenés dudas'), 'Help missing')
     assert(body.includes(sample), 'Link changed')
   }
