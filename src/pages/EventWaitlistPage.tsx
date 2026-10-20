@@ -76,7 +76,7 @@ export default function EventWaitlistPage() {
         )}
         <div>
           <div className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary/15 text-primary text-[11px] font-medium mb-2">
-            <Sparkles className="w-3 h-3" /> Próximamente
+            <Sparkles className="w-3 h-3" /> {meta.estado_publicacion === "agotado" ? "Cupos completos" : "Próximamente"}
           </div>
           <h1 className="text-2xl font-heading font-bold">{meta.title}</h1>
         </div>
@@ -104,6 +104,7 @@ export default function EventWaitlistPage() {
         eventTitle={meta.title}
         waitlistMensaje={meta.waitlist_mensaje}
         questions={meta.waitlist_questions}
+        soldOut={meta.estado_publicacion === "agotado"}
       />
     </div>
   );
