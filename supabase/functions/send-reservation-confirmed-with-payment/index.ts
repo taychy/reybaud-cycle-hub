@@ -103,7 +103,7 @@ Deno.serve(async (req) => {
     }
 
     // Event
-    const { data: ev } = await sb.from("events").select("title, currency, type, fecha_inicio, lugar").eq("id", r.event_id).single();
+    const { data: ev } = await sb.from("events").select("title, currency, type, fecha_inicio, lugar, metadata").eq("id", r.event_id).single();
 
     // Importe a pagar ahora
     const { data: calc } = await sb.rpc("importe_a_pagar_ahora", { _reservation_id: reservation_id });
@@ -159,6 +159,15 @@ Deno.serve(async (req) => {
     const payUrl = `${APP_DOMAIN}/mis-reservas/${reservation_id}?action=pay`;
     const cashUrl = `${APP_DOMAIN}/mis-reservas/${reservation_id}?action=cash`;
     const viewUrl = `${APP_DOMAIN}/mis-reservas/${reservation_id}`;
+    const externalDepositUrl = String((ev as any)?.metadata?.payment_links?.deposit_url || "").trim();
+    const externalDepositAmount = Number((ev as any)?.metadata?.payment_links?.deposit_amount || 0);
+    const externalDepositCurrency = String((ev as any)?.metadata?.payment_links?.deposit_currency || "").toUpperCase();
+    const useExternalDepositUrl = !!externalDepositUrl
+      && externalDepositAmount > 0
+      && Math.abs(amount - externalDepositAmount) < 0.01
+      && (!externalDepositCurrency || externalDepositCurrency === String(currency).toUpperCase());
+    const primaryPayUrl = useExternalDepositUrl ? externalDepositUrl : payUrl;
+    const primaryPayLabel = useExternalDepositUrl ? "Pagar seña" : "Pagar ahora con Mercado Pago";
 
     const unsubToken = await getUnsubToken(sb, email);
     const unsubUrl = `${APP_DOMAIN}/email/unsubscribe?token=${unsubToken}`;
@@ -179,8 +188,8 @@ Deno.serve(async (req) => {
   <p style="margin:16px 0 12px;color:#111">¿Cómo querés pagarlo?</p>
   <table style="width:100%;border-collapse:separate;border-spacing:0 8px">
     <tr><td>
-      <a href="${payUrl}" style="display:block;background:#22c55e;color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:10px;font-weight:600">
-        Pagar ahora con Mercado Pago
+      <a href="${primaryPayUrl}" style="display:block;background:#22c55e;color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:10px;font-weight:600">
+        ${primaryPayLabel}
       </a>
     </td></tr>
     <tr><td>
@@ -205,7 +214,7 @@ Deno.serve(async (req) => {
   <p style="font-size:11px;color:#9ca3af;margin:0">Reybaud Ciclismo · <a href="${unsubUrl}" style="color:#9ca3af">Cancelar suscripción</a></p>
 </div>`;
 
-    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${payUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
+    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${primaryPayUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
 
 
     const messageId = force
