@@ -1,7 +1,7 @@
 - Simulador de costos: distribuir escenarios con `src/lib/scenarioDistribution.ts` (suma = participantes; nunca copiar cupos). Why: resultados coherentes.
 - Pagos internacionales de eventos: `src/lib/eventPaymentPolicy.ts` solo si existe `events.metadata.payment_policy`; recargo ARS una vez sobre la cotización central, nunca como saldo; aviso solo en la confirmación de reserva. Why: saldo contractual EUR trazable.
 - Auditoría humana de viajes: checklist en `src/lib/tripTechnicalAudit.ts`, estado en `events.metadata.technical_audit`. Why: sin migraciones ni pisar datos.
-- Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview, no downloads. Why: no misleading data.
+- Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview, no downloads. Rescheduling display uses eventRescheduledPresentation, never replaces stored dates/deadlines. Why: preserve history.
 - Liquidaciones: links seguros por profesor/mes y envíos en liquidacion_links/liquidacion_submissions; acceso público solo vía RPCs SECURITY DEFINER; valor de honorario siempre resuelto en servidor; recordatorios idempotentes vía liquidacion_reminder_log. Why: sin duplicados ni exposición.
 - Public audience: resolve metadata.public_audience (open/students_only), compatible with active_students_only. Why: communicate without changing booking.
 - Programas de formación: fase comercial con `src/lib/programCommercialPhase.ts` (espejo de SQL `program_commercial_phase`); cupo por sede en `planes_sedes` validado por trigger en `suscripciones.programa_sede_id`; lista de espera en `program_waitlist_entries` solo vía RPC `join_program_waitlist`. Why: una sola URL por programa y sin sobrecupo por sede.

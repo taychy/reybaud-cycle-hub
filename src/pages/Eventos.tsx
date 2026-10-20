@@ -1,4 +1,5 @@
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
+import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,9 +134,10 @@ const EventCard = ({
   onToggleFavorite: () => void; reservationStatus?: string; isParticipant?: boolean;
 }) => {
   const priceDisplay = getEventPriceDisplay(event);
+  const rescheduled = eventRescheduledPresentation(event.id);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const d = new Date(event.date + "T12:00:00");
-  const dateStr = isEventDateTbd(event.metadata)
+  const dateStr = rescheduled ? rescheduled.shortDate : isEventDateTbd(event.metadata)
     ? DATES_TBD_LABEL
     : d.toLocaleDateString("es-AR", { day: "numeric", month: "short" });
   const hasReservation = !!reservationStatus;
@@ -158,7 +160,7 @@ const EventCard = ({
       <div className="relative aspect-[4/3] overflow-hidden">
         <img
           src={event.image_url || placeholderImages[event.type] || placeholderImages.otro}
-          alt={event.title}
+          alt={rescheduled?.title || event.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
@@ -172,6 +174,7 @@ const EventCard = ({
 
         {/* Type badge top-left */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
+          {rescheduled && <Badge className="text-[9px] font-heading px-2 py-0.5 bg-primary text-primary-foreground">{rescheduled.status}</Badge>}
           <span className={`text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
@@ -217,7 +220,7 @@ const EventCard = ({
       {/* Content */}
       <div className="p-3 space-y-1.5">
         <h3 className="font-heading font-semibold text-sm text-foreground leading-tight line-clamp-2">
-          {event.title}
+          {rescheduled?.title || event.title}
         </h3>
 
         <div className="flex flex-col gap-0.5">
@@ -240,7 +243,7 @@ const EventCard = ({
               {event.level}
             </span>
           )}
-          {spotsLeft != null && (
+          {!rescheduled && spotsLeft != null && (
             <span className="flex items-center gap-1 text-[9px] text-muted-foreground">
               <Users className="w-3 h-3" />
               {spotsLeft > 0 ? `${spotsLeft} cupos` : "Agotado"}
@@ -271,14 +274,15 @@ const EventCard = ({
               const isWaitlistState =
                 event.estado_publicacion === "proximamente" ||
                 event.estado_publicacion === "agotado";
-              if (isWaitlistState && event.waitlist_habilitada) {
+              if (!rescheduled && !hasUserLink && isWaitlistState && event.waitlist_habilitada) {
                 window.location.href = `/eventos/${event.id}/lista-espera`;
                 return;
               }
               onClick();
             }}
           >
-            {(event.estado_publicacion === "proximamente" || event.estado_publicacion === "agotado") && event.waitlist_habilitada
+            {rescheduled ? (hasUserLink ? "Ver estado" : "Ver detalle")
+              : (event.estado_publicacion === "proximamente" || event.estado_publicacion === "agotado") && event.waitlist_habilitada
               ? "Anotarme"
               : event.estado_publicacion === "agotado"
               ? "Agotado"
@@ -314,13 +318,14 @@ const FeaturedBanner = ({
 
   if (events.length === 0) return null;
   const ev = events[current];
+  const rescheduled = eventRescheduledPresentation(ev.id);
 
   return (
     <div className="relative rounded-2xl overflow-hidden cursor-pointer group" onClick={() => onSelect(ev.id)}>
       <div className="aspect-[4/3] md:aspect-[21/9]">
         <img
           src={ev.image_url || placeholderImages[ev.type] || placeholderImages.otro}
-          alt={ev.title}
+          alt={rescheduled?.title || ev.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
@@ -332,15 +337,15 @@ const FeaturedBanner = ({
         <Heart className={`w-5 h-5 ${isFavorite(ev.id) ? "fill-red-500 text-red-500" : "text-white/80"}`} />
       </button>
       <div className="absolute bottom-0 left-0 right-0 p-4 space-y-1">
-        <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase">Destacado</Badge>
-        <h2 className="text-white font-heading font-bold text-lg leading-tight">{ev.title}</h2>
-        <div className="flex items-center gap-3 text-white/80 text-xs">
+        <Badge className="bg-primary text-primary-foreground text-[10px] font-heading uppercase">{rescheduled?.status || "Destacado"}</Badge>
+        <h2 className="text-foreground font-heading font-bold text-lg leading-tight">{rescheduled?.title || ev.title}</h2>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-foreground/80 text-xs">
           {ev.location && (
             <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {ev.location}</span>
           )}
           <span className="flex items-center gap-1">
             <CalendarDays className="w-3 h-3" />
-            {new Date(ev.date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
+            {rescheduled?.shortDate || new Date(ev.date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}
           </span>
         </div>
       </div>
