@@ -22,6 +22,7 @@ import {
   WAITLIST_ENTRY_STATES,
 } from "@/lib/waitlistTypes";
 import { getShareOrigin, copyToClipboard } from "@/lib/eventLinks";
+import { csvCell } from "@/lib/rescheduling";
 
 interface EventRow {
   id: string;
@@ -56,6 +57,7 @@ const ESTADO_PUB_LABELS: Record<string, string> = {
 
 export default function AdminEventWaitlist() {
   const { id } = useParams<{ id: string }>();
+  const isMaratona = id === "78a739f4-9b06-47af-bc6d-d8a1705e2477";
   const { toast } = useToast();
 
   const [event, setEvent] = useState<EventRow | null>(null);
@@ -155,7 +157,7 @@ export default function AdminEventWaitlist() {
 
   const copyPublicLink = async () => {
     if (!event) return;
-    const url = `${getShareOrigin()}/eventos/${event.id}/lista-espera`;
+    const url = `${getShareOrigin()}/eventos/${event.id}${isMaratona ? "" : "/lista-espera"}`;
     const ok = await copyToClipboard(url);
     toast({
       title: ok ? "Link copiado" : "No se pudo copiar",
@@ -209,7 +211,7 @@ export default function AdminEventWaitlist() {
       }),
     ]);
     const csv = [headers, ...rows]
-      .map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(","))
+      .map((r) => r.map(csvCell).join(","))
       .join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -231,8 +233,9 @@ export default function AdminEventWaitlist() {
         </Link>
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mt-2">
           <div>
-            <h1 className="text-2xl font-heading font-bold">Lista de espera</h1>
+            <h1 className="text-2xl font-heading font-bold">{isMaratona ? "Solicitudes de reserva · sin cobro" : "Lista de espera"}</h1>
             <p className="text-sm text-muted-foreground">{event.title}</p>
+            {isMaratona && <p className="mt-2 text-sm text-muted-foreground">Sin plaza confirmada. Verificar participación Alpes y alquiler en ambos viajes antes de aprobar su tarifa; cambiar estado aquí no crea reserva ni habilita pago.</p>}
           </div>
           <Button variant="outline" size="sm" onClick={copyPublicLink} className="gap-1 shrink-0">
             <Link2 className="w-4 h-4" /> Copiar link público
@@ -300,6 +303,7 @@ export default function AdminEventWaitlist() {
                       <tr>
                         <th className="text-left py-2 px-2">Nombre</th>
                         <th className="text-left py-2 px-2">Email</th>
+                        {isMaratona && <th className="text-left py-2 px-2">Modalidad / revisión</th>}
                         <th className="text-left py-2 px-2">Tel</th>
                         <th className="text-left py-2 px-2">Fecha</th>
                         <th className="text-left py-2 px-2">Estado</th>
@@ -311,6 +315,7 @@ export default function AdminEventWaitlist() {
                         <tr key={r.id} className="border-b border-border/50 hover:bg-muted/20">
                           <td className="py-2 px-2 font-medium">{r.nombre}</td>
                           <td className="py-2 px-2 text-muted-foreground">{r.email}</td>
+                          {isMaratona && <td className="py-2 px-2 text-sm">{r.respuestas.package_name}<p className="text-muted-foreground">€{r.respuestas.price_eur} · {r.respuestas.bike_included ? "Bicicleta incluida" : "Bicicleta propia"}</p><p>{r.respuestas.eligibility}</p></td>}
                           <td className="py-2 px-2 text-muted-foreground">{r.telefono || "—"}</td>
                           <td className="py-2 px-2 text-xs text-muted-foreground">
                             {new Date(r.created_at).toLocaleDateString()}

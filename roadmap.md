@@ -221,3 +221,9 @@
 - [x] Gestión admin, filtros, CSV e historial; refresco y detección de cambios de fuentes
 - [x] 25 tests automáticos, QA SQL reversible con deduplicación e idempotencia, navegador desktop/mobile e invariancia histórica
 - [ ] Activación y ejecución monetaria: bloqueadas, requieren validación y autorización posterior
+
+## Maratona · Solicitudes de reserva y segunda edición comercial
+- [ ] Revisar reservas Alpes y reutilizar captación pendiente sin cobros
+- [ ] Cuatro variantes con/sin bicicleta y elegibilidad Alpes; contenido comercial y combinado
+- [ ] Formulario persistente y gestión admin, sin plazas confirmadas ni pagos
+- [ ] Pruebas de precios/seguridad y recorrido invitado/alumno, desktop/mobile; preview sin publicar
