@@ -10,6 +10,7 @@ import { Download,RefreshCw,CalendarDays,LockKeyhole,History } from 'lucide-reac
 import { formatPrice } from '@/lib/currency';
 import { csvCell,REVIEW_LABELS,isFinancialChoice,type ReschedulingContext,type ReschedulingReservation } from '@/lib/rescheduling';
 import ReschedulingForm from '@/components/rescheduling/ReschedulingForm';
+import ReschedulingSettlementPanel from './ReschedulingSettlementPanel';
 export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
  const [ctx,setCtx]=useState<ReschedulingContext>();const [open,setOpen]=useState(false);const [loading,setLoading]=useState(false);const [error,setError]=useState('');
  const [search,setSearch]=useState('');const [filter,setFilter]=useState('all');const [reviewFilter,setReviewFilter]=useState('all');const [jerseyFilter,setJerseyFilter]=useState('all');
@@ -47,6 +48,7 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
   </DialogContent></Dialog>
   <Dialog open={!!row} onOpenChange={o=>{if(!o)setSelected(undefined)}}><DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Decisión y seguimiento</DialogTitle><DialogDescription>Registrar o revisar no ejecuta operaciones financieras ni modifica alojamiento.</DialogDescription></DialogHeader>
    {row && campaign && <><ReschedulingForm key={row.reservation_id} campaign={campaign} row={row} admin onSaved={load}/>
+    <ReschedulingSettlementPanel key={row.reservation_id} reservationId={row.reservation_id} requestRevision={row.request?.revision}/>
     {row.request && <section className="border-t border-border pt-4 space-y-3"><h3 className="font-medium">Revisión administrativa</h3><Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Estado de revisión"><SelectValue/></SelectTrigger><SelectContent>{Object.entries(REVIEW_LABELS).map(([v,l])=><SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select><Textarea aria-label="Nota de revisión" placeholder="Nota de revisión (obligatoria)" value={note} onChange={e=>setNote(e.target.value)} maxLength={2000}/><Button disabled={!note.trim()||loading} onClick={review}>Guardar revisión · sin ejecución</Button><p className="text-xs text-muted-foreground">Última nota: {row.request.admin_note || 'Sin nota'} · fuente: {row.request.source} · {new Date(row.request.consent_at).toLocaleString('es-AR')}</p></section>}
     <details className="text-sm"><summary className="cursor-pointer flex gap-2 items-center"><History className="w-4 h-4"/>Historial ({history.length})</summary>{history.map(h=><div key={h.revision} className="border-t border-border py-2"><p>Versión {h.revision} · {h.origin} · {new Date(h.created_at).toLocaleString('es-AR')}</p><p className="text-xs text-muted-foreground">{String((h.after_data as {choice?:string;review_status?:string})?.choice ?? '')} · {String((h.after_data as {review_status?:string})?.review_status ?? '')}</p></div>)}</details>
     {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
