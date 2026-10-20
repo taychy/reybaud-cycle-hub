@@ -9,6 +9,7 @@ import { RadioGroup,RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { ArrowLeft,ArrowRight,CheckCircle2,Loader2 } from 'lucide-react';
 import { formatPrice } from '@/lib/currency';
+import { refundTiming } from '@/lib/reschedulingPolicy';
 import { isFinancialChoice,jerseyEstimate,reschedulingInput,REVIEW_LABELS,type ReschedulingCampaign,type ReschedulingReservation } from '@/lib/rescheduling';
 import { choiceGroup,mainGroups } from '@/lib/reschedulingAccess';
 export default function ReschedulingForm({campaign,row,admin=false,token,onSaved}:{campaign:ReschedulingCampaign;row:ReschedulingReservation;admin?:boolean;token?:string;onSaved:()=>void}) {
@@ -25,7 +26,7 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
  const revision=useRef(row.request?.revision ?? 0);
  revision.current=Math.max(revision.current,row.request?.revision ?? 0);
  const go=(next:1|2|3)=>{setStep(next);setError('');requestAnimationFrame(()=>heading.current?.focus({preventScroll:true}));};
- const financial=isFinancialChoice(choice); const estimate=jerseyEstimate(row.financial,campaign.jersey_price,jersey==='yes' ? true : jersey==='no' ? false : null);
+ const financial=isFinancialChoice(choice); const timing=refundTiming(choice,campaign.policy_text); const estimate=jerseyEstimate(row.financial,campaign.jersey_price,jersey==='yes' ? true : jersey==='no' ? false : null);
  const detailsValid=!!choice && (!financial || jersey!=='yes' || (!!size && !!delivery && jerseyConsent && !estimate.insufficient));
  const valid=step===3 && detailsValid && consent && (!admin || (!!source.trim() && !!note.trim()));
  const change=(fn:()=>void)=>{setConsent(false);fn();setSaved(false);setError('');setCommand(crypto.randomUUID());};
