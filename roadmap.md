@@ -248,3 +248,7 @@
 - [x] Correo HTML/texto sin caracteres corruptos; versión v2-ascii desplegada y verificada mediante preview autenticado (sin enviar)
 - [x] 713 pruebas Vitest + 2 Deno; compilación OK; móvil 320/390 y escritorio, sesión real propia y acceso anónimo verificados sin guardar
 - [ ] Publicar y verificar producción: espera decisión sobre 6 hallazgos críticos previos informados; no se modificaron ni ignoraron
+
+## San Luis · Plazo y explicación del jersey
+- [ ] Copy simple, plazo solo devolución y pruebas
+- [ ] Publicar app/correo, versionar política sin reescribir solicitudes y verificar producción
