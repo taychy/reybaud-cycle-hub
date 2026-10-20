@@ -1,12 +1,10 @@
 // Email operativo de reprogramación (un correo por titular, sin lista de marketing).
 // Modos: preview (sin tokens), test (a la cuenta del admin, enlace sin token) y send (lote ≤10, compuertas en servidor).
 // Nunca se registra ni devuelve el enlace personal o el token.
-import * as React from 'npm:react@18.3.1'
-import { renderAsync } from 'npm:@react-email/components@0.0.22'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { sendTemplateEmail } from '../_shared/transactional-email-templates/send-email.ts'
-import { template, RESCHEDULING_TEMPLATE_VERSION } from '../_shared/transactional-email-templates/rescheduling-choice.tsx'
+import { renderReschedulingEmail } from '../_shared/transactional-email-templates/render-rescheduling.ts'
 
 const PRODUCTION_ORIGIN = 'https://reybaud-app.com'
 const TEMPLATE = 'rescheduling-choice'
@@ -40,10 +38,10 @@ Deno.serve(async (req) => {
     if (!camp) return json({ error: 'El evento no tiene reprogramación' }, 404)
 
     if (mode === 'preview') {
-      const html = await renderAsync(React.createElement(template.component, {
+      const rendered = await renderReschedulingEmail({
         firstName: 'Nombre', link: `${PRODUCTION_ORIGIN}/reprogramacion/${eventId}?reserva=…&token=••••`,
-      }))
-      return json({ subject: template.subject, html, template_version: RESCHEDULING_TEMPLATE_VERSION })
+      })
+      return json(rendered)
     }
 
     if (mode === 'test') {

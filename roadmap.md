@@ -242,3 +242,9 @@
 - [ ] Activar en el servidor la función de envío (requiere autorización de despliegue)
 - [ ] Publicar app, probar ruta en producción, habilitar encuesta, 1 prueba, autorizar audiencia y enviar lotes (cada paso con autorización)
 - [ ] WhatsApp: manual (copiar/abrir) hasta que se apruebe una integración oficial
+
+## San Luis · Encuesta por pasos y correo íntegro (20/10)
+- [x] Separar decisión, detalles y resumen/consentimiento sin cambios SQL ni datos reales
+- [x] Correo HTML/texto sin caracteres corruptos; versión v2-ascii desplegada y verificada mediante preview autenticado (sin enviar)
+- [x] 713 pruebas Vitest + 2 Deno; compilación OK; móvil 320/390 y escritorio, sesión real propia y acceso anónimo verificados sin guardar
+- [ ] Publicar y verificar producción: espera decisión sobre 6 hallazgos críticos previos informados; no se modificaron ni ignoraron
