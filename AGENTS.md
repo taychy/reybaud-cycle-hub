@@ -18,4 +18,4 @@
 - Shared rooms: metadata.shared_room_assignment + SQL trigger. Why: authority.
 - Rescheduling: append-only proposal RPCs; closed seat inventory only via admin_rescheduling_seat_action (validated renunciation→explicit release→offer→one replacement, no overlapping nights). Why: no money/room changes or double sale.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
-- Pending intake reuses event_waitlist_entries/metadata package IDs; server prices/contact consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
+- Pending intake reuses event_waitlist_entries; server prices/consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
