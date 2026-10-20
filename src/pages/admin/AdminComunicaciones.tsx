@@ -61,7 +61,7 @@ const AdminComunicaciones = () => {
         <TabsList className="bg-secondary">
           <TabsTrigger value="calendario" className="gap-1.5"><CalendarDays className="w-4 h-4" />Calendario</TabsTrigger>
           <TabsTrigger value="historial" className="gap-1.5"><History className="w-4 h-4" />Historial</TabsTrigger>
-          <TabsTrigger value="plantillas" className="gap-1.5"><Mail className="w-4 h-4" />Plantillas</TabsTrigger>
+          <TabsTrigger value="plantillas" className="gap-1.5"><Mail className="w-4 h-4" />Plantillas automáticas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendario" className="mt-0">

@@ -127,7 +127,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
   const [showDetail, setShowDetail] = useState<Broadcast | null>(null);
   const [detailRecipients, setDetailRecipients] = useState<any[]>([]);
   const [promoProducts, setPromoProducts] = useState<Array<{ id: string; name: string; price: number; old_price: number | null; currency: string | null; image_url: string | null; promo_activa?: boolean | null; es_externo?: boolean | null }>>([]);
-  const [templates, setTemplates] = useState<Array<{ id: string; name: string; description: string | null; subject: string; content_html: string }>>([]);
+  const [templates, setTemplates] = useState<Array<{ id: string; name: string; description: string | null; subject: string; content_html: string; preheader?: string | null; cta_url?: string | null; cta_label?: string | null }>>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
 
   useEffect(() => {
@@ -147,7 +147,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
     (async () => {
       const { data } = await supabase
         .from("broadcast_templates" as any)
-        .select("id, name, description, subject, content_html")
+        .select("id, name, description, subject, content_html, preheader, cta_url, cta_label")
         .order("updated_at", { ascending: false });
       setTemplates((data as any) || []);
     })();
@@ -548,7 +548,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           <Card className="p-4 space-y-4">
             {templates.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Cargar plantilla guardada</Label>
+                <Label>Cargar plantilla guardada (plantillas de mailing)</Label>
                 <Select
                   value={selectedTemplateId}
                   onValueChange={(value) => {
@@ -559,6 +559,9 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                         ...composer,
                         subject: tpl.subject,
                         content_html: tpl.content_html,
+                        ...(tpl.preheader != null ? { preheader: tpl.preheader } : {}),
+                        ...(tpl.cta_url != null ? { cta_url: tpl.cta_url } : {}),
+                        ...(tpl.cta_label != null ? { cta_label: tpl.cta_label } : {}),
                       });
                     }
                   }}
