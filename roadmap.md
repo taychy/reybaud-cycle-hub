@@ -1,7 +1,7 @@
 ## San Luis · Cambio seguro de cuenta (20/10)
-- [ ] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
-- [ ] Prioridad del enlace personal, aislamiento de identidad y pruebas de sesiones
-- [ ] Verificar móvil/escritorio y publicación sin regresar la política v3
+- [x] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
+- [x] Prioridad del enlace personal, aislamiento de identidad; 728 tests y SQL reversible OK
+- [x] Móvil 320/390 y escritorio con sesión real; versión nueva comprobada en reybaud-app.com; política v3 intacta
 
 
 ## Tienda · Prendas de prueba (cierre)
