@@ -69,6 +69,8 @@ const emptyComposer = {
   marketing_tipos: [] as string[],
   marketing_tags: [] as string[],
   marketing_ignore_frequency: false,
+  marketing_frequency_days: 7,
+  marketing_frequency_reason: "",
   waitlist_event_ids: [] as string[],
   waitlist_estados: ["nuevo", "contactado"] as string[],
   promo_product_ids: [] as string[],
@@ -100,6 +102,10 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
   const [sender, setSender] = useState<{ id?: string; sender_email: string; sender_name: string; reply_to: string }>({
     sender_email: "", sender_name: "", reply_to: "",
   });
+  const [previewId,setPreviewId] = useState<string | null>(null);
+  const [testAccepted,setTestAccepted] = useState(false);
+  const [exclusionSummary,setExclusionSummary] = useState<Record<string,number>>({});
+  const [exclusions,setExclusions] = useState<Array<{email:string;reason:string}>>([]);
   const [previewCount, setPreviewCount] = useState<number | null>(null);
   const [previewSample, setPreviewSample] = useState<any[]>([]);
   const [fullRecipients, setFullRecipients] = useState<any[]>([]);
@@ -190,11 +196,15 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
     marketing_tipos: composer.marketing_tipos.length ? composer.marketing_tipos : undefined,
     marketing_tags: composer.marketing_tags.length ? composer.marketing_tags : undefined,
     marketing_ignore_frequency: composer.marketing_ignore_frequency || undefined,
+    marketing_frequency_days: composer.marketing_frequency_days,
+    marketing_frequency_reason: composer.marketing_ignore_frequency ? composer.marketing_frequency_reason : undefined,
     waitlist_event_ids: composer.waitlist_event_ids.length ? composer.waitlist_event_ids : undefined,
     waitlist_estados: composer.waitlist_estados.length ? composer.waitlist_estados : undefined,
     cta_url: composer.cta_url || undefined,
     cta_label: composer.cta_label || undefined,
   }), [composer]);
+
+  useEffect(() => { setPreviewCount(null); setPreviewId(null); setTestAccepted(false); setExclusionSummary({}); setExclusions([]); },[composer,excludedEmails]);
 
   const [waitlistEvents, setWaitlistEvents] = useState<Array<{ id: string; title: string; count: number }>>([]);
   useEffect(() => {
@@ -257,6 +267,12 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
         body: {
           mode: "preview_count",
+          subject: composer.subject,
+          content_html: composer.content_html,
+          preheader: composer.preheader,
+          cta_url: composer.cta_url || undefined,
+          cta_label: composer.cta_label || undefined,
+          promo_product_ids: composer.promo_product_ids,
           segment_filters: segmentFilters,
           include_full_list: true,
           excluded_emails: Array.from(excludedEmails),
@@ -264,6 +280,10 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       });
       if (error) throw error;
       setPreviewCount(data.count);
+      setPreviewId(data.preview_id);
+      setTestAccepted(false);
+      setExclusionSummary(data.excluded_summary || {});
+      setExclusions(data.exclusions || []);
       setPreviewSample(data.sample || []);
       setFullRecipients(data.recipients || []);
     } catch (e: any) {
@@ -296,6 +316,9 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
         body: {
           mode: "test",
+          preview_id: previewId,
+          segment_filters: segmentFilters,
+          excluded_emails: Array.from(excludedEmails),
           test_email: testEmail,
           subject: composer.subject,
           content_html: composer.content_html,
@@ -307,7 +330,8 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       });
       if (error) throw error;
       if (!data?.ok) throw new Error(data?.response?.message || "Falló el envío de prueba");
-      toast({ title: "Test enviado", description: `Revisá ${testEmail}` });
+      setTestAccepted(true);
+      toast({ title: "Prueba aceptada por el proveedor", description: `Revisá ${testEmail}` });
     } catch (e: any) {
       toast({ title: "Error", description: e.message, variant: "destructive" });
     } finally {
@@ -322,6 +346,8 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
         body: {
           mode: "send",
+          preview_id: previewId,
+          confirmed: true,
           subject: composer.subject,
           content_html: composer.content_html,
           preheader: composer.preheader,
@@ -385,7 +411,9 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       coach_ids: [],
       marketing_tipos: seg.marketing_tipos || [],
       marketing_tags: seg.marketing_tags || [],
-      marketing_ignore_frequency: !!seg.marketing_ignore_frequency,
+      marketing_ignore_frequency: false,
+      marketing_frequency_days: seg.marketing_frequency_days || 7,
+      marketing_frequency_reason: "",
       waitlist_event_ids: seg.waitlist_event_ids || [],
       waitlist_estados: seg.waitlist_estados || ["nuevo", "contactado"],
       promo_product_ids: (b as any).promo_product_ids || [],
@@ -778,9 +806,14 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                     onCheckedChange={(v) => setComposer({ ...composer, marketing_ignore_frequency: !!v })}
                   />
                   <span>
-                    Ignorar tope de frecuencia (por defecto excluye contactos que recibieron una campaña en los últimos 7 días).
+                    Autorizar excepción de frecuencia solo para esta campaña.
                   </span>
                 </label>
+                <div className="space-y-2">
+                  <Label htmlFor="frequency-days">Intervalo mínimo entre campañas (días)</Label>
+                  <Input id="frequency-days" type="number" min={1} max={365} value={composer.marketing_frequency_days} onChange={e=>setComposer({...composer,marketing_frequency_days:Number(e.target.value)})}/>
+                  {composer.marketing_ignore_frequency && <><Label htmlFor="frequency-reason">Motivo de la excepción (obligatorio)</Label><Textarea id="frequency-reason" maxLength={1000} value={composer.marketing_frequency_reason} onChange={e=>setComposer({...composer,marketing_frequency_reason:e.target.value})}/></>}
+                </div>
                 <p className="text-[10px] text-muted-foreground">
                   Sólo se envía a contactos con <b>opt-in activo</b>. Los rebotes/bajas (suppressed_emails) se descartan siempre.
                 </p>
@@ -936,6 +969,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                 </>
               )}
             </div>
+            {previewId && <div className="space-y-2 text-sm"><p>Exclusiones: {Object.values(exclusionSummary).reduce((a,b)=>a+b,0)}</p>{Object.entries(exclusionSummary).map(([reason,count])=><p key={reason}>{reason}: {count}</p>)}{exclusions.length>0 && <details><summary className="cursor-pointer">Ver contactos excluidos</summary><div className="max-h-64 overflow-auto">{exclusions.map((r,i)=><p key={i} className="break-words">{r.email || 'Sin email'} · {r.reason}</p>)}</div></details>}</div>}
           </Card>
 
           <Card className="p-4 space-y-3">
@@ -946,7 +980,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                 onChange={e => setTestEmail(e.target.value)}
                 className="max-w-xs"
               />
-              <Button variant="outline" onClick={sendTest} disabled={sending}>
+              <Button variant="outline" onClick={sendTest} disabled={sending || !previewId}>
                 {sending ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Send className="w-4 h-4 mr-1" />}
                 Enviar prueba
               </Button>
@@ -954,12 +988,13 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                 <Button
                   variant="gold"
                   onClick={() => setShowConfirmSend(true)}
-                  disabled={sending || previewCount === null || previewCount === 0 || !composer.subject || !composer.content_html}
+                  disabled={sending || !testAccepted || !previewId || previewCount === null || previewCount === 0 || !composer.subject || !composer.content_html}
                 >
                   <Send className="w-4 h-4 mr-1" />Enviar ahora
                 </Button>
               </div>
             </div>
+            {previewId && <p className="text-sm text-muted-foreground">{testAccepted?'Prueba aceptada por el proveedor. Revisá el correo antes de confirmar.':'Enviá y revisá una prueba antes del envío masivo.'}</p>}
             {previewCount === null && (
               <p className="text-[11px] text-amber-500 flex items-center gap-1">
                 <AlertTriangle className="w-3 h-3" /> Calculá los destinatarios antes de poder enviar.
@@ -1029,6 +1064,8 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
             <AlertDialogTitle>¿Enviar a {previewCount} destinatario{previewCount === 1 ? "" : "s"}?</AlertDialogTitle>
             <AlertDialogDescription>
               Asunto: <b>{composer.subject}</b><br />
+              {composer.marketing_ignore_frequency && <>Excepción autorizada: {composer.marketing_frequency_reason}<br /></>}
+              Las bajas, supresiones y duplicados se excluyen siempre.<br />
               Esta acción no se puede deshacer. Se enviarán los emails ahora mismo.
             </AlertDialogDescription>
           </AlertDialogHeader>

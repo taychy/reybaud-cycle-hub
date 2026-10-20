@@ -227,3 +227,10 @@
 - [ ] Cuatro variantes con/sin bicicleta y elegibilidad Alpes; contenido comercial y combinado
 - [ ] Formulario persistente y gestión admin, sin plazas confirmadas ni pagos
 - [ ] Pruebas de precios/seguridad y recorrido invitado/alumno, desktop/mobile; preview sin publicar
+
+## Mailing · Bajas y autorización segura
+- [x] Baja pública individual sin login ni exposición de emails
+- [x] Frecuencia por campaña, exclusiones innegociables y vista previa
+- [x] Prueba/confirmación, preparación atómica, idempotencia y trazabilidad
+- [x] 12 tests, chequeo de función, QA SQL reversible y navegador admin/público; sin envíos ni consentimientos reales modificados
+- [ ] Publicar la página de baja y comprobar un correo real de prueba antes de campaña — requiere autorización y destinatario de prueba

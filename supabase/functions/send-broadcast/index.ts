@@ -2,14 +2,36 @@
 // Modes: "test" (single recipient) or "send" (all targeted recipients).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { z } from "npm:zod@3.23.8";
+import { evaluateRecipients, frequencyPolicy, canonical } from "../_shared/broadcastPolicy.ts";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/brevo";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
-const FREQUENCY_DAYS = 7;
+async function allRows(query: any) {
+  const rows: any[] = [];
+  for (let offset = 0; ; offset += 1000) {
+    const {data,error} = await query.range(offset, offset + 999);
+    if(error) throw error;
+    rows.push(...(data || []));
+    if((data || []).length < 1000) return rows;
+  }
+}
+async function digest(value: unknown) {
+ const bytes = await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical(value)));
+ return Array.from(new Uint8Array(bytes),b=>b.toString(16).padStart(2,'0')).join('');
+}
+function campaignPayload(body: SendBody) {
+ return {subject:body.subject,content_html:body.content_html,preheader:body.preheader||'',filters:body.segment_filters||{},cta_url:body.cta_url||'',cta_label:body.cta_label||'',promo:body.promo_product_ids||[],excluded:(body.excluded_emails||[]).map(e=>e.trim().toLowerCase()).sort()};
+}
+async function unsubscribeUrl(admin: any,email: string) {
+ const {data,error}=await admin.rpc('issue_broadcast_unsubscribe',{p_email:email});
+ if(error || !data) throw error || new Error('No se pudo crear el enlace de baja');
+ return `${PUBLIC_ORIGIN}/baja-mailing#${data}`;
+}
 
 interface SegmentFilters {
   audience?: ("students" | "coaches" | "marketing" | "waitlist")[];
@@ -29,6 +51,8 @@ interface SegmentFilters {
   waitlist_event_ids?: string[];       // eventos cuyas listas de espera se incluyen
   waitlist_estados?: string[];         // nuevo | contactado | convertido | descartado
   marketing_include_opt_out?: boolean;
+  marketing_frequency_days?: number;
+  marketing_frequency_reason?: string;
 }
 
 interface SendBody {
@@ -48,6 +72,8 @@ interface SendBody {
   excluded_emails?: string[];
   include_full_list?: boolean;
   promo_product_ids?: string[];
+  preview_id?: string;
+  confirmed?: boolean;
 }
 
 function escapeHtml(s: string) {
@@ -120,7 +146,7 @@ async function loadPromoProducts(admin: any, ids?: string[] | null) {
   return (data || []).sort((a: any, b: any) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
-function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "") {
+function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "", unsubscribe = "") {
   const safe = content.includes("<") && content.includes(">")
     ? content
     : linkifyPlain(escapeHtml(content)).replace(/\n/g, "<br/>");
@@ -143,7 +169,7 @@ ${pre}
       <tr><td style="padding:28px 32px 12px">${bodyHtml}${ctaBlock}${promoHtml}</td></tr>
       <tr><td style="padding:20px 32px;border-top:1px solid #262626;color:#666;font-size:11px;text-align:center;line-height:1.6">
         Recibís este email porque sos parte de Reybaud.<br/>
-        Para dejar de recibir comunicaciones, respondé "BAJA" a este email.
+        ${unsubscribe ? `<a href="${escapeHtml(unsubscribe)}" style="color:#aaa;text-decoration:underline">Dejar de recibir comunicaciones</a>` : "Vista previa: el correo llevará un enlace individual de baja."}
       </td></tr>
     </table>
   </td></tr>
@@ -165,7 +191,7 @@ function personalize(value: string | undefined, recipient: any) {
     .replaceAll("{email}", email);
 }
 
-async function loadRecipients(supabase: any, filters: SegmentFilters) {
+async function loadRecipients(supabase: any, filters: SegmentFilters, excluded: string[] = []) {
   // Selección puntual por tipo: se suma al segmento amplio marcado.
   // Ej: alumnos activos + Claudio puntual = ambos conjuntos, deduplicados por email.
   const explicitAlumnos = Boolean(filters.alumno_ids?.length);
@@ -180,8 +206,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     if (filters.estados?.length) q = q.in("estado", filters.estados);
     if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
     if (filters.grupos?.length) q = q.in("grupo", filters.grupos);
-    const { data, error } = await q;
-    if (error) throw error;
+    const data = await allRows(q.order("id"));
     rows.push(...(data || []).map((a: any) => ({
       ...a,
       contact_type: "alumno",
@@ -192,7 +217,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     const { data, error } = await supabase
       .from("alumnos")
       .select("id, nombre, apellido, email, estado, sede_id, grupo")
-      .in("id", filters.alumno_ids!);
+      .in("id", filters.alumno_ids || []);
     if (error) throw error;
     rows.push(...(data || []).map((a: any) => ({
       ...a,
@@ -207,8 +232,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     if (filters.estados?.length) q = q.in("estado", filters.estados);
     if (filters.sede_ids?.length) q = q.in("sede_id", filters.sede_ids);
     if (filters.grupos?.length) q = q.overlaps("grupos", filters.grupos);
-    const { data, error } = await q;
-    if (error) throw error;
+    const data = await allRows(q.order("id"));
     rows.push(...(data || []).map((c: any) => ({
       ...c,
       contact_type: "coach",
@@ -219,7 +243,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     const { data, error } = await supabase
       .from("coaches")
       .select("id, nombre, email, estado, sede_id, grupos")
-      .in("id", filters.coach_ids!);
+      .in("id", filters.coach_ids || []);
     if (error) throw error;
     rows.push(...(data || []).map((c: any) => ({
       ...c,
@@ -233,17 +257,10 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     let q = supabase.from("marketing_contacts").select(
       "id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at"
     );
-    if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
+    
     if (filters.marketing_tipos?.length) q = q.in("tipo", filters.marketing_tipos);
     if (filters.marketing_tags?.length) q = q.overlaps("tags", filters.marketing_tags);
-    // Frequency cap (7 días)
-    if (!filters.marketing_ignore_frequency) {
-      const cutoff = new Date(Date.now() - FREQUENCY_DAYS * 24 * 60 * 60 * 1000).toISOString();
-      // last_campaign_sent_at IS NULL OR <= cutoff
-      q = q.or(`last_campaign_sent_at.is.null,last_campaign_sent_at.lte.${cutoff}`);
-    }
-    const { data, error } = await q;
-    if (error) throw error;
+    const data = await allRows(q.order('id'));
     rows.push(...(data || []).map((m: any) => ({
       id: m.id,
       email: m.email,
@@ -258,11 +275,10 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     let q = supabase
       .from("marketing_contacts")
       .select("id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at")
-      .in("id", filters.marketing_contact_ids!);
+      .in("id", filters.marketing_contact_ids || []);
     // Un contacto elegido a mano NO puede saltear la baja.
-    if (!filters.marketing_include_opt_out) q = q.eq("opt_in_marketing", true);
-    const { data, error } = await q;
-    if (error) throw error;
+    
+    const data = await allRows(q.order("id"));
 
     rows.push(...(data || []).map((m: any) => ({
       id: m.id,
@@ -282,8 +298,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
       .select("id, event_id, nombre, email, estado");
     if (filters.waitlist_event_ids?.length) q = q.in("event_id", filters.waitlist_event_ids);
     if (filters.waitlist_estados?.length) q = q.in("estado", filters.waitlist_estados);
-    const { data, error } = await q;
-    if (error) throw error;
+    const data = await allRows(q.order("id"));
     rows.push(...(data || []).map((w: any) => ({
       id: w.id,
       email: w.email,
@@ -294,53 +309,31 @@ async function loadRecipients(supabase: any, filters: SegmentFilters) {
     })));
   }
 
-  rows = rows.filter((a: any) => a.email && a.email.includes("@"));
-
-  // exclude suppressed (rebotes / quejas)
-  const emails = rows.map((r: any) => r.email.toLowerCase());
-  if (emails.length) {
-    const { data: sup } = await supabase
-      .from("suppressed_emails")
-      .select("email")
-      .in("email", emails);
-    const supSet = new Set((sup || []).map((s: any) => s.email.toLowerCase()));
-    rows = rows.filter((r: any) => !supSet.has(r.email.toLowerCase()));
+  const [sup, outs, campaigns, marketing] = await Promise.all([
+    allRows(supabase.from('suppressed_emails').select('email').order('id')),
+    allRows(supabase.from('marketing_contacts').select('email').or('opt_in_marketing.eq.false,opt_in_marketing.is.null').order('id')),
+    allRows(supabase.from('broadcast_recipients').select('email,sent_at').eq('status','sent').order('id')),
+    allRows(supabase.from('marketing_contacts').select('email,last_campaign_sent_at').order('id')),
+  ]);
+  const last = new Map<string,string>();
+  for(const row of [...campaigns,...marketing]) {
+    const email = String(row.email||'').trim().toLowerCase();
+    const date = row.sent_at || row.last_campaign_sent_at;
+    if(date && (!last.has(email) || Date.parse(date)>Date.parse(last.get(email)||''))) last.set(email,date);
   }
-
-  // exclude opt-out global: si el email pidió la baja en marketing_contacts,
-  // no se le envía aunque entre por alumnos, coaches o listas de espera.
-  if (!filters.marketing_include_opt_out && rows.length) {
-    const { data: outs } = await supabase
-      .from("marketing_contacts")
-      .select("email")
-      .eq("opt_in_marketing", false);
-    const outSet = new Set(
-      (outs || []).filter((o: any) => o?.email).map((o: any) => String(o.email).toLowerCase()),
-    );
-    if (outSet.size) rows = rows.filter((r: any) => !outSet.has(r.email.toLowerCase()));
-  }
-
-  // de-dupe by email (prioriza alumno > coach > marketing)
-  const priority: Record<string, number> = { alumno: 0, coach: 1, waitlist: 2, marketing: 3 };
-
-  rows.sort((a, b) => (priority[a.contact_type] ?? 9) - (priority[b.contact_type] ?? 9));
-  const seen = new Set<string>();
-  return rows.filter((r: any) => {
-    const k = r.email.toLowerCase();
-    if (seen.has(k)) return false;
-    seen.add(k);
-    return true;
-  });
+  const priority: Record<string,number> = {alumno:0,coach:1,waitlist:2,marketing:3};
+  rows.sort((a,b)=>(priority[a.contact_type]??9)-(priority[b.contact_type]??9));
+  return evaluateRecipients(rows,new Set(sup.map(r=>r.email.trim().toLowerCase())),new Set(outs.map(r=>r.email.trim().toLowerCase())),last,frequencyPolicy(filters),new Set(excluded.map(e=>e.trim().toLowerCase())));
 }
 
 async function sendOne(payload: any) {
-  console.log("[brevo] POST /smtp/email", { from: payload?.sender, to: payload?.to, subject: payload?.subject });
+
   const resp = await fetch(`${GATEWAY_URL}/smtp/email`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-      "X-Connection-Api-Key": BREVO_API_KEY!,
+      "X-Connection-Api-Key": BREVO_API_KEY || "",
     },
     body: JSON.stringify(payload),
   });
@@ -352,23 +345,15 @@ async function sendOne(payload: any) {
   return { ok, status: resp.status, body: json ?? text };
 }
 
-// Envío con reintentos + backoff exponencial. Se reintenta en 429/5xx/red.
-async function sendWithRetries(payload: any, maxAttempts = 3) {
-  let last: Awaited<ReturnType<typeof sendOne>> | null = null;
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      last = await sendOne(payload);
-    } catch (e) {
-      last = { ok: false, status: 0, body: `network_error: ${(e as Error).message}` } as any;
-    }
-    if (last!.ok) return { ...last!, attempts: attempt };
-    const retriable = last!.status === 0 || last!.status === 429 || last!.status >= 500;
-    if (!retriable || attempt === maxAttempts) return { ...last!, attempts: attempt };
-    const backoffMs = Math.min(1000 * 2 ** (attempt - 1), 8000) + Math.floor(Math.random() * 250);
-    console.log(`[brevo] retry ${attempt}/${maxAttempts - 1} in ${backoffMs}ms (status ${last!.status})`);
-    await new Promise((res) => setTimeout(res, backoffMs));
-  }
-  return { ...(last as any), attempts: maxAttempts };
+// Ambiguous outcomes are never retried automatically: manual provider reconciliation first.
+async function sendWithRetries(payload: any) {
+ try { return {...await sendOne(payload),attempts:1}; }
+ catch(e) { return {ok:false,status:0,body:`Resultado desconocido: ${(e as Error).message}`,attempts:1}; }
+}
+async function claimRecipient(admin: any,broadcast: string,email: string) {
+ const {data,error}=await admin.rpc('claim_broadcast_recipient',{p_broadcast:broadcast,p_email:email});
+ if(error) throw error;
+ return data === true;
 }
 
 
@@ -382,7 +367,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || "", {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user } } = await userClient.auth.getUser();
@@ -399,7 +384,21 @@ Deno.serve(async (req) => {
     }
 
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
-    const body: SendBody = await req.json();
+    const schema = z.object({
+      mode:z.enum(['test','send','preview_count','retry_failed']),subject:z.string().max(300).optional(),content_html:z.string().max(200000).optional(),
+      preheader:z.string().max(500).optional(),test_email:z.string().trim().email().optional(),preview_id:z.string().uuid().optional(),broadcast_id:z.string().uuid().optional(),confirmed:z.boolean().optional(),
+      segment_filters:z.object({audience:z.array(z.enum(['students','coaches','marketing','waitlist'])).optional(),marketing_include_opt_out:z.literal(false).optional(),marketing_frequency_days:z.number().int().min(1).max(365).optional(),marketing_ignore_frequency:z.boolean().optional(),marketing_frequency_reason:z.string().max(1000).optional(),estados:z.array(z.string().max(50)).max(30).optional(),sede_ids:z.array(z.string().uuid()).optional(),grupos:z.array(z.string().max(80)).max(30).optional(),plan_ids:z.array(z.string().uuid()).optional(),alumno_ids:z.array(z.string().uuid()).optional(),coach_ids:z.array(z.string().uuid()).optional(),marketing_contact_ids:z.array(z.string().uuid()).optional(),marketing_tipos:z.array(z.string().max(50)).max(30).optional(),marketing_tags:z.array(z.string().max(100)).max(100).optional(),waitlist_event_ids:z.array(z.string().uuid()).optional(),waitlist_estados:z.array(z.string().max(50)).max(10).optional(),cta_url:z.string().url().optional(),cta_label:z.string().max(200).optional(),has_email_only:z.boolean().optional()}).strict().optional(),
+      excluded_emails:z.array(z.string().email()).max(10000).optional(),promo_product_ids:z.array(z.string().uuid()).max(4).optional(),cta_url:z.string().url().refine(v=>v.startsWith('https://')).optional(),cta_label:z.string().max(200).optional(),include_full_list:z.boolean().optional(),
+      sender_email:z.string().email().optional(),sender_name:z.string().max(100).optional(),reply_to:z.string().email().optional()
+    });
+    const parsed=schema.safeParse(await req.json());
+    if(!parsed.success) return new Response(JSON.stringify({error:'Parámetros inválidos',details:parsed.error.flatten()}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    const body: SendBody = parsed.data;
+    // The published app must serve the new unsubscribe page before any real email leaves.
+    if (body.mode !== 'preview_count' && Deno.env.get('MAILING_PUBLIC_UNSUBSCRIBE_READY') !== 'true') {
+      return new Response(JSON.stringify({error:'Envíos bloqueados hasta publicar y verificar la página de baja individual.'}),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
+    frequencyPolicy(body.segment_filters || {});
     const filters = body.segment_filters || {};
 
     let senderEmail = body.sender_email;
@@ -412,11 +411,15 @@ Deno.serve(async (req) => {
       replyTo = replyTo || cfg?.reply_to || undefined;
     }
 
-    const excludedSet = new Set((body.excluded_emails || []).map((e) => e.toLowerCase()));
+    
 
     if (body.mode === "preview_count") {
-      const rows = await loadRecipients(admin, filters);
-      const filtered = rows.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
+      const selection = await loadRecipients(admin, filters, body.excluded_emails);
+      const filtered = selection.eligible;
+      const payloadHash=await digest(campaignPayload(body));
+      const audienceHash=await digest(filtered.map(r=>r.email).sort());
+      const {data:guard,error:guardError}=await admin.from('broadcast_send_guards').insert({actor_id:user.id,payload_hash:payloadHash,audience_hash:audienceHash,eligible_count:filtered.length}).select('id').single();
+      if(guardError) throw guardError;
       const mapped = filtered.map((r: any) => ({
         email: r.email,
         nombre: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
@@ -424,6 +427,10 @@ Deno.serve(async (req) => {
       }));
       return new Response(JSON.stringify({
         count: filtered.length,
+        preview_id: guard.id,
+        excluded_count: selection.rejected.length,
+        excluded_summary: selection.rejected.reduce((acc:Record<string,number>,r)=>({...acc,[r.reason]:(acc[r.reason]||0)+1}),{}),
+        exclusions: body.include_full_list ? selection.rejected : undefined,
         sample: mapped.slice(0, 5),
         recipients: body.include_full_list ? mapped : undefined,
       }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });
@@ -435,6 +442,12 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+      if(!body.preview_id) throw new Error('Calculá destinatarios antes de enviar la prueba');
+      const {data:guard,error:ge}=await admin.from('broadcast_send_guards').select('*').eq('id',body.preview_id).eq('actor_id',user.id).single();
+      if(ge || !guard || guard.payload_hash!==await digest(campaignPayload(body)) || Date.parse(guard.created_at)<Date.now()-1800000) throw new Error('Vista previa desactualizada');
+      const testSuppressed=await allRows(admin.from('suppressed_emails').select('email').order('id'));
+      const testOut=await allRows(admin.from('marketing_contacts').select('email').or('opt_in_marketing.eq.false,opt_in_marketing.is.null').order('id'));
+      if([...testSuppressed,...testOut].some(r=>r.email.trim().toLowerCase()===body.test_email?.trim().toLowerCase())) throw new Error('El destinatario de prueba está dado de baja o suprimido');
       const testRecipient = { email: body.test_email, display_name: "Test Reybaud" };
       const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
       const html = htmlWrap(
@@ -442,6 +455,7 @@ Deno.serve(async (req) => {
         body.preheader,
         { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
         promoHtml,
+        await unsubscribeUrl(admin,body.test_email),
       );
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
@@ -450,6 +464,10 @@ Deno.serve(async (req) => {
         subject: `[TEST] ${body.subject}`,
         htmlContent: html,
       });
+      if(r.ok) {
+        const {error:te}=await admin.from('broadcast_send_guards').update({test_accepted_at:new Date().toISOString(),test_message_id:r.body?.messageId||null}).eq('id',guard.id);
+        if(te) throw te;
+      }
       return new Response(JSON.stringify({ ok: r.ok, status: r.status, response: r.body }), {
         status: r.ok ? 200 : r.status, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -461,40 +479,18 @@ Deno.serve(async (req) => {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const allRecipients = await loadRecipients(admin, filters);
-      const recipients = allRecipients.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
-      if (!recipients.length) {
-        return new Response(JSON.stringify({ error: "Sin destinatarios" }), {
-          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const { data: bc, error: bcErr } = await admin.from("broadcasts").insert({
-        subject: body.subject,
-        content_html: body.content_html,
-        preheader: body.preheader,
-        sender_email: senderEmail,
-        sender_name: senderName,
-        reply_to: replyTo,
-        segment_filters: filters as any,
-        status: "sending",
-        total_recipients: recipients.length,
-        created_by: user.id,
-        promo_product_ids: body.promo_product_ids || [],
-      }).select().single();
-      if (bcErr) throw bcErr;
-
+      if(!body.confirmed || !body.preview_id) throw new Error('Falta confirmación y vista previa');
+      const selection=await loadRecipients(admin,filters,body.excluded_emails);
+      const recipients=selection.eligible;
+      if (!recipients.length) throw new Error('Sin destinatarios');
       const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
-
-      await admin.from("broadcast_recipients").insert(
-        recipients.map((r: any) => ({
-          broadcast_id: bc.id,
-          alumno_id: r.contact_type === "alumno" ? r.id : null,
-          email: r.email,
-          name: r.display_name || `${r.nombre ?? ""} ${r.apellido ?? ""}`.trim(),
-          status: "pending",
-        }))
-      );
+      const {data:prepared,error:prepareError}=await admin.rpc('prepare_broadcast_send',{
+        p_guard:body.preview_id,p_actor:user.id,p_payload:await digest(campaignPayload(body)),p_audience:await digest(recipients.map(r=>r.email).sort()),
+        p_campaign:{subject:body.subject,content_html:body.content_html,preheader:body.preheader,sender_email:senderEmail,sender_name:senderName,reply_to:replyTo,segment_filters:filters,promo_product_ids:body.promo_product_ids||[]},p_recipients:recipients
+      });
+      if(prepareError || !prepared) throw prepareError || new Error('No se pudo preparar el envío');
+      const bc={id:prepared.id};
+      if(prepared.duplicate) return new Response(JSON.stringify({ok:true,broadcast_id:bc.id,duplicate:true,total:recipients.length}),{headers:{...corsHeaders,'Content-Type':'application/json'}});
 
       // Ejecutar el envío en background para evitar el timeout de 150s.
       const processBroadcast = async () => {
@@ -505,23 +501,28 @@ Deno.serve(async (req) => {
         for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
           const batch = recipients.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map(async (r: any) => {
+            if(!await claimRecipient(admin,bc.id,r.email)) {
+              await admin.from('broadcast_recipients').update({status:'suppressed',error_message:'Baja/supresión o envío ya reclamado'}).eq('broadcast_id',bc.id).eq('email',r.email).eq('status','pending');
+              return;
+            }
             const html = htmlWrap(
               personalize(body.content_html, r) || "",
               body.preheader,
               { url: personalize(body.cta_url, r), label: body.cta_label },
               promoHtml,
+              await unsubscribeUrl(admin,r.email),
             );
             const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
               to: [{ email: r.email, name: r.display_name || undefined }],
               replyTo: replyTo ? { email: replyTo } : undefined,
-              subject: body.subject!,
+              subject: body.subject,
               htmlContent: html,
               tags: ["broadcast", bc.id],
             });
             if (r1.ok) {
               sent++;
-              if (r.contact_type === "marketing") marketingSentEmails.push(r.email.toLowerCase());
+              marketingSentEmails.push(r.email.toLowerCase());
               await admin.from("broadcast_recipients").update({
                 status: "sent",
                 brevo_message_id: r1.body?.messageId ?? null,
@@ -531,6 +532,7 @@ Deno.serve(async (req) => {
             } else {
               failed++;
               const errBody = typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body);
+              if(r1.status>=400 && r1.status<500) await admin.from('broadcast_dispatch_claims').delete().eq('broadcast_id',bc.id).eq('email',r.email);
               await admin.from("broadcast_recipients").update({
                 status: "failed",
                 error_message: `[HTTP ${r1.status} · ${r1.attempts} intento(s)] ${errBody}`.slice(0, 1000),
@@ -552,20 +554,20 @@ Deno.serve(async (req) => {
             .in("email", marketingSentEmails);
         }
 
-        await admin.from("broadcasts").update({
-          status: failed === recipients.length ? "failed" : "sent",
-          sent_count: sent,
-          failed_count: failed,
-          sent_at: new Date().toISOString(),
-        }).eq("id", bc.id);
+        const finalRows=await allRows(admin.from('broadcast_recipients').select('status').eq('broadcast_id',bc.id).order('id'));
+        const finalSent=finalRows.filter(r=>r.status==='sent').length;
+        const finalFailed=finalRows.filter(r=>r.status==='failed').length;
+        const incomplete=finalRows.length!==recipients.length || finalRows.some(r=>r.status==='pending');
+        const {error:finalError}=await admin.from('broadcasts').update({status:incomplete || finalSent===0?'failed':'sent',sent_count:finalSent,failed_count:finalFailed,sent_at:incomplete?null:new Date().toISOString()}).eq('id',bc.id);
+        if(finalError) throw finalError;
       };
 
       // @ts-ignore EdgeRuntime existe en Supabase Edge Functions
       if (typeof EdgeRuntime !== "undefined" && EdgeRuntime.waitUntil) {
         // @ts-ignore
-        EdgeRuntime.waitUntil(processBroadcast().catch((e) => console.error("processBroadcast error", e)));
+        EdgeRuntime.waitUntil(processBroadcast().catch(async(e) => {console.error('processBroadcast error',e); await admin.from('broadcasts').update({status:'failed'}).eq('id',bc.id);}));
       } else {
-        processBroadcast().catch((e) => console.error("processBroadcast error", e));
+        processBroadcast().catch(async(e) => {console.error('processBroadcast error',e); await admin.from('broadcasts').update({status:'failed'}).eq('id',bc.id);});
       }
 
       return new Response(JSON.stringify({
@@ -593,9 +595,11 @@ Deno.serve(async (req) => {
           status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { data: failedRows } = await admin
+      const { data: failedRows,error:failedError } = await admin
         .from("broadcast_recipients").select("*")
         .eq("broadcast_id", bc.id).eq("status", "failed");
+      if(failedError) throw failedError;
+      if(failedRows?.some((r:any)=> !/HTTP 4\d\d/.test(r.error_message || ''))) throw new Error('Hay resultados inciertos: conciliá con el proveedor antes de reintentar');
       const rows = (failedRows as any[]) || [];
       if (!rows.length) {
         return new Response(JSON.stringify({ ok: true, retried: 0, message: "No hay destinatarios fallidos" }), {
@@ -603,9 +607,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      // Marcar como pending mientras reintenta
-      await admin.from("broadcast_recipients").update({ status: "pending", error_message: null })
-        .eq("broadcast_id", bc.id).eq("status", "failed");
+      // Each retry must atomically claim its recipient; ambiguous sends retain their claim.
       await admin.from("broadcasts").update({ status: "sending" }).eq("id", bc.id);
 
       const retryPromoHtml = buildPromoBlock(await loadPromoProducts(admin, (bc as any).promo_product_ids));
@@ -616,12 +618,16 @@ Deno.serve(async (req) => {
         for (let i = 0; i < rows.length; i += BATCH_SIZE) {
           const batch = rows.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map(async (r: any) => {
+            if(!await claimRecipient(admin,bc.id,r.email)) return;
+            const {data:claimedRow,error:ce}=await admin.from('broadcast_recipients').update({status:'pending',error_message:null}).eq('id',r.id).eq('status','failed').select('id').maybeSingle();
+            if(ce || !claimedRow) return;
             const recipient = { email: r.email, display_name: r.name, nombre: r.name };
             const html = htmlWrap(
               personalize(bc.content_html, recipient) || "",
               bc.preheader,
               { url: personalize((bc.segment_filters as any)?.cta_url, recipient), label: (bc.segment_filters as any)?.cta_label },
               retryPromoHtml,
+              await unsubscribeUrl(admin,r.email),
             );
             const r1 = await sendWithRetries({
               sender: { name: bc.sender_name, email: bc.sender_email },
@@ -633,6 +639,7 @@ Deno.serve(async (req) => {
             });
             if (r1.ok) {
               sent++;
+              await admin.from('marketing_contacts').update({last_campaign_sent_at:new Date().toISOString()}).eq('email',r.email);
               await admin.from("broadcast_recipients").update({
                 status: "sent",
                 brevo_message_id: r1.body?.messageId ?? null,
@@ -642,6 +649,7 @@ Deno.serve(async (req) => {
             } else {
               failed++;
               const errBody = typeof r1.body === "string" ? r1.body : JSON.stringify(r1.body);
+              if(r1.status>=400 && r1.status<500) await admin.from('broadcast_dispatch_claims').delete().eq('broadcast_id',bc.id).eq('email',r.email);
               await admin.from("broadcast_recipients").update({
                 status: "failed",
                 error_message: `[reintento · HTTP ${r1.status} · ${r1.attempts} intento(s)] ${errBody}`.slice(0, 1000),
@@ -650,12 +658,11 @@ Deno.serve(async (req) => {
           }));
         }
         // Recalcular totales del broadcast
-        const { data: agg } = await admin.from("broadcast_recipients")
-          .select("status").eq("broadcast_id", bc.id);
+        const agg = await allRows(admin.from("broadcast_recipients").select("status").eq("broadcast_id",bc.id).order("id"));
         const s = (agg as any[] || []).filter(x => x.status === "sent").length;
         const f = (agg as any[] || []).filter(x => x.status === "failed").length;
         await admin.from("broadcasts").update({
-          status: f === (bc.total_recipients || 0) ? "failed" : "sent",
+          status: s===0 || agg.some(r=>r.status==='pending') ? "failed" : "sent",
           sent_count: s,
           failed_count: f,
         }).eq("id", bc.id);
