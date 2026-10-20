@@ -45,7 +45,7 @@ export const EMAIL_SUBJECT = 'Training Camp San Luis · Elegí cómo querés con
 export function emailBody(firstName: string, link: string) {
   return {
     subject: EMAIL_SUBJECT,
-    text: `Hola ${firstName}:\n\nEl Training Camp San Luis se reprogramó del 5 al 9 de noviembre de 2026, en el mismo alojamiento. Queremos que elijas cómo seguir:\n\n• Viajar en noviembre (5–8, 6–9 o 5–9).\n• Pedir la devolución del 100% de lo que abonaste, menos reintegros previos.\n• Pedir un crédito en pesos para otro Training Camp.\n\nTe lleva directo a tu reserva:\n${link}\n\nElegir devolución o crédito registra tu pedido; no es un pago ya realizado. Si tenés dudas, escribinos y te ayudamos.\n\nEquipo Ciclismo Reybaud`,
+    text: `Hola ${firstName}:\n\nEl Training Camp San Luis se reprogramó del 5 al 9 de noviembre de 2026, en el mismo alojamiento. Queremos que elijas cómo seguir:\n\n• Viajar en noviembre (5–8, 6–9 o 5–9).\n• Pedir la devolución del 100% de lo que abonaste, menos reintegros previos. Plazo de reintegro: 5 a 7 días hábiles.\n• Pedir un crédito en pesos para otro Training Camp.\n\nTe lleva directo a tu reserva:\n${link}\n\nElegir devolución o crédito registra tu pedido; no es un pago ya realizado. Si tenés dudas, escribinos y te ayudamos.\n\nEquipo Ciclismo Reybaud`,
     button: 'Elegir mi opción',
   };
 }
