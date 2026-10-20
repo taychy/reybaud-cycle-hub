@@ -36,7 +36,7 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
   </RadioGroup>
   {group==='attend' && <RadioGroup aria-label="Fechas en las que viajás" value={choice} onValueChange={v=>change(()=>{setChoice(v);setConsent(false)})} className="gap-2 pl-4">
    {campaign.options.filter(o=>o.value.startsWith('attend_')).map(o=><Label key={o.value} className="flex items-start gap-3 border border-border rounded-lg p-3 cursor-pointer"><RadioGroupItem value={o.value} className="mt-0.5 shrink-0"/><span className="text-sm">{o.label.replace(/^Asisto /,'')}<span className="block text-muted-foreground">{o.nights} noches</span></span></Label>)}
-  </RadioGroup>
+  </RadioGroup>}
   {financial && <div className="space-y-4 border-y border-border py-4">
    <p className="text-sm">Por el cambio organizado por Reybaud, corresponde el 100% de lo efectivamente abonado, menos reintegros previos, sin retención ni penalidad.</p>
    {choice==='credit' && <p className="text-sm text-muted-foreground">Crédito nominal en ARS para otro Training Camp, con uso parcial y remanente, sin indexación ni vencimiento definido. Aún no es un crédito disponible.</p>}
