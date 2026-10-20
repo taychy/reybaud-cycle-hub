@@ -19,3 +19,4 @@
 - Rescheduling: access = own session or token+DNI/name via verify_rescheduling_identity (2h rsg_ session); closed seats only via admin_rescheduling_seat_action. Why: no data leak, double sale or money moves.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
 - Pending intake reuses event_waitlist_entries; server prices/consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
+- Operational rescheduling emails go only through  (admin JWT, server gates: public_enabled, accepted test, audience authorization, atomic claim ≤10, stable idempotency key per reservation); email status 'enviado' is never set manually. Why: no marketing list, no duplicate or premature sends.
