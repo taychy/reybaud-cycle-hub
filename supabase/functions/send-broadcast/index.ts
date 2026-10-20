@@ -157,7 +157,9 @@ ${pre}
       <tr><td style="padding:28px 32px 12px">${bodyHtml}${ctaBlock}${promoHtml}</td></tr>
       <tr><td style="padding:20px 32px;border-top:1px solid #262626;color:#666;font-size:11px;text-align:center;line-height:1.6">
         Recibís este email porque sos parte de Reybaud.<br/>
-        Para dejar de recibir comunicaciones, respondé "BAJA" a este email.
+        ${unsubscribeUrl
+          ? `Si no querés recibir más comunicaciones, <a href="${unsubscribeUrl}" style="color:#999;text-decoration:underline">dátete de baja acá</a>.`
+          : `Para dejar de recibir comunicaciones, respondé "BAJA" a este email.`}
       </td></tr>
     </table>
   </td></tr>
@@ -451,11 +453,18 @@ Deno.serve(async (req) => {
       }
       const testRecipient = { email: body.test_email, display_name: "Test Reybaud" };
       const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
+      const testUnsubUrl = await issueUnsubscribeUrl(admin, body.test_email);
+      if (!testUnsubUrl) {
+        return new Response(JSON.stringify({ error: "No se pudo generar el enlace de baja; no se envió la prueba" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
       const html = htmlWrap(
         personalize(body.content_html, testRecipient) || "",
         body.preheader,
         { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
         promoHtml,
+        testUnsubUrl,
       );
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
@@ -519,11 +528,21 @@ Deno.serve(async (req) => {
         for (let i = 0; i < recipients.length; i += BATCH_SIZE) {
           const batch = recipients.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map(async (r: any) => {
+            const unsubUrl = await issueUnsubscribeUrl(admin, r.email);
+            if (!unsubUrl) {
+              failed++;
+              await admin.from("broadcast_recipients").update({
+                status: "failed",
+                error_message: "No se pudo generar el enlace de baja; envío omitido",
+              }).eq("broadcast_id", bc.id).eq("email", r.email);
+              return;
+            }
             const html = htmlWrap(
               personalize(body.content_html, r) || "",
               body.preheader,
               { url: personalize(body.cta_url, r), label: body.cta_label },
               promoHtml,
+              unsubUrl,
             );
             const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
@@ -631,11 +650,21 @@ Deno.serve(async (req) => {
           const batch = rows.slice(i, i + BATCH_SIZE);
           await Promise.all(batch.map(async (r: any) => {
             const recipient = { email: r.email, display_name: r.name, nombre: r.name };
+            const retryUnsubUrl = await issueUnsubscribeUrl(admin, r.email);
+            if (!retryUnsubUrl) {
+              failed++;
+              await admin.from("broadcast_recipients").update({
+                status: "failed",
+                error_message: "No se pudo generar el enlace de baja; reintento omitido",
+              }).eq("id", r.id);
+              return;
+            }
             const html = htmlWrap(
               personalize(bc.content_html, recipient) || "",
               bc.preheader,
               { url: personalize((bc.segment_filters as any)?.cta_url, recipient), label: (bc.segment_filters as any)?.cta_label },
               retryPromoHtml,
+              retryUnsubUrl,
             );
             const r1 = await sendWithRetries({
               sender: { name: bc.sender_name, email: bc.sender_email },
