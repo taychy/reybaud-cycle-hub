@@ -866,6 +866,9 @@ const EventDetail = () => {
                 selectPackage={!!alumno || isOpenAudience}
                 selectedPackageId={chosenPackageId}
                 onSelectedPackageChange={setChosenPackageId}
+                soldOut={isSoldOut}
+                waitlistEnabled={waitlistEnabled}
+                onWaitlist={waitlistEnabled ? () => navigate(`/eventos/${event.id}/lista-espera`) : undefined}
               />
               ) : null}
             />
@@ -901,6 +904,9 @@ const EventDetail = () => {
                 selectPackage={!!alumno || isOpenAudience}
                 selectedPackageId={chosenPackageId}
                 onSelectedPackageChange={setChosenPackageId}
+                soldOut={isSoldOut}
+                waitlistEnabled={waitlistEnabled}
+                onWaitlist={waitlistEnabled ? () => navigate(`/eventos/${event.id}/lista-espera`) : undefined}
               />
             </div>
           )}
