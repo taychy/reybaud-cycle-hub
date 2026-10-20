@@ -120,8 +120,6 @@ async function loadPromoProducts(admin: any, ids?: string[] | null) {
   return (data || []).sort((a: any, b: any) => (order.get(a.id) ?? 0) - (order.get(b.id) ?? 0));
 }
 
-const PUBLIC_ORIGIN = "https://reybaud-app.com";
-
 // Emite un token de baja individual (hash en BD, token crudo solo en el link).
 // Devuelve null si falla: en ese caso NO se envía, porque todo correo debe
 // llevar un enlace de baja funcional.
