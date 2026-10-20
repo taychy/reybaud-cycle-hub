@@ -10762,6 +10762,150 @@ export type Database = {
         }
         Relationships: []
       }
+      rescheduling_communication_log: {
+        Row: {
+          actor_id: string
+          channel: string
+          command_id: string
+          created_at: string
+          id: string
+          note: string
+          reservation_id: string
+          status: string
+        }
+        Insert: {
+          actor_id: string
+          channel: string
+          command_id: string
+          created_at?: string
+          id?: string
+          note: string
+          reservation_id: string
+          status: string
+        }
+        Update: {
+          actor_id?: string
+          channel?: string
+          command_id?: string
+          created_at?: string
+          id?: string
+          note?: string
+          reservation_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      rescheduling_communications: {
+        Row: {
+          actor_id: string
+          channel: string
+          event_id: string
+          note: string
+          reservation_id: string
+          status: string
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          actor_id: string
+          channel: string
+          event_id: string
+          note?: string
+          reservation_id: string
+          status: string
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          actor_id?: string
+          channel?: string
+          event_id?: string
+          note?: string
+          reservation_id?: string
+          status?: string
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescheduling_communications_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescheduling_communications_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      rescheduling_guest_sessions: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          reservation_id: string
+          session_hash: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          reservation_id: string
+          session_hash: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          reservation_id?: string
+          session_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rescheduling_guest_sessions_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rescheduling_guest_sessions_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      rescheduling_identity_attempts: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          reservation_id: string | null
+          success: boolean
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          reservation_id?: string | null
+          success: boolean
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          reservation_id?: string | null
+          success?: boolean
+        }
+        Relationships: []
+      }
       rescheduling_seat_history: {
         Row: {
           action: string
@@ -17719,6 +17863,10 @@ export type Database = {
       }
       _rescheduling_admin: { Args: never; Returns: boolean }
       _rescheduling_financial: { Args: { p_id: string }; Returns: Json }
+      _rescheduling_guest_ok: {
+        Args: { p_reservation_id: string; p_session: string }
+        Returns: boolean
+      }
       _rescheduling_settlement_sources: {
         Args: { p_id: string }
         Returns: Json
@@ -17726,6 +17874,8 @@ export type Database = {
       _rescheduling_settlement_totals: { Args: { p: Json }; Returns: Json }
       _rescheduling_size: { Args: { p_id: string }; Returns: Json }
       _rescheduling_verified_email: { Args: never; Returns: boolean }
+      _rs_name_ok: { Args: { given: string; stored: string }; Returns: boolean }
+      _rs_norm: { Args: { t: string }; Returns: string }
       _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
@@ -17894,6 +18044,21 @@ export type Database = {
       }
       admin_renew_reservation_terms_link: {
         Args: { p_reservation_id: string }
+        Returns: Json
+      }
+      admin_rescheduling_comm_list: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
+      admin_rescheduling_comm_mark: {
+        Args: {
+          p_channel: string
+          p_command_id: string
+          p_expected_version: number
+          p_note: string
+          p_reservation_id: string
+          p_status: string
+        }
         Returns: Json
       }
       admin_rescheduling_inventory: {
@@ -20657,6 +20822,17 @@ export type Database = {
           survey_id: string
           used_at: string
         }[]
+      }
+      verify_rescheduling_identity: {
+        Args: {
+          p_dni: string
+          p_event_id: string
+          p_first: string
+          p_last: string
+          p_reservation_id: string
+          p_token: string
+        }
+        Returns: Json
       }
       vincular_devolucion_mp: {
         Args: { p_confirmar?: boolean; p_movement_id: string }

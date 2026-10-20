@@ -456,6 +456,13 @@
       "when": 1792467142792,
       "tag": "0064_restrict_expense_category_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "7",
+      "when": 1792467392331,
+      "tag": "0065_rescheduling_identity_verification_and_comms",
+      "breakpoints": true
     }
   ]
 }
