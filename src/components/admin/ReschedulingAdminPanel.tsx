@@ -61,7 +61,7 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
   const body=filtered.map(r=>{const p=settlements[r.reservation_id];return [r.participant,r.package,label(r),campaign?.options.find(o=>o.value===r.request?.choice)?.nights, r.request?REVIEW_LABELS[r.request.review_status]:'Sin respuesta',r.request?.source,r.request?.note,p?.totals.paid_ars??r.financial.paid_reybaud,p?.totals.direct_paid_ars??r.financial.direct_paid,p?.totals.returned_ars??r.financial.previous_refunds,p?.totals.net_ars??'',p?.totals.blocked?'A conciliar':'Revisar',r.request?.jersey_requested===true?'Solicita':r.request?.jersey_requested===false?'No':'Sin elección',r.request?.jersey_size,r.request?.delivery,0,p?.totals.returned_ars??r.financial.previous_refunds,r.financial.refund_obligation?.status,0,0,r.request?.updated_at,p?settlementState(p):'Consultando',p&&!p.stale&&!p.totals.blocked?p.proposal?.authorized_amount:'',p&&!p.stale&&!p.totals.blocked?p.proposal?.jersey_amount:'',p?.totals.alerts.join(' | ')]});
   const blob=new Blob(['\uFEFF'+[headers,...body].map(line=>line.map(csvCell).join(',')).join('\n')],{type:'text/csv;charset=utf-8;'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='reprogramacion-san-luis.csv';a.click();URL.revokeObjectURL(url);
  };
- const review=async()=>{if(!row?.request)return;setLoading(true);const {error:e}=await supabase.rpc('admin_review_rescheduling',{p_reservation_id:row.reservation_id,p_revision:row.request.revision,p_status:status,p_note:note,p_command_id:crypto.randomUUID()});if(e)setError(e.message);else {setNote('');await load()}setLoading(false)};
+ const review=async(nextStatus?:string)=>{if(!row?.request||loading)return;setLoading(true);setError('');const {error:e}=await supabase.rpc('admin_review_rescheduling',{p_reservation_id:row.reservation_id,p_revision:row.request.revision,p_status:nextStatus??status,p_note:note.trim(),p_command_id:crypto.randomUUID()});if(e)setError(e.message);else {setNote('');await load()}setLoading(false)};
  if(!ctx?.available && !error)return null;
  return <>
   <Button variant="outline" size="sm" onClick={()=>setOpen(true)}><CalendarDays className="w-4 h-4 mr-2"/>Reprogramación San Luis</Button>
@@ -141,14 +141,83 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
    <details className="text-sm"><summary className="cursor-pointer">Transferencias previas preservadas ({ctx?.transfers?.length ?? 0})</summary><p className="my-2 text-muted-foreground">Sin emparejamiento automático. Revisar paquete y fechas/noches de ambas partes. Pagos directos supervisados, con comprobante; caja Reybaud $0.</p>{ctx?.transfers?.map(t=><p key={t.id} className="text-xs py-1">{t.status} · reserva original {t.original_reservation_id.slice(0,8)} · reemplazo {t.replacement_reservation_id?.slice(0,8) ?? 'pendiente'}</p>)}</details>
    <div className="flex flex-wrap gap-2">{['Emitir crédito','Aplicar / revertir crédito','Ejecutar devolución','Deducir jersey','Habilitar reventa','Habilitar público'].map(l=><Button key={l} disabled variant="outline"><LockKeyhole className="w-4 h-4 mr-2"/>{l}</Button>)}</div>
   </DialogContent></Dialog>
-  <Dialog open={!!row} onOpenChange={o=>{if(!o)setSelected(undefined)}}><DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>Decisión y seguimiento</DialogTitle><DialogDescription>Registrar o revisar no ejecuta operaciones financieras ni modifica alojamiento.</DialogDescription></DialogHeader>
-   {row && campaign && <><ReschedulingForm key={row.reservation_id} campaign={campaign} row={row} admin onSaved={load}/>
-    <ReschedulingSettlementPanel key={row.reservation_id} reservationId={row.reservation_id} requestRevision={row.request?.revision} onSaved={()=>void load()}/>
-    <ReschedulingSeatActions key={`seat-${row.reservation_id}`} reservationId={row.reservation_id} request={row.request} inventory={inventory} onSaved={()=>void load()}/>
-    {row.request && <section className="border-t border-border pt-4 space-y-3"><h3 className="font-medium">Revisión administrativa</h3><Select value={status} onValueChange={setStatus}><SelectTrigger aria-label="Estado de revisión"><SelectValue/></SelectTrigger><SelectContent>{Object.entries(REVIEW_LABELS).map(([v,l])=><SelectItem key={v} value={v}>{l}</SelectItem>)}</SelectContent></Select><Textarea aria-label="Nota de revisión" placeholder="Nota de revisión (obligatoria)" value={note} onChange={e=>setNote(e.target.value)} maxLength={2000}/><Button disabled={!note.trim()||loading} onClick={review}>Guardar revisión · sin ejecución</Button><p className="text-xs text-muted-foreground">Última nota: {row.request.admin_note || 'Sin nota'} · fuente: {row.request.source} · {new Date(row.request.consent_at).toLocaleString('es-AR')}</p></section>}
-    <details className="text-sm"><summary className="cursor-pointer flex gap-2 items-center"><History className="w-4 h-4"/>Historial ({history.length})</summary>{history.map(h=><div key={h.revision} className="border-t border-border py-2"><p>Versión {h.revision} · {h.origin} · {new Date(h.created_at).toLocaleString('es-AR')}</p><p className="text-xs text-muted-foreground">{String((h.after_data as {choice?:string;review_status?:string})?.choice ?? '')} · {String((h.after_data as {review_status?:string})?.review_status ?? '')}</p></div>)}</details>
-    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-   </>}
-  </DialogContent></Dialog>
+  <Dialog open={!!row} onOpenChange={o=>{if(!o){setSelected(undefined);setNote('');setError('')}}}>
+   <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto min-w-0">
+    <DialogHeader>
+     <DialogTitle>Resolver reprogramación</DialogTitle>
+     <DialogDescription>Primero aprobá la decisión. Los detalles contables y del cupo se consultan abajo.</DialogDescription>
+    </DialogHeader>
+    {row && campaign && <>
+     <section className="rounded-lg border border-border p-4 space-y-3" aria-label="Solicitud del participante">
+      <div><p className="font-semibold text-lg">{row.participant}</p><p className="text-sm text-muted-foreground">{row.package}</p></div>
+      <div className="flex flex-wrap gap-2 items-center">
+       <Badge variant="outline">{row.request ? REVIEW_LABELS[row.request.review_status]??row.request.review_status : 'Sin respuesta'}</Badge>
+       {row.request?.choice==='refund' && <Badge variant="outline">Devolución solicitada</Badge>}
+       {row.request?.choice==='credit' && <Badge variant="outline">Crédito solicitado</Badge>}
+       {row.request?.choice.startsWith('attend_') && <Badge variant="outline">Viaje en noviembre</Badge>}
+      </div>
+      <div className="rounded-md bg-muted/30 p-3 space-y-1">
+       <p className="font-medium">{label(row)}</p>
+       {row.request?.choice.startsWith('attend_') && <p className="text-sm text-muted-foreground">{campaign.options.find(o=>o.value===row.request?.choice)?.nights} noches · se conserva su paquete original</p>}
+       {row.request?.choice==='refund' && <p className="text-sm text-muted-foreground">Solicita la devolución del dinero correspondiente. No se realizó ningún reintegro al responder la encuesta.</p>}
+       {row.request?.choice==='credit' && <p className="text-sm text-muted-foreground">Solicita trasladar el valor abonado como crédito para otro Training Camp.</p>}
+       {row.request?.choice==='help' && <p className="text-sm text-muted-foreground">Antes de elegir, necesita comunicarse con el equipo.</p>}
+       {!row.request && <p className="text-sm text-muted-foreground">Aún no completó la encuesta. Podés registrar lo que comunicó desde «Registrar decisión».</p>}
+      </div>
+      {row.request && <p className="text-xs text-muted-foreground">Registrado el {new Date(row.request.updated_at).toLocaleString('es-AR')} · {row.request.source || 'Desde la encuesta'}{row.request.note ? ` · Nota: ${row.request.note}` : ''}</p>}
+     </section>
+     {row.request && <section className="rounded-lg border border-border p-4 space-y-3" aria-label="Resolución administrativa">
+      <h3 className="font-semibold">Resolución administrativa</h3>
+      {row.request.review_status==='validada' ? <>
+       <p className="text-sm font-medium text-foreground">Decisión aprobada</p>
+       {row.request.choice.startsWith('attend_') && <p className="text-sm">Asistencia confirmada para las fechas elegidas. Su plaza original se conserva y no se pone a la venta.</p>}
+       {(row.request.choice==='refund'||row.request.choice==='credit') && <p className="text-sm">
+        {inventory?.releases.find(s=>s.reservation_id===row.reservation_id)?.state==='liberada'?'Plaza liberada y registrada en inventario.': 'Revisá el estado del cupo antes de ofrecerlo.'} No se realizó ninguna devolución ni se emitió un crédito.
+       </p>}
+      </> : <>
+       <p className="text-sm text-muted-foreground">
+        {row.request.choice==='refund'?'Al aprobar esta baja, el sistema libera automáticamente su plaza de alojamiento. El reintegro se tramita después.':
+         row.request.choice==='credit'?'Al aprobar esta baja, se libera su plaza. El crédito se calcula y acredita después, por separado.':
+         row.request.choice.startsWith('attend_')?'Al confirmar, se registra su asistencia a la modalidad elegida. No se libera ningún cupo.':
+         'Podés dejar la solicitud pendiente y contactar al participante antes de cerrar la decisión.'}
+       </p>
+       <div className="space-y-2"><label className="text-sm font-medium" htmlFor="sanluis-review-note">Constancia de la revisión</label>
+        <Textarea id="sanluis-review-note" aria-label="Constancia administrativa" placeholder="Ej.: Confirmé la elección del participante y la baja de su plaza por WhatsApp." value={note} onChange={e=>setNote(e.target.value)} maxLength={2000}/>
+       </div>
+       <div className="flex flex-wrap gap-2">
+        {row.request.choice!=='help' && <Button disabled={loading||note.trim().length<10} onClick={()=>void review('validada')}>
+         {loading?'Guardando…': row.request.choice==='refund'?'Aprobar baja y liberar plaza':row.request.choice==='credit'?'Aprobar crédito solicitado y liberar plaza':'Confirmar asistencia a noviembre'}
+        </Button>}
+        <Button variant="outline" disabled={loading||note.trim().length<10} onClick={()=>void review('requiere_contacto')}>Necesita contacto</Button>
+        <Button variant="outline" disabled={loading||note.trim().length<10} onClick={()=>void review('en_revision')}>Dejar en revisión</Button>
+       </div>
+       <p className="text-xs text-muted-foreground">Aprobar es una decisión administrativa. No transfiere dinero, no emite crédito y no publica automáticamente la plaza en venta. Cada cambio queda registrado.</p>
+      </>}
+      {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+     </section>}
+     <details className="rounded-lg border border-border p-3" open={!row.request}>
+      <summary className="cursor-pointer font-medium">{row.request?'Modificar una respuesta registrada':'Registrar una decisión comunicada por WhatsApp o personalmente'}</summary>
+      <div className="mt-4"><ReschedulingForm key={row.reservation_id} campaign={campaign} row={row} admin onSaved={load}/></div>
+     </details>
+     {row.request && (row.request.choice==='refund'||row.request.choice==='credit') && <>
+      <details className="rounded-lg border border-border p-3">
+       <summary className="cursor-pointer font-medium">Cupo liberado y reventa</summary>
+       <p className="mt-3 text-xs text-muted-foreground">La aprobación libera el cupo en inventario, pero venderlo requiere habilitar la reventa y verificar precio y disponibilidad. No se amplían los cupos originales.</p>
+       <ReschedulingSeatActions key={row.reservation_id} reservationId={row.reservation_id} request={row.request} inventory={inventory} onSaved={()=>void load()}/>
+      </details>
+      <details className="rounded-lg border border-border p-3">
+       <summary className="cursor-pointer font-medium">Conciliación, reintegros y crédito</summary>
+       <p className="mt-3 text-xs text-muted-foreground">Revisión contable independiente. Aprobar la baja no ejecuta devoluciones ni emite créditos.</p>
+       <ReschedulingSettlementPanel key={row.reservation_id} reservationId={row.reservation_id} requestRevision={row.request?.revision} onSaved={()=>void load()}/>
+      </details>
+     </>}
+     <details className="rounded-lg border border-border p-3">
+      <summary className="cursor-pointer font-medium flex items-center gap-2"><History className="w-4 h-4"/>Historial de decisiones ({history.length})</summary>
+      {history.map(h=><div key={h.revision} className="border-t border-border py-2 text-sm"><p>Versión {h.revision} · {h.origin} · {new Date(h.created_at).toLocaleString('es-AR')}</p><p className="text-xs text-muted-foreground">Elección: {String((h.after_data as {choice?:string})?.choice??'')} · Revisión: {String((h.after_data as {review_status?:string})?.review_status??'')}</p></div>)}
+     </details>
+     {error && !row.request && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    </>}
+   </DialogContent>
+  </Dialog>
  </>;
 }
