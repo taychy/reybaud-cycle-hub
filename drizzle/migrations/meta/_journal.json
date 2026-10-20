@@ -449,6 +449,13 @@
       "when": 1792466542104,
       "tag": "0063_rescheduling_closed_seat_inventory",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "7",
+      "when": 1792467142792,
+      "tag": "0064_restrict_expense_category_reads",
+      "breakpoints": true
     }
   ]
 }
