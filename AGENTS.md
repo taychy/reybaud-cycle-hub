@@ -1,4 +1,4 @@
-- Simulador de costos: distribuir escenarios con `src/lib/scenarioDistribution.ts` (suma = participantes; nunca copiar cupos). Why: resultados coherentes.
+- Simulador de costos: distribuir with `src/lib/scenarioDistribution.ts` (sum=participants, never copy capacities). Why: consistent totals.
 - Pagos internacionales de eventos: `src/lib/eventPaymentPolicy.ts` solo si existe `events.metadata.payment_policy`; recargo ARS una vez sobre la cotización central, nunca como saldo; aviso solo en la confirmación de reserva. Why: saldo contractual EUR trazable.
 - Auditoría humana de viajes: checklist en `src/lib/tripTechnicalAudit.ts`, estado en `events.metadata.technical_audit` (mezclar solo el ítem sobre metadata fresca). Why: sin migraciones ni pisar datos.
 - Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview + external fallback, never downloads. Why: isolate trips; no misleading data.
@@ -7,7 +7,7 @@
 - Programas de formación: fase comercial con `src/lib/programCommercialPhase.ts` (espejo de SQL `program_commercial_phase`); cupo por sede en `planes_sedes` validado por trigger en `suscripciones.programa_sede_id`; lista de espera en `program_waitlist_entries` solo vía RPC `join_program_waitlist`. Why: una sola URL por programa y sin sobrecupo por sede.
 - Preinscriptos de programas: estado derivado en `src/lib/programPreinscriptos.ts` desde RPC `get_program_preinscriptos` (vínculo por beneficio→email canónico/alias, solo mismo plan; nunca por nombre); "No continúa" = entry.estado 'descartado'. Why: sin flags manuales ni lógica paralela de pago.
 - Program classes: programa_sync_clases_agenda creates one punctual agenda_grupal per programa_clases, idempotently. Null coach is pending teacher; no taught class until assigned. Why: no invented teachers or settlements.
-- Conciliación MP: unidad de negocio y destino existente (pago de reserva por mp_payment_id o payment_reference, orden/preventa de tienda) se derivan en `src/lib/mpConciliacion.ts`; si el destino ya existe no se ofrece "Imputar a deuda", y los webhooks de eventos guardan `mp_payment_id` y vinculan el movimiento de forma idempotente. Why: evitar doble imputación del mismo cobro.
+- MP reconciliation: `src/lib/mpConciliacion.ts` derives business unit and existing destination; existing reservation/store payments disable debt assignment. Event webhooks save `mp_payment_id` and link idempotently. Why: avoid double allocation.
 - App updates: UpdatePrompt.tsx/appUpdate.ts compare embedded __BUILD_TIME__ with /app-version.json; register service workers only in production. Why: one version source, no stale preview caches.
 - Facturación automática: emisor resuelto en SQL `resolver_emisor_facturacion` (override > flujo > medio > cuenta MP > único del segmento > revisión), nunca default global; solo `ingreso='automatico'` pagadas tras `auto_desde`, vía `claim_facturacion_auto` + `emit-factura-afip` con bloqueo `emitiendo`. Why: evitar emisor equivocado y doble emisión.
 - Reventa de cupos de viajes: `reservation_transfers` + RPCs `start_reservation_transfer` (marca original 'cancelada' y reutiliza `release_room_on_cancel`; la UI deriva "Cupo en reventa") y `claim_reservation_transfer` FIFO tras cada reserva; saldo efectivo = `reservation_effective_payment_summary` (pagos reales + directos confirmados); los directos ajustan saldo/cuotas por trigger y la cuenta corriente, nunca `amount_paid`. Why: sin stock paralelo; directo = caja $0.
@@ -20,3 +20,5 @@
 - Kit: separate audited admin/staff sizes; event/name uniqueness, soft removal; conflicts excluded. Why: provenance.
 
 - Pending intake reuses event_waitlist_entries/metadata package IDs; server prices/contact consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
+
+- Broadcasts reuse existing tables; hashed unsubscribe tokens, server-side preview/test guards and atomic dispatch claims protect sends. Why: preserve history and prevent bypasses/duplicates.

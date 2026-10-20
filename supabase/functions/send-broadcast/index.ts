@@ -8,8 +8,8 @@ import { evaluateRecipients, frequencyPolicy, canonical } from "../_shared/broad
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/brevo";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const BREVO_API_KEY = Deno.env.get("BREVO_API_KEY");
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
-const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 async function allRows(query: any) {
   const rows: any[] = [];
@@ -217,7 +217,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters, excluded: 
     const { data, error } = await supabase
       .from("alumnos")
       .select("id, nombre, apellido, email, estado, sede_id, grupo")
-      .in("id", filters.alumno_ids!);
+      .in("id", filters.alumno_ids || []);
     if (error) throw error;
     rows.push(...(data || []).map((a: any) => ({
       ...a,
@@ -243,7 +243,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters, excluded: 
     const { data, error } = await supabase
       .from("coaches")
       .select("id, nombre, email, estado, sede_id, grupos")
-      .in("id", filters.coach_ids!);
+      .in("id", filters.coach_ids || []);
     if (error) throw error;
     rows.push(...(data || []).map((c: any) => ({
       ...c,
@@ -275,7 +275,7 @@ async function loadRecipients(supabase: any, filters: SegmentFilters, excluded: 
     let q = supabase
       .from("marketing_contacts")
       .select("id, email, nombre, apellido, tipo, tags, opt_in_marketing, last_campaign_sent_at")
-      .in("id", filters.marketing_contact_ids!);
+      .in("id", filters.marketing_contact_ids || []);
     // Un contacto elegido a mano NO puede saltear la baja.
     
     const data = await allRows(q.order("id"));
@@ -367,7 +367,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
-    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY")!, {
+    const userClient = createClient(SUPABASE_URL, Deno.env.get("SUPABASE_ANON_KEY") || "", {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user } } = await userClient.auth.getUser();
@@ -387,7 +387,7 @@ Deno.serve(async (req) => {
     const schema = z.object({
       mode:z.enum(['test','send','preview_count','retry_failed']),subject:z.string().max(300).optional(),content_html:z.string().max(200000).optional(),
       preheader:z.string().max(500).optional(),test_email:z.string().trim().email().optional(),preview_id:z.string().uuid().optional(),broadcast_id:z.string().uuid().optional(),confirmed:z.boolean().optional(),
-      segment_filters:z.object({audience:z.array(z.enum(['students','coaches','marketing','waitlist'])).optional(),marketing_include_opt_out:z.literal(false).optional(),marketing_frequency_days:z.number().int().min(1).max(365).optional(),marketing_ignore_frequency:z.boolean().optional(),marketing_frequency_reason:z.string().max(1000).optional()}).passthrough().optional(),
+      segment_filters:z.object({audience:z.array(z.enum(['students','coaches','marketing','waitlist'])).optional(),marketing_include_opt_out:z.literal(false).optional(),marketing_frequency_days:z.number().int().min(1).max(365).optional(),marketing_ignore_frequency:z.boolean().optional(),marketing_frequency_reason:z.string().max(1000).optional(),estados:z.array(z.string().max(50)).max(30).optional(),sede_ids:z.array(z.string().uuid()).optional(),grupos:z.array(z.string().max(80)).max(30).optional(),plan_ids:z.array(z.string().uuid()).optional(),alumno_ids:z.array(z.string().uuid()).optional(),coach_ids:z.array(z.string().uuid()).optional(),marketing_contact_ids:z.array(z.string().uuid()).optional(),marketing_tipos:z.array(z.string().max(50)).max(30).optional(),marketing_tags:z.array(z.string().max(100)).max(100).optional(),waitlist_event_ids:z.array(z.string().uuid()).optional(),waitlist_estados:z.array(z.string().max(50)).max(10).optional(),cta_url:z.string().url().optional(),cta_label:z.string().max(200).optional(),has_email_only:z.boolean().optional()}).strict().optional(),
       excluded_emails:z.array(z.string().email()).max(10000).optional(),promo_product_ids:z.array(z.string().uuid()).max(4).optional(),cta_url:z.string().url().refine(v=>v.startsWith('https://')).optional(),cta_label:z.string().max(200).optional(),include_full_list:z.boolean().optional(),
       sender_email:z.string().email().optional(),sender_name:z.string().max(100).optional(),reply_to:z.string().email().optional()
     });
@@ -622,9 +622,11 @@ Deno.serve(async (req) => {
           status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const { data: failedRows } = await admin
+      const { data: failedRows,error:failedError } = await admin
         .from("broadcast_recipients").select("*")
         .eq("broadcast_id", bc.id).eq("status", "failed");
+      if(failedError) throw failedError;
+      if(failedRows?.some((r:any)=> !/HTTP 4\d\d/.test(r.error_message || ''))) throw new Error('Hay resultados inciertos: conciliá con el proveedor antes de reintentar');
       const rows = (failedRows as any[]) || [];
       if (!rows.length) {
         return new Response(JSON.stringify({ ok: true, retried: 0, message: "No hay destinatarios fallidos" }), {
@@ -683,8 +685,7 @@ Deno.serve(async (req) => {
           }));
         }
         // Recalcular totales del broadcast
-        const { data: agg } = await admin.from("broadcast_recipients")
-          .select("status").eq("broadcast_id", bc.id);
+        const agg = await allRows(admin.from("broadcast_recipients").select("status").eq("broadcast_id",bc.id).order("id"));
         const s = (agg as any[] || []).filter(x => x.status === "sent").length;
         const f = (agg as any[] || []).filter(x => x.status === "failed").length;
         await admin.from("broadcasts").update({
