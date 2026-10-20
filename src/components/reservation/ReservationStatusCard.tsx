@@ -1134,6 +1134,9 @@ const ReservationStatusCard = ({
           </div>
         )}
 
+        {/* Slot del evento (p. ej. "¿Querés cambiar tu paquete?") justo debajo de "Tu paquete" */}
+        {afterPackageSlot}
+
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
         {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="glass-card rounded-xl p-5 space-y-4">
