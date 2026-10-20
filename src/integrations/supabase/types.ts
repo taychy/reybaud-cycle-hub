@@ -1626,9 +1626,12 @@ export type Database = {
           content_html: string
           created_at: string
           created_by: string | null
+          cta_label: string | null
+          cta_url: string | null
           description: string | null
           id: string
           name: string
+          preheader: string | null
           subject: string
           updated_at: string
         }
@@ -1636,9 +1639,12 @@ export type Database = {
           content_html: string
           created_at?: string
           created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
           description?: string | null
           id?: string
           name: string
+          preheader?: string | null
           subject: string
           updated_at?: string
         }
@@ -1646,9 +1652,12 @@ export type Database = {
           content_html?: string
           created_at?: string
           created_by?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
           description?: string | null
           id?: string
           name?: string
+          preheader?: string | null
           subject?: string
           updated_at?: string
         }

@@ -1,0 +1,1 @@
+ALTER TABLE public.broadcast_templates ADD COLUMN IF NOT EXISTS preheader text, ADD COLUMN IF NOT EXISTS cta_url text, ADD COLUMN IF NOT EXISTS cta_label text;
