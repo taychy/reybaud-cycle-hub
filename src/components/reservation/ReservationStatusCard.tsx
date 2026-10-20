@@ -76,6 +76,8 @@ interface ReservationStatusCardProps {
   alumnoNombre?: string | null;
   hideHelpAndCancel?: boolean;
   onPaymentReported: () => void;
+  /** Contenido opcional que la pantalla padre quiere mostrar justo debajo de "Tu paquete". */
+  afterPackageSlot?: ReactNode;
 }
 
 interface TimelineEntry {
@@ -288,7 +290,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 
 const ReservationStatusCard = ({
   reservation: rawReservation, alumnoId, eventCurrency, eventId, eventDate, eventTitle, eventType, eventMetadata,
-  reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported,
+  reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported, afterPackageSlot,
 }: ReservationStatusCardProps) => {
   // Saldo efectivo (pagos reales a Reybaud + pagos directos confirmados en transferencias de cupo).
   const [effBalance, setEffBalance] = useState<number | null>(null);
