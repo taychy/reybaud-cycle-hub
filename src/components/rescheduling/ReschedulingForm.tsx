@@ -30,6 +30,7 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
  };
  return <section className="space-y-5 min-w-0">
   <header><h2 className="text-lg font-heading">{row.participant}</h2><p className="text-sm text-muted-foreground">{row.package ?? 'Reserva actual'} · {row.request ? REVIEW_LABELS[row.request.review_status] : 'Sin respuesta'}</p></header>
+  {row.request && <p className="text-sm text-muted-foreground">Para actualizar tu elección, confirmá nuevamente el consentimiento.</p>}
   <RadioGroup aria-label="Tu elección para San Luis" value={choice} onValueChange={v=>change(()=>{setChoice(v);setConsent(false)})} className="gap-2">
    {campaign.options.map(o=><Label key={o.value} className="flex items-start gap-3 border border-border rounded-lg p-3 cursor-pointer"><RadioGroupItem value={o.value} className="mt-0.5 shrink-0"/><span className="text-sm leading-relaxed">{o.label}{o.nights ? <span className="block text-muted-foreground">{o.nights} noches</span> : null}</span></Label>)}
   </RadioGroup>
@@ -60,6 +61,6 @@ export default function ReschedulingForm({campaign,row,admin=false,token,onSaved
   <Label className="flex items-start gap-3"><Checkbox checked={consent} onCheckedChange={v=>change(()=>setConsent(v===true))}/><span className="text-sm leading-relaxed">{admin ? 'Dejo constancia de que el participante comunicó y consintió esta decisión. ' : ''}{campaign.consent_text}</span></Label>
   <Button className="w-full" onClick={save} disabled={!valid || busy}>{busy && <Loader2 className="mr-2 w-4 h-4 animate-spin"/>}{row.request ? 'Actualizar solicitud' : 'Confirmar solicitud'}</Button>
   {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
-  {saved && <div role="status" className="space-y-2 border-t border-border pt-3"><p className="flex items-start gap-2 text-sm text-primary"><CheckCircle2 className="w-5 h-5 shrink-0"/>Solicitud guardada. Tu reserva y tus pagos no se modificaron.</p><p className="text-sm">{campaign.options.find(o=>o.value===choice)?.label}</p>{financial && <p className="text-sm text-muted-foreground">{jersey==='yes' ? `Jersey solicitado: ${size} · ${delivery}. Deducción pendiente de validación, no ejecutada.` : 'Sin deducción de jersey autorizada.'}</p>}</div>}
+  {saved && <div role="status" className="space-y-2 border-t border-border pt-3"><p className="flex items-start gap-2 text-sm text-primary"><CheckCircle2 className="w-5 h-5 shrink-0"/>Solicitud registrada. No se devolvió ni acreditó dinero. Tu reserva y tus pagos no se modificaron.</p><p className="text-sm">{campaign.options.find(o=>o.value===choice)?.label}</p>{financial && <p className="text-sm text-muted-foreground">{jersey==='yes' ? `Jersey solicitado: ${size} · ${delivery}. Deducción pendiente de validación, no ejecutada.` : 'Sin deducción de jersey autorizada.'}</p>}</div>}
  </section>;
 }
