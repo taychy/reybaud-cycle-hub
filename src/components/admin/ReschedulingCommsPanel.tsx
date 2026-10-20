@@ -8,6 +8,7 @@ import { Copy, ExternalLink, LockKeyhole, Mail, MessageCircle, Send } from 'luci
 import { toast } from 'sonner';
 import { normalizePhoneAR } from '@/lib/phoneNormalize';
 import { emailBody, maskLink, personalReschedulingLink, whatsappText, whatsappUrl } from '@/lib/reschedulingAccess';
+import ReschedulingEmailOps from './ReschedulingEmailOps';
 import { commStatus, COMM_LABELS, type CommRow } from '@/lib/reschedulingComms';
 
 export default function ReschedulingCommsPanel({ eventId, publicEnabled }: { eventId: string; publicEnabled: boolean }) {
@@ -34,7 +35,8 @@ export default function ReschedulingCommsPanel({ eventId, publicEnabled }: { eve
       <DialogHeader><DialogTitle>San Luis · Comunicar reprogramación</DialogTitle><DialogDescription>Solo reservas vigentes. Cada enlace es personal; la persona igual confirma DNI, nombre y apellido (o su sesión). Nada se envía automáticamente.</DialogDescription></DialogHeader>
       <div className="flex flex-wrap gap-2 text-sm"><Badge variant="outline">Reservas vigentes {rows.length}</Badge>{Object.entries(counts).map(([k, v]) => <Badge key={k} variant="outline">{COMM_LABELS[k as keyof typeof COMM_LABELS]} {v}</Badge>)}<Badge variant="outline"><LockKeyhole className="w-3 h-3 mr-1" />Encuesta pública {publicEnabled ? 'habilitada' : 'desactivada'}</Badge></div>
       {!publicEnabled && <p className="text-sm text-muted-foreground">Mientras la encuesta esté desactivada, el enlace muestra «En revisión». Copiar/abrir WhatsApp queda bloqueado para no mandar enlaces que todavía no funcionan.</p>}
-      <p className="text-xs text-muted-foreground">Email: vista previa lista; el envío real queda pendiente de aprobación y se hará por el sistema de correos transaccionales, no por la lista de marketing. WhatsApp: no hay integración oficial; se envía a mano y Administración registra «enviado» solo tras confirmarlo.</p>
+      <ReschedulingEmailOps eventId={eventId} rows={rows} onChanged={load} />
+      <p className="text-xs text-muted-foreground">Email: se envía por el sistema de correos operativos, uno por titular, desde el bloque de arriba; nunca por la lista de marketing. WhatsApp: no hay integración oficial; se envía a mano y Administración registra «enviado» solo tras confirmarlo.</p>
       {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
       <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-border">{['Participante', 'Email', 'WhatsApp', 'Estado', ''].map(h => <th key={h} className="text-left p-2">{h}</th>)}</tr></thead>
         <tbody>{rows.map(r => <tr key={r.reservation_id} className="border-b border-border">
@@ -50,7 +52,7 @@ export default function ReschedulingCommsPanel({ eventId, publicEnabled }: { eve
         <DialogHeader><DialogTitle>{r.participant}</DialogTitle><DialogDescription>Enlace: {maskLink(l)}</DialogDescription></DialogHeader>
         <section className="space-y-2 text-sm"><h3 className="font-medium flex gap-2 items-center"><Mail className="w-4 h-4" />Email</h3>
           <p><strong>Asunto:</strong> {mail.subject}</p><pre className="whitespace-pre-wrap text-xs border border-border rounded p-3">{mail.text.replace(l, `[${mail.button}]`)}</pre>
-          <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => mark(r, 'email', 'preparado')}>Marcar preparado</Button><Button size="sm" disabled><LockKeyhole className="w-4 h-4 mr-2" />Enviar email · pendiente de aprobación</Button></div></section>
+          <div className="flex flex-wrap gap-2"><Button size="sm" variant="outline" disabled={busy} onClick={() => mark(r, 'email', 'preparado')}>Marcar preparado</Button><span className="text-xs text-muted-foreground flex items-center"><LockKeyhole className="w-3 h-3 mr-1" />El envío real se hace por lotes desde el panel general.</span></div></section>
         <section className="space-y-2 text-sm border-t border-border pt-3"><h3 className="font-medium flex gap-2 items-center"><MessageCircle className="w-4 h-4" />WhatsApp</h3>
           <pre className="whitespace-pre-wrap text-xs border border-border rounded p-3">{wa.replace(l, '[enlace personal]')}</pre>
           <div className="flex flex-wrap gap-2">
