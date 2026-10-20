@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { evaluateRecipients, frequencyPolicy, canonical } from '../../supabase/functions/_shared/broadcastPolicy';
+import { evaluateRecipients, frequencyPolicy, canonical, type Candidate } from '../../supabase/functions/_shared/broadcastPolicy';
 const now = Date.UTC(2026,9,20);
 const email = 'person@example.org';
-const evaluate = (rows = [{email}], policy = frequencyPolicy({}), suppressed = new Set<string>(), out = new Set<string>(), last = new Map<string,string>()) => evaluateRecipients(rows,suppressed,out,last,policy,new Set(),now);
+const evaluate = (rows: Candidate[] = [{email}], policy = frequencyPolicy({}), suppressed = new Set<string>(), out = new Set<string>(), last = new Map<string,string>()) => evaluateRecipients(rows,suppressed,out,last,policy,new Set(),now);
 describe('mailing safety rules', () => {
   it('defaults to seven days',()=>expect(frequencyPolicy({}).days).toBe(7));
   it('excludes a recipient sent six days ago',()=>expect(evaluate(undefined,undefined,undefined,undefined,new Map([[email,new Date(now-6*86400000).toISOString()]])).eligible).toHaveLength(0));
