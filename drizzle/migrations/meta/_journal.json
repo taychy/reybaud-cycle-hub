@@ -435,6 +435,13 @@
       "when": 1792457333078,
       "tag": "0061_rescheduling_receipt_deduplication",
       "breakpoints": true
+    },
+    {
+      "idx": 62,
+      "version": "7",
+      "when": 1792457633589,
+      "tag": "0062_event_booking_requests_without_payment",
+      "breakpoints": true
     }
   ]
 }

@@ -18412,6 +18412,10 @@ export type Database = {
         }
         Returns: Json
       }
+      event_booking_request_options: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
       event_kit_staff_key: { Args: { p_name: string }; Returns: string }
       event_terms_snapshot: { Args: { p_event_id: string }; Returns: Json }
       expire_descuentos_alumno: { Args: never; Returns: number }
@@ -20211,6 +20215,17 @@ export type Database = {
         Returns: boolean
       }
       store_order_estados_comprometidos: { Args: never; Returns: string[] }
+      submit_event_booking_request: {
+        Args: {
+          p_email: string
+          p_event_id: string
+          p_input: Json
+          p_nombre: string
+          p_package_id: string
+          p_telefono: string
+        }
+        Returns: Json
+      }
       submit_liquidacion_by_token: {
         Args: { p_items: Json; p_observaciones?: string; p_token: string }
         Returns: Json
