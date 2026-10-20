@@ -83,6 +83,18 @@ const DEFAULT_CTA_PRESETS: CtaPreset[] = [
   { name: "Mi plan / pagos", url: "https://reybaud-app.com/alumno/pagos", label: "Ver mi plan" },
 ];
 
+
+async function fnErrorMessage(error: any): Promise<string> {
+  try {
+    const ctx = error?.context;
+    if (ctx && typeof ctx.text === "function") {
+      const t = await ctx.text();
+      try { const j = JSON.parse(t); return j.error || j.message || t; } catch { return t || error.message; }
+    }
+  } catch { /* sin detalle */ }
+  return error?.message || "Error desconocido";
+}
+
 export default function AdminBroadcasts({ embedded = false }: { embedded?: boolean } = {}) {
   const { toast } = useToast();
   const [tab, setTab] = useState("composer");
@@ -254,6 +266,13 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
 
 
   const previewSegment = async () => {
+    setPreviewCount(null);
+    setPreviewSample([]);
+    setFullRecipients([]);
+    if (composer.marketing_ignore_frequency && composer.marketing_frequency_reason.trim().length < 15) {
+      toast({ title: "Falta el motivo", description: "Para ignorar el tope de 7 días escribí el motivo de la excepción (mínimo 15 caracteres).", variant: "destructive" });
+      return;
+    }
     setLoadingPreview(true);
     try {
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
@@ -264,7 +283,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           excluded_emails: Array.from(excludedEmails),
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await fnErrorMessage(error));
       setPreviewCount(data.count);
       setPreviewSample(data.sample || []);
       setFullRecipients(data.recipients || []);
@@ -307,7 +326,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           promo_product_ids: composer.promo_product_ids,
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await fnErrorMessage(error));
       if (!data?.ok) throw new Error(data?.response?.message || "Falló el envío de prueba");
       toast({ title: "Test enviado", description: `Revisá ${testEmail}` });
     } catch (e: any) {
@@ -334,7 +353,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           excluded_emails: Array.from(excludedEmails),
         },
       });
-      if (error) throw error;
+      if (error) throw new Error(await fnErrorMessage(error));
       const total = data?.total ?? data?.queued ?? 0;
       toast({
         title: "Envío en curso",
@@ -778,7 +797,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
                 <label className="flex items-center gap-2 cursor-pointer text-xs">
                   <Checkbox
                     checked={composer.marketing_ignore_frequency}
-                    onCheckedChange={(v) => setComposer({ ...composer, marketing_ignore_frequency: !!v })}
+                    onCheckedChange={(v) => { setComposer({ ...composer, marketing_ignore_frequency: !!v }); setPreviewCount(null); setFullRecipients([]); }}
                   />
                   <span>
                     Ignorar tope de frecuencia (por defecto excluye contactos que recibieron una campaña en los últimos 7 días).
