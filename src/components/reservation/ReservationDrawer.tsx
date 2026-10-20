@@ -123,7 +123,6 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
   const declaresMethod = !isInscriptionOnly && (event.metadata as any)?.reservation_declared_payment === true;
-  const usesExternalDepositLink = event.id === "e726408b-bf46-45d6-9678-dc426a2d8641";
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const anyPackagePaid = packages.some((p) => p.precio > 0);
   const isPaid = (event.price != null && event.price > 0) || anyPackagePaid;
@@ -1310,11 +1309,11 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                     {(["transferencia", "efectivo"] as const).map((m) => (
                       <button key={m} type="button" onClick={() => setDeclaredMethod(m)}
                         className={`rounded-xl border p-3 text-sm font-semibold capitalize ${declaredMethod === m ? "border-primary bg-primary/10" : "border-border bg-card hover:border-primary/40"}`}>
-                        {usesExternalDepositLink && m === "transferencia" ? "Pago por link" : m}
+                        {m}
                       </button>
                     ))}
                   </div>
-                  <p className="text-[11px] text-muted-foreground">{usesExternalDepositLink ? "Si elegís pago por link, primero registramos la reserva y te enviamos el link de la seña por email. El pago queda pendiente hasta que Administración verifique el comprobante." : "Elegir el medio no registra un pago: queda pendiente hasta que Administración lo verifique."}</p>
+                  <p className="text-[11px] text-muted-foreground">Elegir el medio no registra un pago: queda pendiente hasta que Administración lo verifique.</p>
                 </div>
               )}
 

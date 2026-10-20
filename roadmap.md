@@ -1,3 +1,8 @@
+## San Luis · Cambio seguro de cuenta (20/10)
+- [x] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
+- [x] Prioridad del enlace personal, aislamiento de identidad; 728 tests y SQL reversible OK
+- [x] Móvil 320/390 y escritorio con sesión real; versión nueva comprobada en reybaud-app.com; política v3 intacta
+
 
 ## Tienda · Prendas de prueba (cierre)
 - [x] Corregir `prueba_usar_como_cambio` (sin `cambio_in` sobre la prenda de prueba; crear cambio real ligado por `prueba_origen_id`)
@@ -248,8 +253,3 @@
 - [x] Correo HTML/texto sin caracteres corruptos; versión v2-ascii desplegada y verificada mediante preview autenticado (sin enviar)
 - [x] 713 pruebas Vitest + 2 Deno; compilación OK; móvil 320/390 y escritorio, sesión real propia y acceso anónimo verificados sin guardar
 - [ ] Publicar y verificar producción: espera decisión sobre 6 hallazgos críticos previos informados; no se modificaron ni ignoraron
-
-## San Luis · 5 a 7 días hábiles
-- [x] Política v3-habiles (respuesta previa conserva v1)
-- [x] Encuesta, resumen, correo y texto WhatsApp con "5 a 7 días hábiles" solo en devolución
-- [x] Pruebas, build, funciones de correo actualizadas, publicación pedida

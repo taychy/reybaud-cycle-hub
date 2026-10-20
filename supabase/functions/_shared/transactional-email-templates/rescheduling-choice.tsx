@@ -3,7 +3,7 @@ import { Body, Button, Container, Head, Heading, Html, Preview, Section, Text } 
 import type { TemplateEntry } from './registry.ts'
 
 // Aviso operativo individual al titular de una reserva vigente (no marketing).
-export const RESCHEDULING_TEMPLATE_VERSION = 'san-luis-nov-2026-v3-refund-5-7-habiles'
+export const RESCHEDULING_TEMPLATE_VERSION = 'san-luis-nov-2026-v2-ascii'
 
 interface Props {
   firstName?: string
@@ -22,7 +22,7 @@ const ReschedulingChoiceEmail = ({ firstName, link = 'https://reybaud-app.com' }
           El Training Camp San Luis se reprogramó del 5 al 9 de noviembre de 2026, en el mismo alojamiento. Queremos que elijas cómo seguir:
         </Text>
         <Text style={li}>- Viajar en noviembre: del 5 al 8, del 6 al 9 o del 5 al 9.</Text>
-        <Text style={li}>- Pedir la devolución del 100% de lo que efectivamente abonaste, menos reintegros previos. Plazo de reintegro: 5 a 7 días hábiles. Revisaremos tu solicitud y confirmaremos el importe correspondiente.</Text>
+        <Text style={li}>- Pedir la devolución del 100% de lo que efectivamente abonaste, menos reintegros previos.</Text>
         <Text style={li}>- Pedir un crédito nominal en pesos para otro Training Camp.</Text>
         <Text style={li}>- Si tenés dudas, también podés pedir ayuda antes de elegir.</Text>
         <Section style={{ textAlign: 'center', margin: '24px 0' }}>
