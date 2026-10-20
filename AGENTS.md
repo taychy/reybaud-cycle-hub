@@ -18,4 +18,4 @@
 - Shared rooms: metadata.shared_room_assignment + SQL trigger. Why: authority.
 - Rescheduling: access via own session or token+DNI/name (verify_rescheduling_identity); seats only via admin_rescheduling_seat_action; emails only via send-rescheduling-email (server gates, ≤10 claim, idempotent). Why: no leaks, double sale or duplicate sends.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
-- Pending intake reuses event_waitlist_entries; server prices/consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
+- Pending intake reuses event_waitlist_entries; server prices/consent, no money/inventory. Why: requests are not places.
