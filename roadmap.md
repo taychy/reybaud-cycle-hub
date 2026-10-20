@@ -1,3 +1,8 @@
+## San Luis · Presentación reprogramada (20/10)
+- [x] Título, distintivo y fecha corregidos en catálogo, carrusel y detalle mediante helper aislado, sin modificar datos
+- [x] 22 pruebas OK; tarjeta y detalle desktop/móvil 320/390; sesión propia conserva Ver estado y reserva
+- [x] Sin publicación ni despliegue por pedido expreso; pendiente únicamente autorización futura para publicar
+
 ## San Luis · Cambio seguro de cuenta (20/10)
 - [x] Cambio visible, limpieza de invitado y edición sin guardar con confirmación
 - [x] Prioridad del enlace personal, aislamiento de identidad; 728 tests y SQL reversible OK

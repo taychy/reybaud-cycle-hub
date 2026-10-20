@@ -46,6 +46,7 @@ import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
 import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { premiumDateSummary } from "@/lib/premiumEventSummary";
+import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 
 type Alumno = Tables<"alumnos">;
 
@@ -154,8 +155,8 @@ const EventDetail = () => {
 
   const handleShare = async () => {
     const shareData = {
-      title: event?.title || "Evento Ciclismo Reybaud",
-      text: `Mirá este evento de Ciclismo Reybaud: ${event?.title}`,
+      title: eventRescheduledPresentation(event?.id)?.title || event?.title || "Evento Ciclismo Reybaud",
+      text: `Mirá este evento de Ciclismo Reybaud: ${eventRescheduledPresentation(event?.id)?.title || event?.title}`,
       url: eventUrl,
     };
     try {
@@ -442,7 +443,8 @@ const EventDetail = () => {
   }
 
   const d = new Date(event.date + "T12:00:00");
-  const dateFormatted = isEventDateTbd(event.metadata)
+  const rescheduled = eventRescheduledPresentation(event.id);
+  const dateFormatted = rescheduled ? rescheduled.dateLabel : isEventDateTbd(event.metadata)
     ? DATES_TBD_LABEL
     : d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const priceDisplay = getEventPriceDisplay({ ...event, packages_min_price: packagesMinPrice });
@@ -488,7 +490,7 @@ const EventDetail = () => {
   const editorialAlpine = premiumLanding?.layout_variant === "editorial_alpine";
   const premiumDates = premiumDateSummary(event);
   const premiumPrice = getEventPriceDisplay({ ...event, currency: packagesCurrency || event.currency, packages_min_price: packagesMinPrice });
-  const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview;
+  const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview && !rescheduled;
   const isTripLike = event.type === "camp" || event.type === "viaje";
   const isSoldOut = event.estado_publicacion === "agotado";
   const isProximamente = event.estado_publicacion === "proximamente";
@@ -518,7 +520,7 @@ const EventDetail = () => {
             imageUrl={premiumLanding?.hero_image}
           />
         ) : (
-          <EventHeroMedia hero={hero} title={event.title} />
+          <EventHeroMedia hero={hero} title={rescheduled?.title || event.title} />
         )}
         <Button
           type="button"
@@ -552,6 +554,7 @@ const EventDetail = () => {
         </Button>
         {!editorialAlpine && (
         <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
+          {rescheduled && <span className="text-[10px] font-heading px-2.5 py-1 rounded-full border border-primary bg-primary text-primary-foreground">{rescheduled.status}</span>}
           <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${premiumLanding ? "bg-background/80 text-foreground border-primary" : typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
             {typeLabels[event.type] || event.type}
           </span>
@@ -586,11 +589,11 @@ const EventDetail = () => {
                 </p>
               </div>
             )}
-            <h1 className={`font-heading font-bold text-foreground leading-tight ${premiumLanding ? "text-3xl md:text-5xl uppercase" : "text-2xl"}`}>{premiumLanding?.headline || event.title}</h1>
+            <h1 className={`font-heading font-bold text-foreground leading-tight ${premiumLanding ? "text-3xl md:text-5xl uppercase" : "text-2xl"}`}>{rescheduled?.title || premiumLanding?.headline || event.title}</h1>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
                 <CalendarDays className="w-4 h-4 text-primary" />
-                <span className="capitalize">{premiumLanding ? premiumDates.label : dateFormatted}</span>
+                <span className="capitalize">{rescheduled?.dateLabel || (premiumLanding ? premiumDates.label : dateFormatted)}</span>
               </span>
               {event.start_time && (
                 <span className="flex items-center gap-1.5">
@@ -599,6 +602,7 @@ const EventDetail = () => {
                 </span>
               )}
             </div>
+            {rescheduled && <p className="text-xs text-muted-foreground">{rescheduled.originalDateLabel}</p>}
             {premiumLanding && (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-border py-4">
                 {event.duration_days && <span className="text-sm text-foreground">{event.duration_days} días</span>}
