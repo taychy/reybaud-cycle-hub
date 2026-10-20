@@ -19494,6 +19494,17 @@ export type Database = {
         Args: { p_coach_id: string; p_mes: string }
         Returns: string
       }
+      prepare_broadcast_send: {
+        Args: {
+          p_actor: string
+          p_audience: string
+          p_campaign: Json
+          p_guard: string
+          p_payload: string
+          p_recipients: Json
+        }
+        Returns: Json
+      }
       preview_baja_programa: {
         Args: { _suscripcion_id: string }
         Returns: Json
