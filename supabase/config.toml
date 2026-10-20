@@ -151,3 +151,6 @@ verify_jwt = false
 
 [functions.validar-cuit-arca]
 verify_jwt = false
+
+[functions.send-rescheduling-email]
+verify_jwt = false

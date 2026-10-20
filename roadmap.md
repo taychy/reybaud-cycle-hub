@@ -238,4 +238,7 @@
 - [x] Enlace personal → sesión propia o DNI+nombre+apellido validados en servidor; token solo no abre datos; sesión invitado 2 h; límite de intentos
 - [x] Encuesta en 3 opciones + ayuda, fechas como subelección; confirmación «no se devolvió ni acreditó»
 - [x] Panel «Comunicar reprogramación»: 32 vigentes, validez/duplicados, vistas previas, estados y registro manual de WhatsApp
-- [ ] Envío real de email (transaccional) y WhatsApp: pendientes de aprobación; requieren public_enabled
+- [x] Email operativo preparado: plantilla, vista previa sin tokens, prueba a cuenta admin, autorización de audiencia, lotes ≤10 con compuertas en servidor (QA revertido)
+- [ ] Activar en el servidor la función de envío (requiere autorización de despliegue)
+- [ ] Publicar app, probar ruta en producción, habilitar encuesta, 1 prueba, autorizar audiencia y enviar lotes (cada paso con autorización)
+- [ ] WhatsApp: manual (copiar/abrir) hasta que se apruebe una integración oficial

@@ -10843,6 +10843,72 @@ export type Database = {
           },
         ]
       }
+      rescheduling_email_authorizations: {
+        Row: {
+          actor_id: string
+          audience: string[]
+          checks: Json
+          created_at: string
+          event_id: string
+          id: string
+          note: string
+          revoked_at: string | null
+          revoked_by: string | null
+          template_version: string
+        }
+        Insert: {
+          actor_id: string
+          audience: string[]
+          checks: Json
+          created_at?: string
+          event_id: string
+          id?: string
+          note: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          template_version: string
+        }
+        Update: {
+          actor_id?: string
+          audience?: string[]
+          checks?: Json
+          created_at?: string
+          event_id?: string
+          id?: string
+          note?: string
+          revoked_at?: string | null
+          revoked_by?: string | null
+          template_version?: string
+        }
+        Relationships: []
+      }
+      rescheduling_email_test_log: {
+        Row: {
+          actor_id: string
+          created_at: string
+          event_id: string
+          id: string
+          recipient: string
+          result: string
+        }
+        Insert: {
+          actor_id: string
+          created_at?: string
+          event_id: string
+          id?: string
+          recipient: string
+          result: string
+        }
+        Update: {
+          actor_id?: string
+          created_at?: string
+          event_id?: string
+          id?: string
+          recipient?: string
+          result?: string
+        }
+        Relationships: []
+      }
       rescheduling_guest_sessions: {
         Row: {
           created_at: string
@@ -17862,6 +17928,38 @@ export type Database = {
         Returns: string
       }
       _rescheduling_admin: { Args: never; Returns: boolean }
+      _rescheduling_email_claim: {
+        Args: {
+          p_actor: string
+          p_event_id: string
+          p_reservation_ids: string[]
+        }
+        Returns: {
+          email: string
+          first_name: string
+          reservation_id: string
+          token: string
+        }[]
+      }
+      _rescheduling_email_eligible: {
+        Args: { p_event_id: string }
+        Returns: {
+          comm_status: string
+          email: string
+          first_name: string
+          reservation_id: string
+          token: string
+        }[]
+      }
+      _rescheduling_email_finish: {
+        Args: {
+          p_actor: string
+          p_note: string
+          p_ok: boolean
+          p_reservation_id: string
+        }
+        Returns: undefined
+      }
       _rescheduling_financial: { Args: { p_id: string }; Returns: Json }
       _rescheduling_guest_ok: {
         Args: { p_reservation_id: string; p_session: string }
@@ -18060,6 +18158,24 @@ export type Database = {
           p_status: string
         }
         Returns: Json
+      }
+      admin_rescheduling_email_authorize: {
+        Args: {
+          p_audience_count: number
+          p_checks: Json
+          p_event_id: string
+          p_note: string
+          p_template_version: string
+        }
+        Returns: Json
+      }
+      admin_rescheduling_email_gate_status: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
+      admin_rescheduling_email_revoke: {
+        Args: { p_event_id: string }
+        Returns: undefined
       }
       admin_rescheduling_inventory: {
         Args: { p_event_id: string }

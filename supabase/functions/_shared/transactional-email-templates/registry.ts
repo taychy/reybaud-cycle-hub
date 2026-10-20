@@ -1,6 +1,7 @@
 import type { ComponentType } from 'npm:react@18.3.1'
 import { template as coachFeedback } from './coach-feedback.tsx'
 import { template as supplierOrderCreated } from './supplier-order-created.tsx'
+import { template as reschedulingChoice } from './rescheduling-choice.tsx'
 
 export type TemplateEntry = {
   component: ComponentType<any>
@@ -13,4 +14,5 @@ export type TemplateEntry = {
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'coach-feedback': coachFeedback,
   'supplier-order-created': supplierOrderCreated,
+  'rescheduling-choice': reschedulingChoice,
 }

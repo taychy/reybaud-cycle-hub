@@ -463,6 +463,20 @@
       "when": 1792467392331,
       "tag": "0065_rescheduling_identity_verification_and_comms",
       "breakpoints": true
+    },
+    {
+      "idx": 66,
+      "version": "7",
+      "when": 1792468380007,
+      "tag": "0066_rescheduling_operational_email_gates",
+      "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "7",
+      "when": 1792468579578,
+      "tag": "0067_fix_rescheduling_email_claim_ambiguity",
+      "breakpoints": true
     }
   ]
 }
