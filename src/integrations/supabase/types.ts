@@ -17646,6 +17646,10 @@ export type Database = {
         Args: { p_reservation_id: string }
         Returns: Json
       }
+      admin_rescheduling_settlement_report: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
       admin_review_rescheduling: {
         Args: {
           p_command_id: string
