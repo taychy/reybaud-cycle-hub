@@ -18,6 +18,7 @@ interface Props {
   waitlistMensaje?: string | null;
   questions: WaitlistQuestion[];
   onDone?: () => void;
+  soldOut?: boolean;
 }
 
 const baseSchema = z.object({
@@ -35,6 +36,7 @@ export default function EventWaitlistDialog({
   waitlistMensaje,
   questions,
   onDone,
+  soldOut = false,
 }: Props) {
   const { toast } = useToast();
   const [nombre, setNombre] = useState("");
@@ -140,8 +142,12 @@ export default function EventWaitlistDialog({
             </div>
             <h3 className="text-lg font-semibold">¡Estás anotado!</h3>
             <p className="text-sm text-muted-foreground max-w-sm mx-auto">
-              Te vamos a avisar por mail apenas abramos las inscripciones para la próxima edición de{" "}
-              <span className="text-foreground">{eventTitle}</span>.
+              {soldOut ? (
+                <>Si se libera un lugar para <span className="text-foreground">{eventTitle}</span>, nos vamos a comunicar con vos.</>
+              ) : (
+                <>Te vamos a avisar por mail apenas abramos las inscripciones para la próxima edición de{" "}
+                <span className="text-foreground">{eventTitle}</span>.</>
+              )}
             </p>
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Listo
@@ -167,10 +173,12 @@ export default function EventWaitlistDialog({
                 <Label className="text-xs">Teléfono</Label>
                 <Input value={telefono} onChange={(e) => setTelefono(e.target.value)} maxLength={30} />
               </div>
-              <div>
-                <Label className="text-xs">DNI</Label>
-                <Input value={dni} onChange={(e) => setDni(e.target.value)} maxLength={20} />
-              </div>
+              {!soldOut && (
+                <div>
+                  <Label className="text-xs">DNI</Label>
+                  <Input value={dni} onChange={(e) => setDni(e.target.value)} maxLength={20} />
+                </div>
+              )}
             </div>
 
             {questions.length > 0 && (
