@@ -232,5 +232,5 @@
 - [x] Baja pública individual sin login ni exposición de emails
 - [x] Frecuencia por campaña, exclusiones innegociables y vista previa
 - [x] Prueba/confirmación, preparación atómica, idempotencia y trazabilidad
-- [x] 12 tests, chequeo de función, QA SQL reversible y navegador admin/público; sin envíos ni consentimientos reales modificados
+- [x] 17 tests, chequeo de función, QA SQL reversible y navegador admin/público; errores de bloqueo legibles, sin envíos ni consentimientos reales modificados
 - [ ] Publicar la página de baja y comprobar un correo real de prueba antes de campaña — requiere autorización y destinatario de prueba

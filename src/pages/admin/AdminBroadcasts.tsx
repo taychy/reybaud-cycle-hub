@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { formatPrice } from "@/lib/currency";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -77,6 +78,16 @@ const emptyComposer = {
 };
 
 const WAITLIST_ESTADOS = ["nuevo", "contactado", "convertido", "descartado"];
+
+async function mailingError(error: Error): Promise<Error> {
+  if (!(error instanceof FunctionsHttpError)) return error;
+  try {
+    const body = await error.context.json();
+    return new Error(body.error || error.message);
+  } catch {
+    return error;
+  }
+}
 
 type CtaPreset = { name: string; url: string; label: string; custom?: boolean };
 const DEFAULT_CTA_PRESETS: CtaPreset[] = [
@@ -278,7 +289,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           excluded_emails: Array.from(excludedEmails),
         },
       });
-      if (error) throw error;
+      if (error) throw await mailingError(error);
       setPreviewCount(data.count);
       setPreviewId(data.preview_id);
       setTestAccepted(false);
@@ -328,7 +339,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           promo_product_ids: composer.promo_product_ids,
         },
       });
-      if (error) throw error;
+      if (error) throw await mailingError(error);
       if (!data?.ok) throw new Error(data?.response?.message || "Falló el envío de prueba");
       setTestAccepted(true);
       toast({ title: "Prueba aceptada por el proveedor", description: `Revisá ${testEmail}` });
@@ -358,7 +369,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
           excluded_emails: Array.from(excludedEmails),
         },
       });
-      if (error) throw error;
+      if (error) throw await mailingError(error);
       const total = data?.total ?? data?.queued ?? 0;
       toast({
         title: "Envío en curso",
@@ -382,7 +393,7 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
       const { data, error } = await supabase.functions.invoke("send-broadcast", {
         body: { mode: "retry_failed", broadcast_id: b.id },
       });
-      if (error) throw error;
+      if (error) throw await mailingError(error);
       toast({
         title: "Reintento en curso",
         description: `${data?.retried ?? 0} destinatario(s) reencolados.`,
