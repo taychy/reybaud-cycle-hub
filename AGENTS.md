@@ -19,3 +19,4 @@
 - Rescheduling: access via own session or token+DNI/name (verify_rescheduling_identity); seats only via admin_rescheduling_seat_action; emails only via send-rescheduling-email (server gates, ≤10 claim, idempotent). Why: no leaks, double sale or duplicate sends.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
 - Pending intake reuses event_waitlist_entries; server prices/consent, admin eligibility, no money/inventory. Why: not places yet.
+- Public rescheduling RPCs (get_rescheduling_context/submit_rescheduling_request) never grant implicit admin access; admin listing only via admin_rescheduling_report. Why: an admin session on the public link must not enumerate or act for others.
