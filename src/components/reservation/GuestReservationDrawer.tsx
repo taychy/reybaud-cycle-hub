@@ -103,6 +103,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   }, [stagesByPkg]);
 
   const selectedPkg = packages.find((p) => p.id === pkgId);
+  const usesExternalDepositLink = eventId === "e726408b-bf46-45d6-9678-dc426a2d8641";
 
   useEffect(() => {
     setSharedQuote(null); setSharedMode(null); setSharedAccepted(false);
@@ -307,7 +308,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                     </label>
                   )}
                   <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
-                    <RadioGroupItem value="transferencia" /> <Upload className="w-4 h-4" /> Transferencia{declaresMethod ? "" : " (adjuntá comprobante)"}
+                    <RadioGroupItem value="transferencia" /> <Upload className="w-4 h-4" /> {usesExternalDepositLink ? "Pago por link" : `Transferencia${declaresMethod ? "" : " (adjuntá comprobante)"}`}
                   </label>
                   {declaresMethod && (
                     <label className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer">
@@ -316,11 +317,11 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                   )}
                 </RadioGroup>
                 {declaresMethod && (
-                  <p className="text-[11px] text-muted-foreground mt-2">Elegir el medio no registra un pago: queda pendiente hasta que Administración lo verifique.</p>
+                  <p className="text-[11px] text-muted-foreground mt-2">{usesExternalDepositLink ? "Si elegís pago por link, primero registramos la reserva y te enviamos el link de la seña por email. El pago queda pendiente hasta que Administración verifique el comprobante." : "Elegir el medio no registra un pago: queda pendiente hasta que Administración lo verifique."}</p>
                 )}
               </div>
               {paymentPolicy && <EventPaymentPolicyNotice policy={paymentPolicy} />}
-              {metodo === "transferencia" && (
+              {metodo === "transferencia" && !usesExternalDepositLink && (
                 <div className="space-y-3">
                   <div className="p-4 rounded-xl border bg-muted/30 space-y-3">
                     <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Datos para transferir</p>
