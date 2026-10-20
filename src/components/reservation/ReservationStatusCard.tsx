@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -76,6 +76,8 @@ interface ReservationStatusCardProps {
   alumnoNombre?: string | null;
   hideHelpAndCancel?: boolean;
   onPaymentReported: () => void;
+  /** Contenido opcional que la pantalla padre quiere mostrar justo debajo de "Tu paquete". */
+  afterPackageSlot?: ReactNode;
 }
 
 interface TimelineEntry {
@@ -288,7 +290,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
 
 const ReservationStatusCard = ({
   reservation: rawReservation, alumnoId, eventCurrency, eventId, eventDate, eventTitle, eventType, eventMetadata,
-  reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported,
+  reglamentoUrl, whatsappUrl, alumnoNombre, hideHelpAndCancel, onPaymentReported, afterPackageSlot,
 }: ReservationStatusCardProps) => {
   // Saldo efectivo (pagos reales a Reybaud + pagos directos confirmados en transferencias de cupo).
   const [effBalance, setEffBalance] = useState<number | null>(null);
@@ -1133,6 +1135,9 @@ const ReservationStatusCard = ({
             )}
           </div>
         )}
+
+        {/* Slot del evento (p. ej. "¿Querés cambiar tu paquete?") justo debajo de "Tu paquete" */}
+        {afterPackageSlot}
 
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
         {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
