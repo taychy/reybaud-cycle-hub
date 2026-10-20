@@ -55,6 +55,18 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
   };
   return r.request?(names[r.request.choice]??campaign?.options.find(o=>o.value===r.request?.choice)?.label??'Elección sin identificar'):'Sin respuesta';
  };
+ const resolutionLabel=(r:ReschedulingReservation)=>{
+  if(!r.request)return 'Esperando respuesta';
+  if(r.request.review_status==='validada'){
+   if(r.request.choice.startsWith('attend_'))return 'Asistencia confirmada';
+   if(r.request.choice==='refund'||r.request.choice==='credit'){
+    const st=inventory?.releases.find(s=>s.reservation_id===r.reservation_id)?.state;
+    return st==='liberada'?'Baja aprobada · plaza liberada':st==='ofrecida'?'Plaza ofrecida para reemplazo':st==='ocupada'?'Plaza ocupada por reemplazo':'Baja validada · revisar cupo';
+   }
+   return 'Decisión validada';
+  }
+  return REVIEW_LABELS[r.request.review_status]??r.request.review_status;
+ };
  const exportCsv=()=>{
   const headers=['Participante','Paquete actual','Elección','Noches solicitadas','Revisión','Fuente','Nota participante/admin','Pagado Reybaud ARS','Directo efectuado ARS','Reintegros previos ARS','Importe restante estimado ARS','Conciliación','Jersey','Talle solicitado','Entrega','Deducción ejecutada ARS','Devolución registrada ARS','Obligación existente','Crédito disponible ARS','Crédito usado ARS','Actualizado'];
   headers.push('Estado propuesta','Autorizado vigente ARS','Jersey propuesto ARS','Alertas financieras');
@@ -74,7 +86,7 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
      {[
       {title:'Reservas vigentes',value:rows.length,detail:'Sin modificar cupos'},
       {title:'Encuestas respondidas',value:answered,detail:`${rows.length-answered} todavía sin respuesta`},
-      {title:'Viajan en noviembre',value:decisions[2].count,detail:'Fechas detalladas abajo'},
+      {title:'Eligieron viajar',value:decisions[2].count,detail:'Sujetos a aprobación'},
       {title:'Devolución / crédito',value:decisions[3].count+decisions[4].count,detail:'Solicitudes, no pagos'},
      ].map(m=><div key={m.title} className="rounded-lg border border-border bg-card px-3 py-3 min-w-0"><p className="text-xs text-muted-foreground">{m.title}</p><p className="text-2xl font-semibold tabular-nums mt-1">{m.value}</p><p className="text-xs text-muted-foreground mt-1">{m.detail}</p></div>)}
     </div>
@@ -115,7 +127,7 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
         return <tr key={r.reservation_id} className="border-t border-border align-top hover:bg-muted/25">
          <td className="px-3 py-3 min-w-44"><p className="font-medium">{r.participant}</p><p className="text-xs text-muted-foreground mt-1">{r.package}</p></td>
          <td className="px-3 py-3 min-w-44"><p className={r.request?'font-medium':'text-muted-foreground'}>{label(r)}</p>{choice?.startsWith('attend_')&&<p className="text-xs text-muted-foreground mt-1">{campaign?.options.find(o=>o.value===choice)?.nights} noches</p>}{r.request&&<p className="text-xs text-muted-foreground mt-1">Respondió {new Date(r.request.updated_at).toLocaleDateString('es-AR')}</p>}</td>
-         <td className="px-3 py-3 min-w-36"><Badge variant="outline">{r.request?REVIEW_LABELS[r.request.review_status]??r.request.review_status:'Esperando respuesta'}</Badge></td>
+         <td className="px-3 py-3 min-w-36"><Badge variant="outline">{resolutionLabel(r)}</Badge></td>
          <td className="px-3 py-3">{financial?r.request?.jersey_requested===true?<span>{r.request.jersey_size||'Talle pendiente'} · {r.request.delivery||'Entrega pendiente'}</span>:r.request?.jersey_requested===false?'No solicita':'Sin elegir':'No corresponde'}</td>
          <td className="px-3 py-3 min-w-40">{financial?<><p>{fin?.totals.blocked||r.financial.requires_reconciliation?'A conciliar':fin?`${formatPrice(fin.totals.net_ars)} estimados`:'Consultando saldo…'}</p><p className="text-xs text-muted-foreground mt-1">{choice==='refund'?'Devolución solicitada; no ejecutada':'Crédito solicitado; no emitido'}</p></>:<span className="text-muted-foreground">No corresponde</span>}</td>
          <td className="px-3 py-3"><Button size="sm" variant="outline" onClick={()=>{setSelected(r.reservation_id);setStatus(r.request?.review_status??'en_revision');setNote('')}}>Gestionar</Button></td>
@@ -151,7 +163,7 @@ export default function ReschedulingAdminPanel({eventId}:{eventId:string}) {
      <section className="rounded-lg border border-border p-4 space-y-3" aria-label="Solicitud del participante">
       <div><p className="font-semibold text-lg">{row.participant}</p><p className="text-sm text-muted-foreground">{row.package}</p></div>
       <div className="flex flex-wrap gap-2 items-center">
-       <Badge variant="outline">{row.request ? REVIEW_LABELS[row.request.review_status]??row.request.review_status : 'Sin respuesta'}</Badge>
+       <Badge variant="outline">{resolutionLabel(row)}</Badge>
        {row.request?.choice==='refund' && <Badge variant="outline">Devolución solicitada</Badge>}
        {row.request?.choice==='credit' && <Badge variant="outline">Crédito solicitado</Badge>}
        {row.request?.choice.startsWith('attend_') && <Badge variant="outline">Viaje en noviembre</Badge>}
