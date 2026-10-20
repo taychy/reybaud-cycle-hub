@@ -675,7 +675,6 @@ export default function AdminBroadcasts({ embedded = false }: { embedded?: boole
               </div>
             </div>
 
-            {previewId && <div className="space-y-2 text-sm"><p>Exclusiones: {Object.values(exclusionSummary).reduce((a,b)=>a+b,0)}</p>{Object.entries(exclusionSummary).map(([reason,count])=><p key={reason}>{reason}: {count}</p>)}{exclusions.length>0 && <details><summary className="cursor-pointer">Ver contactos excluidos</summary><div className="max-h-64 overflow-auto">{exclusions.map((r,i)=><p key={i} className="break-words">{r.email || 'Sin email'} · {r.reason}</p>)}</div></details>}</div>}
           </Card>
 
           <Card className="p-4 space-y-3">

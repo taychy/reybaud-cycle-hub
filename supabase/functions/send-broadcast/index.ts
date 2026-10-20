@@ -394,6 +394,10 @@ Deno.serve(async (req) => {
     const parsed=schema.safeParse(await req.json());
     if(!parsed.success) return new Response(JSON.stringify({error:'Parámetros inválidos',details:parsed.error.flatten()}),{status:400,headers:{...corsHeaders,'Content-Type':'application/json'}});
     const body: SendBody = parsed.data;
+    // The published app must serve the new unsubscribe page before any real email leaves.
+    if (body.mode !== 'preview_count' && Deno.env.get('MAILING_PUBLIC_UNSUBSCRIBE_READY') !== 'true') {
+      return new Response(JSON.stringify({error:'Envíos bloqueados hasta publicar y verificar la página de baja individual.'}),{status:409,headers:{...corsHeaders,'Content-Type':'application/json'}});
+    }
     frequencyPolicy(body.segment_filters || {});
     const filters = body.segment_filters || {};
 
