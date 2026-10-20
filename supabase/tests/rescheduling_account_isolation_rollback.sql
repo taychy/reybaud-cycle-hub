@@ -1,6 +1,5 @@
--- Read-only transaction: no fixtures, answers, users or campaign changes persist.
+-- Reversible denial checks: no fixtures, answers, users or campaign changes persist.
 BEGIN;
-SET TRANSACTION READ ONLY;
 DO $$
 DECLARE
  ev uuid := '67b4e85d-b00b-4b74-9644-99458d948c65';
@@ -29,6 +28,6 @@ BEGIN
  IF jsonb_array_length(coalesce(public.get_rescheduling_context(ev)->'reservations','[]'))<>0 THEN RAISE EXCEPTION 'Anonymous listing'; END IF;
  IF jsonb_array_length(coalesce(public.get_rescheduling_context(ev,foreign_id,raw_token)->'reservations','[]'))<>0 THEN RAISE EXCEPTION 'Anonymous raw link opened'; END IF;
  IF jsonb_array_length(coalesce(public.get_rescheduling_context(ev,foreign_id,'invalid')->'reservations','[]'))<>0 THEN RAISE EXCEPTION 'Invalid credential opened'; END IF;
- RAISE NOTICE 'Account isolation read-only QA OK';
+ RAISE NOTICE 'Account isolation reversible QA OK';
 END $$;
 ROLLBACK;
