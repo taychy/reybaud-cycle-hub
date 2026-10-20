@@ -229,7 +229,8 @@
 - [ ] Pruebas de precios/seguridad y recorrido invitado/alumno, desktop/mobile; preview sin publicar
 
 ## Mailing · Bajas y autorización segura
-- [ ] Baja pública individual sin login ni exposición de emails
-- [ ] Frecuencia por campaña, exclusiones innegociables y vista previa
-- [ ] Prueba/confirmación, idempotencia y trazabilidad
-- [ ] Tests y QA sin enviar correos ni modificar consentimientos reales
+- [x] Baja pública individual sin login ni exposición de emails
+- [x] Frecuencia por campaña, exclusiones innegociables y vista previa
+- [x] Prueba/confirmación, preparación atómica, idempotencia y trazabilidad
+- [x] 12 tests, chequeo de función, QA SQL reversible y navegador admin/público; sin envíos ni consentimientos reales modificados
+- [ ] Publicar la página de baja y comprobar un correo real de prueba antes de campaña — requiere autorización y destinatario de prueba
