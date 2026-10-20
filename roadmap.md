@@ -217,7 +217,7 @@
 - [ ] Habilitación pública y operaciones reales: bloqueadas hasta revisión y autorización
 
 ## San Luis · Conciliación y propuestas preparatorias
-- [ ] Vista previa financiera servidor, alertas y propuestas aisladas versionadas (sin ejecución)
-- [ ] Gestión admin, filtros, CSV e historial; refresco y detección de cambios de fuentes
-- [ ] Tests automáticos, QA SQL reversible, navegador e invariancia histórica
+- [x] Vista previa financiera servidor, alertas y propuestas aisladas versionadas (sin ejecución)
+- [x] Gestión admin, filtros, CSV e historial; refresco y detección de cambios de fuentes
+- [x] 25 tests automáticos, QA SQL reversible con deduplicación e idempotencia, navegador desktop/mobile e invariancia histórica
 - [ ] Activación y ejecución monetaria: bloqueadas, requieren validación y autorización posterior
