@@ -4,6 +4,7 @@ import { Bell, AlertTriangle, CreditCard, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useNavigate } from "react-router-dom";
 import type { EffectiveSubStatus } from "@/lib/subscriptionStatus";
+import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 
 interface NewsItem {
   id: string;
@@ -43,7 +44,7 @@ const HomeNewsCarousel = ({ alumnoId, subscriptionStatus, subscriptionDaysLeft, 
         for (const r of reservations) {
           const eid = r.event_id;
           if (!eventMap.has(eid)) {
-            eventMap.set(eid, r.events?.title || "Evento");
+            eventMap.set(eid, eventRescheduledPresentation(eid)?.title || r.events?.title || "Evento");
             eventIds.push(eid);
           }
         }
