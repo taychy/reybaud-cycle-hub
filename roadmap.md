@@ -227,3 +227,9 @@
 - [ ] Cuatro variantes con/sin bicicleta y elegibilidad Alpes; contenido comercial y combinado
 - [ ] Formulario persistente y gestión admin, sin plazas confirmadas ni pagos
 - [ ] Pruebas de precios/seguridad y recorrido invitado/alumno, desktop/mobile; preview sin publicar
+
+## San Luis · Inventario cerrado de reprogramación
+- [x] Alojamiento confirmado para 5–8, 6–9 y 5–9/11 con los mismos cupos; regla de inventario cerrado documentada
+- [x] Capa admin: renuncia validada → aprobación explícita de liberación → oferta → un reemplazo sin noches solapadas; auditoría e idempotencia
+- [x] Resumen admin por paquete/noches; cero vendibles; pruebas unitarias y SQL reversible
+- [ ] Habilitar reventa, precio de reventa y alta de reservas de reemplazo: requieren decisión y autorización
