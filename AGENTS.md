@@ -3,7 +3,7 @@
 - Auditoría humana de viajes: checklist en `src/lib/tripTechnicalAudit.ts`, estado en `events.metadata.technical_audit` (mezclar solo el ítem sobre metadata fresca). Why: sin migraciones ni pisar datos.
 - Event presentation: metadata/image_url, scoped theme, literal dates/package currency; Drive lazy preview + external fallback, never downloads. Why: isolate trips; no misleading data.
 - Liquidaciones: links seguros por profesor/mes y envíos en liquidacion_links/liquidacion_submissions; acceso público solo vía RPCs SECURITY DEFINER; valor de honorario siempre resuelto en servidor; recordatorios idempotentes vía liquidacion_reminder_log. Why: evitar duplicados y exposición de datos.
-- Audiencia pública de eventos: resolver `metadata.public_audience` (`open` o `students_only`) con compatibilidad para `active_students_only`. Why: comunicar apertura sin cambiar la reserva.
+- Public audience: resolve metadata.public_audience (open/students_only), compatible with active_students_only. Why: communicate without changing booking.
 - Programas de formación: fase comercial con `src/lib/programCommercialPhase.ts` (espejo de SQL `program_commercial_phase`); cupo por sede en `planes_sedes` validado por trigger en `suscripciones.programa_sede_id`; lista de espera en `program_waitlist_entries` solo vía RPC `join_program_waitlist`. Why: una sola URL por programa y sin sobrecupo por sede.
 - Preinscriptos de programas: estado derivado en `src/lib/programPreinscriptos.ts` desde RPC `get_program_preinscriptos` (vínculo por beneficio→email canónico/alias, solo mismo plan; nunca por nombre); "No continúa" = entry.estado 'descartado'. Why: sin flags manuales ni lógica paralela de pago.
 - Program classes: programa_sync_clases_agenda creates one punctual agenda_grupal per programa_clases, idempotently. Null coach is pending teacher; no taught class until assigned. Why: no invented teachers or settlements.
@@ -17,4 +17,6 @@
 - Condiciones de reservas: alta admin queda `terminos_pendientes` (trigger, token único 30 días); aceptar solo vía `_accept_reservation_terms`; texto desde `event_terms_snapshot` (espejo SQL de eventReglamentoDefaults.ts, mantener iguales); pagos validados bloqueados si pendiente. Why: misma trazabilidad, sin flujo paralelo.
 - Shared rooms: metadata.shared_room_assignment + SQL quote/trigger. Why: authority.
 - Rescheduling: append-only proposal RPCs, source hashes and blocking alerts; public/credit off. Why: no money/room changes.
-- Kit sources: participant admin sizes and staff jerseys stay separate, audited; staff uses event/name uniqueness and soft removal, never profiles/reservations; conflicts excluded. Why: provenance.
+- Kit: separate audited admin/staff sizes; event/name uniqueness, soft removal; conflicts excluded. Why: provenance.
+
+- Pending intake reuses event_waitlist_entries/metadata package IDs; server prices/contact consent, admin eligibility, no money/inventory. Why: requests are not confirmed places.
