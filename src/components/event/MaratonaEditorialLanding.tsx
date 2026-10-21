@@ -8,6 +8,7 @@ import { ArrowLeft, Bike, CalendarDays, Check, Flag, Hotel, MapPin, MessageCircl
 import { formatPrice } from "@/lib/currency";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import heroFallback from "@/assets/maratona-hero.jpg";
+import { canOpenNativeBooking, type BookingOpening } from '@/lib/eventBookingOpening';
 
 /**
  * Landing editorial exclusiva para eventos con `premium_landing.layout_variant === "editorial_maratona"`.
@@ -21,6 +22,7 @@ interface Props {
   contact?: {name:string;email:string;phone:string};
   metadata: any;
   onBack: () => void;
+  onNativeReserve?: (packageId:string) => void;
 }
 
 const DAYS = [
@@ -56,12 +58,15 @@ const FAQ = [
   ["¿Ya puedo reservar?", "Sí, podés iniciar tu reserva con el botón Reservar. Se registra una solicitud pendiente: la confirmación de la plaza depende de disponibilidad, validación administrativa y condiciones de pago. No se cobra seña ni se confirma plaza al enviar."],
 ];
 
-export default function MaratonaEditorialLanding({ title, metadata, onBack, eventId, contact }: Props) {
+export default function MaratonaEditorialLanding({ title, metadata, onBack, eventId, contact, onNativeReserve }: Props) {
   const pl = metadata?.premium_landing || {};
   const [packages, setPackages] = useState<BookingRequestPackage[]>([]);
   const [ownBike, setOwnBike] = useState(false);
   const [selected, setSelected] = useState<BookingRequestPackage|null>(null);
   const [loadError, setLoadError] = useState('');
+  const [opening,setOpening]=useState<BookingOpening|null>(null);
+  useEffect(()=>{let active=true;setOpening(null);void supabase.rpc('event_booking_opening_status',{p_event_id:eventId}).then(({data,error})=>{if(active&&!error)setOpening(data as unknown as BookingOpening)});return()=>{active=false};},[eventId]);
+  const nativeOpen=canOpenNativeBooking(opening)&&!!onNativeReserve;
   useEffect(()=>{let active=true;void supabase.rpc('event_booking_request_options',{p_event_id:eventId}).then(({data,error})=>{if(!active)return;if(error){setLoadError('No se pudieron cargar las modalidades. Reintentá más tarde.');return;}setPackages((data as unknown as {packages?:BookingRequestPackage[]})?.packages??[]);});return()=>{active=false};},[eventId]);
   const solo = chooseBookingPackage(packages,false,!ownBike);
   const combo = chooseBookingPackage(packages,true,!ownBike);
@@ -70,7 +75,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
     ? alpsDoublePrice + Number(combo.price)
     : null;
   const wa = buildWhatsAppUrl(pl.whatsapp?.message || "Hola, quiero consultar por Maratona dles Dolomites 2027.", pl.whatsapp?.number);
-  const reserve = (p?:BookingRequestPackage) => {if(p)setSelected(p);else document.getElementById('precio')?.scrollIntoView({behavior:'smooth'});};
+  const reserve = (p?:BookingRequestPackage) => {if(p){if(nativeOpen)onNativeReserve?.(p.id);else setSelected(p);}else document.getElementById('precio')?.scrollIntoView({behavior:'smooth'});};
 
   // La foto secundaria es un paisaje real del Passo Pordoi (no la Maratona en curso).
   // El crédito de licencia solo se muestra si existe secondary_image: con el fallback
@@ -85,7 +90,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
   const creditAuthor = creditParts[0] || secondaryCredit || "Ver foto original";
   const creditLicense = creditParts[1] || "Licencia";
 
-  const Cta = ({ label = "Reservar", className = "" }: { label?: string; className?: string }) => (
+  const Cta = ({ label = nativeOpen ? "Reservar" : "Solicitar reserva", className = "" }: { label?: string; className?: string }) => (
     <Button onClick={()=>reserve()} className={"min-h-12 px-6 font-heading font-bold uppercase " + className}>{label}</Button>
   );
   const h2 = "font-heading text-3xl font-black uppercase leading-none tracking-normal sm:text-5xl";
@@ -208,9 +213,10 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
               <p className="mt-6 font-heading text-5xl font-black text-primary">{p?formatPrice(p.price,p.currency):'Consultando…'}</p>
               <p className="mt-2 text-sm text-muted-foreground">Por persona · habitación doble · {ownBike?'bicicleta propia':'bicicleta incluida'}</p>
               {i&&!ownBike&&<p className="mt-3 text-sm">Alquiler Maratona valorizado en €200 tras bonificación del 50% por alquilar en ambos viajes; sujeto a validación.</p>}
-              <Button className="mt-6 w-full" disabled={!p} onClick={()=>reserve(p)}>Reservar {i?'Maratona · La Conquista Alpina':'Solo Maratona'}</Button>
+              <Button className="mt-6 w-full" disabled={!p} onClick={()=>reserve(p)}>{nativeOpen?'Reservar':'Solicitar reserva'} {i?'Maratona · La Conquista Alpina':'Solo Maratona'}</Button>
             </article>)}
           </div>
+          <p className="border-l-2 border-primary pl-3 text-sm">Seña prevista: EUR 500 + ocho cuotas mensuales, del 21 de octubre de 2026 al 21 de mayo de 2027. {nativeOpen?'La plaza se confirma con la seña acreditada y validada.':'Reservas formales aún cerradas: podés enviar una solicitud, sin cobro ni plaza garantizada.'}</p>
           <p className="text-sm text-muted-foreground">Mismos servicios y entrenamiento previo incluidos. Cannondale SuperSix EVO / Scott Addict, Shimano 105 electrónico; modelo y talle según disponibilidad.</p>
           <article className="rounded-lg border border-primary bg-card p-6 sm:p-8">
             <Route className="h-7 w-7 text-primary"/><h3 className="mt-3 font-heading text-2xl font-bold uppercase">La Conquista Alpina + Maratona · dos grandes desafíos</h3>
@@ -218,7 +224,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
             <p className="mt-5 font-heading text-5xl font-black text-primary">{combinedPrice !== null ? formatPrice(combinedPrice, "EUR") : "Consultando…"}</p>
             <p className="mt-3 font-medium">Subtotal por persona de los dos programas en habitación doble: {Number.isFinite(alpsDoublePrice) && alpsDoublePrice > 0 ? formatPrice(alpsDoublePrice, "EUR") : "—"} La Conquista Alpina (bicicleta incluida) + {combo ? formatPrice(combo.price, "EUR") : "—"} Maratona ({ownBike ? "bicicleta propia" : "bicicleta incluida"}).</p>
             <p className="mt-3 border-l-2 border-primary pl-3 text-sm leading-relaxed">NO es el costo total del período. Incluye 7 noches de La Conquista Alpina y 5 noches de Maratona. Las 2 noches del 28 al 30/6 y el traslado intermedio siguen pendientes de cotización y NO están incluidos en {combinedPrice !== null ? formatPrice(combinedPrice, "EUR") : "este subtotal"}.</p>
-            <Button className="mt-5" disabled={!combo} onClick={()=>reserve(combo)}>Reservar segmento Maratona {ownBike ? "con bicicleta propia" : "con bicicleta incluida"}</Button>
+            <Button className="mt-5" disabled={!combo} onClick={()=>reserve(combo)}>{nativeOpen?'Reservar':'Solicitar reserva del'} segmento Maratona {ownBike ? "con bicicleta propia" : "con bicicleta incluida"}</Button>
             <p className="mt-2 text-sm text-muted-foreground">La Conquista Alpina conserva su reserva independiente: este botón no crea una segunda reserva de La Conquista Alpina.</p>
           </article>
           <div className="flex gap-4 border-y border-border py-5"><Route className="h-7 w-7 shrink-0 text-primary"/><div><p className="font-heading font-bold uppercase">Si venís de La Conquista Alpina</p><p className="mt-1 text-sm text-muted-foreground">La Conquista Alpina termina el 28/6 y Maratona empieza el 30/6. Las dos noches y traslados de conexión se cotizan aparte, no incluidos.</p></div></div>
