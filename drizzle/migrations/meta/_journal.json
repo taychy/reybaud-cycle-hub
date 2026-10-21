@@ -512,6 +512,13 @@
       "when": 1792609323373,
       "tag": "0072_controlled_booking_request_continuation",
       "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "7",
+      "when": 1792609570185,
+      "tag": "0073_scope_controlled_booking_guard_to_configured_trips",
+      "breakpoints": true
     }
   ]
 }
