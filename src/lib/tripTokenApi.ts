@@ -108,3 +108,61 @@ export const tripTokenSaveStep = async (params: {
   if (!data?.ok) throw new Error(data?.error ?? "trip_save_step_failed");
   return data;
 };
+
+
+export interface TripTokenRoommateRow {
+  id: string;
+  posicion: number;
+  nombre: string | null;
+  email: string | null;
+  alumno_id: string | null;
+  status: string;
+  confirmado: boolean;
+  reservation_id: string;
+}
+
+export interface TripTokenRoommateParticipant {
+  reservation_id: string;
+  alumno_id: string | null;
+  nombre: string;
+}
+
+export const tripTokenRoommatesGet = async (token: string) => {
+  const { data, error } = await supabase.functions.invoke<any>(
+    "get-event-participant-by-token",
+    { body: { action: "trip_roommates_get", token } },
+  );
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error ?? "trip_roommates_get_failed");
+  return data as {
+    ok: true;
+    capacity: number | null;
+    outgoing: TripTokenRoommateRow[];
+    incoming: TripTokenRoommateRow[];
+    participants: TripTokenRoommateParticipant[];
+  };
+};
+
+export const tripTokenRoommateInvite = async (token: string, target_reservation_id: string) => {
+  const { data, error } = await supabase.functions.invoke<any>(
+    "get-event-participant-by-token",
+    { body: { action: "trip_roommates_invite", token, target_reservation_id } },
+  );
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error ?? "trip_roommates_invite_failed");
+  return data;
+};
+
+export const tripTokenRoommateRespond = async (
+  token: string,
+  roommate_id: string,
+  roommate_response: "accept" | "reject",
+) => {
+  const { data, error } = await supabase.functions.invoke<any>(
+    "get-event-participant-by-token",
+    { body: { action: "trip_roommates_respond", token, roommate_id, roommate_response } },
+  );
+  if (error) throw error;
+  if (!data?.ok) throw new Error(data?.error ?? "trip_roommates_respond_failed");
+  return data;
+};
