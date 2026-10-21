@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import { fetchFxBookForAnyUser, rateToEvent, fxStatusLabel } from "@/lib/fx";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { getShareOrigin } from "@/lib/eventLinks";
 import {
@@ -366,6 +367,8 @@ const AdminEventReservations = ({
   const [adminPayOverrideReason, setAdminPayOverrideReason] = useState("");
   const [adminPayInstallmentId, setAdminPayInstallmentId] = useState<string | null>(null);
   const [adminPayGeneralReason, setAdminPayGeneralReason] = useState("");
+  const [adminPayFxLabel, setAdminPayFxLabel] = useState("");
+  const [adminPayFxLoading, setAdminPayFxLoading] = useState(false);
   const [matInstallments, setMatInstallments] = useState<any[]>([]);
 
   // Notifications
@@ -1181,6 +1184,34 @@ const AdminEventReservations = ({
     return rows;
   };
 
+  const loadAdminPaymentFx = async (paymentCurrency: string, eventCurr: string, amountRaw?: string) => {
+    if (paymentCurrency === eventCurr) {
+      setAdminPayRate("1");
+      const a = parseFloat(amountRaw ?? adminPayAmount) || 0;
+      setAdminPayEquivalent(a > 0 ? a.toFixed(2) : "");
+      setAdminPayFxLabel("Misma moneda · sin conversión");
+      return;
+    }
+    setAdminPayFxLoading(true);
+    try {
+      const book = await fetchFxBookForAnyUser();
+      const rate = rateToEvent(book, paymentCurrency, eventCurr);
+      const a = parseFloat(amountRaw ?? adminPayAmount) || 0;
+      setAdminPayRate(rate.toFixed(6));
+      setAdminPayEquivalent(a > 0 ? (a * rate).toFixed(2) : "");
+      setAdminPayOverride(false);
+      setAdminPayOverrideReason("");
+      setAdminPayFxLabel(`Cotización Reybaud vigente · ${fxStatusLabel(book)}`);
+    } catch (e: any) {
+      setAdminPayRate("");
+      setAdminPayEquivalent("");
+      setAdminPayFxLabel("No se pudo obtener la cotización vigente");
+      toast({ title: "Cotización no disponible", description: e.message, variant: "destructive" });
+    } finally {
+      setAdminPayFxLoading(false);
+    }
+  };
+
   const registerAdminPayment = async () => {
     if (!selectedRes || !adminPayAmount || parseFloat(adminPayAmount) <= 0) {
       toast({ title: "Ingresá un monto válido.", variant: "destructive" });
@@ -1189,8 +1220,13 @@ const AdminEventReservations = ({
 
     const evCurr = selectedRes.currency_snapshot || selectedRes.moneda || eventCurrency;
     const origAmt = parseFloat(adminPayAmount);
-    const rate = parseFloat(adminPayRate) || 1;
+    const rate = parseFloat(adminPayRate) || 0;
     const sameCurrency = adminPayCurrency === evCurr;
+
+    if (!sameCurrency && !(rate > 0)) {
+      toast({ title: "No hay cotización vigente disponible.", variant: "destructive" });
+      return;
+    }
 
     // Equivalent: use adminPayEquivalent if set, otherwise compute
     const parsedEq = parseFloat(adminPayEquivalent);
@@ -2371,7 +2407,9 @@ const AdminEventReservations = ({
                         setAdminPayOverrideReason("");
                         setAdminPayInstallmentId(null);
                         setAdminPayGeneralReason("");
-                        setAdminPayAmount(selectedRes.balance_due?.toString() || "");
+                        const initialAmount = selectedRes.balance_due?.toString() || "";
+                        setAdminPayAmount(initialAmount);
+                        setAdminPayFxLabel("Misma moneda · sin conversión");
                         loadMatInstallments(selectedRes.id);
                       }
                     }}
@@ -2463,15 +2501,9 @@ const AdminEventReservations = ({
                          <Label className="text-[11px] text-muted-foreground">Moneda *</Label>
                          <Select value={adminPayCurrency} onValueChange={(v) => {
                            setAdminPayCurrency(v);
-                           const sc = v === evCurr;
-                           setAdminPayRate(sc ? "1" : "");
                            setAdminPayOverride(false);
                            setAdminPayOverrideReason("");
-                           if (sc && adminPayAmount) {
-                             setAdminPayEquivalent((parseFloat(adminPayAmount) || 0).toFixed(2));
-                           } else {
-                             setAdminPayEquivalent("");
-                           }
+                           void loadAdminPaymentFx(v, evCurr, adminPayAmount);
                          }}>
                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
                            <SelectContent>
@@ -2483,7 +2515,15 @@ const AdminEventReservations = ({
                        </div>
                        <div className="space-y-1">
                          <Label className="text-[11px] text-muted-foreground">Monto en {adminPayCurrency} *</Label>
-                         <Input type="number" step="0.01" min="0" value={adminPayAmount} onChange={(e) => onAmountChange(e.target.value)} className="h-9" placeholder="Ej: 600" />
+                         <Input type="number" step="0.01" min="0" value={adminPayAmount} onChange={(e) => {
+                           const v = e.target.value;
+                           setAdminPayAmount(v);
+                           const a = parseFloat(v) || 0;
+                           const r = parseFloat(adminPayRate) || 0;
+                           if (adminPayCurrency === evCurr) setAdminPayEquivalent(a ? a.toFixed(2) : "");
+                           else if (a && r) setAdminPayEquivalent((a * r).toFixed(2));
+                           else setAdminPayEquivalent("");
+                         }} className="h-9" placeholder="Ej: 600" />
                        </div>
                        <div className="space-y-1">
                          <Label className="text-[11px] text-muted-foreground">Fecha</Label>
@@ -2496,8 +2536,11 @@ const AdminEventReservations = ({
                        <div className="grid grid-cols-2 gap-3">
                          <div className="space-y-1">
                            <Label className="text-[11px] text-muted-foreground">Cotización a {evCurr} *</Label>
-                           <Input type="number" step="0.0001" min="0" value={adminPayRate} onChange={(e) => onRateChange(e.target.value)} className="h-9" placeholder={`1 ${adminPayCurrency} = ? ${evCurr}`} />
-                           <p className="text-[10px] text-muted-foreground">1 {adminPayCurrency} = {adminPayRate || "?"} {evCurr}</p>
+                           <Input type="number" step="0.000001" min="0" value={adminPayRate} readOnly className="h-9 bg-muted/30" placeholder={adminPayFxLoading ? "Cargando cotización..." : `1 ${adminPayCurrency} = ? ${evCurr}`} />
+                           <p className="text-[10px] text-muted-foreground">
+                             {adminPayFxLoading ? "Consultando cotización..." : `1 ${adminPayCurrency} = ${adminPayRate || "?"} ${evCurr}`}
+                           </p>
+                           {adminPayFxLabel && <p className="text-[10px] text-muted-foreground">{adminPayFxLabel}</p>}
                          </div>
                          <div className="space-y-1">
                            <Label className="text-[11px] text-muted-foreground">Equivalente reconocido ({evCurr})</Label>
@@ -2505,8 +2548,8 @@ const AdminEventReservations = ({
                              type="number"
                              step="0.01"
                              value={adminPayEquivalent}
-                             onChange={(e) => onEquivalentChange(e.target.value)}
-                             className="h-9"
+                             readOnly
+                             className="h-9 bg-muted/30"
                            />
                            {!hasRealOverride && eqVal > 0 && (
                              <p className="text-[10px] text-emerald-400">= {formatPrice(eqVal, evCurr)}</p>
