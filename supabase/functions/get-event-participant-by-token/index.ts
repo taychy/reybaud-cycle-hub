@@ -107,7 +107,7 @@ serve(async (req) => {
       const { data: reservation, error: rErr } = await supabase
         .from("event_reservations")
         .select(
-          "id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token, package_id, package_nombre_snapshot, genero_habitacion"
+          "id, reservation_status, payment_status, amount_total, amount_paid, balance_due, moneda, currency_snapshot, external_participant_id, alumno_id, event_id, access_token, package_id, package_nombre_snapshot, genero_habitacion, external_email, external_first_name, external_last_name"
         )
         .eq("access_token", t)
         .maybeSingle();
