@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Check, X, Mail, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { fetchPackageAvailability, AvailabilityRow, formatAvailabilityRow, generoLabel } from "@/lib/packageAvailability";
-import { tripTokenRoommatesGet, tripTokenRoommateInvite, tripTokenRoommateRespond } from "@/lib/tripTokenApi";
+import { tripTokenRoommatesGet, tripTokenRoommateInvite, tripTokenRoommateRespond, tripTokenRequestIndividual } from "@/lib/tripTokenApi";
 
 interface Props {
   open: boolean;
@@ -61,6 +61,9 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const [myEmail, setMyEmail] = useState<string>("");
   const [capacity, setCapacity] = useState<number | null>(null);
   const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
+  const [individualPackageName, setIndividualPackageName] = useState<string | null>(null);
+  const [individualAvailable, setIndividualAvailable] = useState<number>(0);
+  const [individualRequestPending, setIndividualRequestPending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -72,6 +75,9 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
         setParticipants((data.participants || []) as Participant[]);
         setCapacity(data.capacity ?? null);
         setAvailability([]);
+        setIndividualPackageName(data.individual_package_name ?? null);
+        setIndividualAvailable(Number(data.individual_available ?? 0));
+        setIndividualRequestPending(!!data.individual_request_pending);
         setMyEmail("");
         return;
       }
@@ -231,6 +237,31 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
       onChanged?.();
     } catch (e: any) {
       toast.error(e.message || "No se pudo aceptar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestIndividual = async () => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      const res = await tripTokenRequestIndividual(
+        token,
+        individualAvailable > 0
+          ? "Solicita cambio a habitación individual"
+          : "Solicita habitación individual si se libera un cupo",
+      );
+      setIndividualRequestPending(true);
+      toast.success(
+        res.waitlist || individualAvailable <= 0
+          ? "Solicitud enviada. Te avisamos si se libera una habitación individual."
+          : "Solicitud enviada para revisión."
+      );
+      await load();
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo enviar la solicitud");
     } finally {
       setSaving(false);
     }
@@ -437,6 +468,31 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-500 text-center">
                   ✓ Tu habitación está completa
                 </div>
+              )}
+
+              {token && capacity !== null && capacity > 1 && individualPackageName && (
+                <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-foreground">¿No tenés con quién compartir?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Podés solicitar el cambio a {individualPackageName.toLowerCase()}.
+                    {individualAvailable > 0
+                      ? ` Hay ${individualAvailable} ${individualAvailable === 1 ? "lugar disponible" : "lugares disponibles"}; el cambio queda sujeto a aprobación de Reybaud.`
+                      : " Hoy no hay cupos disponibles. Podés dejar la solicitud y te avisamos si se libera uno."}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={saving || individualRequestPending}
+                    onClick={requestIndividual}
+                  >
+                    {individualRequestPending
+                      ? "Solicitud enviada"
+                      : individualAvailable > 0
+                        ? "Solicitar habitación individual"
+                        : "Solicitar individual si se libera un cupo"}
+                  </Button>
+                </section>
               )}
             </>
           )}
