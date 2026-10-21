@@ -73,7 +73,16 @@ Deno.serve(async (req) => {
     if (!reservation) return new Response(JSON.stringify({ error: "reservation not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: event } = await supabase.from("events").select("id, title, date, end_date, location").eq("id", reservation.event_id).maybeSingle();
-    const { data: inviter } = await supabase.from("alumnos").select("nombre, apellido, email").eq("id", reservation.alumno_id).maybeSingle();
+    let inviter: any = null;
+    if (reservation.alumno_id) {
+      const { data } = await supabase.from("alumnos").select("nombre, apellido, email").eq("id", reservation.alumno_id).maybeSingle();
+      inviter = data;
+    } else if (reservation.external_participant_id) {
+      const { data } = await supabase.from("event_external_participants").select("nombre, apellido, email").eq("id", reservation.external_participant_id).maybeSingle();
+      inviter = data;
+    } else if (reservation.external_email) {
+      inviter = { nombre: "", apellido: "", email: reservation.external_email };
+    }
 
     let eventLink = `${APP_DOMAIN}/eventos/${event?.id || ""}`;
     if (kind === "invite" && rm.email) {
