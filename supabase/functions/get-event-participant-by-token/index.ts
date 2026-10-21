@@ -1,3 +1,4 @@
+// Rooming token flow sync v2
 // Edge function: get-event-participant-by-token
 // Etapa 2A.1 — Reemplaza el SELECT/UPDATE público abierto a event_participants.
 // Etapa 2B — Agrega flujos para alumno logueado por reserva (sin token público).
