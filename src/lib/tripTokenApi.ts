@@ -203,3 +203,18 @@ export const tripTokenRequestIndividual = async (token: string, note?: string) =
     already_pending?: boolean;
   };
 };
+
+
+export const tripTokenRoommateAssignmentStatus = async (token: string) => {
+  const { data, error } = await supabase.rpc("trip_roommate_assignment_status_by_token" as any, { p_token: token });
+  if (error) throw error;
+  return data as any;
+};
+
+export const tripTokenRequestRoommateAssignment = async (token: string) => {
+  const { data, error } = await supabase.rpc("trip_request_roommate_assignment_by_token" as any, { p_token: token });
+  if (error) throw error;
+  const res = data as any;
+  if (!res?.ok) throw new Error(res?.error ?? "trip_request_roommate_assignment_failed");
+  return res;
+};
