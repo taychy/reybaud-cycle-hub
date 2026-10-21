@@ -4384,6 +4384,104 @@ export type Database = {
           },
         ]
       }
+      event_booking_opening_log: {
+        Row: {
+          action: string
+          actor: string
+          created_at: string
+          detail: Json
+          event_id: string
+          id: string
+        }
+        Insert: {
+          action: string
+          actor: string
+          created_at?: string
+          detail: Json
+          event_id: string
+          id?: string
+        }
+        Update: {
+          action?: string
+          actor?: string
+          created_at?: string
+          detail?: Json
+          event_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_booking_opening_log_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_booking_openings: {
+        Row: {
+          alps_bike_package_ids: string[]
+          alps_event_id: string | null
+          enabled: boolean
+          event_id: string
+          hotel_capacity: number | null
+          hotel_evidence: string | null
+          native_flow_verified: boolean
+          payment_url: string | null
+          payment_verified: boolean
+          race_capacity: number | null
+          race_evidence: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          alps_bike_package_ids?: string[]
+          alps_event_id?: string | null
+          enabled?: boolean
+          event_id: string
+          hotel_capacity?: number | null
+          hotel_evidence?: string | null
+          native_flow_verified?: boolean
+          payment_url?: string | null
+          payment_verified?: boolean
+          race_capacity?: number | null
+          race_evidence?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          alps_bike_package_ids?: string[]
+          alps_event_id?: string | null
+          enabled?: boolean
+          event_id?: string
+          hotel_capacity?: number | null
+          hotel_evidence?: string | null
+          native_flow_verified?: boolean
+          payment_url?: string | null
+          payment_verified?: boolean
+          race_capacity?: number | null
+          race_evidence?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_booking_openings_alps_event_id_fkey"
+            columns: ["alps_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_booking_openings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_choice_survey_admin_entries: {
         Row: {
           candidates: string[]
@@ -6170,6 +6268,9 @@ export type Database = {
           alumno_id: string | null
           contactado_at: string | null
           contactado_por: string | null
+          converted_at: string | null
+          converted_by: string | null
+          converted_reservation_id: string | null
           created_at: string
           dni: string | null
           email: string
@@ -6189,6 +6290,9 @@ export type Database = {
           alumno_id?: string | null
           contactado_at?: string | null
           contactado_por?: string | null
+          converted_at?: string | null
+          converted_by?: string | null
+          converted_reservation_id?: string | null
           created_at?: string
           dni?: string | null
           email: string
@@ -6208,6 +6312,9 @@ export type Database = {
           alumno_id?: string | null
           contactado_at?: string | null
           contactado_por?: string | null
+          converted_at?: string | null
+          converted_by?: string | null
+          converted_reservation_id?: string | null
           created_at?: string
           dni?: string | null
           email?: string
@@ -6242,6 +6349,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "vw_backfill_saldos_comparacion"
             referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "event_waitlist_entries_converted_reservation_id_fkey"
+            columns: ["converted_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_waitlist_entries_converted_reservation_id_fkey"
+            columns: ["converted_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
           },
           {
             foreignKeyName: "event_waitlist_entries_event_id_fkey"
@@ -17788,6 +17909,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      _booking_alps_eligible: {
+        Args: {
+          p_alumno_id: string
+          p_email: string
+          p_event_id: string
+          p_package_id: string
+        }
+        Returns: boolean
+      }
       _build_variant_key: {
         Args: { p_product_id: string; p_variante: Json }
         Returns: string
@@ -18224,6 +18354,10 @@ export type Database = {
       admin_revoke_cuenta_token: {
         Args: { p_token_id: string }
         Returns: undefined
+      }
+      admin_save_booking_opening: {
+        Args: { p_enable?: boolean; p_event_id: string; p_input: Json }
+        Returns: Json
       }
       admin_save_rescheduling_settlement: {
         Args: {
@@ -18984,6 +19118,10 @@ export type Database = {
           p_reservation_id: string
           p_roommate_propuesto_id?: string
         }
+        Returns: Json
+      }
+      event_booking_opening_status: {
+        Args: { p_event_id: string }
         Returns: Json
       }
       event_booking_request_options: {

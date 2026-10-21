@@ -498,6 +498,13 @@
       "when": 1792470470560,
       "tag": "0070_broadcast_templates_preheader_cta",
       "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "7",
+      "when": 1792609226460,
+      "tag": "0071_controlled_trip_booking_opening",
+      "breakpoints": true
     }
   ]
 }
