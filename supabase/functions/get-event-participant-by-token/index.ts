@@ -27,6 +27,9 @@ type Body = {
     | "submit_distance_authenticated"
     | "trip_get"
     | "trip_save_step"
+    | "trip_roommates_get"
+    | "trip_roommates_invite"
+    | "trip_roommates_respond"
     | "resolve_reservation_link";
 
   token?: string;
@@ -40,6 +43,9 @@ type Body = {
   needs_advice?: boolean;
   data?: Record<string, unknown>;
   file_url?: string | null;
+  target_reservation_id?: string;
+  roommate_id?: string;
+  roommate_response?: "accept" | "reject";
 };
 
 const TOKEN_RE = /^[a-f0-9]{32,128}$/i;
@@ -94,7 +100,7 @@ serve(async (req) => {
     }
 
     // ---------- acciones trip por token (ExternalTripView) ----------
-    if (action === "trip_get" || action === "trip_save_step") {
+    if (["trip_get","trip_save_step","trip_roommates_get","trip_roommates_invite","trip_roommates_respond"].includes(action)) {
       const t = (body.token || "").trim();
       if (!TOKEN_RE.test(t)) return json({ error: "invalid_token" }, 400);
 
@@ -108,6 +114,173 @@ serve(async (req) => {
       if (rErr) return json({ error: "lookup_failed", detail: rErr.message }, 500);
       if (!reservation) return json({ error: "not_found" }, 404);
 
+
+
+      const resolveReservationParticipant = async (r: any) => {
+        if (r.alumno_id) {
+          const { data: a } = await supabase.from("alumnos").select("id,nombre,apellido,email").eq("id", r.alumno_id).maybeSingle();
+          return a ? { alumno_id: a.id, nombre: `${a.nombre ?? ""} ${a.apellido ?? ""}`.trim() || a.email, email: a.email } : null;
+        }
+        if (r.external_participant_id) {
+          const { data: e } = await supabase.from("event_external_participants").select("id,nombre,apellido,email").eq("id", r.external_participant_id).maybeSingle();
+          return e ? { alumno_id: null, nombre: `${e.nombre ?? ""} ${e.apellido ?? ""}`.trim() || e.email, email: e.email } : null;
+        }
+        if (r.external_email) return { alumno_id: null, nombre: `${r.external_first_name ?? ""} ${r.external_last_name ?? ""}`.trim() || r.external_email, email: r.external_email };
+        return null;
+      };
+
+      if (action === "trip_roommates_get") {
+        const me = await resolveReservationParticipant(reservation);
+        const { data: pkg } = reservation.package_id
+          ? await supabase.from("event_packages").select("personas_por_habitacion").eq("id", reservation.package_id).maybeSingle()
+          : { data: null as any };
+        const capacity = pkg?.personas_por_habitacion ?? null;
+
+        const { data: outgoing } = await supabase
+          .from("reservation_roommates").select("*")
+          .eq("reservation_id", reservation.id).order("posicion");
+
+        let incoming: any[] = [];
+        if (me?.email) {
+          const { data } = await supabase
+            .from("reservation_roommates").select("*")
+            .eq("event_id", reservation.event_id)
+            .ilike("email", me.email)
+            .neq("reservation_id", reservation.id);
+          incoming = data ?? [];
+        }
+
+        const { data: eventReservations } = await supabase
+          .from("event_reservations")
+          .select("id,alumno_id,external_participant_id,external_email,external_first_name,external_last_name,reservation_status")
+          .eq("event_id", reservation.event_id)
+          .not("reservation_status","in",'("cancelada","rechazada")');
+
+        const participants: any[] = [];
+        for (const r of eventReservations ?? []) {
+          if (r.id === reservation.id) continue;
+          const p = await resolveReservationParticipant(r);
+          if (!p?.email) continue;
+          participants.push({ reservation_id: r.id, alumno_id: p.alumno_id, nombre: p.nombre });
+        }
+
+        return json({ ok: true, capacity, outgoing: outgoing ?? [], incoming, participants });
+      }
+
+      if (action === "trip_roommates_invite") {
+        const targetId = (body.target_reservation_id || "").trim();
+        if (!UUID_RE.test(targetId)) return json({ error: "invalid_target" }, 400);
+
+        const { data: pkg } = reservation.package_id
+          ? await supabase.from("event_packages").select("personas_por_habitacion").eq("id", reservation.package_id).maybeSingle()
+          : { data: null as any };
+        const capacity = Number(pkg?.personas_por_habitacion ?? 0);
+        if (capacity <= 1) return json({ error: "room_not_shareable" }, 409);
+
+        const { data: existingRows } = await supabase
+          .from("reservation_roommates").select("id,status,email")
+          .eq("reservation_id", reservation.id);
+        const activeCount = (existingRows ?? []).filter((x: any) => x.status !== "rejected").length;
+        if (activeCount >= capacity - 1) return json({ error: "room_full" }, 409);
+
+        const { data: target } = await supabase
+          .from("event_reservations")
+          .select("id,event_id,alumno_id,external_participant_id,external_email,external_first_name,external_last_name,reservation_status")
+          .eq("id", targetId).maybeSingle();
+        if (!target || target.event_id !== reservation.event_id || ["cancelada","rechazada"].includes(target.reservation_status)) {
+          return json({ error: "target_not_available" }, 404);
+        }
+        const targetP = await resolveReservationParticipant(target);
+        if (!targetP?.email) return json({ error: "target_no_email" }, 409);
+        if ((existingRows ?? []).some((x: any) => (x.email || "").toLowerCase() === targetP.email.toLowerCase() && x.status !== "rejected")) {
+          return json({ error: "already_invited" }, 409);
+        }
+
+        const nextPos = Math.max(0, ...(existingRows ?? []).map((x: any) => Number(x.posicion || 0))) + 1;
+        const { data: inserted, error: insErr } = await supabase
+          .from("reservation_roommates")
+          .insert({
+            reservation_id: reservation.id,
+            event_id: reservation.event_id,
+            posicion: nextPos,
+            nombre: targetP.nombre,
+            email: targetP.email,
+            alumno_id: targetP.alumno_id,
+            status: "pending",
+            confirmado: false,
+            invited_by_alumno_id: reservation.alumno_id,
+          })
+          .select("*").single();
+        if (insErr || !inserted) return json({ error: "invite_failed", detail: insErr?.message }, 500);
+
+        fetch(`${SUPABASE_URL}/functions/v1/send-roommate-notification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({ kind: "invite", roommate_id: inserted.id }),
+        }).catch(() => {});
+
+        return json({ ok: true, roommate: inserted });
+      }
+
+      if (action === "trip_roommates_respond") {
+        const roommateId = (body.roommate_id || "").trim();
+        const response = body.roommate_response;
+        if (!UUID_RE.test(roommateId) || !["accept","reject"].includes(response || "")) return json({ error: "invalid_response" }, 400);
+        const me = await resolveReservationParticipant(reservation);
+        if (!me?.email) return json({ error: "participant_no_email" }, 409);
+
+        const { data: row } = await supabase.from("reservation_roommates").select("*").eq("id", roommateId).maybeSingle();
+        if (!row || row.event_id !== reservation.event_id || (row.email || "").toLowerCase() !== me.email.toLowerCase()) {
+          return json({ error: "not_invited" }, 403);
+        }
+
+        if (response === "reject") {
+          const { error } = await supabase.from("reservation_roommates").update({ status: "rejected", confirmado: false, updated_at: new Date().toISOString() }).eq("id", roommateId);
+          if (error) return json({ error: "reject_failed", detail: error.message }, 500);
+          return json({ ok: true });
+        }
+
+        const { data: inviterRes } = await supabase
+          .from("event_reservations")
+          .select("id,alumno_id,external_participant_id,external_email,external_first_name,external_last_name")
+          .eq("id", row.reservation_id).maybeSingle();
+        if (!inviterRes) return json({ error: "inviter_not_found" }, 404);
+        const inviterP = await resolveReservationParticipant(inviterRes);
+
+        const { error: accErr } = await supabase.from("reservation_roommates")
+          .update({ status: "accepted", confirmado: true, updated_at: new Date().toISOString() }).eq("id", roommateId);
+        if (accErr) return json({ error: "accept_failed", detail: accErr.message }, 500);
+
+        if (inviterP?.email) {
+          const { data: mirror } = await supabase.from("reservation_roommates")
+            .select("id").eq("reservation_id", reservation.id).ilike("email", inviterP.email).maybeSingle();
+          if (mirror?.id) {
+            await supabase.from("reservation_roommates").update({ status:"accepted", confirmado:true, updated_at:new Date().toISOString() }).eq("id", mirror.id);
+          } else {
+            const { data: myRows } = await supabase.from("reservation_roommates").select("posicion").eq("reservation_id", reservation.id);
+            const nextPos = Math.max(0, ...(myRows ?? []).map((x:any)=>Number(x.posicion||0))) + 1;
+            await supabase.from("reservation_roommates").insert({
+              reservation_id: reservation.id,
+              event_id: reservation.event_id,
+              posicion: nextPos,
+              nombre: inviterP.nombre,
+              email: inviterP.email,
+              alumno_id: inviterP.alumno_id,
+              status: "accepted",
+              confirmado: true,
+              invited_by_alumno_id: reservation.alumno_id,
+            });
+          }
+        }
+
+        fetch(`${SUPABASE_URL}/functions/v1/send-roommate-notification`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${SERVICE_KEY}` },
+          body: JSON.stringify({ kind: "accepted", roommate_id: roommateId }),
+        }).catch(() => {});
+
+        return json({ ok: true });
+      }
 
       if (action === "trip_get") {
         const [eventRes, partExtRes, partAluRes, clRes] = await Promise.all([
