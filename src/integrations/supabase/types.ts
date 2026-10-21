@@ -18183,6 +18183,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_continue_booking_request: {
+        Args: { p_confirm?: boolean; p_entry_id: string }
+        Returns: Json
+      }
       admin_crear_cambio_desde_venta: {
         Args: {
           p_comentario: string

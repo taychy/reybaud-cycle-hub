@@ -505,6 +505,13 @@
       "when": 1792609226460,
       "tag": "0071_controlled_trip_booking_opening",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "7",
+      "when": 1792609323373,
+      "tag": "0072_controlled_booking_request_continuation",
+      "breakpoints": true
     }
   ]
 }
