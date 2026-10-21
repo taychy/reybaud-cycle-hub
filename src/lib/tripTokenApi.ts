@@ -137,6 +137,10 @@ export const tripTokenRoommatesGet = async (token: string) => {
     outgoing: TripTokenRoommateRow[];
     incoming: TripTokenRoommateRow[];
     participants: TripTokenRoommateParticipant[];
+    individual_package_id?: string | null;
+    individual_package_name?: string | null;
+    individual_available?: number;
+    individual_request_pending?: boolean;
   };
 };
 
@@ -175,4 +179,22 @@ export const tripTokenRoommateRespond = async (
     }).catch(() => {});
   }
   return res;
+};
+
+
+export const tripTokenRequestIndividual = async (token: string, note?: string) => {
+  const { data, error } = await supabase.rpc("trip_request_individual_by_token" as any, {
+    p_token: token,
+    p_note: note ?? null,
+  });
+  if (error) throw error;
+  const res = data as any;
+  if (!res?.ok) throw new Error(res?.error ?? "trip_request_individual_failed");
+  return res as {
+    ok: true;
+    request_id: string;
+    available?: number;
+    waitlist?: boolean;
+    already_pending?: boolean;
+  };
 };
