@@ -17,6 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Check, X, Mail, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { fetchPackageAvailability, AvailabilityRow, formatAvailabilityRow, generoLabel } from "@/lib/packageAvailability";
+import { tripTokenRoommatesGet, tripTokenRoommateInvite, tripTokenRoommateRespond } from "@/lib/tripTokenApi";
 
 interface Props {
   open: boolean;
@@ -28,6 +29,7 @@ interface Props {
   packageName?: string | null;
   roomGender?: string | null;
   onChanged?: () => void;
+  token?: string;
 }
 
 interface RmRow {
@@ -43,13 +45,13 @@ interface RmRow {
 }
 
 interface Participant {
-  alumno_id: string;
+  alumno_id: string | null;
   nombre: string;
-  email: string;
+  email?: string;
   reservation_id: string;
 }
 
-export default function TripRoommatesDrawer({ open, onOpenChange, reservationId, eventId, alumnoId, packageId, packageName, roomGender, onChanged }: Props) {
+export default function TripRoommatesDrawer({ open, onOpenChange, reservationId, eventId, alumnoId, packageId, packageName, roomGender, onChanged, token }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [outgoing, setOutgoing] = useState<RmRow[]>([]);   // rows on my reservation
@@ -63,6 +65,17 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      if (token) {
+        const data = await tripTokenRoommatesGet(token);
+        setOutgoing((data.outgoing || []) as RmRow[]);
+        setIncoming((data.incoming || []) as RmRow[]);
+        setParticipants((data.participants || []) as Participant[]);
+        setCapacity(data.capacity ?? null);
+        setAvailability([]);
+        setMyEmail("");
+        return;
+      }
+
       const { data: userData } = await supabase.auth.getUser();
       const email = userData.user?.email || "";
       setMyEmail(email);
@@ -110,25 +123,33 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
     } finally {
       setLoading(false);
     }
-  }, [reservationId, eventId, packageId]);
+  }, [reservationId, eventId, packageId, token]);
 
   useEffect(() => { if (open) load(); }, [open, load]);
 
   // Derived from real package data (event_packages.personas_por_habitacion) + event_rooms availability
-  const requiresLodging = (capacity ?? 0) > 0 && availability.length > 0;
+  const requiresLodging = token ? (capacity ?? 0) > 0 : (capacity ?? 0) > 0 && availability.length > 0;
   const label = capacity ? (capacity === 1 ? "Individual" : `${capacity} por habitación`) : "";
   const genderRows = useMemo(
     () => availability.filter(r => !roomGender || r.genero === roomGender || r.genero === "mixta"),
     [availability, roomGender]
   );
-  const genderAvailable = genderRows.reduce((s, r) => s + Math.max(0, r.available), 0);
+  const genderAvailable = token ? 1 : genderRows.reduce((s, r) => s + Math.max(0, r.available), 0);
   const genderLabelStr = roomGender ? generoLabel(roomGender) : "";
 
   const invite = async (p: Participant) => {
     setSaving(true);
     try {
+      if (token) {
+        await tripTokenRoommateInvite(token, p.reservation_id);
+        toast.success(`Invitación enviada a ${p.nombre}`);
+        setSearch("");
+        await load();
+        onChanged?.();
+        return;
+      }
       // Check duplicate
-      if (outgoing.some(r => r.email && r.email.toLowerCase() === p.email.toLowerCase())) {
+      if (p.email && outgoing.some(r => r.email && r.email.toLowerCase() === p.email!.toLowerCase())) {
         toast.error("Ya invitaste a esta persona");
         return;
       }
@@ -193,6 +214,13 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const accept = async (id: string) => {
     setSaving(true);
     try {
+      if (token) {
+        await tripTokenRoommateRespond(token, id, "accept");
+        toast.success("Invitación aceptada");
+        await load();
+        onChanged?.();
+        return;
+      }
       const { error } = await supabase.rpc("accept_roommate_invitation", { _roommate_id: id });
       if (error) throw error;
       supabase.functions.invoke("send-roommate-notification", {
@@ -211,6 +239,13 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const reject = async (id: string) => {
     setSaving(true);
     try {
+      if (token) {
+        await tripTokenRoommateRespond(token, id, "reject");
+        toast.success("Invitación rechazada");
+        await load();
+        onChanged?.();
+        return;
+      }
       const { error } = await supabase.rpc("reject_roommate_invitation", { _roommate_id: id });
       if (error) throw error;
       toast.success("Invitación rechazada");
@@ -227,7 +262,7 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
     const q = search.trim().toLowerCase();
     if (!q) return participants.slice(0, 8);
     return participants
-      .filter(p => p.nombre.toLowerCase().includes(q) || p.email.toLowerCase().includes(q))
+      .filter(p => p.nombre.toLowerCase().includes(q) || (p.email || "").toLowerCase().includes(q))
       .slice(0, 12);
   }, [search, participants]);
 
@@ -380,12 +415,12 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
                       <p className="text-xs text-muted-foreground italic px-1 py-2">No hay más participantes disponibles</p>
                     )}
                     {filteredParticipants.map(p => {
-                      const already = alreadyInvitedEmails.has(p.email.toLowerCase());
+                      const already = !!p.email && alreadyInvitedEmails.has(p.email.toLowerCase());
                       return (
-                        <div key={p.alumno_id} className="flex items-center justify-between rounded-lg border border-border bg-background p-2.5">
+                        <div key={p.reservation_id} className="flex items-center justify-between rounded-lg border border-border bg-background p-2.5">
                           <div className="min-w-0">
                             <p className="text-sm font-medium truncate">{p.nombre}</p>
-                            <p className="text-[11px] text-muted-foreground truncate">{p.email}</p>
+                            {p.email && <p className="text-[11px] text-muted-foreground truncate">{p.email}</p>}
                           </div>
                           <Button size="sm" variant={already ? "ghost" : "default"} disabled={already || saving} onClick={() => invite(p)}>
                             <UserPlus className="w-3.5 h-3.5 mr-1" />
