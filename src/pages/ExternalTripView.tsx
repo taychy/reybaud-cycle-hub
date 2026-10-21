@@ -24,6 +24,7 @@ import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "
 import { Shirt } from "lucide-react";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 import ReschedulingEntry from "@/components/rescheduling/ReschedulingEntry";
+import TripRoommatesDrawer from "@/components/reservation/TripRoommatesDrawer";
 
 interface ReservationData {
   id: string;
@@ -142,6 +143,7 @@ const ExternalTripView = () => {
     open: false, stepKey: "", title: "", description: "", helpText: "", icon: null,
   });
   const [formDrawer, setFormDrawer] = useState<{ open: boolean; stepKey: string }>({ open: false, stepKey: "" });
+  const [showRoommatesDrawer, setShowRoommatesDrawer] = useState(false);
 
   const loadData = useCallback(async () => {
     if (!token) { setError("Link inválido. Pedí un nuevo enlace al equipo."); setLoading(false); return; }
@@ -318,6 +320,17 @@ const ExternalTripView = () => {
             {!lodging && pkg && !pkg.sin_alojamiento && (
               <p className="text-xs text-muted-foreground">Tu habitación todavía no fue asignada. Te avisamos cuando esté lista.</p>
             )}
+            {pkg && !pkg.sin_alojamiento && (pkg.personas_por_habitacion ?? 0) > 1 && (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2 gap-2"
+                onClick={() => setShowRoommatesDrawer(true)}
+              >
+                <BedDouble className="w-4 h-4" />
+                Configurar habitación
+              </Button>
+            )}
           </div>
         )}
 
@@ -449,6 +462,17 @@ const ExternalTripView = () => {
       </div>
 
       {/* Drawers */}
+      <TripRoommatesDrawer
+        open={showRoommatesDrawer}
+        onOpenChange={setShowRoommatesDrawer}
+        reservationId={reservation.id}
+        eventId={event.id}
+        alumnoId={reservation.alumno_id}
+        packageId={pkg?.id ?? undefined}
+        packageName={pkg?.nombre ?? undefined}
+        token={token ?? undefined}
+        onChanged={loadData}
+      />
       <TripBikeDrawer
         open={showBikeDrawer}
         onOpenChange={setShowBikeDrawer}
