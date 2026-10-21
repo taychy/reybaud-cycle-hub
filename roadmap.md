@@ -232,6 +232,13 @@
 - [x] 25 tests automáticos, QA SQL reversible con deduplicación e idempotencia, navegador desktop/mobile e invariancia histórica
 - [ ] Activación y ejecución monetaria: bloqueadas, requieren validación y autorización posterior
 
+## Maratona · Apertura segura de reservas (21/10)
+- [ ] Integrar modalidad nativa con compuerta servidor cerrada por defecto
+- [ ] Checklist hotel/carrera en pool global, enlace propio y cuatro planes existentes
+- [ ] Solicitudes existentes visibles y conversión controlada sin duplicados
+- [ ] QA de bloqueos, cupos concurrentes y elegibilidad Alpes; sin publicación ni cobros
+- [ ] Apertura real bloqueada hasta capacidad y enlace de pago confirmados
+
 ## Maratona · Solicitudes de reserva y segunda edición comercial
 - [ ] Revisar reservas Alpes y reutilizar captación pendiente sin cobros
 - [ ] Cuatro variantes con/sin bicicleta y elegibilidad Alpes; contenido comercial y combinado
