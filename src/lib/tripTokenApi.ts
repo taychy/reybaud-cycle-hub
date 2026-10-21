@@ -190,6 +190,11 @@ export const tripTokenRequestIndividual = async (token: string, note?: string) =
   if (error) throw error;
   const res = data as any;
   if (!res?.ok) throw new Error(res?.error ?? "trip_request_individual_failed");
+  if (res.request_id && !res.already_pending) {
+    supabase.functions.invoke("notify-package-change-request", {
+      body: { request_id: res.request_id },
+    }).catch(() => {});
+  }
   return res as {
     ok: true;
     request_id: string;
