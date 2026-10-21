@@ -68,14 +68,62 @@ Deno.serve(async (req) => {
 
     const { data: reservation } = await supabase
       .from("event_reservations")
-      .select("id, event_id, alumno_id, package_nombre_snapshot")
+      .select("id, event_id, alumno_id, external_participant_id, external_email, package_nombre_snapshot, access_token")
       .eq("id", rm.reservation_id).maybeSingle();
     if (!reservation) return new Response(JSON.stringify({ error: "reservation not found" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { data: event } = await supabase.from("events").select("id, title, date, end_date, location").eq("id", reservation.event_id).maybeSingle();
     const { data: inviter } = await supabase.from("alumnos").select("nombre, apellido, email").eq("id", reservation.alumno_id).maybeSingle();
 
-    const eventLink = `${APP_DOMAIN}/eventos/${event?.id || ""}`;
+    let eventLink = `${APP_DOMAIN}/eventos/${event?.id || ""}`;
+    if (kind === "invite" && rm.email) {
+      const invitedEmail = normalizeEmail(rm.email);
+      let targetReservation: any = null;
+
+      const { data: invitedAlumno } = await supabase
+        .from("alumnos")
+        .select("id")
+        .ilike("email", invitedEmail)
+        .maybeSingle();
+      if (invitedAlumno?.id) {
+        const { data } = await supabase
+          .from("event_reservations")
+          .select("id, access_token")
+          .eq("event_id", reservation.event_id)
+          .eq("alumno_id", invitedAlumno.id)
+          .not("reservation_status", "in", '("cancelada","rechazada")')
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        targetReservation = data;
+      }
+
+      if (!targetReservation) {
+        const { data: invitedExternal } = await supabase
+          .from("event_external_participants")
+          .select("id")
+          .ilike("email", invitedEmail)
+          .maybeSingle();
+        if (invitedExternal?.id) {
+          const { data } = await supabase
+            .from("event_reservations")
+            .select("id, access_token")
+            .eq("event_id", reservation.event_id)
+            .eq("external_participant_id", invitedExternal.id)
+            .not("reservation_status", "in", '("cancelada","rechazada")')
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          targetReservation = data;
+        }
+      }
+
+      if (targetReservation?.access_token) {
+        eventLink = `${APP_DOMAIN}/viaje/mi-reserva?token=${encodeURIComponent(targetReservation.access_token)}`;
+      }
+    } else if (kind === "accepted" && reservation.access_token) {
+      eventLink = `${APP_DOMAIN}/viaje/mi-reserva?token=${encodeURIComponent(reservation.access_token)}`;
+    }
     const inviterName = [inviter?.nombre, inviter?.apellido].filter(Boolean).join(" ").trim() || (inviter?.email || "un compañero");
     const paquete = reservation.package_nombre_snapshot || "el paquete elegido";
 
@@ -104,10 +152,10 @@ Deno.serve(async (req) => {
           <p style="margin:0;font-weight:600;">${esc(paquete)}</p>
         </div>
         <p style="font-size:14px;color:#444;line-height:1.55;">
-          Podés aceptar o rechazar la invitación desde tu Hub del viaje. Si aceptás, quedarán vinculados y el admin los ubicará en la misma habitación.
+          Podés aceptar o rechazar la invitación desde la configuración de tu reserva. Si aceptás, quedarán vinculados y el equipo los ubicará en la misma habitación.
         </p>`;
-      html = shell("Invitación de habitación", event?.title || "", body, "Ir a mi viaje", eventLink);
-      text = `${inviterName} te invitó a compartir habitación en ${event?.title || "el viaje"}. Paquete: ${paquete}. Aceptá o rechazá desde tu viaje: ${eventLink}`;
+      html = shell("Invitación de habitación", event?.title || "", body, "Configurar mi habitación", eventLink);
+      text = `${inviterName} te invitó a compartir habitación en ${event?.title || "el viaje"}. Paquete: ${paquete}. Aceptá o rechazá desde tu reserva: ${eventLink}`;
     } else {
       // accepted → notify the inviter
       recipientEmail = inviter?.email || "";
