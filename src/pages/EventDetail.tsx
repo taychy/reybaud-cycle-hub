@@ -500,7 +500,12 @@ const EventDetail = () => {
   const isOpenAudience = publicAudience === "open";
 
   if ((premiumLanding as any)?.layout_variant === "editorial_maratona") {
-    return <MaratonaEditorialLanding title={premiumLanding?.headline || event.title} metadata={event.metadata} onBack={handleBack} eventId={event.id} contact={alumno ? {name: `${alumno.nombre} ${alumno.apellido}`, email: alumno.email || "", phone: alumno.telefono || ""} : undefined} />;
+    return <>
+      <MaratonaEditorialLanding title={premiumLanding?.headline || event.title} metadata={event.metadata} onBack={handleBack} eventId={event.id} contact={alumno ? {name: `${alumno.nombre} ${alumno.apellido}`, email: alumno.email || "", phone: alumno.telefono || ""} : undefined}
+        onNativeReserve={packageId=>{setChosenPackageId(packageId);if(alumno)setShowReservationDrawer(true);else setShowGuestDrawer(true);}} />
+      {alumno&&allowsParticipation&&<ReservationDrawer open={showReservationDrawer} onOpenChange={setShowReservationDrawer} event={event} alumno={alumno} onReserved={handleReservationCreated} eventNature={eventNature} initialPackageId={chosenPackageId} onPackageChange={setChosenPackageId}/>}
+      {allowsParticipation&&<GuestReservationDrawer open={showGuestDrawer} onOpenChange={setShowGuestDrawer} eventId={event.id} eventName={event.title} initialPackageId={chosenPackageId} onPackageChange={setChosenPackageId}/>}
+    </>;
   }
 
   return (

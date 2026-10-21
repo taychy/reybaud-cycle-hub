@@ -18,4 +18,4 @@
 - Shared rooms: metadata.shared_room_assignment + SQL trigger. Why: authority.
 - Rescheduling: owner session or verified link only; link scopes rows, switching clears guest/unsaved state and query; admin list via admin_rescheduling_report; refund timing from policy; sends gated ≤10. Why: no leaks.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
-- Pending intake reuses event_waitlist_entries; server prices/consent, admin eligibility, no money/inventory. Why: not places yet.
+- Trip intake: event_waitlist_entries; event_booking_openings gates native flow, locks one pool, audits idempotent conversion. Why: no premature places.

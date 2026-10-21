@@ -23,6 +23,7 @@ import {
 } from "@/lib/waitlistTypes";
 import { getShareOrigin, copyToClipboard } from "@/lib/eventLinks";
 import { csvCell } from "@/lib/rescheduling";
+import BookingOpeningChecklist from "@/components/admin/BookingOpeningChecklist";
 
 interface EventRow {
   id: string;
@@ -45,6 +46,8 @@ interface EntryRow {
   estado: WaitlistEntryState;
   admin_notas: string | null;
   created_at: string;
+  origen?: string;
+  converted_reservation_id?: string | null;
 }
 
 const ESTADO_PUB_LABELS: Record<string, string> = {
@@ -70,6 +73,20 @@ export default function AdminEventWaitlist() {
   const [filterEstado, setFilterEstado] = useState<string>("todos");
   const [search, setSearch] = useState("");
   const [viewing, setViewing] = useState<EntryRow | null>(null);
+  const [continuing, setContinuing] = useState<string | null>(null);
+  const [continuation, setContinuation] = useState<{entry:EntryRow;blockers:string[]} | null>(null);
+
+  const continueRequest = async (entry:EntryRow, confirm=false) => {
+    setContinuing(entry.id);
+    try {
+      const {data,error}=await supabase.rpc('admin_continue_booking_request',{p_entry_id:entry.id,p_confirm:confirm});
+      if(error)throw error;
+      const result=data as unknown as {ok:boolean;blockers?:string[];reservation_id?:string};
+      if(result.ok){setContinuation(null);toast({title:'Reserva continuada',description:'Sin seña acreditada ni plaza confirmada.'});await load();}
+      else setContinuation({entry,blockers:result.blockers||[]});
+    } catch(e) {toast({title:'No se pudo continuar',description:(e as {message?:string}).message,variant:'destructive'});}
+    finally{setContinuing(null);}
+  };
 
   const load = async () => {
     if (!id) return;
@@ -244,8 +261,9 @@ export default function AdminEventWaitlist() {
       </div>
 
       <Tabs defaultValue="anotados" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="anotados">Anotados ({entries.length})</TabsTrigger>
+        <TabsList className={isMaratona ? 'flex h-auto w-full flex-wrap justify-start gap-1' : undefined}>
+          <TabsTrigger value="anotados">{isMaratona ? 'Solicitudes de reserva' : 'Anotados'} ({entries.length})</TabsTrigger>
+          {isMaratona&&<TabsTrigger value="apertura">Apertura segura</TabsTrigger>}
           <TabsTrigger value="config">Configuración</TabsTrigger>
         </TabsList>
 
@@ -326,7 +344,7 @@ export default function AdminEventWaitlist() {
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                {WAITLIST_ENTRY_STATES.map((s) => (
+                                {WAITLIST_ENTRY_STATES.filter(s=>!isMaratona||s!=='convertido'||r.estado==='convertido').map((s) => (
                                   <SelectItem key={s} value={s}>{STATE_LABELS[s]}</SelectItem>
                                 ))}
                               </SelectContent>
@@ -334,6 +352,7 @@ export default function AdminEventWaitlist() {
                           </td>
                           <td className="py-2 px-2 text-right">
                             <div className="flex justify-end gap-1">
+                              {isMaratona&&r.origen==='solicitud_reserva_sin_pago'&&!r.converted_reservation_id&&<Button variant="outline" size="sm" disabled={continuing===r.id} onClick={()=>void continueRequest(r)}>{continuing===r.id?'Revisando…':'Continuar reserva'}</Button>}
                               <Button variant="ghost" size="icon" onClick={() => setViewing(r)} title="Ver respuestas">
                                 <Eye className="w-4 h-4" />
                               </Button>
@@ -360,6 +379,8 @@ export default function AdminEventWaitlist() {
             </CardContent>
           </Card>
         </TabsContent>
+
+        {isMaratona&&<TabsContent value="apertura"><BookingOpeningChecklist eventId={event.id}/></TabsContent>}
 
         <TabsContent value="config" className="space-y-4">
           <Card>
@@ -451,6 +472,14 @@ export default function AdminEventWaitlist() {
       </Tabs>
 
       {/* Ver respuestas */}
+      <Dialog open={!!continuation} onOpenChange={v=>!v&&setContinuation(null)}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto"><DialogHeader><DialogTitle>{continuation?.blockers.length?'Reserva bloqueada':'Continuar solicitud'}</DialogTitle></DialogHeader>
+          <p className="text-sm">{continuation?.entry.nombre}</p>
+          <ul className="space-y-2 text-sm text-muted-foreground">{continuation?.blockers.map(b=><li key={b}>• {b}</li>)}</ul>
+          <p className="text-sm text-muted-foreground">No se crea reserva ni se cobra mientras falte una verificación. La plaza se confirma únicamente después de aceptar condiciones y acreditar la seña.</p>
+          {continuation?.blockers.length===0&&<Button disabled={!!continuing} onClick={()=>continuation&&void continueRequest(continuation.entry,true)}>Crear reserva pendiente · sin cobrar</Button>}
+        </DialogContent>
+      </Dialog>
       <Dialog open={!!viewing} onOpenChange={(v) => !v && setViewing(null)}>
         <DialogContent className="max-w-lg max-h-[92vh] overflow-y-auto">
           <DialogHeader>
