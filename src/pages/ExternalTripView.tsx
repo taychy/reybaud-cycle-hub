@@ -1,3 +1,4 @@
+// Rooming UI sync v3
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { tripTokenGet, type TripTokenPackage, type TripTokenLodging } from "@/lib/tripTokenApi";
