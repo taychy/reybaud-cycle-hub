@@ -261,7 +261,7 @@ export default function AdminEventWaitlist() {
       </div>
 
       <Tabs defaultValue="anotados" className="space-y-4">
-        <TabsList>
+        <TabsList className={isMaratona ? 'flex h-auto w-full flex-wrap justify-start gap-1' : undefined}>
           <TabsTrigger value="anotados">{isMaratona ? 'Solicitudes de reserva' : 'Anotados'} ({entries.length})</TabsTrigger>
           {isMaratona&&<TabsTrigger value="apertura">Apertura segura</TabsTrigger>}
           <TabsTrigger value="config">Configuración</TabsTrigger>

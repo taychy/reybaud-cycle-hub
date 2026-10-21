@@ -233,11 +233,13 @@
 - [ ] Activación y ejecución monetaria: bloqueadas, requieren validación y autorización posterior
 
 ## Maratona · Apertura segura de reservas (21/10)
-- [ ] Integrar modalidad nativa con compuerta servidor cerrada por defecto
-- [ ] Checklist hotel/carrera en pool global, enlace propio y cuatro planes existentes
-- [ ] Solicitudes existentes visibles y conversión controlada sin duplicados
-- [ ] QA de bloqueos, cupos concurrentes y elegibilidad Alpes; sin publicación ni cobros
-- [ ] Apertura real bloqueada hasta capacidad y enlace de pago confirmados
+- [x] Enlace al flujo nativo con compuerta servidor cerrada por defecto; sin activar paquetes/planes
+- [x] Checklist hotel/carrera en pool global, enlace propio y cuatro planes existentes; sin valores inventados
+- [x] Cinco solicitudes conservadas y visibles; continuación auditada/idempotente bloqueada sin requisitos
+- [x] 738 pruebas y compilación OK; navegador público/admin propio verifica bloqueo sin escrituras
+- [ ] QA SQL reversible y concurrencia de apertura: requiere ejecutor SQL autorizado; script conservado, no ejecutado
+- [ ] Verificar flujo nativo completo (invitado/titular, condiciones, cuotas y validación admin) antes de marcarlo habilitable
+- [ ] Apertura real: faltan capacidades respaldadas, enlace propio, elegibilidad Alpes y autorización posterior; sin publicar ni cobros
 
 ## Maratona · Solicitudes de reserva y segunda edición comercial
 - [ ] Revisar reservas Alpes y reutilizar captación pendiente sin cobros
