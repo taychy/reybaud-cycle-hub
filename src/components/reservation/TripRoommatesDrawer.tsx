@@ -17,7 +17,7 @@ import { Badge } from "@/components/ui/badge";
 import { Loader2, UserPlus, Check, X, Mail, Users, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { fetchPackageAvailability, AvailabilityRow, formatAvailabilityRow, generoLabel } from "@/lib/packageAvailability";
-import { tripTokenRoommatesGet, tripTokenRoommateInvite, tripTokenRoommateRespond, tripTokenRequestIndividual } from "@/lib/tripTokenApi";
+import { tripTokenRoommatesGet, tripTokenRoommateInvite, tripTokenRoommateRespond, tripTokenRequestIndividual, tripTokenRoommateAssignmentStatus, tripTokenRequestRoommateAssignment } from "@/lib/tripTokenApi";
 
 interface Props {
   open: boolean;
@@ -64,6 +64,7 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
   const [individualPackageName, setIndividualPackageName] = useState<string | null>(null);
   const [individualAvailable, setIndividualAvailable] = useState<number>(0);
   const [individualRequestPending, setIndividualRequestPending] = useState(false);
+  const [roommateAssignmentPending, setRoommateAssignmentPending] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -78,6 +79,8 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
         setIndividualPackageName(data.individual_package_name ?? null);
         setIndividualAvailable(Number(data.individual_available ?? 0));
         setIndividualRequestPending(!!data.individual_request_pending);
+        const assignment = await tripTokenRoommateAssignmentStatus(token);
+        setRoommateAssignmentPending(!!assignment?.pending);
         setMyEmail("");
         return;
       }
@@ -237,6 +240,21 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
       onChanged?.();
     } catch (e: any) {
       toast.error(e.message || "No se pudo aceptar");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const requestRoommateAssignment = async () => {
+    if (!token) return;
+    setSaving(true);
+    try {
+      await tripTokenRequestRoommateAssignment(token);
+      setRoommateAssignmentPending(true);
+      toast.success("Solicitud enviada. Reybaud te va a asignar un compañero.");
+      onChanged?.();
+    } catch (e: any) {
+      toast.error(e.message || "No se pudo enviar la solicitud");
     } finally {
       setSaving(false);
     }
@@ -468,6 +486,24 @@ export default function TripRoommatesDrawer({ open, onOpenChange, reservationId,
                 <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-500 text-center">
                   ✓ Tu habitación está completa
                 </div>
+              )}
+
+              {token && capacity !== null && capacity > 1 && (
+                <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-2">
+                  <p className="text-sm font-semibold text-foreground">¿No tenés con quién compartir?</p>
+                  <p className="text-sm text-muted-foreground">
+                    Podés pedir que Reybaud te asigne un compañero entre los participantes del viaje.
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full"
+                    disabled={saving || roommateAssignmentPending}
+                    onClick={requestRoommateAssignment}
+                  >
+                    {roommateAssignmentPending ? "Solicitud enviada" : "Quiero que Reybaud me asigne un compañero"}
+                  </Button>
+                </section>
               )}
 
               {token && capacity !== null && capacity > 1 && individualPackageName && (
