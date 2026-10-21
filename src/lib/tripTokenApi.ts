@@ -128,13 +128,10 @@ export interface TripTokenRoommateParticipant {
 }
 
 export const tripTokenRoommatesGet = async (token: string) => {
-  const { data, error } = await supabase.functions.invoke<any>(
-    "get-event-participant-by-token",
-    { body: { action: "trip_roommates_get", token } },
-  );
+  const { data, error } = await supabase.rpc("trip_roommates_get_by_token" as any, { p_token: token });
   if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error ?? "trip_roommates_get_failed");
-  return data as {
+  if (!(data as any)?.ok) throw new Error((data as any)?.error ?? "trip_roommates_get_failed");
+  return data as unknown as {
     ok: true;
     capacity: number | null;
     outgoing: TripTokenRoommateRow[];
@@ -144,13 +141,19 @@ export const tripTokenRoommatesGet = async (token: string) => {
 };
 
 export const tripTokenRoommateInvite = async (token: string, target_reservation_id: string) => {
-  const { data, error } = await supabase.functions.invoke<any>(
-    "get-event-participant-by-token",
-    { body: { action: "trip_roommates_invite", token, target_reservation_id } },
-  );
+  const { data, error } = await supabase.rpc("trip_roommate_invite_by_token" as any, {
+    p_token: token,
+    p_target_reservation_id: target_reservation_id,
+  });
   if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error ?? "trip_roommates_invite_failed");
-  return data;
+  const res = data as any;
+  if (!res?.ok) throw new Error(res?.error ?? "trip_roommates_invite_failed");
+  if (res.roommate_id) {
+    supabase.functions.invoke("send-roommate-notification", {
+      body: { kind: "invite", roommate_id: res.roommate_id },
+    }).catch(() => {});
+  }
+  return res;
 };
 
 export const tripTokenRoommateRespond = async (
@@ -158,11 +161,18 @@ export const tripTokenRoommateRespond = async (
   roommate_id: string,
   roommate_response: "accept" | "reject",
 ) => {
-  const { data, error } = await supabase.functions.invoke<any>(
-    "get-event-participant-by-token",
-    { body: { action: "trip_roommates_respond", token, roommate_id, roommate_response } },
-  );
+  const { data, error } = await supabase.rpc("trip_roommate_respond_by_token" as any, {
+    p_token: token,
+    p_roommate_id: roommate_id,
+    p_response: roommate_response,
+  });
   if (error) throw error;
-  if (!data?.ok) throw new Error(data?.error ?? "trip_roommates_respond_failed");
-  return data;
+  const res = data as any;
+  if (!res?.ok) throw new Error(res?.error ?? "trip_roommates_respond_failed");
+  if (roommate_response === "accept") {
+    supabase.functions.invoke("send-roommate-notification", {
+      body: { kind: "accepted", roommate_id },
+    }).catch(() => {});
+  }
+  return res;
 };
