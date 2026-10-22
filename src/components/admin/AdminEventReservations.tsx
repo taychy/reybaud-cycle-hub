@@ -1507,7 +1507,10 @@ const AdminEventReservations = ({
 
       {/* ─── Stats Cards ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label={isSchoolEvent ? "Total inscriptos" : "Total reservas"} value={stats.total} icon={<Users className="w-4 h-4" />} />
+        <StatCard label={isSchoolEvent ? "Total inscriptos" : isMaratona ? "Reservas formales" : "Total reservas"} value={stats.total} icon={<Users className="w-4 h-4" />} />
+        {isMaratona && (
+          <StatCard label="Solicitudes recibidas" value={pendingRequests.length} color="text-sky-400" icon={<ClipboardList className="w-4 h-4" />} />
+        )}
         <StatCard label="Confirmadas" value={stats.confirmed} color="text-emerald-500" icon={<CheckCircle className="w-4 h-4" />} />
         <StatCard label="Pendientes" value={stats.pending} color="text-amber-500" icon={<Clock className="w-4 h-4" />} />
         {!isPaymentFree && (
