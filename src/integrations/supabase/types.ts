@@ -21032,6 +21032,27 @@ export type Database = {
         }
         Returns: undefined
       }
+      trip_request_individual_by_token: {
+        Args: { p_note?: string; p_token: string }
+        Returns: Json
+      }
+      trip_request_roommate_assignment_by_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      trip_roommate_assignment_status_by_token: {
+        Args: { p_token: string }
+        Returns: Json
+      }
+      trip_roommate_invite_by_token: {
+        Args: { p_target_reservation_id: string; p_token: string }
+        Returns: Json
+      }
+      trip_roommate_respond_by_token: {
+        Args: { p_response: string; p_roommate_id: string; p_token: string }
+        Returns: Json
+      }
+      trip_roommates_get_by_token: { Args: { p_token: string }; Returns: Json }
       unassign_mp_movement: { Args: { _movement_id: string }; Returns: Json }
       unsubscribe_broadcast: { Args: { p_token: string }; Returns: boolean }
       update_event_gasto: {
