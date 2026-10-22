@@ -829,6 +829,10 @@ const AdminEventReservations = ({
     };
   }, [reservations]);
 
+  /* ─── Solicitudes sin pago pendientes de formalizar (Maratona) ─── */
+  const pendingRequests = useMemo(() => pendingBookingRequests(bookingRequests), [bookingRequests]);
+  const formalEmails = useMemo(() => formalReservationEmails(reservations), [reservations]);
+
   /* ─── Filtering + Sorting ─── */
 
   const filtered = useMemo(() => {
