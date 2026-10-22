@@ -319,6 +319,10 @@ const AdminEventReservations = ({
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
+  // Solicitudes de reserva sin pago (Maratona): visibles acá para que no queden "escondidas" en lista de espera.
+  const isMaratona = eventId === MARATONA_EVENT_ID;
+  const [bookingRequests, setBookingRequests] = useState<BookingRequestRow[]>([]);
+  const [bookingRequestsError, setBookingRequestsError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [filterResStatus, setFilterResStatus] = useState("all");
