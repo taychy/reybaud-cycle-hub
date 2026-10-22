@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatPrice } from '@/lib/currency';
-import { canSubmitQuickBooking, combinedSubtotal, depositAction, isClicPayUrl, readCrossSellToken, RESERVATION_STATUS_LABEL, roomChoiceRequired, type CrossSellContext, type CrossSellExisting, type RoomChoice } from '@/lib/crossSellQuickBooking';
+import { canSubmitQuickBooking, combinedSubtotal, DEFAULT_DEPOSIT_AMOUNT, depositAction, depositPending, isClicPayUrl, readCrossSellToken, RESERVATION_STATUS_LABEL, roomChoiceRequired, type CrossSellContext, type CrossSellExisting, type RoomChoice } from '@/lib/crossSellQuickBooking';
 import { buildWhatsAppUrl } from '@/lib/contactInfo';
 
 /** Reserva rápida para titulares activos del viaje vinculado. Datos y tarifa los resuelve el servidor (sesión o enlace personal). */
@@ -41,7 +41,7 @@ export default function CrossSellQuickBooking({ eventId }: { eventId: string }) 
     <p className="text-xs font-semibold uppercase tracking-widest text-primary">Reserva rápida · participantes de La Conquista Alpina</p>
     <h2 className="font-heading text-2xl font-bold uppercase">Hola {ctx.first_name}, ya tenemos tus datos</h2>
     <p className="text-sm text-muted-foreground">Usamos los datos de tu reserva de La Conquista Alpina ({ctx.source?.package}, {ctx.email_masked}). No hace falta volver a cargarlos.</p>
-    {ctx.existing ? <DepositBlock existing={ctx.existing} depositUrl={ctx.deposit?.url ?? null} /> : <>
+    {ctx.existing ? <DepositBlock existing={ctx.existing} depositUrl={ctx.deposit?.url ?? null} depositAmount={ctx.deposit?.amount} /> : <>
       <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Tarifa especial">
         {ctx.packages?.map(p => <button key={p.id} type="button" role="radio" aria-checked={pkgId === p.id} onClick={() => setPkgId(p.id)}
           className={'rounded-md border p-4 text-left ' + (pkgId === p.id ? 'border-primary bg-primary/10' : 'border-border')}>
@@ -66,8 +66,10 @@ export default function CrossSellQuickBooking({ eventId }: { eventId: string }) 
 }
 
 /** Después de reservar (o al volver a entrar): datos mínimos de la reserva propia y cómo pagar la seña. */
-function DepositBlock({ existing, depositUrl }: { existing: CrossSellExisting; depositUrl: string | null }) {
-  const action = depositAction(existing);
+function DepositBlock({ existing, depositUrl, depositAmount }: { existing: CrossSellExisting; depositUrl: string | null; depositAmount?: number }) {
+  const amount = Number(depositAmount) > 0 ? Number(depositAmount) : DEFAULT_DEPOSIT_AMOUNT;
+  const action = depositAction(existing, amount);
+  const pending = depositPending(existing, amount);
   const cur = existing.currency || 'EUR';
   const ref = existing.reference ? `MARATONA-${existing.reference}` : null;
   const url = isClicPayUrl(depositUrl) ? depositUrl : null;
@@ -80,8 +82,13 @@ function DepositBlock({ existing, depositUrl }: { existing: CrossSellExisting; d
       <div><dt className="inline text-muted-foreground">Pagos acreditados: </dt><dd className="inline">{formatPrice(Number(existing.paid ?? 0), cur)}</dd></div>
       {ref && <div className="sm:col-span-2"><dt className="inline text-muted-foreground">Referencia de reserva: </dt><dd className="inline font-mono font-semibold">{ref}</dd></div>}
     </dl>
-    {action === 'paid' && <p className="text-sm">Ya registramos un pago en tu reserva. Las próximas cuotas se informan desde tu plan de pagos.</p>}
+    {action === 'paid' && <p className="text-sm">La seña está acreditada. Las próximas cuotas se informan desde tu plan de pagos.</p>}
     {action === 'informed' && <p className="text-sm">Ya nos informaste un pago: Administración lo está validando con tu comprobante.</p>}
+    {action === 'partial' && <>
+      <p className="text-sm">Registramos un pago parcial de la seña. Quedan <strong>{formatPrice(pending, cur)}</strong> pendientes para completarla.</p>
+      <p className="text-sm text-muted-foreground">El enlace de ClicPay es por el importe completo de la seña, así que no sirve para este saldo. Escribinos por WhatsApp con la referencia {ref ?? 'de tu reserva'} y coordinamos cómo completarlo (transferencia o efectivo).</p>
+      <Button asChild variant="outline" size="sm"><a href={buildWhatsAppUrl(`Hola, quiero completar la seña de Maratona (saldo ${formatPrice(pending, cur)}). Referencia ${ref ?? ''}`.trim())} target="_blank" rel="noopener noreferrer">Coordinar saldo de la seña por WhatsApp</a></Button>
+    </>}
     {action === 'pay' && <>
       {url ? <Button asChild size="lg" className="w-full sm:w-auto"><a href={url} target="_blank" rel="noopener noreferrer">Pagar seña de EUR 500 por ClicPay</a></Button>
         : <p className="text-sm text-destructive">El enlace de pago no está disponible en este momento. Escribinos y te lo enviamos.</p>}
