@@ -52,11 +52,11 @@ const NOT_INCLUDED = ["Pasajes aéreos", "Seguro de viaje", "Gastos personales"]
 
 const FAQ = [
   ["¿La bicicleta está incluida?", "Sí. Cannondale SuperSix EVO / Scott Addict, Shimano 105 electrónico, modelo y talle según disponibilidad. Si llevás tu bicicleta: Solo Maratona €3.100 (−€400); para participantes de La Conquista Alpina €2.800 (−€200). La tarifa €3.000 con bicicleta requiere alquilar en ambos viajes, previa validación."],
-  ["¿Puedo hacer ambas experiencias?", "Sí. En habitación doble: La Conquista Alpina €3.890 + Maratona €3.000 con bicicleta = €6.890; con bicicleta propia en la Maratona, su precio baja a €2.800 y el subtotal combinado a €6.690. Es el subtotal de los dos programas, NO el costo total del período. Del 21/6 al 5/7 son 15 días calendario, con 7 noches de La Conquista Alpina y 5 de Maratona. Las 2 noches y el traslado intermedio del 28 al 30/6 están pendientes de cotización y NO incluidos. Esta solicitud solo corresponde a Maratona; La Conquista Alpina se reserva por separado."],
+  ["¿Puedo hacer ambas experiencias?", "Sí. En habitación doble: La Conquista Alpina €3.890 + Maratona €3.000 con bicicleta = €6.890; con bicicleta propia en la Maratona, su precio baja a €2.800 y el subtotal combinado a €6.690. Es el subtotal de los dos programas, NO el costo total del período. Del 21/6 al 5/7 son 15 días calendario, con 7 noches de La Conquista Alpina y 5 de Maratona. Las 2 noches y el traslado intermedio del 28 al 30/6 están pendientes de cotización y NO incluidos. Esta reserva solo corresponde a Maratona; La Conquista Alpina se reserva por separado."],
   ["¿Qué días tengo que volar?", "Llegada a Venecia el 30 de junio antes de las 12 h, regreso el 5 de julio en vuelos posteriores a las 15 h. Consultanos antes de comprar pasajes."],
   ["¿Cómo es la habitación?", "El alojamiento es en habitación doble. No hay habitaciones individuales disponibles por alta demanda hotelera."],
   ["¿Tengo que prepararme?", "Sí, es una prueba de montaña exigente. El programa incluye reconocimiento de puertos y acompañamiento en destino; el plan de entrenamiento previo está incluido. Escribinos y te explicamos."],
-  ["¿Ya puedo reservar?", "Sí, podés iniciar tu reserva con el botón Reservar. Se registra una solicitud pendiente: la confirmación de la plaza depende de disponibilidad, validación administrativa y condiciones de pago. No se cobra seña ni se confirma plaza al enviar."],
+  ["¿Ya puedo reservar?", "Sí. Con el botón Reservar registrás una reserva formal, pendiente de la seña de EUR 500. La plaza queda confirmada solo cuando Administración valida la seña acreditada, y siempre sujeta al cupo disponible. Reservar no confirma la plaza por sí solo. El saldo se paga en ocho cuotas en EUR."],
 ];
 
 export default function MaratonaEditorialLanding({ title, metadata, onBack, eventId, contact, onNativeReserve }: Props) {
@@ -254,7 +254,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
 
         <section className="rounded-lg border border-border bg-card p-8 text-center sm:p-12">
           <h2 className={h2}>El 4 de julio te esperamos en la largada</h2>
-          <p className="mx-auto mt-4 max-w-lg text-foreground/80">Iniciá tu solicitud y coordinamos los próximos pasos, sin cobro automático.</p>
+          <p className="mx-auto mt-4 max-w-lg text-foreground/80">{nativeOpen?'Iniciá tu reserva: seña EUR 500 + ocho cuotas. La plaza se confirma cuando validamos la seña.':'Iniciá tu solicitud y coordinamos los próximos pasos, sin cobro automático.'}</p>
           <Cta className="mt-8 w-full sm:w-auto" />
         </section>
       </main>
