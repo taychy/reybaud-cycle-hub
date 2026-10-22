@@ -498,6 +498,25 @@ const AdminEventReservations = ({
     loadRoomAssignments();
     loadOverdueInstallments(((data as any[]) || []).map((r) => r.id));
     loadTransfers();
+    loadBookingRequests();
+  };
+
+  /* ─── Solicitudes de reserva sin pago (solo Maratona) ─── */
+  const loadBookingRequests = async () => {
+    if (!isMaratona) { setBookingRequests([]); setBookingRequestsError(null); return; }
+    const { data, error } = await supabase
+      .from("event_waitlist_entries" as any)
+      .select("id, nombre, email, estado, origen, converted_reservation_id, respuestas, created_at")
+      .eq("event_id", eventId)
+      .eq("origen", "solicitud_reserva_sin_pago")
+      .order("created_at", { ascending: true });
+    if (error) {
+      setBookingRequests([]);
+      setBookingRequestsError(error.message || "No se pudieron cargar las solicitudes.");
+      return;
+    }
+    setBookingRequestsError(null);
+    setBookingRequests(((data as any[]) || []) as BookingRequestRow[]);
   };
 
   /* ─── Cupos en reventa / transferencias ─── */
