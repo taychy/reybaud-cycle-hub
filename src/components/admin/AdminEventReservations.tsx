@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
 import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
 import TransferAgreementPanel, { OriginalDirectReceived } from "@/components/admin/TransferAgreementPanel";
@@ -23,8 +24,13 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
-  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package, BedDouble,
+  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package, BedDouble, ClipboardList, ExternalLink,
 } from "lucide-react";
+import { MARATONA_EVENT_ID } from "@/lib/eventBookingOpening";
+import {
+  pendingBookingRequests, formalReservationEmails, requestMatchesFormalReservation,
+  isInternalTestRequest, requestTariffLabel, type BookingRequestRow,
+} from "@/lib/bookingRequestsPanel";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
