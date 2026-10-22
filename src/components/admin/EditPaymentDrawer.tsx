@@ -105,8 +105,9 @@ const EditPaymentDrawer = ({ open, onOpenChange, payment, mode, onDone }: EditPa
     }
 
     // Insert audit records
+    const rectChangeIds: string[] = [];
     for (const c of changes) {
-      await supabase.from("reservation_payment_changes" as any).insert({
+      const { data: auditRow } = await supabase.from("reservation_payment_changes" as any).insert({
         payment_id: payment.id,
         reservation_id: payment.reservation_id,
         action: "edicion",
@@ -116,7 +117,8 @@ const EditPaymentDrawer = ({ open, onOpenChange, payment, mode, onDone }: EditPa
         reason: null,
         changed_by: userId,
         changed_by_email: userEmail,
-      } as any);
+      } as any).select("id").maybeSingle();
+      if ((c.field === "amount" || c.field === "currency") && (auditRow as any)?.id) rectChangeIds.push((auditRow as any).id);
     }
 
     // Update the payment
@@ -165,7 +167,7 @@ const EditPaymentDrawer = ({ open, onOpenChange, payment, mode, onDone }: EditPa
     // Rectificación por email: solo si cambió importe o moneda y el pago había sido notificado.
     if (requiresRectification(changes)) {
       const { data, error: fnErr } = await supabase.functions.invoke("send-reservation-payment-rectification", {
-        body: { payment_id: payment.id },
+        body: { payment_id: payment.id, change_ids: rectChangeIds },
       });
       const outcome = interpretRectificationResponse(data, fnErr);
       if (outcome.kind === "sent") toast({ title: "Rectificación encolada para envío por email." });

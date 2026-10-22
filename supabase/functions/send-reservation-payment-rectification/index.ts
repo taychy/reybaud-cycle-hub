@@ -2,7 +2,7 @@
 // of a reservation payment that had previously been notified by email ("pago_registrado").
 // - Admin only (JWT + public.user_roles / is_super_admin).
 // - Old/new values are read from the server-side audit (reservation_payment_changes),
-//   never from the browser. Only edits made in the last 30 minutes qualify (no retro sends).
+//   never from the browser. Only the caller's own audit rows (change_ids) from the last 5 minutes qualify (no retro sends).
 // - Idempotent per audit change (notify-reservation enforces unique idempotency_key).
 // - Delegates queueing + logging to notify-reservation (tipo 'pago_rectificado').
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -46,8 +46,10 @@ Deno.serve(async (req) => {
     }
     if (!isAdmin) return json({ error: "Solo administración" }, 403);
 
-    const { payment_id } = await req.json();
+    const { payment_id, change_ids } = await req.json();
     if (!payment_id) return json({ error: "Falta payment_id" }, 400);
+    // Only the admin who just made the correction, for the exact audit rows just inserted.
+    if (!Array.isArray(change_ids) || change_ids.length === 0) return json({ sent: false, reason: "missing_change_ids" }, 400);
 
     const { data: p } = await sb.from("reservation_payments")
       .select("id, reservation_id, amount, currency, original_amount, original_currency, equivalent_amount_event_currency, payment_date, payment_method, payment_reference, created_at, anulado_at")
@@ -56,10 +58,11 @@ Deno.serve(async (req) => {
     if (p.anulado_at) return json({ sent: false, reason: "payment_annulled" });
 
     // Latest amount/currency correction from the server-side audit.
-    const since = new Date(Date.now() - 30 * 60000).toISOString();
+    const since = new Date(Date.now() - 5 * 60000).toISOString();
     const { data: changes } = await sb.from("reservation_payment_changes")
       .select("id, field_changed, old_value, new_value, created_at")
       .eq("payment_id", p.id).eq("action", "edicion").in("field_changed", ["amount", "currency"])
+      .in("id", change_ids).eq("changed_by", uid)
       .gte("created_at", since).order("created_at", { ascending: false }).limit(4);
     if (!changes || changes.length === 0) return json({ sent: false, reason: "no_recent_amount_change" });
     const latestAt = new Date(changes[0].created_at).getTime();
