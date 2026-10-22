@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Save, ShieldCheck } from 'lucide-react';
 import BookingCrossSellAudience from '@/components/admin/BookingCrossSellAudience';
+import CrossSellMailingPreview from '@/components/admin/CrossSellMailingPreview';
 import type { BookingOpening } from '@/lib/eventBookingOpening';
 
 export default function BookingOpeningChecklist({eventId}:{eventId:string}) {
