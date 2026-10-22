@@ -1915,6 +1915,11 @@ const AdminEventReservations = ({
         <div className="text-center py-12 text-muted-foreground">
           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No hay {termReservas} que coincidan.</p>
+          {isMaratona && pendingRequests.length > 0 && reservations.length === 0 && (
+            <p className="text-xs mt-2 text-sky-400">
+              No hay reservas formales todavía; tenés {pendingRequests.length} {pendingRequests.length === 1 ? "solicitud" : "solicitudes"} arriba para revisar.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-0">
