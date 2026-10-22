@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import { PAYMENT_METHODS } from "@/lib/paymentMethods";
+import { requiresRectification, interpretRectificationResponse } from "@/lib/paymentRectification";
 import { Loader2, Pencil, Ban, AlertTriangle } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -147,10 +148,33 @@ const EditPaymentDrawer = ({ open, onOpenChange, payment, mode, onDone }: EditPa
     }
 
     // Recalculate totals
-    await supabase.rpc("recalculate_reservation_payment_totals" as any, { p_reservation_id: payment.reservation_id });
+    const { error: recalcErr } = await supabase.rpc("recalculate_reservation_payment_totals" as any, { p_reservation_id: payment.reservation_id });
+    if (recalcErr) {
+      setSubmitting(false);
+      toast({
+        title: "Pago editado, pero no se pudo recalcular el saldo.",
+        description: `${recalcErr.message}. No se envió ninguna rectificación.`,
+        variant: "destructive",
+      });
+      onDone();
+      return;
+    }
+
+    toast({ title: "Pago editado correctamente." });
+
+    // Rectificación por email: solo si cambió importe o moneda y el pago había sido notificado.
+    if (requiresRectification(changes)) {
+      const { data, error: fnErr } = await supabase.functions.invoke("send-reservation-payment-rectification", {
+        body: { payment_id: payment.id },
+      });
+      const outcome = interpretRectificationResponse(data, fnErr);
+      if (outcome.kind === "sent") toast({ title: "Rectificación encolada para envío por email." });
+      else if (outcome.kind === "duplicate") toast({ title: "La rectificación de esta corrección ya había sido registrada." });
+      else if (outcome.kind === "no_original") toast({ title: "Sin rectificación: este pago no tenía un aviso por email previo." });
+      else toast({ title: "El pago se corrigió, pero la rectificación NO se envió.", description: outcome.message, variant: "destructive" });
+    }
 
     setSubmitting(false);
-    toast({ title: "Pago editado correctamente." });
     onOpenChange(false);
     onDone();
   };

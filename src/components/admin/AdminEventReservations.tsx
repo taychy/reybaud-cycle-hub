@@ -2713,11 +2713,7 @@ const AdminEventReservations = ({
                           const newId = v === "__general__" ? null : v;
                           setAdminPayInstallmentId(newId);
                           setAdminPayGeneralReason("");
-                          if (newId) {
-                            const inst = matInstallments.find((i: any) => i.id === newId);
-                            const pending = inst ? parseFloat(inst.balance_due ?? inst.amount ?? 0) : 0;
-                            if (pending > 0) onAmountChange(String(pending));
-                          }
+                          // La cuota solo define la imputación: nunca pisa monto, cotización ni equivalente.
                         }}>
 
                           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
