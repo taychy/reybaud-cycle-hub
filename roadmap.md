@@ -267,3 +267,9 @@
 - [x] Correo HTML/texto sin caracteres corruptos; versión v2-ascii desplegada y verificada mediante preview autenticado (sin enviar)
 - [x] 713 pruebas Vitest + 2 Deno; compilación OK; móvil 320/390 y escritorio, sesión real propia y acceso anónimo verificados sin guardar
 - [ ] Publicar y verificar producción: espera decisión sobre 6 hallazgos críticos previos informados; no se modificaron ni ignoraron
+
+## Maratona · Reserva rápida para titulares Alpes (22/10)
+- [x] Lista de invitación solo lectura en Apertura segura (excluye quienes ya pidieron/reservaron Maratona y bajas), con compañero de habitación Alpes
+- [ ] Cupo 20 dobles: confirmar si son 20 personas o 20 habitaciones y cupo de carrera (hoy 10/10)
+- [ ] Tarifa €3.000 con bici: el viaje Alpes no registra alquiler de bici (sin paquete/adicional) → bloqueada
+- [ ] Enlace de pago propio, verificación de recorrido nativo, copia de habitación al reservar

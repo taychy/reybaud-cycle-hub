@@ -519,6 +519,13 @@
       "when": 1792609570185,
       "tag": "0073_scope_controlled_booking_guard_to_configured_trips",
       "breakpoints": true
+    },
+    {
+      "idx": 74,
+      "version": "7",
+      "when": 1792701383378,
+      "tag": "0074_admin_booking_crosssell_audience",
+      "breakpoints": true
     }
   ]
 }
