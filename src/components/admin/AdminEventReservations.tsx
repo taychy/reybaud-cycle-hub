@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { installmentPendingHint } from "@/lib/paymentRectification";
 import { Link } from "react-router-dom";
 import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
 import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
@@ -2713,11 +2714,7 @@ const AdminEventReservations = ({
                           const newId = v === "__general__" ? null : v;
                           setAdminPayInstallmentId(newId);
                           setAdminPayGeneralReason("");
-                          if (newId) {
-                            const inst = matInstallments.find((i: any) => i.id === newId);
-                            const pending = inst ? parseFloat(inst.balance_due ?? inst.amount ?? 0) : 0;
-                            if (pending > 0) onAmountChange(String(pending));
-                          }
+                          // La cuota solo define la imputación: nunca pisa monto, cotización ni equivalente.
                         }}>
 
                           <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
@@ -2730,6 +2727,12 @@ const AdminEventReservations = ({
                             ))}
                           </SelectContent>
                         </Select>
+                        {adminPayInstallmentId && (() => {
+                          const hintVal = installmentPendingHint(matInstallments.find((i: any) => i.id === adminPayInstallmentId));
+                          return hintVal ? (
+                            <p className="text-[11px] text-muted-foreground">Saldo de esta cuota: {formatPrice(hintVal, evCurr)} (solo referencia; el monto no se modifica).</p>
+                          ) : null;
+                        })()}
                       </div>
                     )}
 
