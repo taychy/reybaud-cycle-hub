@@ -7,6 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { Save, ShieldCheck } from 'lucide-react';
 import BookingCrossSellAudience from '@/components/admin/BookingCrossSellAudience';
+import CrossSellMailingPreview from '@/components/admin/CrossSellMailingPreview';
 import type { BookingOpening } from '@/lib/eventBookingOpening';
 
 export default function BookingOpeningChecklist({eventId}:{eventId:string}) {
@@ -48,6 +49,7 @@ export default function BookingOpeningChecklist({eventId}:{eventId:string}) {
     <div><Label htmlFor="alps-trip">Viaje cuya reserva permite la tarifa Alpes</Label><select id="alps-trip" className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={form.alps_event_id} onChange={e=>setForm({...form,alps_event_id:e.target.value,alps_bike_package_ids:[]})}><option value="">Sin verificar</option>{trips.map(t=><option key={t.id} value={t.id}>{t.title}</option>)}</select></div>
     {bikePackages.length>0&&<fieldset className="space-y-2"><legend className="mb-2 text-sm">Paquetes de Alpes que incluyen alquiler de bicicleta confirmado</legend>{bikePackages.map(p=><label key={p.id} className="flex items-center gap-2 text-sm"><Checkbox checked={form.alps_bike_package_ids.includes(p.id)} onCheckedChange={v=>setForm({...form,alps_bike_package_ids:v===true?[...form.alps_bike_package_ids,p.id]:form.alps_bike_package_ids.filter(id=>id!==p.id)})}/>{p.nombre}</label>)}</fieldset>}
     {form.alps_event_id&&<BookingCrossSellAudience eventId={eventId} sourceEventId={form.alps_event_id}/>}
+    {form.alps_event_id&&<CrossSellMailingPreview eventId={eventId}/>}
     <ul className="space-y-2 text-sm text-muted-foreground">{status?.blockers.map(b=><li key={b}>• {b}</li>)}</ul>
     {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
     <Button variant="outline" disabled={busy||!status} onClick={save}><Save className="mr-2 h-4 w-4"/>{busy?'Guardando…':'Guardar preparación sin abrir reservas'}</Button>

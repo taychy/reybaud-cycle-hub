@@ -283,3 +283,10 @@
 - [ ] Correo a 7 solicitudes previas y a titulares Alpes — no enviar sin autorización
 - [ ] Completar compañero cuando el segundo de la pareja reserva después (hoy queda "propuesto")
 - [ ] 6 avisos de seguridad pendientes
+
+## Maratona — pendientes antes del mailing (22/10 noche)
+- [x] Bloque de pago de seña tras reservar y al reingresar (ClicPay validado, referencia, efectivo, comprobante por WhatsApp)
+- [x] Reserva rápida vincula la solicitud propia en la misma transacción; ambiguas se registran sin vincular
+- [x] Vista previa del mailing A (10) / B (1) con exclusiones, sin enlaces reales
+- [ ] Envío del mailing: no implementado; A es promocional (requiere servicio de marketing), B espera aprobación de Dirección
+- [ ] Rectificación de Natalia Basilico ya enviada por error (22:23); Victoria Landó pendiente de revisión

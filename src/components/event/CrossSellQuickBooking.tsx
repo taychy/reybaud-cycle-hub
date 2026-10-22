@@ -4,7 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { formatPrice } from '@/lib/currency';
-import { canSubmitQuickBooking, combinedSubtotal, readCrossSellToken, roomChoiceRequired, type CrossSellContext, type RoomChoice } from '@/lib/crossSellQuickBooking';
+import { canSubmitQuickBooking, combinedSubtotal, depositAction, isClicPayUrl, readCrossSellToken, RESERVATION_STATUS_LABEL, roomChoiceRequired, type CrossSellContext, type CrossSellExisting, type RoomChoice } from '@/lib/crossSellQuickBooking';
+import { buildWhatsAppUrl } from '@/lib/contactInfo';
 
 /** Reserva rápida para titulares activos del viaje vinculado. Datos y tarifa los resuelve el servidor (sesión o enlace personal). */
 export default function CrossSellQuickBooking({ eventId }: { eventId: string }) {
@@ -32,7 +33,7 @@ export default function CrossSellQuickBooking({ eventId }: { eventId: string }) 
     setBusy(false);
     if (error) { setMsg({ ok: false, text: error.message.includes('bloqueada') ? 'Las reservas formales todavía no están abiertas. Te avisamos cuando puedas completarla.' : error.message }); return; }
     const d = data as { already?: boolean };
-    setMsg({ ok: true, text: d.already ? 'Ya tenés una reserva de Maratona: no se creó otra.' : 'Reserva registrada, pendiente de seña EUR 500. La plaza se confirma cuando Administración valide tu comprobante.' });
+    setMsg({ ok: true, text: d.already ? 'Ya tenías una reserva de Maratona: no se creó otra.' : 'Reserva registrada. Ahora podés pagar la seña.' });
     void load();
   };
 
@@ -40,7 +41,7 @@ export default function CrossSellQuickBooking({ eventId }: { eventId: string }) 
     <p className="text-xs font-semibold uppercase tracking-widest text-primary">Reserva rápida · participantes de La Conquista Alpina</p>
     <h2 className="font-heading text-2xl font-bold uppercase">Hola {ctx.first_name}, ya tenemos tus datos</h2>
     <p className="text-sm text-muted-foreground">Usamos los datos de tu reserva de La Conquista Alpina ({ctx.source?.package}, {ctx.email_masked}). No hace falta volver a cargarlos.</p>
-    {ctx.existing ? <p role="status" className="font-medium">Ya tenés una reserva de Maratona ({ctx.existing.package}).</p> : <>
+    {ctx.existing ? <DepositBlock existing={ctx.existing} depositUrl={ctx.deposit?.url ?? null} /> : <>
       <div className="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Tarifa especial">
         {ctx.packages?.map(p => <button key={p.id} type="button" role="radio" aria-checked={pkgId === p.id} onClick={() => setPkgId(p.id)}
           className={'rounded-md border p-4 text-left ' + (pkgId === p.id ? 'border-primary bg-primary/10' : 'border-border')}>
@@ -62,4 +63,34 @@ export default function CrossSellQuickBooking({ eventId }: { eventId: string }) 
     </>}
     {msg && <p role={msg.ok ? 'status' : 'alert'} className={msg.ok ? 'text-sm' : 'text-sm text-destructive'}>{msg.text}</p>}
   </section>;
+}
+
+/** Después de reservar (o al volver a entrar): datos mínimos de la reserva propia y cómo pagar la seña. */
+function DepositBlock({ existing, depositUrl }: { existing: CrossSellExisting; depositUrl: string | null }) {
+  const action = depositAction(existing);
+  const cur = existing.currency || 'EUR';
+  const ref = existing.reference ? `MARATONA-${existing.reference}` : null;
+  const url = isClicPayUrl(depositUrl) ? depositUrl : null;
+  return <div role="status" className="space-y-3 rounded-md border border-border bg-background/40 p-4" data-testid="crosssell-deposit">
+    <p className="font-heading text-lg font-bold uppercase">Tu reserva de Maratona</p>
+    <dl className="grid gap-1 text-sm sm:grid-cols-2">
+      <div><dt className="inline text-muted-foreground">Paquete: </dt><dd className="inline">{existing.package}</dd></div>
+      {existing.price != null && <div><dt className="inline text-muted-foreground">Precio: </dt><dd className="inline">{formatPrice(Number(existing.price), cur)}</dd></div>}
+      <div><dt className="inline text-muted-foreground">Estado: </dt><dd className="inline">{RESERVATION_STATUS_LABEL[existing.status] ?? existing.status}</dd></div>
+      <div><dt className="inline text-muted-foreground">Pagos acreditados: </dt><dd className="inline">{formatPrice(Number(existing.paid ?? 0), cur)}</dd></div>
+      {ref && <div className="sm:col-span-2"><dt className="inline text-muted-foreground">Referencia de reserva: </dt><dd className="inline font-mono font-semibold">{ref}</dd></div>}
+    </dl>
+    {action === 'paid' && <p className="text-sm">Ya registramos un pago en tu reserva. Las próximas cuotas se informan desde tu plan de pagos.</p>}
+    {action === 'informed' && <p className="text-sm">Ya nos informaste un pago: Administración lo está validando con tu comprobante.</p>}
+    {action === 'pay' && <>
+      {url ? <Button asChild size="lg" className="w-full sm:w-auto"><a href={url} target="_blank" rel="noopener noreferrer">Pagar seña de EUR 500 por ClicPay</a></Button>
+        : <p className="text-sm text-destructive">El enlace de pago no está disponible en este momento. Escribinos y te lo enviamos.</p>}
+      <ul className="list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+        <li>El pago no se acredita solo: guardá el comprobante de ClicPay y envialo por WhatsApp indicando la referencia {ref ?? 'de tu reserva'}.</li>
+        <li>La plaza queda confirmada cuando Administración valida la seña.</li>
+        <li>¿Preferís pagar en efectivo? Avisanos por WhatsApp y coordinamos.</li>
+      </ul>
+      <Button asChild variant="outline" size="sm"><a href={buildWhatsAppUrl(`Hola, envío el comprobante de la seña de Maratona. Referencia ${ref ?? ''}`.trim())} target="_blank" rel="noopener noreferrer">Enviar comprobante por WhatsApp</a></Button>
+    </>}
+  </div>;
 }
