@@ -274,3 +274,12 @@
 - [x] Tarifa Alpes por reserva activa de Alpes (bici incluida en ambos paquetes); invitados sin sesión no la obtienen por email escrito
 - [x] Link ClicPay compartido, planes 500+8 (cuota 1 vencida pasa a fecha de reserva), apertura habilitada tras QA con rollback
 - [ ] Copia automática de compañero de habitación Alpes; MP en pesos +7% para Maratona; email distinto a las 7 solicitudes
+
+## Maratona — etapa 2 (22/10)
+- [x] Reserva rápida Alpes→Maratona (sesión o enlace personal), tarifa por reserva activa, habitación según Alpes, subtotal real
+- [x] Apertura vuelta a cerrada (enabled/native_flow_verified = false)
+- [ ] Auditoría del checkout (ClicPay con comprobante, efectivo) antes de reabrir — espera a Dirección
+- [ ] Mercado Pago en pesos +7% — conflicto con confirmación solo admin
+- [ ] Correo a 7 solicitudes previas y a titulares Alpes — no enviar sin autorización
+- [ ] Completar compañero cuando el segundo de la pareja reserva después (hoy queda "propuesto")
+- [ ] 6 avisos de seguridad pendientes

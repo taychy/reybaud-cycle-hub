@@ -19,3 +19,4 @@
 - Rescheduling: owner session or verified link only; link scopes rows, switching clears guest/unsaved state and query; admin list via admin_rescheduling_report; refund timing from policy; sends gated ≤10. Why: no leaks.
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
 - Trip intake: event_waitlist_entries; event_booking_openings gates native flow, locks one pool, audits idempotent conversion. Why: no premature places.
+- Cross-trip quick booking: identity/rate from source reservation via session or hashed 30-day link (event_crosssell_links); book only via crosssell_book, which reuses the opening guard. Why: no typed-email trust or parallel flow.

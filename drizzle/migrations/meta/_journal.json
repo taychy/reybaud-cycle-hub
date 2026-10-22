@@ -533,6 +533,20 @@
       "when": 1792701612048,
       "tag": "0075_maratona_shared_link_and_alps_eligibility",
       "breakpoints": true
+    },
+    {
+      "idx": 76,
+      "version": "7",
+      "when": 1792702179589,
+      "tag": "0076_crosssell_quick_booking_links",
+      "breakpoints": true
+    },
+    {
+      "idx": 77,
+      "version": "7",
+      "when": 1792702255086,
+      "tag": "0077_crosssell_quick_booking",
+      "breakpoints": true
     }
   ]
 }

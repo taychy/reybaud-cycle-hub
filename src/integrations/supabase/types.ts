@@ -4801,6 +4801,81 @@ export type Database = {
           },
         ]
       }
+      event_crosssell_links: {
+        Row: {
+          created_at: string
+          created_by: string
+          event_id: string
+          expires_at: string
+          id: string
+          revoked_at: string | null
+          source_reservation_id: string
+          token_hash: string
+          used_at: string | null
+          used_reservation_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          event_id: string
+          expires_at: string
+          id?: string
+          revoked_at?: string | null
+          source_reservation_id: string
+          token_hash: string
+          used_at?: string | null
+          used_reservation_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          event_id?: string
+          expires_at?: string
+          id?: string
+          revoked_at?: string | null
+          source_reservation_id?: string
+          token_hash?: string
+          used_at?: string | null
+          used_reservation_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_crosssell_links_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_crosssell_links_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_crosssell_links_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "event_crosssell_links_used_reservation_id_fkey"
+            columns: ["used_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_crosssell_links_used_reservation_id_fkey"
+            columns: ["used_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       event_external_participants: {
         Row: {
           access_token: string
@@ -17930,6 +18005,10 @@ export type Database = {
         Args: { p_actor: string; p_new_reservation_id: string }
         Returns: string
       }
+      _crosssell_source: {
+        Args: { p_event_id: string; p_token: string }
+        Returns: string
+      }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
       _extra_night_apply: {
         Args: { p_addon: string; p_res: string; p_timing: string }
@@ -18297,6 +18376,10 @@ export type Database = {
           revoked_at: string
           token: string
         }[]
+      }
+      admin_issue_crosssell_link: {
+        Args: { p_event_id: string; p_source_reservation_id: string }
+        Returns: Json
       }
       admin_renew_reservation_terms_link: {
         Args: { p_reservation_id: string }
@@ -18969,6 +19052,18 @@ export type Database = {
         }
         Returns: string
       }
+      crosssell_book: {
+        Args: {
+          p_companion_name?: string
+          p_event_id: string
+          p_metodo_pago?: string
+          p_package_id: string
+          p_room_choice?: string
+          p_terms_version: string
+          p_token: string
+        }
+        Returns: Json
+      }
       cuenta_publica_consume_credit: {
         Args: { p_fuente_id: string; p_fuente_tabla: string; p_token: string }
         Returns: Json
@@ -19346,6 +19441,10 @@ export type Database = {
           mp_banco_count: number
           mp_banco_total: number
         }[]
+      }
+      get_crosssell_context: {
+        Args: { p_event_id: string; p_token?: string }
+        Returns: Json
       }
       get_cuenta_publica: {
         Args: { p_ip?: string; p_token: string; p_user_agent?: string }

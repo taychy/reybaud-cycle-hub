@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { chooseBookingPackage, type BookingRequestPackage } from "@/lib/eventBookingRequest";
 import EventBookingRequestDialog from "./EventBookingRequestDialog";
+import CrossSellQuickBooking from "./CrossSellQuickBooking";
 import EventReglamentoSection from "./EventReglamentoSection";
 import { ArrowLeft, Bike, CalendarDays, Check, Flag, Hotel, MapPin, MessageCircle, Mountain, Route, X } from "lucide-react";
 import { formatPrice } from "@/lib/currency";
@@ -198,6 +199,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
           </div>
         </section>
 
+        <CrossSellQuickBooking eventId={eventId} />
         <section id="precio" className="scroll-mt-6 space-y-8">
           <div><p className={eyebrow}>Tarifas</p><h2 className={h2 + " mt-2"}>Elegí cómo vivirla</h2></div>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Bicicleta para Maratona">
