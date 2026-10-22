@@ -15,7 +15,7 @@ const row = (over: Partial<BookingRequestRow>): BookingRequestRow => ({
   email: over.email || 'persona@example.com',
   created_at: over.created_at || '2026-10-20T00:00:00Z',
   estado: over.estado ?? 'nuevo',
-  origen: over.origen ?? 'solicitud_reserva_sin_pago',
+  origen: 'origen' in over ? (over.origen ?? null) : 'solicitud_reserva_sin_pago',
   converted_reservation_id: over.converted_reservation_id ?? null,
   respuestas: over.respuestas ?? null,
 });
