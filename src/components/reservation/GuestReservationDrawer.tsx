@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
+import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
 import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
@@ -287,7 +288,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                   <p className="text-muted-foreground">Para aplicarla tenemos que verificar tu reserva de Alpes: no alcanza con escribir tu correo. Iniciá sesión con la cuenta de esa reserva, usá tu enlace personal o pedí reserva asistida. Si no participás de Alpes, elegí una tarifa Solo Maratona.</p>
                   <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm"><a href={loginHref}>Iniciar sesión</a></Button>
-                    <Button asChild size="sm" variant="outline"><a href="https://wa.me/5491123881744?text=Hola%2C%20participo%20de%20La%20Conquista%20Alpina%20y%20quiero%20reservar%20Maratona" target="_blank" rel="noopener noreferrer">Reserva asistida</a></Button>
+                    <Button asChild size="sm" variant="outline"><a href={buildWhatsAppUrl(`Hola, participo de La Conquista Alpina y quiero reservar ${eventName} con la tarifa especial.`)} target="_blank" rel="noopener noreferrer">Reserva asistida</a></Button>
                   </div>
                 </div>
               )}
