@@ -526,6 +526,13 @@
       "when": 1792701383378,
       "tag": "0074_admin_booking_crosssell_audience",
       "breakpoints": true
+    },
+    {
+      "idx": 75,
+      "version": "7",
+      "when": 1792701612048,
+      "tag": "0075_maratona_shared_link_and_alps_eligibility",
+      "breakpoints": true
     }
   ]
 }

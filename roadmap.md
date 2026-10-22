@@ -270,6 +270,7 @@
 
 ## Maratona · Reserva rápida para titulares Alpes (22/10)
 - [x] Lista de invitación solo lectura en Apertura segura (excluye quienes ya pidieron/reservaron Maratona y bajas), con compañero de habitación Alpes
-- [ ] Cupo 20 dobles: confirmar si son 20 personas o 20 habitaciones y cupo de carrera (hoy 10/10)
-- [ ] Tarifa €3.000 con bici: el viaje Alpes no registra alquiler de bici (sin paquete/adicional) → bloqueada
-- [ ] Enlace de pago propio, verificación de recorrido nativo, copia de habitación al reservar
+- [x] Cupo 20 participantes / 10 dobles / 20 carrera (Dirección 22/10)
+- [x] Tarifa Alpes por reserva activa de Alpes (bici incluida en ambos paquetes); invitados sin sesión no la obtienen por email escrito
+- [x] Link ClicPay compartido, planes 500+8 (cuota 1 vencida pasa a fecha de reserva), apertura habilitada tras QA con rollback
+- [ ] Copia automática de compañero de habitación Alpes; MP en pesos +7% para Maratona; email distinto a las 7 solicitudes

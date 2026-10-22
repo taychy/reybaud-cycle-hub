@@ -216,7 +216,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
               <Button className="mt-6 w-full" disabled={!p} onClick={()=>reserve(p)}>{nativeOpen?'Reservar':'Solicitar reserva'} {i?'Maratona · La Conquista Alpina':'Solo Maratona'}</Button>
             </article>)}
           </div>
-          <p className="border-l-2 border-primary pl-3 text-sm">Seña prevista: EUR 500 + ocho cuotas mensuales, del 21 de octubre de 2026 al 21 de mayo de 2027. {nativeOpen?'La plaza se confirma con la seña acreditada y validada.':'Reservas formales aún cerradas: podés enviar una solicitud, sin cobro ni plaza garantizada.'}</p>
+          <p className="border-l-2 border-primary pl-3 text-sm">Seña EUR 500 + ocho cuotas mensuales hasta el 21 de mayo de 2027 (la primera, prevista para el 21 de octubre de 2026, vence el día de tu reserva). Si hacés también La Conquista Alpina, son dos reservas separadas, cada una con su seña de EUR 500 y sus cuotas. {nativeOpen?'La plaza se confirma con la seña acreditada y validada.':'Reservas formales aún cerradas: podés enviar una solicitud, sin cobro ni plaza garantizada.'}</p>
           <p className="text-sm text-muted-foreground">Mismos servicios y entrenamiento previo incluidos. Cannondale SuperSix EVO / Scott Addict, Shimano 105 electrónico; modelo y talle según disponibilidad.</p>
           <article className="rounded-lg border border-primary bg-card p-6 sm:p-8">
             <Route className="h-7 w-7 text-primary"/><h3 className="mt-3 font-heading text-2xl font-bold uppercase">La Conquista Alpina + Maratona · dos grandes desafíos</h3>
