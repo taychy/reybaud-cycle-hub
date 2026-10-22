@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
+import { Link } from "react-router-dom";
 import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
 import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
 import TransferAgreementPanel, { OriginalDirectReceived } from "@/components/admin/TransferAgreementPanel";
@@ -23,8 +24,13 @@ import {
   CreditCard, Users, CalendarDays, Banknote, ArrowUpDown,
   RefreshCw, Loader2, UserPlus, MessageCircle, Mail,
   ChevronRight, DollarSign, FileText, MoreHorizontal,
-  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package, BedDouble,
+  Send, Bell, History, Copy, Pencil, Ban, Trash2, Package, BedDouble, ClipboardList, ExternalLink,
 } from "lucide-react";
+import { MARATONA_EVENT_ID } from "@/lib/eventBookingOpening";
+import {
+  pendingBookingRequests, formalReservationEmails, requestMatchesFormalReservation,
+  isInternalTestRequest, requestTariffLabel, type BookingRequestRow,
+} from "@/lib/bookingRequestsPanel";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -313,6 +319,10 @@ const AdminEventReservations = ({
   const { toast } = useToast();
   const [reservations, setReservations] = useState<EventReservation[]>([]);
   const [loading, setLoading] = useState(true);
+  // Solicitudes de reserva sin pago (Maratona): visibles acá para que no queden "escondidas" en lista de espera.
+  const isMaratona = eventId === MARATONA_EVENT_ID;
+  const [bookingRequests, setBookingRequests] = useState<BookingRequestRow[]>([]);
+  const [bookingRequestsError, setBookingRequestsError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [quickFilter, setQuickFilter] = useState<QuickFilter>("all");
   const [filterResStatus, setFilterResStatus] = useState("all");
@@ -488,6 +498,25 @@ const AdminEventReservations = ({
     loadRoomAssignments();
     loadOverdueInstallments(((data as any[]) || []).map((r) => r.id));
     loadTransfers();
+    loadBookingRequests();
+  };
+
+  /* ─── Solicitudes de reserva sin pago (solo Maratona) ─── */
+  const loadBookingRequests = async () => {
+    if (!isMaratona) { setBookingRequests([]); setBookingRequestsError(null); return; }
+    const { data, error } = await supabase
+      .from("event_waitlist_entries" as any)
+      .select("id, nombre, email, estado, origen, converted_reservation_id, respuestas, created_at")
+      .eq("event_id", eventId)
+      .eq("origen", "solicitud_reserva_sin_pago")
+      .order("created_at", { ascending: true });
+    if (error) {
+      setBookingRequests([]);
+      setBookingRequestsError(error.message || "No se pudieron cargar las solicitudes.");
+      return;
+    }
+    setBookingRequestsError(null);
+    setBookingRequests(((data as any[]) || []) as BookingRequestRow[]);
   };
 
   /* ─── Cupos en reventa / transferencias ─── */
@@ -799,6 +828,10 @@ const AdminEventReservations = ({
       pagosARevisar: reservations.filter(r => r.payment_status === "pago_informado").length,
     };
   }, [reservations]);
+
+  /* ─── Solicitudes sin pago pendientes de formalizar (Maratona) ─── */
+  const pendingRequests = useMemo(() => pendingBookingRequests(bookingRequests), [bookingRequests]);
+  const formalEmails = useMemo(() => formalReservationEmails(reservations), [reservations]);
 
   /* ─── Filtering + Sorting ─── */
 
@@ -1474,7 +1507,10 @@ const AdminEventReservations = ({
 
       {/* ─── Stats Cards ─── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        <StatCard label={isSchoolEvent ? "Total inscriptos" : "Total reservas"} value={stats.total} icon={<Users className="w-4 h-4" />} />
+        <StatCard label={isSchoolEvent ? "Total inscriptos" : isMaratona ? "Reservas formales" : "Total reservas"} value={stats.total} icon={<Users className="w-4 h-4" />} />
+        {isMaratona && (
+          <StatCard label="Solicitudes recibidas" value={pendingRequests.length} color="text-sky-400" icon={<ClipboardList className="w-4 h-4" />} />
+        )}
         <StatCard label="Confirmadas" value={stats.confirmed} color="text-emerald-500" icon={<CheckCircle className="w-4 h-4" />} />
         <StatCard label="Pendientes" value={stats.pending} color="text-amber-500" icon={<Clock className="w-4 h-4" />} />
         {!isPaymentFree && (
@@ -1617,6 +1653,76 @@ const AdminEventReservations = ({
           </div>
         );
       })()}
+
+      {/* ─── Solicitudes de reserva sin pago (Maratona) ─── */}
+      {isMaratona && (bookingRequestsError || pendingRequests.length > 0) && (
+        <div className="rounded-lg border border-sky-500/40 bg-sky-500/10">
+          <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-sky-500/20">
+            <ClipboardList className="w-4 h-4 text-sky-400 shrink-0" />
+            <p className="text-sm font-semibold text-sky-300">
+              Solicitudes recibidas · {pendingRequests.length}
+            </p>
+            <span className="text-[11px] text-muted-foreground">
+              No son reservas formales: no tienen seña validada ni ocupan cupo confirmado.
+            </span>
+            <Button asChild variant="outline" size="sm" className="ml-auto h-8 text-xs">
+              <Link to={`/admin/eventos/${eventId}/lista-espera`}>
+                Gestionar las {pendingRequests.length} solicitudes
+                <ExternalLink className="w-3 h-3 ml-1.5" />
+              </Link>
+            </Button>
+          </div>
+          {bookingRequestsError ? (
+            <p className="px-4 py-3 text-sm text-destructive">
+              No se pudieron cargar las solicitudes: {bookingRequestsError}
+            </p>
+          ) : (
+            <div className="divide-y divide-sky-500/10">
+              {pendingRequests.map((req) => {
+                const yaFormalizada = requestMatchesFormalReservation(req, formalEmails);
+                return (
+                  <div key={req.id} className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5">
+                    <div className="min-w-[160px]">
+                      <p className="text-sm font-medium leading-tight">{req.nombre}</p>
+                      <p className="text-[11px] text-muted-foreground">{req.email}</p>
+                    </div>
+                    <div className="text-xs text-muted-foreground min-w-[140px]">
+                      {requestTariffLabel(req)}
+                    </div>
+                    <div className="text-[11px] text-muted-foreground">
+                      {new Date(req.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                    </div>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className="text-[10px] bg-sky-500/15 text-sky-400 border-sky-500/30">
+                        Solicitud sin pago · pendiente de formalizar
+                      </Badge>
+                      <Badge variant="outline" className="text-[10px] bg-muted/40 text-muted-foreground border-border">
+                        Formulario web
+                      </Badge>
+                      {isInternalTestRequest(req) && (
+                        <Badge variant="outline" className="text-[10px] bg-amber-500/15 text-amber-500 border-amber-500/30">
+                          Revisar: posible prueba interna
+                        </Badge>
+                      )}
+                      {yaFormalizada && (
+                        <Badge variant="outline" className="text-[10px] bg-emerald-500/15 text-emerald-400 border-emerald-500/30">
+                          Ya tiene reserva formal con este email — revisar vínculo
+                        </Badge>
+                      )}
+                    </div>
+                    <Button asChild variant="ghost" size="sm" className="ml-auto h-7 text-xs text-sky-300">
+                      <Link to={`/admin/eventos/${eventId}/lista-espera`} target="_blank" rel="noopener noreferrer">
+                        Ver / Continuar
+                        <ExternalLink className="w-3 h-3 ml-1" />
+                      </Link>
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ─── Quick Filter Chips ─── */}
       <div className="flex flex-wrap items-center gap-2">
@@ -1809,6 +1915,11 @@ const AdminEventReservations = ({
         <div className="text-center py-12 text-muted-foreground">
           <Users className="w-8 h-8 mx-auto mb-2 opacity-40" />
           <p className="text-sm">No hay {termReservas} que coincidan.</p>
+          {isMaratona && pendingRequests.length > 0 && reservations.length === 0 && (
+            <p className="text-xs mt-2 text-sky-400">
+              No hay reservas formales todavía; tenés {pendingRequests.length} {pendingRequests.length === 1 ? "solicitud" : "solicitudes"} arriba para revisar.
+            </p>
+          )}
         </div>
       ) : (
         <div className="space-y-0">
