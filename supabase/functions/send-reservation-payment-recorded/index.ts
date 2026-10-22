@@ -100,7 +100,7 @@ Deno.serve(async (req) => {
     // Load reservation
     const { data: r } = await sb
       .from("event_reservations")
-      .select("id, alumno_id, external_participant_id, event_id, amount_paid, balance_due, amount_total, currency_snapshot, moneda")
+      .select("id, alumno_id, external_participant_id, event_id, amount_paid, balance_due, amount_total, currency_snapshot, moneda, terminos_pendientes, terminos_token, terminos_token_expires_at")
       .eq("id", payload.reservation_id)
       .maybeSingle();
 
@@ -123,6 +123,23 @@ Deno.serve(async (req) => {
     // Event
     const { data: ev } = await sb.from("events").select("title").eq("id", r.event_id).maybeSingle();
     const eventTitle = ev?.title || "el evento";
+
+    // Si todavía faltan condiciones, el pago se registra igual porque el dinero ya fue recibido,
+    // pero el mail debe pedir la aceptación con un enlace seguro.
+    let termsUrl = "";
+    if (r.terminos_pendientes) {
+      let token = r.terminos_token as string | null;
+      const expired = !r.terminos_token_expires_at || new Date(r.terminos_token_expires_at).getTime() < Date.now();
+      if (!token || expired) {
+        const bytes = crypto.getRandomValues(new Uint8Array(24));
+        token = Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+        await sb.from("event_reservations").update({
+          terminos_token: token,
+          terminos_token_expires_at: new Date(Date.now() + 30 * 86400000).toISOString(),
+        }).eq("id", r.id);
+      }
+      termsUrl = `https://reybaud-app.com/condiciones/${token}`;
+    }
 
     const currency = r.currency_snapshot || r.moneda || "ARS";
     const paidAmount = Number(payload.amount ?? r.amount_paid ?? 0);
@@ -148,9 +165,17 @@ Deno.serve(async (req) => {
       plan_html: plan.html,
     };
 
-    const asunto = `Tu pago fue registrado — ${eventTitle}`;
-    const contenido = `Hola ${ctx.nombre},\n\nTe confirmamos que registramos tu pago de ${ctx.monto} para ${ctx.evento}.\n\nAbonado hasta ahora: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}${ctx.plan_text}\n\n¡Gracias!`;
-    const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Pago registrado</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te confirmamos que registramos tu pago de <strong>${ctx.monto}</strong> para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table>${ctx.plan_html}<p>¡Gracias!</p><p style="color:#6b7280;font-size:12px">Reybaud Ciclismo</p></div>`;
+    const asunto = r.terminos_pendientes
+      ? `Recibimos tu pago — falta aceptar las condiciones de ${eventTitle}`
+      : `Tu pago fue registrado — ${eventTitle}`;
+    const termsText = r.terminos_pendientes && termsUrl
+      ? `\n\nImportante: recibimos y registramos tu pago, pero todavía falta que aceptes las condiciones del viaje para completar la documentación de tu reserva.\nAceptalas acá: ${termsUrl}`
+      : "";
+    const contenido = `Hola ${ctx.nombre},\n\nTe confirmamos que recibimos y registramos tu pago de ${ctx.monto} para ${ctx.evento}.\n\nAbonado hasta ahora: ${ctx.abonado}\nSaldo pendiente: ${ctx.saldo}${ctx.plan_text}${termsText}\n\nGracias.\nCiclismo Reybaud`;
+    const termsHtml = r.terminos_pendientes && termsUrl
+      ? `<div style="margin:20px 0;padding:16px;border:1px solid #f59e0b;background:#fffbeb;border-radius:10px"><p style="margin:0 0 10px;font-weight:700;color:#92400e">Falta aceptar las condiciones</p><p style="margin:0 0 14px;color:#78350f;font-size:14px">El pago ya quedó registrado. Para completar la documentación de tu reserva, necesitamos que leas y aceptes las condiciones del viaje.</p><a href="${termsUrl}" style="display:inline-block;background:#f97316;color:#fff;text-decoration:none;padding:11px 16px;border-radius:8px;font-weight:700">Leer y aceptar condiciones</a></div>`
+      : "";
+    const html = `<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:20px"><h2 style="color:#1a1a2e">Pago recibido</h2><p>Hola <strong>${ctx.nombre}</strong>,</p><p>Te confirmamos que recibimos y registramos tu pago de <strong>${ctx.monto}</strong> para <strong>${ctx.evento}</strong>.</p><table style="width:100%;border-collapse:collapse;margin:16px 0"><tr><td style="padding:8px;border:1px solid #e5e7eb">Abonado</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#059669">${ctx.abonado}</td></tr><tr><td style="padding:8px;border:1px solid #e5e7eb">Saldo pendiente</td><td style="padding:8px;border:1px solid #e5e7eb;font-weight:bold;color:#d97706">${ctx.saldo}</td></tr></table>${ctx.plan_html}${termsHtml}<p>Gracias.</p><p style="color:#6b7280;font-size:12px">Ciclismo Reybaud</p></div>`;
 
     const idempotency_key = `pago-recorded-${r.id}-${payload.payment_reference || payload.payment_method || "manual"}-${payload.installment_number ?? "general"}`;
 
@@ -177,6 +202,8 @@ Deno.serve(async (req) => {
           nuevo_abonado: totalPaid,
           nuevo_saldo: balance,
           source: payload.payment_method === "mercadopago" ? "mp_webhook" : "manual",
+          terms_pending: !!r.terminos_pendientes,
+          terms_url_included: !!termsUrl,
         },
         idempotency_key,
         canal: "email",
