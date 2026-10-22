@@ -507,13 +507,19 @@ const BookingFlow = () => {
     if (err) { toast({ title: err, variant: "destructive" }); return; }
 
     setSubmitting(true);
-    const dateStr = selectedDate.toISOString().split("T")[0];
+    const dateStr = toLocalISODate(selectedDate);
     const duration = servicio.duracion_minutos;
     const [h, m] = selectedSlot.time.split(":").map(Number);
     const endMin = h * 60 + m + duration;
     const endTime = `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
 
-    const fechaNac = `${form.fnac_anio}-${form.fnac_mes.padStart(2, "0")}-${form.fnac_dia.padStart(2, "0")}`;
+    // Alumnos existentes pueden no tener fecha de nacimiento: enviar null, nunca "-00-00".
+    const fechaNac = buildFechaNacimientoISO(form.fnac_anio, form.fnac_mes, form.fnac_dia);
+    if (perfilTipo === "nuevo" && !fechaNac) {
+      setSubmitting(false);
+      toast({ title: "Revisá tu fecha de nacimiento", description: "Ingresá día, mes y año válidos.", variant: "destructive" });
+      return;
+    }
 
     // Identidad: sesión activa, o ficha confirmada server-side. Sin lecturas
     // públicas directas sobre alumnos; el trigger de la DB completa el resto.
@@ -546,7 +552,7 @@ const BookingFlow = () => {
       p_email: form.email,
       p_celular: form.celular || null,
       p_documento: form.documento || null,
-      p_fecha_nacimiento: fechaNac && !fechaNac.startsWith("--") && !fechaNac.includes("--") ? fechaNac : null,
+      p_fecha_nacimiento: fechaNac,
       p_nota: notaFinal || null,
       p_acepto_politica: form.acepto_politica,
       p_origen_link: window.location.href,
@@ -558,7 +564,11 @@ const BookingFlow = () => {
       const ocupado = /acaba de ocuparse/i.test(error.message || "");
       toast({
         title: ocupado ? "Ese horario acaba de ocuparse. Elegí otro turno." : "Error al reservar",
-        description: ocupado ? "Actualizamos la disponibilidad para que elijas otro." : error.message,
+        description: ocupado
+          ? "Actualizamos la disponibilidad para que elijas otro."
+          : /invalid input syntax for type date/i.test(error.message || "")
+            ? "Hay una fecha con formato inválido. Revisá tus datos e intentá de nuevo."
+            : error.message,
         variant: "destructive",
       });
       if (ocupado) {
