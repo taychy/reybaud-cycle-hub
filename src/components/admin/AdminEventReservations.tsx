@@ -361,6 +361,8 @@ const AdminEventReservations = ({
 
   // Admin payment
   const [showAdminPayment, setShowAdminPayment] = useState(false);
+  const [focusAdminPay, setFocusAdminPay] = useState(false);
+  const adminPayFormRef = useRef<HTMLDivElement | null>(null);
   const [installmentsOpen, setInstallmentsOpen] = useState(false);
   const [adminPayAmount, setAdminPayAmount] = useState("");
   const [adminPayDate, setAdminPayDate] = useState(new Date().toISOString().slice(0, 10));
@@ -1459,16 +1461,53 @@ const AdminEventReservations = ({
     setStatusHistory((data as any[]) || []);
   };
 
-  const openDetail = (r: EventReservation) => {
+  /** Same initialization used by the in-sheet button and the row menu. */
+  const openAdminPaymentForm = (r: EventReservation) => {
+    setAdminPayCurrency(curr(r));
+    setAdminPayRate("1");
+    setAdminPayEquivalent("");
+    setAdminPayOverride(false);
+    setAdminPayOverrideReason("");
+    setAdminPayInstallmentId(null);
+    setAdminPayGeneralReason("");
+    setAdminPayAmount(r.balance_due?.toString() || "");
+    setAdminPayFxLabel("Misma moneda · sin conversión");
+    loadMatInstallments(r.id);
+    setShowAdminPayment(true);
+    setFocusAdminPay(true);
+  };
+
+  const openDetail = (r: EventReservation, opts?: { payment?: boolean }) => {
     setSelectedRes(r);
-    setShowAdminPayment(false);
     setShowNotifyDialog(false);
     setDetailTab("info");
     loadPayments(r.id);
     loadNotifications(r.id);
     loadParticipantResult(r);
     loadStatusHistory(r.id);
+    if (opts?.payment && !isPaymentFree) openAdminPaymentForm(r);
+    else setShowAdminPayment(false);
   };
+
+  // Bring the payment form into view and focus the amount once it is rendered.
+  useEffect(() => {
+    if (!focusAdminPay || !showAdminPayment || !selectedRes) return;
+    let tries = 0;
+    let raf = 0;
+    const tick = () => {
+      const el = adminPayFormRef.current;
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "start" });
+        el.querySelector<HTMLInputElement>("input[type=number]")?.focus({ preventScroll: true });
+        setFocusAdminPay(false);
+        return;
+      }
+      if (tries++ < 60) raf = requestAnimationFrame(tick);
+      else setFocusAdminPay(false);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [focusAdminPay, showAdminPayment, selectedRes]);
 
   /* ─── Priority indicators ─── */
   const getRowPriority = (r: EventReservation) => {
@@ -2009,7 +2048,7 @@ const AdminEventReservations = ({
                             <Eye className="w-3.5 h-3.5 mr-2" /> Ver detalle
                           </DropdownMenuItem>
                           {!isPaymentFree && (
-                            <DropdownMenuItem onClick={() => { openDetail(r); setTimeout(() => setShowAdminPayment(true), 100); }}>
+                            <DropdownMenuItem onClick={() => openDetail(r, { payment: true })}>
                               <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
                             </DropdownMenuItem>
                           )}
@@ -2507,22 +2546,8 @@ const AdminEventReservations = ({
                     size="sm"
                     className="h-9 text-xs font-semibold shadow-lg shadow-primary/20 gap-2"
                     onClick={() => {
-                      const toggling = !showAdminPayment;
-                      setShowAdminPayment(toggling);
-                      if (toggling && selectedRes) {
-                        const evCurr = curr(selectedRes);
-                        setAdminPayCurrency(evCurr);
-                        setAdminPayRate("1");
-                        setAdminPayEquivalent("");
-                        setAdminPayOverride(false);
-                        setAdminPayOverrideReason("");
-                        setAdminPayInstallmentId(null);
-                        setAdminPayGeneralReason("");
-                        const initialAmount = selectedRes.balance_due?.toString() || "";
-                        setAdminPayAmount(initialAmount);
-                        setAdminPayFxLabel("Misma moneda · sin conversión");
-                        loadMatInstallments(selectedRes.id);
-                      }
+                      if (showAdminPayment) setShowAdminPayment(false);
+                      else if (selectedRes) openAdminPaymentForm(selectedRes);
                     }}
                   >
                     <Banknote className="w-3.5 h-3.5" /> {showAdminPayment ? "Cerrar" : "Registrar pago"}
@@ -2603,7 +2628,7 @@ const AdminEventReservations = ({
                    const hasPendingInst = matInstallments.some((i: any) => i.status === "pendiente" || i.status === "parcial");
 
                    return (
-                   <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3">
+                   <div ref={adminPayFormRef} data-testid="admin-payment-form" className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-3 scroll-mt-4">
                      <p className="text-xs font-semibold text-primary">Registrar pago manual validado</p>
 
                      {/* Currency + Amount */}
