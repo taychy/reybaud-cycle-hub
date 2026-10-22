@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { splitCohorts, buildInviteEmail, buildCompleteEmail, toPlainText, PREVIEW_LINK, PREVIEW_NAME, type MailingAudienceRow } from './crossSellMailing';
-import { depositAction, isClicPayUrl } from './crossSellQuickBooking';
+import { depositAction, depositPending, isClicPayUrl } from './crossSellQuickBooking';
 
 const row = (p: Partial<MailingAudienceRow>): MailingAudienceRow => ({ source_reservation_id: crypto.randomUUID(), nombre: 'X', email: 'x@a.com', cohort: 'A', reason: '', roommate: null, ...p });
 
@@ -16,6 +16,10 @@ describe('cohortes del mailing', () => {
   });
   it('correo vacío nunca entra', () => {
     expect(splitCohorts([row({ email: '' })]).A.length).toBe(0);
+    expect(depositAction({ status: 'solicitud_enviada', payment_status: 'parcial', package: 'x', price: 3000, paid: 100, currency: 'EUR', reference: 'AB' })).toBe('partial');
+    expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 100 })).toBe(400);
+    expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 600 })).toBe(0);
+    expect(depositAction({ status: 'solicitud_enviada', package: 'x', paid: 499.99 })).toBe('partial');
   });
 });
 
@@ -33,6 +37,10 @@ describe('plantillas', () => {
   });
   it('sin emojis', () => {
     expect(/\p{Extended_Pictographic}/u.test(a + b)).toBe(false);
+    expect(depositAction({ status: 'solicitud_enviada', payment_status: 'parcial', package: 'x', price: 3000, paid: 100, currency: 'EUR', reference: 'AB' })).toBe('partial');
+    expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 100 })).toBe(400);
+    expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 600 })).toBe(0);
+    expect(depositAction({ status: 'solicitud_enviada', package: 'x', paid: 499.99 })).toBe('partial');
   });
 });
 
@@ -46,5 +54,9 @@ describe('pago de la seña tras reservar', () => {
     expect(depositAction({ status: 'solicitud_enviada', payment_status: 'no_informado', package: 'x', price: 3000, paid: 0, currency: 'EUR', reference: 'AB' })).toBe('pay');
     expect(depositAction({ status: 'reserva_confirmada', payment_status: 'parcial', package: 'x', price: 3000, paid: 500, currency: 'EUR', reference: 'AB' })).toBe('paid');
     expect(depositAction({ status: 'solicitud_enviada', payment_status: 'pago_informado', package: 'x', price: 3000, paid: 0, currency: 'EUR', reference: 'AB' })).toBe('informed');
+    expect(depositAction({ status: 'solicitud_enviada', payment_status: 'parcial', package: 'x', price: 3000, paid: 100, currency: 'EUR', reference: 'AB' })).toBe('partial');
+    expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 100 })).toBe(400);
+    expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 600 })).toBe(0);
+    expect(depositAction({ status: 'solicitud_enviada', package: 'x', paid: 499.99 })).toBe('partial');
   });
 });

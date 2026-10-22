@@ -10,3 +10,19 @@ describe('Controlled trip opening', () => {
   it('does not offer another reservation when full', () => expect(canOpenNativeBooking({...ready,available:0})).toBe(false));
   it('uses the native flow only after all server gates pass', () => expect(canOpenNativeBooking(ready)).toBe(true));
 });
+import { bookingOpeningIsOpen, bookingOpeningLabels, saveEnableFlag } from './eventBookingOpening';
+describe('apertura segura abierta/cerrada', () => {
+  const base = { controlled: true, ready: true, available: 16, capacity: 20, blockers: [], deposit: 500, installments: 8 };
+  it('abierta: guardar preserva enabled=true y etiqueta Reservas abiertas', () => {
+    const s = { ...base, enabled: true };
+    expect(bookingOpeningIsOpen(s)).toBe(true);
+    expect(saveEnableFlag(s)).toBe(true);
+    expect(bookingOpeningLabels(s).title).toContain('Reservas abiertas');
+  });
+  it('cerrada: guardar no abre', () => {
+    const s = { ...base, enabled: false };
+    expect(saveEnableFlag(s)).toBe(false);
+    expect(bookingOpeningLabels(s).title).toContain('Reservas cerradas');
+    expect(saveEnableFlag(null)).toBe(false);
+  });
+});

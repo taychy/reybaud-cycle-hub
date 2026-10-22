@@ -31,3 +31,18 @@ export function summarizeCrossSell(rows: CrossSellRow[]) {
     inviteEmails: [...new Set(invited.map(r => r.email!.toLowerCase()))],
   };
 }
+
+/** Estado visible en la apertura segura: abierta solo si el servidor la marca habilitada. */
+export function bookingOpeningIsOpen(status: BookingOpening | null | undefined): boolean {
+  return status?.enabled === true;
+}
+/** Guardar preparación nunca cambia el estado abierto/cerrado: reenvía el estado actual (el servidor revalida). */
+export function saveEnableFlag(status: BookingOpening | null | undefined): boolean {
+  return bookingOpeningIsOpen(status);
+}
+export function bookingOpeningLabels(status: BookingOpening | null | undefined) {
+  const open = bookingOpeningIsOpen(status);
+  return open
+    ? { title: 'Apertura segura · Reservas abiertas', save: 'Guardar preparación (las reservas siguen abiertas)', saved: 'Preparación guardada · reservas siguen abiertas', footer: `Reservas abiertas: ${status?.available ?? 0} plazas disponibles. Guardar no cierra las reservas; el servidor revalida cupo y requisitos.` }
+    : { title: 'Apertura segura · Reservas cerradas', save: 'Guardar preparación sin abrir reservas', saved: 'Preparación guardada · reservas cerradas', footer: 'La activación sigue bloqueada hasta verificar el recorrido completo y autorizar su publicación.' };
+}

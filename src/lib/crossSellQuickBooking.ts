@@ -42,10 +42,23 @@ export function isClicPayUrl(url: string | null | undefined): boolean {
   try { const u = new URL(url); return u.protocol === 'https:' && u.hostname === 'link.clicpay.it'; } catch { return false; }
 }
 
-/** Qué mostrar tras reservar: pagar la seña, comprobante ya informado, o pago acreditado. Nunca inventa acreditación. */
-export function depositAction(e: CrossSellExisting): 'pay' | 'informed' | 'paid' {
-  if (Number(e.paid ?? 0) > 0) return 'paid';
+export const DEFAULT_DEPOSIT_AMOUNT = 500;
+
+/** Saldo pendiente de la seña (nunca negativo). */
+export function depositPending(e: CrossSellExisting, depositAmount = DEFAULT_DEPOSIT_AMOUNT): number {
+  return Math.max(0, Math.round((depositAmount - Number(e.paid ?? 0)) * 100) / 100);
+}
+
+/**
+ * Qué mostrar tras reservar. 'paid' solo si lo acreditado cubre la seña completa;
+ * 'partial' si hay pago acreditado menor a la seña (no se ofrece el link de importe fijo).
+ * Nunca inventa acreditación.
+ */
+export function depositAction(e: CrossSellExisting, depositAmount = DEFAULT_DEPOSIT_AMOUNT): 'pay' | 'informed' | 'partial' | 'paid' {
+  const paid = Number(e.paid ?? 0);
+  if (paid >= depositAmount) return 'paid';
   if (e.payment_status === 'pago_informado' || e.payment_status === 'pendiente_verificacion') return 'informed';
+  if (paid > 0) return 'partial';
   return 'pay';
 }
 
