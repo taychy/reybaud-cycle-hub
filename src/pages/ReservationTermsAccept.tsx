@@ -24,7 +24,7 @@ export default function ReservationTermsAccept() {
         {done && (
           <div className="rounded-lg border border-primary/40 p-5 text-center space-y-2">
             <h1 className="text-xl font-semibold">¡Condiciones aceptadas!</h1>
-            <p className="text-sm text-muted-foreground">Quedó registrado el {done}. Ya podés continuar con el pago de la seña.</p>
+            <p className="text-sm text-muted-foreground">Quedó registrada tu aceptación el {done}. La documentación de tu reserva está completa.</p>
           </div>
         )}
         {info && !done && info.status !== "pendiente" && (
