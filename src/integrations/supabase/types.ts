@@ -18173,6 +18173,21 @@ export type Database = {
         }
         Returns: string
       }
+      admin_booking_crosssell_audience: {
+        Args: { p_event_id: string; p_source_event_id: string }
+        Returns: {
+          alps_rate_eligible: boolean
+          already_requested: boolean
+          already_reserved: boolean
+          email: string
+          invite: boolean
+          marketing_opt_out: boolean
+          nombre: string
+          roommate: string
+          source_reservation_id: string
+          source_status: string
+        }[]
+      }
       admin_cargar_liquidacion: {
         Args: {
           p_coach_id: string
