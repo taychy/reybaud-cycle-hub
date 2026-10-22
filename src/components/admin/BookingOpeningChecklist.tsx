@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Save, ShieldCheck } from 'lucide-react';
 import BookingCrossSellAudience from '@/components/admin/BookingCrossSellAudience';
 import CrossSellMailingPreview from '@/components/admin/CrossSellMailingPreview';
-import type { BookingOpening } from '@/lib/eventBookingOpening';
+import { bookingOpeningLabels, saveEnableFlag, type BookingOpening } from '@/lib/eventBookingOpening';
 
 export default function BookingOpeningChecklist({eventId}:{eventId:string}) {
   const {toast}=useToast();
@@ -34,11 +34,12 @@ export default function BookingOpeningChecklist({eventId}:{eventId:string}) {
     return()=>{active=false};
   },[form.alps_event_id]);
   const save=async()=>{setBusy(true);setError('');try{
-    const {data,error:failure}=await supabase.rpc('admin_save_booking_opening',{p_event_id:eventId,p_input:form,p_enable:false});
-    if(failure)throw failure;setStatus(data as unknown as BookingOpening);toast({title:'Preparación guardada · reservas cerradas'});
+    const {data,error:failure}=await supabase.rpc('admin_save_booking_opening',{p_event_id:eventId,p_input:form,p_enable:saveEnableFlag(status)});
+    if(failure)throw failure;const next=data as unknown as BookingOpening;setStatus(next);toast({title:bookingOpeningLabels(next).saved});
   }catch(e){setError(e instanceof Error?e.message:(e as {message?:string})?.message||'No se pudo guardar');}finally{setBusy(false)}};
+  const labels=bookingOpeningLabels(status);
   return <section aria-label="Apertura segura" className="space-y-5 border-y border-border py-5">
-    <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary"/><h2 className="font-heading text-xl">Apertura segura · reservas cerradas</h2></div>
+    <div className="flex items-center gap-2"><ShieldCheck className="h-5 w-5 text-primary"/><h2 className="font-heading text-xl">{labels.title}</h2></div>
     <p className="text-sm text-muted-foreground">Seña prevista: EUR 500 + ocho cuotas. Habitación doble. Las solicitudes actuales no confirman plazas ni generan cobros.</p>
     <div className="grid gap-4 sm:grid-cols-2">
       {([['hotel_capacity','Plazas de hotel confirmadas'],['race_capacity','Inscripciones de carrera confirmadas']] as const).map(([key,label])=><div key={key}><Label htmlFor={key}>{label}</Label><Input id={key} type="number" min={0} max={10000} value={form[key]} onChange={e=>setForm({...form,[key]:e.target.value})}/></div>)}
@@ -52,7 +53,7 @@ export default function BookingOpeningChecklist({eventId}:{eventId:string}) {
     {form.alps_event_id&&<CrossSellMailingPreview eventId={eventId}/>}
     <ul className="space-y-2 text-sm text-muted-foreground">{status?.blockers.map(b=><li key={b}>• {b}</li>)}</ul>
     {error&&<p role="alert" className="text-sm text-destructive">{error}</p>}
-    <Button variant="outline" disabled={busy||!status} onClick={save}><Save className="mr-2 h-4 w-4"/>{busy?'Guardando…':'Guardar preparación sin abrir reservas'}</Button>
-    <p className="text-sm text-muted-foreground">La activación sigue bloqueada hasta verificar el recorrido completo y autorizar su publicación.</p>
+    <Button variant="outline" disabled={busy||!status} onClick={save}><Save className="mr-2 h-4 w-4"/>{busy?'Guardando…':labels.save}</Button>
+    <p className="text-sm text-muted-foreground">{labels.footer}</p>
   </section>;
 }
