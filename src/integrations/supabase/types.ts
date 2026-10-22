@@ -18347,6 +18347,17 @@ export type Database = {
         }
         Returns: string
       }
+      admin_crosssell_mailing_audience: {
+        Args: { p_event_id: string }
+        Returns: {
+          cohort: string
+          email: string
+          nombre: string
+          reason: string
+          roommate: string
+          source_reservation_id: string
+        }[]
+      }
       admin_extra_night_preview: {
         Args: {
           p_addon_id: string
