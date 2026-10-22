@@ -862,6 +862,10 @@ const BookingFlow = () => {
                 locale={es}
                 weekStartsOn={1}
                 className="pointer-events-auto"
+                /* Iconos de navegación del calendario: buen contraste sobre fondo oscuro */
+                classNames={{
+                  nav_button: "inline-flex h-7 w-7 items-center justify-center rounded-md p-0 text-foreground transition-colors hover:bg-primary/15 hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 disabled:pointer-events-none disabled:text-muted-foreground disabled:opacity-60",
+                }}
               />
             </CardContent>
           </Card>
