@@ -83,7 +83,7 @@ export function StudentTermsPendingBanner({ reservationId, eventId, onAccepted }
   return (
     <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 space-y-3">
       <p className="text-sm font-medium">Condiciones pendientes</p>
-      <p className="text-sm text-muted-foreground">Antes de pagar la seña tenés que leer y aceptar las condiciones del viaje.</p>
+      <p className="text-sm text-muted-foreground">Tenés que leer y aceptar las condiciones del viaje para completar la documentación de tu reserva.</p>
       {!open ? (
         <Button size="sm" onClick={() => setOpen(true)} disabled={!terms}><FileCheck2 className="w-4 h-4 mr-1" /> Leer y aceptar</Button>
       ) : terms && (
