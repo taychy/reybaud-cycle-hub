@@ -63,6 +63,10 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   const [comprobante, setComprobante] = useState<File | null>(null);
   const [planInfo, setPlanInfo] = useState<{ nombre: string; sena_tipo: string; sena_valor: number; cantidad_cuotas: number } | null>(null);
   const [paymentPolicy, setPaymentPolicy] = useState<EventPaymentPolicy | null>(null);
+  // Apertura controlada: sin Mercado Pago, seña por enlace externo y tarifas que exigen identidad verificada en servidor.
+  const [controlled, setControlled] = useState(false);
+  const [depositUrl, setDepositUrl] = useState<string | null>(null);
+  const [verifiedOnlyIds, setVerifiedOnlyIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) { setStep(1); setPkgId(""); setComprobante(null); setTerms(false); setSharedMode(null); setSharedCompanion(""); setSharedAccepted(false); return; }
@@ -80,6 +84,12 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
       const declares = (eventData as any)?.metadata?.reservation_declared_payment === true;
       setDeclaresMethod(declares);
       if (declares) setMetodo("transferencia");
+      const md = (eventData as any)?.metadata || {};
+      const isControlled = md?.reservation_request?.mode === "pending_no_payment";
+      setControlled(isControlled);
+      if (isControlled) setMetodo("transferencia");
+      setDepositUrl(typeof md?.payment_links?.deposit_url === "string" ? md.payment_links.deposit_url : null);
+      setVerifiedOnlyIds(Array.isArray(md?.reservation_request?.packages) ? md.reservation_request.packages.filter((o: any) => o?.requires_alps === true).map((o: any) => String(o.id)) : []);
       const list = (data as Pkg[]) || [];
       setPackages(list);
       if (initialPackageId && list.some((p) => p.id === initialPackageId)) setPkgId(initialPackageId);
@@ -103,7 +113,9 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   }, [stagesByPkg]);
 
   const selectedPkg = packages.find((p) => p.id === pkgId);
-  const usesExternalDepositLink = eventId === "e726408b-bf46-45d6-9678-dc426a2d8641";
+  const usesExternalDepositLink = eventId === "e726408b-bf46-45d6-9678-dc426a2d8641" || (controlled && !!depositUrl);
+  const needsVerifiedIdentity = !!selectedPkg && verifiedOnlyIds.includes(selectedPkg.id);
+  const loginHref = `/?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`;
 
   useEffect(() => {
     setSharedQuote(null); setSharedMode(null); setSharedAccepted(false);
@@ -114,7 +126,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   }, [pkgId, eventId]);
   const sharedApplies = !!sharedQuote?.applies;
   const sharedOk = sharedRoomValid(sharedQuote, sharedMode, sharedCompanion, sharedAccepted);
-  const nextStep = (s: number) => (s === 1 ? (selectedPkg ? (sharedApplies ? 3 : 4) : 2) : s === 2 ? (sharedApplies ? 3 : 4) : 4);
+  const nextStep = (s: number) => (s === 1 ? (selectedPkg && !needsVerifiedIdentity ? (sharedApplies ? 3 : 4) : 2) : s === 2 ? (sharedApplies ? 3 : 4) : 4);
   const prevStep = (s: number) => (s === 4 ? (sharedApplies ? 3 : 2) : s - 1);
 
   // Plan de pagos del paquete elegido (solo para mostrar el resumen)
@@ -144,7 +156,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
     return s > 0 ? Math.min(s, total) : null;
   };
   const canNextFromStep1 = form.nombre && form.apellido && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email);
-  const canNextFromStep2 = !!selectedPkg;
+  const canNextFromStep2 = !!selectedPkg && !needsVerifiedIdentity;
   const canSubmit = terms && sharedOk && (metodo === "mp" || metodo === "efectivo" || (metodo === "transferencia" && (comprobante || declaresMethod)));
 
   const fileToBase64 = (file: File): Promise<string> =>
@@ -269,6 +281,16 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
                   );
                 })}
               </RadioGroup>
+              {needsVerifiedIdentity && (
+                <div role="alert" className="mt-3 space-y-2 rounded-xl border border-primary bg-primary/5 p-4 text-sm">
+                  <p className="font-semibold">Tarifa especial para participantes de La Conquista Alpina</p>
+                  <p className="text-muted-foreground">Para aplicarla tenemos que verificar tu reserva de Alpes: no alcanza con escribir tu correo. Iniciá sesión con la cuenta de esa reserva, usá tu enlace personal o pedí reserva asistida. Si no participás de Alpes, elegí una tarifa Solo Maratona.</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm"><a href={loginHref}>Iniciar sesión</a></Button>
+                    <Button asChild size="sm" variant="outline"><a href="https://wa.me/5491123881744?text=Hola%2C%20participo%20de%20La%20Conquista%20Alpina%20y%20quiero%20reservar%20Maratona" target="_blank" rel="noopener noreferrer">Reserva asistida</a></Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
