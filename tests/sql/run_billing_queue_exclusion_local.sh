@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Explicitly isolated connection; never reads the managed PG* credentials.
 set -euo pipefail
+export PGSSLMODE=disable
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LOCAL_PORT="${BILLING_TEST_PORT:-55439}"
 if [[ "$LOCAL_PORT" != "55439" ]]; then echo 'Unexpected isolated test port' >&2; exit 1; fi
