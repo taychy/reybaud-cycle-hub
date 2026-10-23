@@ -6803,6 +6803,9 @@ export type Database = {
           emisor_override_por: string | null
           emisor_resuelto_id: string | null
           estado: string
+          excluida_facturacion: boolean
+          exclusion_at: string | null
+          exclusion_por: string | null
           factura_id: string | null
           fecha_comprobante: string | null
           id: string
@@ -6819,6 +6822,8 @@ export type Database = {
           periodo_pago: string
           referencia_id: string
           referencia_tipo: string
+          reinclusion_at: string | null
+          reinclusion_por: string | null
           segmento: string | null
           servicio_desde: string | null
           servicio_hasta: string | null
@@ -6848,6 +6853,9 @@ export type Database = {
           emisor_override_por?: string | null
           emisor_resuelto_id?: string | null
           estado?: string
+          excluida_facturacion?: boolean
+          exclusion_at?: string | null
+          exclusion_por?: string | null
           factura_id?: string | null
           fecha_comprobante?: string | null
           id?: string
@@ -6864,6 +6872,8 @@ export type Database = {
           periodo_pago: string
           referencia_id: string
           referencia_tipo: string
+          reinclusion_at?: string | null
+          reinclusion_por?: string | null
           segmento?: string | null
           servicio_desde?: string | null
           servicio_hasta?: string | null
@@ -6893,6 +6903,9 @@ export type Database = {
           emisor_override_por?: string | null
           emisor_resuelto_id?: string | null
           estado?: string
+          excluida_facturacion?: boolean
+          exclusion_at?: string | null
+          exclusion_por?: string | null
           factura_id?: string | null
           fecha_comprobante?: string | null
           id?: string
@@ -6909,6 +6922,8 @@ export type Database = {
           periodo_pago?: string
           referencia_id?: string
           referencia_tipo?: string
+          reinclusion_at?: string | null
+          reinclusion_por?: string | null
           segmento?: string | null
           servicio_desde?: string | null
           servicio_hasta?: string | null
@@ -6963,6 +6978,38 @@ export type Database = {
             columns: ["factura_id"]
             isOneToOne: false
             referencedRelation: "facturas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      facturacion_cola_exclusion_log: {
+        Row: {
+          accion: string
+          cola_id: string
+          fecha: string
+          id: string
+          usuario_id: string
+        }
+        Insert: {
+          accion: string
+          cola_id: string
+          fecha?: string
+          id?: string
+          usuario_id: string
+        }
+        Update: {
+          accion?: string
+          cola_id?: string
+          fecha?: string
+          id?: string
+          usuario_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "facturacion_cola_exclusion_log_cola_id_fkey"
+            columns: ["cola_id"]
+            isOneToOne: false
+            referencedRelation: "facturacion_cola"
             referencedColumns: ["id"]
           },
         ]
@@ -18090,6 +18137,9 @@ export type Database = {
           emisor_override_por: string | null
           emisor_resuelto_id: string | null
           estado: string
+          excluida_facturacion: boolean
+          exclusion_at: string | null
+          exclusion_por: string | null
           factura_id: string | null
           fecha_comprobante: string | null
           id: string
@@ -18106,6 +18156,8 @@ export type Database = {
           periodo_pago: string
           referencia_id: string
           referencia_tipo: string
+          reinclusion_at: string | null
+          reinclusion_por: string | null
           segmento: string | null
           servicio_desde: string | null
           servicio_hasta: string | null
@@ -18492,6 +18544,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_set_facturacion_exclusion: {
+        Args: { p_excluir: boolean; p_ids: string[] }
+        Returns: number
+      }
       admin_set_reservation_price_snapshot: {
         Args: { p_note?: string; p_price?: number; p_reservation_id: string }
         Returns: Json
@@ -18822,6 +18878,9 @@ export type Database = {
           emisor_override_por: string | null
           emisor_resuelto_id: string | null
           estado: string
+          excluida_facturacion: boolean
+          exclusion_at: string | null
+          exclusion_por: string | null
           factura_id: string | null
           fecha_comprobante: string | null
           id: string
@@ -18838,6 +18897,8 @@ export type Database = {
           periodo_pago: string
           referencia_id: string
           referencia_tipo: string
+          reinclusion_at: string | null
+          reinclusion_por: string | null
           segmento: string | null
           servicio_desde: string | null
           servicio_hasta: string | null

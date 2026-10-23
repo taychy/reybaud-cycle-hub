@@ -18,6 +18,8 @@ import { FacturacionAutoConfigCard } from "@/components/admin/FacturacionAutoCon
 import { RuteoUnidadCard } from "@/components/admin/RuteoUnidadCard";
 import { ColaEmisorOverrideDialog } from "@/components/admin/ColaEmisorOverrideDialog";
 import { autoEstadoUi, emisorOrigenLabel, periodoLabel } from "@/lib/facturacionAuto";
+import { canChangeBillingExclusion, canInvoiceQueueRow, isBillingExcluded } from "@/lib/billingQueueExclusion";
+import { QueueExclusionAction } from "./QueueExclusionAction";
 
 interface PreflightRow {
   cola_id: string;
@@ -51,7 +53,7 @@ const GROUP_SOURCES: Record<string, SourceKind[]> = {
 };
 
 const COLS =
-  "id, source, referencia_tipo, referencia_id, alumno_id, cliente_nombre, cliente_cuit, concepto, monto, moneda, segmento, metodo_pago, origen_registro, pagado_at, estado, factura_id, emisor_resuelto_id, emisor_origen, cuenta_mp_id, servicio_desde, servicio_hasta, auto_estado, auto_motivo";
+  "id, source, referencia_tipo, referencia_id, alumno_id, cliente_nombre, cliente_cuit, concepto, monto, moneda, segmento, metodo_pago, origen_registro, pagado_at, estado, factura_id, emisor_resuelto_id, emisor_origen, cuenta_mp_id, servicio_desde, servicio_hasta, auto_estado, auto_motivo, excluida_facturacion, exclusion_por, exclusion_at, reinclusion_por, reinclusion_at";
 
 interface ColaRow {
   id: string;
@@ -79,6 +81,11 @@ interface ColaRow {
   servicio_hasta?: string | null;
   auto_estado?: string | null;
   auto_motivo?: string | null;
+  excluida_facturacion: boolean;
+  exclusion_por: string | null;
+  exclusion_at: string | null;
+  reinclusion_por: string | null;
+  reinclusion_at: string | null;
 }
 
 export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
@@ -98,6 +105,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   const [preflight, setPreflight] = useState<Map<string, PreflightRow>>(new Map());
   const [cuentas, setCuentas] = useState<Map<string, string>>(new Map());
   const [overrideRow, setOverrideRow] = useState<ColaRow | null>(null);
+  const [queueFilter, setQueueFilter] = useState<"pendiente" | "excluida">("pendiente");
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -109,7 +117,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
       let q = supabase
         .from("facturacion_cola" as any)
         .select(COLS)
-        .eq("estado", "pendiente")
+        .eq("estado", queueFilter)
         .order("pagado_at", { ascending: false })
         .range(from, from + PAGE_SIZE - 1);
 
@@ -133,7 +141,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
       }
       return base;
     },
-    [origen, debounced],
+    [origen, debounced, queueFilter],
   );
 
   const load = useCallback(async () => {
@@ -199,11 +207,11 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
     [preflight],
   );
 
-  const selectable = useMemo(() => rows.filter((r) => !isBlocked(r.id)).filter((r) => !isFacturaEmitida(r.factura_estado ? { estado: r.factura_estado, cae: r.factura_cae } : null)), [rows, isBlocked]);
+  const selectable = useMemo(() => rows.filter(canChangeBillingExclusion), [rows]);
   const allSelected = selectable.length > 0 && selectable.every((r) => selected.has(r.id));
 
   const toInvoiceSource = (r: ColaRow): InvoiceSource => ({
-    alumno_id: r.alumno_id!,
+    alumno_id: r.alumno_id ?? "",
     cliente_nombre: r.cliente_nombre,
     cliente_cuit: r.cliente_cuit,
     concepto: r.concepto,
@@ -218,7 +226,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   });
 
   const handleBulk = async () => {
-    const targets = rows.filter((r) => selected.has(r.id));
+    const targets = rows.filter((r) => selected.has(r.id) && canInvoiceQueueRow(r) && !isBlocked(r.id));
     if (targets.length === 0) return;
     setPreparing(true);
     try {
@@ -328,6 +336,13 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
             <SelectItem value="tienda">Tienda</SelectItem>
           </SelectContent>
         </Select>
+        <Select value={queueFilter} onValueChange={(value: "pendiente" | "excluida") => setQueueFilter(value)}>
+          <SelectTrigger className="w-40" aria-label="Estado de la cola"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="pendiente">Pendientes</SelectItem>
+            <SelectItem value="excluida">Excluidos</SelectItem>
+          </SelectContent>
+        </Select>
         <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
           <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
         </Button>
@@ -348,17 +363,21 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
               {selected.size > 0 ? `${selected.size} seleccionado(s)` : `Seleccionar todos (${selectable.length})`}
             </span>
           </label>
-          <Button size="sm" onClick={handleBulk} disabled={selected.size === 0 || preparing}>
+          <div className="flex flex-wrap gap-2">
+          <QueueExclusionAction ids={[...selected]} excluded={queueFilter === "excluida"} disabled={preparing}
+            onDone={() => { void load(); onChanged?.(); }} />
+          {queueFilter === "pendiente" && <Button size="sm" onClick={handleBulk} disabled={preparing || !rows.some((r) => selected.has(r.id) && canInvoiceQueueRow(r) && !isBlocked(r.id))}>
             {preparing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
             Facturar seleccionados {selected.size > 0 && `(${selected.size})`}
-          </Button>
+          </Button>}
+          </div>
         </div>
       )}
 
       {loading ? (
         <p className="text-sm text-muted-foreground text-center py-8">Cargando cobros...</p>
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted-foreground text-center py-8">No hay cobros pendientes de facturar.</p>
+        <p className="text-sm text-muted-foreground text-center py-8">{queueFilter === "excluida" ? "No hay cobros excluidos de facturación." : "No hay cobros pendientes de facturar."}</p>
       ) : (
         <div className="space-y-2">
           {rows.map((r) => {
@@ -370,9 +389,10 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
             const pf = preflight.get(r.id);
             const pfUi = pf ? PREFLIGHT_UI[pf.clase] : undefined;
             const blocked = !!pfUi?.blocking;
+            const excluded = isBillingExcluded(r);
             return (
               <div key={r.id} className="rounded-xl border border-border bg-card p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                {!emitida && !blocked && (
+                {canChangeBillingExclusion(r) && (
                   <Checkbox
                     checked={selected.has(r.id)}
                     onCheckedChange={() =>
@@ -392,6 +412,8 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                     {emitida && <Badge variant="default" className="text-[10px]">Facturada</Badge>}
                   </div>
                   <p className="text-xs text-muted-foreground truncate">{r.concepto}</p>
+                  {r.exclusion_at && <p className="text-xs text-muted-foreground">Excluido: {new Date(r.exclusion_at).toLocaleString("es-AR")} · Usuario {r.exclusion_por}</p>}
+                  {r.reinclusion_at && <p className="text-xs text-muted-foreground">Reincluido: {new Date(r.reinclusion_at).toLocaleString("es-AR")} · Usuario {r.reinclusion_por}</p>}
                   {pfUi && (
                     <div className={`flex items-center gap-1.5 text-xs ${blocked ? "text-destructive" : "text-yellow-600"}`}>
                       <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
@@ -425,12 +447,12 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                           {r.cuenta_mp_id && ` · cuenta ${cuentas.get(r.cuenta_mp_id) ?? "MP"}`}
                         </span>
                         {r.auto_motivo && <span className="text-muted-foreground">· {r.auto_motivo}</span>}
-                        {!emitida && r.auto_estado !== "emitiendo" && (
+                        {!excluded && !emitida && r.auto_estado !== "emitiendo" && (
                           <button type="button" className="underline font-medium" onClick={() => setOverrideRow(r)}>
                             Cambiar emisor
                           </button>
                          )}
-                         {!emitida && ["requiere_datos_fiscales", "requiere_revision_emisor", "error_manual"].includes(r.auto_estado ?? "") && (
+                         {!excluded && !emitida && ["requiere_datos_fiscales", "requiere_revision_emisor", "error_manual"].includes(r.auto_estado ?? "") && (
                            <button
                              type="button"
                              className="underline font-medium text-primary"
@@ -448,9 +470,11 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                     );
                   })()}
                 </div>
-                <div className="flex items-center gap-3 shrink-0">
+                <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                   <p className="text-sm font-bold tabular-nums">{formatPrice(r.monto, r.moneda as any)}</p>
-                  {blocked ? (
+                  {canChangeBillingExclusion(r) && <QueueExclusionAction ids={[r.id]} excluded={excluded}
+                    disabled={preparing} onDone={() => { void load(); onChanged?.(); }} />}
+                  {excluded ? <Badge variant="secondary">Excluido de facturación</Badge> : !canInvoiceQueueRow(r) ? <Badge variant="outline">{emitida ? "Facturada" : "Emisión en curso"}</Badge> : blocked ? (
                     <span className="text-xs text-destructive font-medium">Completá los datos fiscales</span>
                   ) : r.alumno_id ? (
                     <BillingInvoiceLauncher
