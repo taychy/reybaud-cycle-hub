@@ -26,31 +26,48 @@ export function splitCohorts(rows: MailingAudienceRow[]): MailingSummary {
 }
 
 export const PREVIEW_NAME = 'Nombre';
-export const PREVIEW_LINK = 'https://reybaud-app.com/eventos/…?acceso=••••••';
+/** Marcador visible: el enlace personal real se genera recién al enviar (nunca en la vista previa). */
+export const PREVIEW_LINK = '[Enlace personal · se genera al enviar, no incluido en la vista previa]';
+/** Enlace público real (sin token) a la sección de servicios de la landing. */
+export const PUBLIC_INCLUDES_LINK = 'https://reybaud-app.com/eventos/78a739f4-9b06-47af-bc6d-d8a1705e2477#incluye';
 
-export interface MailingContent { subject: string; preheader: string; paragraphs: string[]; cta: string; link: string; footer: string[] }
+export type MailingBlock =
+  | { kind: 'p'; text: string }
+  | { kind: 'list'; items: string[] }
+  | { kind: 'cta'; role: 'public' | 'personal'; label: string; href: string };
+export interface MailingContent { subject: string; preheader: string; blocks: MailingBlock[]; footer: string[] }
 
 const SIGNATURE = 'Scarlett y Claudio — Ciclismo Reybaud';
-const LINK_NOTE = 'El enlace es personal y vale 30 días. Por favor no lo reenvíes.';
-const COMMON = [
-  'La Maratona dles Dolomites 2027 es del 30 de junio al 5 de julio de 2027, con la carrera el 4 de julio. Incluye 5 noches de hotel en habitación doble, entrenamientos y asistencia durante toda la semana. La bicicleta de alquiler es opcional.',
-  'Tarifa especial para quienes viajan a La Conquista Alpina: €3.000 con bicicleta incluida o €2.800 si llevás tu propia bici.',
-  'No tenés que volver a cargar tus datos: usamos los de tu reserva de Alpes. Si en Alpes compartís habitación doble, mantenemos a tu compañía; si viajás en individual, elegís con quién compartir o te asignamos compañía.',
-  'Se reserva con una seña de €500 y el saldo se paga en 8 cuotas. Las 2 noches y el traslado entre los dos viajes (28 al 30 de junio) no están incluidos y se cotizan aparte.',
-  'Hay 20 plazas en total. La plaza queda confirmada cuando validamos la seña, sujeta a cupo.',
+const LINK_NOTE = 'El enlace de tu reserva es personal y vale 30 días. Por favor no lo reenvíes.';
+const SERVICES: MailingBlock = { kind: 'list', items: [
+  '5 noches de hotel en Corvara, en habitación doble, con desayunos, almuerzos y cenas',
+  'Inscripción a la carrera del 4 de julio',
+  'Bicicleta Cannondale SuperSix EVO o Scott Addict, solo en el paquete con alquiler',
+  'Plan de entrenamiento previo y salidas con Claudio',
+  'Van de apoyo, hidratación y asistencia mecánica',
+  'Traslados desde y hacia el aeropuerto de Venecia',
+] };
+const MORE: MailingBlock[] = [
+  { kind: 'p', text: 'Y hay mucho más. Podés ver el programa completo, con lo que incluye y lo que no, en la página del viaje.' },
+  { kind: 'cta', role: 'public', label: 'Ver todo lo que incluye', href: PUBLIC_INCLUDES_LINK },
+];
+const TERMS: MailingBlock[] = [
+  { kind: 'p', text: 'Por venir de Alpes tenés una tarifa especial, en habitación doble: €3.000 con bici incluida o €2.800 si llevás la tuya. Somos 20 como máximo. Se reserva con una seña de €500 y el resto en 8 cuotas.' },
+  { kind: 'p', text: 'Las 2 noches y el traslado entre los dos viajes (28 al 30 de junio) no están incluidos y se cotizan aparte.' },
+  { kind: 'p', text: 'Tus datos ya los tenemos de Alpes, no hace falta cargarlos de nuevo. Si compartís habitación doble, mantenemos al mismo compañero siempre que los dos sigan. Si viajás en individual, vas a poder elegir con quién compartir o pedirnos que te asignemos.' },
 ];
 
 /** A: invitación a titulares Alpes sin solicitud ni reserva. */
 export function buildInviteEmail(firstName: string, link: string): MailingContent {
   return {
-    subject: 'Maratona dles Dolomites 2027: una tarifa especial para quienes viajan a Alpes',
-    preheader: 'Sumá la Maratona a tu viaje con €3.000 con bici o €2.800 con bici propia.',
-    paragraphs: [
-      `Hola ${firstName || 'ciclista'},`,
-      'Como ya tenés tu lugar en La Conquista Alpina, queremos invitarte a sumar la Maratona dles Dolomites 2027 con una tarifa pensada solo para quienes viajan a Alpes.',
-      ...COMMON,
+    subject: 'Después de Alpes, la Maratona dles Dolomites',
+    preheader: 'Una tarifa especial para quienes viajan a La Conquista Alpina.',
+    blocks: [
+      { kind: 'p', text: `Hola ${firstName || ''}, cómo estás?`.replace(' ,', ',') },
+      { kind: 'p', text: 'Te escribimos porque después de La Conquista Alpina seguimos viaje a la Maratona dles Dolomites, del 30 de junio al 5 de julio de 2027. La carrera es el 4 de julio.' },
+      { kind: 'p', text: 'Algunas cosas que incluye:' }, SERVICES, ...MORE, ...TERMS,
+      { kind: 'cta', role: 'personal', label: 'Acceder a mi reserva personalizada', href: link },
     ],
-    cta: 'Reservar con mi tarifa especial', link,
     footer: [LINK_NOTE, SIGNATURE],
   };
 }
@@ -58,19 +75,20 @@ export function buildInviteEmail(firstName: string, link: string): MailingConten
 /** B: titulares Alpes que ya solicitaron y todavía no completaron la reserva. No es una nueva invitación. */
 export function buildCompleteEmail(firstName: string, link: string): MailingContent {
   return {
-    subject: 'Completá tu reserva de Maratona dles Dolomites 2027',
-    preheader: 'Ya recibimos tu solicitud: ahora podés dejar tu reserva formal sin volver a cargar datos.',
-    paragraphs: [
-      `Hola ${firstName || 'ciclista'},`,
-      'Gracias por tu solicitud para la Maratona dles Dolomites 2027: la tenemos registrada. Ya abrimos las reservas formales, así que ahora podés completarla con tu tarifa especial de Alpes.',
-      ...COMMON.slice(1),
+    subject: 'Tu solicitud de Maratona dles Dolomites',
+    preheader: 'Ya abrimos las reservas: podés completar la tuya con la tarifa de Alpes.',
+    blocks: [
+      { kind: 'p', text: `Hola ${firstName || ''}, cómo estás?`.replace(' ,', ',') },
+      { kind: 'p', text: 'Ya recibimos tu solicitud de Maratona, gracias. Te recordamos que es la continuación de La Conquista Alpina, del 30 de junio al 5 de julio de 2027, con la carrera el 4 de julio. Ya abrimos las reservas, así que ahora podés completar la tuya.' },
+      { kind: 'p', text: 'Algunas cosas que incluye:' }, SERVICES, ...MORE, ...TERMS,
+      { kind: 'cta', role: 'personal', label: 'Completar mi reserva', href: link },
     ],
-    cta: 'Completar mi reserva', link,
     footer: [LINK_NOTE, SIGNATURE],
   };
 }
 
 /** Texto plano para revisar (sin datos reales). */
 export function toPlainText(c: MailingContent): string {
-  return [...c.paragraphs, `${c.cta}: ${c.link}`, ...c.footer].join('\n\n');
+  const parts = c.blocks.map(b => b.kind === 'p' ? b.text : b.kind === 'list' ? b.items.map(i => `- ${i}`).join('\n') : `${b.label}: ${b.href}`);
+  return [...parts, ...c.footer].join('\n\n');
 }
