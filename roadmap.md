@@ -1,3 +1,9 @@
+## Natalia Basilico · Conciliación autorizada (23/10)
+- [ ] Revisar evidencia, funciones financieras y riesgos de duplicación/concurrencia
+- [ ] Corrección mínima reproducible de servidor/UI y pruebas sin comunicaciones
+- [ ] Conciliar únicamente julio/agosto Natalia con precondiciones y respaldo en auditoría
+- [ ] Verificar saldos ARS/EUR y ambos MP no disponibles; informar alcance y publicación pendiente
+
 ## Cola de facturación · Exclusión reversible (23/10)
 - [x] Exclusión/reinclusión individual y masiva auditadas, filtro y persistencia
 - [x] Bloqueo servidor de todos los caminos de emisión y carreras, con locks compartidos e identidad legacy

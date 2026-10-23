@@ -42,6 +42,8 @@ type Movement = {
   cuentas_mp?: { nombre: string; slug: string } | null;
   rp_existente?: { id: string; evento?: string | null } | null;
   tienda_existente?: boolean | null;
+  credito_representado?: number | null;
+  monto_disponible?: number | null;
   alumnos?: {
     id: string;
     nombre: string;
@@ -234,16 +236,29 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     const rpByMp = new Map<string, { id: string; evento: string | null }>();
     const rpById = new Map<string, string | null>();
     const tienda = new Set<string>();
+    const creditos = new Map<string, number>();
+    const disponibles = new Map<string, number>();
     try {
       for (const c of chunk(ids)) {
         const list = c.join(",");
-        const [rpRes, soRes, spRes] = await Promise.all([
+        const [rpRes, soRes, spRes, caRes, dispRes] = await Promise.all([
           supabase.from("reservation_payments").select(rpSel)
             .or(`mp_payment_id.in.(${list}),payment_reference.in.(${list})`)
             .is("anulado_at", null).neq("status", "rechazado"),
           supabase.from("store_orders").select("mp_payment_id").in("mp_payment_id", c),
           supabase.from("store_preorders").select("mp_payment_id").in("mp_payment_id", c),
+          supabase.from("cuenta_ajustes").select("referencia_externa,cuenta_mp_id,moneda,monto")
+            .eq("tipo", "credito").in("referencia_externa", c),
+          supabase.from("vw_pagos_disponibles").select("pago_origen_id,disponible").in("mp_payment_id", c),
         ]);
+        if (caRes.error || dispRes.error) throw caRes.error ?? dispRes.error;
+        for (const ca of caRes.data ?? []) {
+          const key = `${ca.referencia_externa}:${ca.cuenta_mp_id}:${ca.moneda}`;
+          creditos.set(key, (creditos.get(key) ?? 0) + Number(ca.monto));
+        }
+        for (const d of dispRes.data ?? []) {
+          if (d.pago_origen_id) disponibles.set(d.pago_origen_id, Number(d.disponible));
+        }
         for (const rp of (rpRes.data as any[]) ?? []) {
           const evento = rp.event_reservations?.events?.title ?? null;
           rpById.set(rp.id, evento);
@@ -269,7 +284,9 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       const rp_existente = r.reservation_payment_id
         ? { id: r.reservation_payment_id, evento: rpById.get(r.reservation_payment_id) ?? found?.evento ?? null }
         : found;
-      return { ...r, rp_existente, tienda_existente: tienda.has(String(r.mp_payment_id)) };
+      return { ...r, rp_existente, tienda_existente: tienda.has(String(r.mp_payment_id)),
+        credito_representado: creditos.get(`${r.mp_payment_id}:${r.cuenta_mp_id}:${r.currency}`) ?? 0,
+        monto_disponible: disponibles.get(r.id) ?? null };
     });
   }
 
@@ -813,6 +830,11 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                         </Badge>
                         {classifyMpUnidad(m) === "tienda" && m.reservation_payment_id && (
                           <div className="text-[10px] text-destructive mt-1">Cobro de tienda también vinculado a un pago de reserva · revisar</div>
+                        )}
+                        {Number(m.credito_representado ?? 0) > 0 && (
+                          <div className="text-xs text-muted-foreground mt-1">
+                            Registrado en cuenta corriente · aplicar desde saldo a favor
+                          </div>
                         )}
                       </TableCell>
                       <TableCell className="text-xs">{m.payment_type || m.payment_method || "—"}</TableCell>
