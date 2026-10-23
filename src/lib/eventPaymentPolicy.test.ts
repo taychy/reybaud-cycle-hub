@@ -15,7 +15,7 @@ const book = {
 const meta = {
   payment_policy: {
     contract_currency: "EUR", balance_currency: "EUR",
-    eur_cash_surcharge_pct: 0, ars_transfer_surcharge_pct: 7, fx_source: "current_app",
+    eur_cash_surcharge_pct: 0, ars_transfer_surcharge_pct: 7, fx_source: "current_app", external_portal: null,
   },
 };
 
@@ -60,5 +60,18 @@ describe("Política de pagos internacionales", () => {
     expect(t.event_currency).toBe("EUR");
     expect(t.equivalent_amount_event_currency).toBeCloseTo(100, 2);
     expect(t.exchange_rate_to_event_currency).toBeCloseTo(arsToContractRate(1110, 7), 10);
+  });
+});
+
+import { parseExternalPortal } from "./eventPaymentPolicy";
+describe("portal de pago externo por evento", () => {
+  it("acepta solo https del host permitido", () => {
+    expect(parseExternalPortal({ url: "https://app.secure-reservation.cloud/guest-portal/payments", label: "Pago online mediante portal seguro" })?.label).toBe("Pago online mediante portal seguro");
+    expect(parseExternalPortal({ url: "http://app.secure-reservation.cloud/x" })).toBeNull();
+    expect(parseExternalPortal({ url: "https://evil.com/app.secure-reservation.cloud" })).toBeNull();
+  });
+  it("sin configuración no hay portal y el recargo ARS se mantiene", () => {
+    const p = parsePaymentPolicy({ payment_policy: { contract_currency: "EUR", ars_transfer_surcharge_pct: 7 } });
+    expect(p?.external_portal).toBeNull(); expect(p?.ars_transfer_surcharge_pct).toBe(7); expect(p?.eur_cash_surcharge_pct).toBe(0);
   });
 });

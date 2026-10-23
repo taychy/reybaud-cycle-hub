@@ -14,6 +14,22 @@ export interface EventPaymentPolicy {
   eur_cash_surcharge_pct: number;
   ars_transfer_surcharge_pct: number;
   fx_source: string;
+  /** Portal externo opcional (por evento). Nunca confirma pagos: requiere comprobante y validación admin. */
+  external_portal: { url: string; label: string } | null;
+}
+
+const ALLOWED_PORTAL_HOSTS = ["app.secure-reservation.cloud"];
+
+/** Solo https y hosts permitidos; cualquier otra URL se ignora. */
+export function parseExternalPortal(raw: unknown): { url: string; label: string } | null {
+  const r = raw as any;
+  if (!r || typeof r !== "object" || typeof r.url !== "string") return null;
+  try {
+    const u = new URL(r.url);
+    if (u.protocol !== "https:" || !ALLOWED_PORTAL_HOSTS.includes(u.hostname)) return null;
+    const label = typeof r.label === "string" && r.label.trim() ? r.label.trim() : "Pago online mediante portal seguro";
+    return { url: u.toString(), label };
+  } catch { return null; }
 }
 
 const r2 = (v: number) => Math.round(v * 100) / 100;
@@ -33,6 +49,7 @@ export function parsePaymentPolicy(metadata: unknown): EventPaymentPolicy | null
     eur_cash_surcharge_pct: pct(raw.eur_cash_surcharge_pct),
     ars_transfer_surcharge_pct: pct(raw.ars_transfer_surcharge_pct),
     fx_source: String(raw.fx_source || "current_app"),
+    external_portal: parseExternalPortal(raw.external_portal),
   };
 }
 

@@ -43,6 +43,7 @@ import EventHeroMedia from "@/components/event/EventHeroMedia";
 import AlpineEditorialHero from "@/components/event/AlpineEditorialHero";
 import EventPremiumLanding, { getPremiumLanding } from "@/components/event/EventPremiumLanding";
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
+import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
 import { resolveEventPublicAudience } from "@/lib/eventPublicAudience";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { premiumDateSummary } from "@/lib/premiumEventSummary";
@@ -659,6 +660,10 @@ const EventDetail = () => {
               hasta={event.precio_aviso_hasta}
               activo={event.precio_aviso_activo}
             />
+          )}
+
+          {paymentPolicy?.external_portal && !(alumno && isActiveReservation) && (
+            <section id="formas-de-pago"><EventPaymentPolicyNotice policy={paymentPolicy} titled /></section>
           )}
 
           {alumno && isActiveReservation && reservation && (

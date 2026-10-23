@@ -17,6 +17,7 @@ import { useToast } from "@/hooks/use-toast";
 import ReportPaymentDrawer from "./ReportPaymentDrawer";
 import PayByTransferDrawer from "./PayByTransferDrawer";
 import { parsePaymentPolicy } from "@/lib/eventPaymentPolicy";
+import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
 import CancelReservationDrawer from "./CancelReservationDrawer";
 import TripBikeDrawer from "./TripBikeDrawer";
 import TripPedalsDrawer from "./TripPedalsDrawer";
@@ -1349,6 +1350,8 @@ const ReservationStatusCard = ({
             )}
           </>
         )}
+
+        {paymentPolicy?.external_portal && <EventPaymentPolicyNotice policy={paymentPolicy} titled />}
 
         {/* Request date */}
         <p className="text-[10px] text-muted-foreground/50 text-center">
