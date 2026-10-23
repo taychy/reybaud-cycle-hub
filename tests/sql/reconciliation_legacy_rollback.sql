@@ -6,6 +6,7 @@ DO $$
 DECLARE a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); account uuid:=gen_random_uuid(); plan uuid:=gen_random_uuid();
  july uuid:=gen_random_uuid(); august uuid:=gen_random_uuid(); debt uuid:=gen_random_uuid(); m uuid:=gen_random_uuid(); partial uuid:=gen_random_uuid();
  credit uuid:=gen_random_uuid(); pi uuid; before_total numeric; after_total numeric; rejected boolean:=false;
+ rp uuid:=gen_random_uuid(); rm uuid:=gen_random_uuid(); er uuid:=gen_random_uuid();
 BEGIN
  INSERT INTO public.planes(id,nombre,moneda,precio) VALUES(plan,'QA','ARS',80030);
  INSERT INTO public.suscripciones(id,alumno_id,plan_id,precio_base,precio_final,estado,fecha_inicio,metodo_pago,origen_registro)
@@ -40,6 +41,13 @@ BEGIN
  ALTER TABLE public.pagos_imputaciones ENABLE TRIGGER trg_guard_pagos_imputaciones;
  SELECT sum(haber) INTO after_total FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id IN(a,b);
  IF after_total<>before_total THEN RAISE EXCEPTION 'FAIL historical double representation %',after_total; END IF;
+ INSERT INTO public.event_reservations(id,alumno_id,amount_total,currency_snapshot) VALUES(er,a,2478.61,'EUR');
+ INSERT INTO public.reservation_payments(id,alumno_id,reservation_id,amount,currency,event_currency,status) VALUES(rp,a,er,500,'EUR','EUR','validado');
+ INSERT INTO public.mp_account_movements(id,cuenta_mp_id,mp_payment_id,alumno_id,amount,currency,direccion,status,reservation_payment_id)
+ VALUES(rm,account,'qa:partial-event',a,1000,'EUR','ingreso','approved',rp);
+ IF public.pago_saldo_disponible('mp_movement',rm)<>500 THEN RAISE EXCEPTION 'FAIL partial reservation remanent'; END IF;
+ IF public.pago_consumido_legacy('mp_movement',rm) THEN RAISE EXCEPTION 'FAIL partial reservation falsely consumed'; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id=a AND moneda='EUR' GROUP BY moneda HAVING sum(debe)=2478.61 AND sum(haber)=500) THEN RAISE EXCEPTION 'FAIL EUR statement invariant'; END IF;
  PERFORM set_config('request.jwt.claim.sub',gen_random_uuid()::text,true); rejected:=false;
  BEGIN PERFORM public.imputar_pago('mp_movement',partial,'suscripcion',debt,a,400,'ARS','{}'); EXCEPTION WHEN OTHERS THEN rejected:=SQLERRM='not_authorized'; END;
  IF NOT rejected THEN RAISE EXCEPTION 'FAIL unauthorized idempotent read'; END IF;

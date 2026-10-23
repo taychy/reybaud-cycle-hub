@@ -1,8 +1,8 @@
 ## Natalia Basilico · Conciliación autorizada (23/10)
-- [ ] Revisar evidencia, funciones financieras y riesgos de duplicación/concurrencia
-- [ ] Corrección mínima reproducible de servidor/UI y pruebas sin comunicaciones
-- [ ] Conciliar únicamente julio/agosto Natalia con precondiciones y respaldo en auditoría
-- [ ] Verificar saldos ARS/EUR y ambos MP no disponibles; informar alcance y publicación pendiente
+- [x] Evidencia y 26 candidatos revisados; sin corrección masiva
+- [x] Migración 0083 y UI; 802 tests, SQL rollback y carreras aisladas; compilación automática OK
+- [x] Julio/agosto Natalia conciliados atómicamente; backup antes/después en audit_log 12db5acc-ac47-4ffb-853d-b5f5ca1b8fcf
+- [x] Query y navegador admin: ARS 577910/577910/saldo0, EUR 2478.61/500/saldo1978.61, ambos MP disponible0; sin comunicaciones/facturas; frontend sin publicar
 
 ## Cola de facturación · Exclusión reversible (23/10)
 - [x] Exclusión/reinclusión individual y masiva auditadas, filtro y persistencia
