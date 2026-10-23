@@ -23,7 +23,7 @@ export default function CrossSellMailingPreview({ eventId }: { eventId: string }
   useEffect(() => {
     if (!rows?.length) return;
     const ids = rows.filter(r => r.cohort !== 'excluido').map(r => r.source_reservation_id);
-    void supabase.from('event_reservations').select('id,status,amount_paid').in('id', ids).then(({ data }) => {
+    void supabase.from('event_reservations').select('id,status:reservation_status,amount_paid').in('id', ids).then(({ data }) => {
       const byId = new Map((data ?? []).map(d => [d.id, d]));
       setReview(rows.filter(r => r.cohort !== 'excluido' && needsManualReview(byId.get(r.source_reservation_id) as never)).map(r => r.nombre || 'Sin nombre'));
     });
