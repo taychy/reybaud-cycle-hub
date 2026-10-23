@@ -66,7 +66,7 @@ describe("Política de pagos internacionales", () => {
 import { parseExternalPortal } from "./eventPaymentPolicy";
 describe("portal de pago externo por evento", () => {
   it("acepta solo https del host permitido", () => {
-    expect(parseExternalPortal({ url: "https://app.secure-reservation.cloud/guest-portal/payments", label: "Pago online mediante portal seguro" })?.label).toBe("Pago online mediante portal seguro");
+    expect(parseExternalPortal({ url: "https://app.secure-reservation.cloud/guest-portal/payments", label: "Link de pago" })?.label).toBe("Link de pago");
     expect(parseExternalPortal({ url: "http://app.secure-reservation.cloud/x" })).toBeNull();
     expect(parseExternalPortal({ url: "https://evil.com/app.secure-reservation.cloud" })).toBeNull();
   });

@@ -27,7 +27,7 @@ export function parseExternalPortal(raw: unknown): { url: string; label: string 
   try {
     const u = new URL(r.url);
     if (u.protocol !== "https:" || !ALLOWED_PORTAL_HOSTS.includes(u.hostname)) return null;
-    const label = typeof r.label === "string" && r.label.trim() ? r.label.trim() : "Pago online mediante portal seguro";
+    const label = typeof r.label === "string" && r.label.trim() ? r.label.trim() : "Link de pago";
     return { url: u.toString(), label };
   } catch { return null; }
 }
