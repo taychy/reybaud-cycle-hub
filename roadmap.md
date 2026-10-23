@@ -1,7 +1,8 @@
 ## Cola de facturación · Exclusión reversible (23/10)
-- [ ] Exclusión/reinclusión individual y masiva auditadas, filtro y persistencia
-- [ ] Bloqueo servidor de todos los caminos de emisión y carreras
-- [ ] Tests reversibles sin pagos reales, navegador y compilación; sin publicar
+- [x] Exclusión/reinclusión individual y masiva auditadas, filtro y persistencia
+- [x] Bloqueo servidor de todos los caminos de emisión y carreras, con locks compartidos e identidad legacy
+- [x] 799 tests; migración y tests reversibles/concurrentes en PostgreSQL aislado; navegador admin escritorio/móvil y compilación OK; sin publicar
+- [x] Producción: 0 exclusiones nuevas / 0 acciones nuevas; pagos y comprobantes reales sin operaciones
 
 ## San Luis · Presentación reprogramada (20/10)
 - [x] Título, distintivo y fecha corregidos en catálogo, carrusel y detalle mediante helper aislado, sin modificar datos
