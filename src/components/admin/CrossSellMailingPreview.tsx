@@ -47,8 +47,12 @@ function EmailPreview({ c }: { c: MailingContent }) {
     <p><span className="text-muted-foreground">Asunto: </span><strong>{c.subject}</strong></p>
     <p className="text-xs text-muted-foreground">Vista previa en bandeja: {c.preheader}</p>
     <hr className="border-border" />
-    {c.paragraphs.map((p, i) => <p key={i}>{p}</p>)}
-    <p><span className="inline-block rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground">{c.cta}</span> <span className="ml-2 font-mono text-xs text-muted-foreground">{c.link}</span></p>
+    {c.blocks.map((b, i) => b.kind === 'p' ? <p key={i}>{b.text}</p>
+      : b.kind === 'list' ? <ul key={i} className="list-disc space-y-1 pl-5">{b.items.map(t => <li key={t}>{t}</li>)}</ul>
+      : <div key={i} className="space-y-1 py-1">
+          <span aria-label={`Botón: ${b.label}`} className={b.role === 'public' ? 'inline-block rounded-md border border-primary px-4 py-2 font-semibold text-primary' : 'inline-block rounded-md bg-primary px-4 py-2 font-semibold text-primary-foreground'}>{b.label}</span>
+          <p className="break-all font-mono text-xs text-muted-foreground">{b.role === 'public' ? `Enlace público: ${b.href}` : b.href}</p>
+        </div>)}
     {c.footer.map((p, i) => <p key={i} className={i === c.footer.length - 1 ? 'font-medium' : 'text-xs text-muted-foreground'}>{p}</p>)}
   </article>;
 }
