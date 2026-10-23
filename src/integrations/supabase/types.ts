@@ -20274,6 +20274,10 @@ export type Database = {
         Args: { _id: string; _tipo: string }
         Returns: number
       }
+      pago_monto_reconocido_cc: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
       pago_saldo_disponible: {
         Args: { _id: string; _tipo: string }
         Returns: number
