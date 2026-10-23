@@ -1,8 +1,8 @@
 -- Run with psql -X -v ON_ERROR_STOP=1 -f tests/sql/billing_queue_exclusion_rollback.sql
 -- Synthetic queue/invoice rows only; no payment sources, ARCA, email or worker calls.
 BEGIN;
--- Prevent even transactional test inserts from dispatching the automatic worker.
-ALTER TABLE public.facturacion_cola DISABLE TRIGGER trg_facturacion_cola_wake;
+-- Fixtures lack fiscal identity and use ingreso=rebuild: they can never become
+-- automatically eligible, so no enqueue worker trigger is reached.
 DO $test$
 DECLARE
   admin_id uuid;
@@ -18,6 +18,7 @@ BEGIN
   INSERT INTO public.facturacion_cola(id,source,pago_id,referencia_tipo,referencia_id,concepto,monto,moneda,pagado_at,periodo_pago,periodo_operativo)
   VALUES (q1,'reservation_payment','qa:'||q1,'reservation_payment',ref1,'QA exclusion only',500,'EUR',now(),current_date,current_date),
          (q2,'reservation_payment','qa:'||q2,'reservation_payment',ref2,'QA exclusion only',100,'ARS',now(),current_date,current_date);
+  IF EXISTS(SELECT 1 FROM public.facturacion_cola WHERE id IN(q1,q2) AND auto_estado='pendiente') THEN RAISE EXCEPTION 'Unsafe automatic fixture'; END IF;
   INSERT INTO public.facturas(id,cliente_nombre,concepto,monto,moneda,referencia_tipo,referencia_id,facturacion_cola_id)
   VALUES(f1,'QA synthetic','QA only',500,'EUR','reservation_payment',ref1,q1);
   -- Legacy prepared invoice has no direct queue ID.
