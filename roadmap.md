@@ -1,3 +1,8 @@
+## Conciliación 0083 · Dos huecos acotados (23/10)
+- [ ] Separar ingreso reconocido y consumo; regresión con vista real 1000/800/200
+- [ ] Bloquear crédito↔vínculo MP en servidor; llamadas directas y ambas carreras aisladas
+- [ ] Conservar split familiar autorizado, revisar test7 aislado y verificar compilación; no tocar Natalia ni publicar
+
 ## Natalia Basilico · Conciliación autorizada (23/10)
 - [x] Evidencia y 26 candidatos revisados; sin corrección masiva
 - [x] Migración 0083 y UI; 802 tests, SQL rollback y carreras aisladas; compilación automática OK
