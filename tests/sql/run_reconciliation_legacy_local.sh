@@ -9,6 +9,7 @@ createdb -h 127.0.0.1 -p 55439 -U lovable "$DB"
 PSQL=(psql -X -h 127.0.0.1 -p 55439 -U lovable -d "$DB" -v ON_ERROR_STOP=1)
 "${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_local_setup.sql"
 "${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_application_fixture.sql"
+"${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_consumption_fixture.sql"
 "${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_statement_fixture.sql"
 "${PSQL[@]}" -f "$ROOT/drizzle/migrations/0083_legacy_mp_credit_imputation_coherence.sql"
 "${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_rollback.sql"
