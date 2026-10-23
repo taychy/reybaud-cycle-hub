@@ -33,6 +33,13 @@ BEGIN
  UPDATE public.cuenta_ajustes SET aplicado_a_fuente_tabla='suscripciones',aplicado_a_fuente_id=july WHERE id=credit;
  SELECT sum(haber) INTO after_total FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id IN(a,b);
  IF after_total<>before_total OR NOT public.is_subscription_paid(july) OR public.obligacion_saldo_pendiente('suscripcion',july)<>0 THEN RAISE EXCEPTION 'FAIL July reconciliation'; END IF;
+ -- Simulate a historical double representation; statement must retain credit but not add PI again.
+ ALTER TABLE public.pagos_imputaciones DISABLE TRIGGER trg_guard_pagos_imputaciones;
+ INSERT INTO public.pagos_imputaciones(id,pago_origen_tipo,pago_origen_id,obligacion_tipo,obligacion_id,alumno_id,monto,moneda,created_at)
+ VALUES(gen_random_uuid(),'mp_movement',m,'suscripcion',july,a,80030,'ARS',now());
+ ALTER TABLE public.pagos_imputaciones ENABLE TRIGGER trg_guard_pagos_imputaciones;
+ SELECT sum(haber) INTO after_total FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id IN(a,b);
+ IF after_total<>before_total THEN RAISE EXCEPTION 'FAIL historical double representation %',after_total; END IF;
  PERFORM set_config('request.jwt.claim.sub',gen_random_uuid()::text,true); rejected:=false;
  BEGIN PERFORM public.imputar_pago('mp_movement',partial,'suscripcion',debt,a,400,'ARS','{}'); EXCEPTION WHEN OTHERS THEN rejected:=SQLERRM='not_authorized'; END;
  IF NOT rejected THEN RAISE EXCEPTION 'FAIL unauthorized idempotent read'; END IF;

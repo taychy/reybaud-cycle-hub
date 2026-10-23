@@ -1,7 +1,11 @@
 -- Isolated fixture only, no application credentials or real rows.
 SET check_function_bodies=off;
 CREATE SCHEMA auth;
-CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role;
+DO $$ BEGIN
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF;
+ IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role; END IF;
+END $$;
 CREATE TYPE public.app_role AS ENUM('admin','alumno','coach','deposito');
 CREATE TABLE public.user_roles(user_id uuid,role public.app_role);
 INSERT INTO public.user_roles VALUES('00000000-0000-0000-0000-000000000001','admin');

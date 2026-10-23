@@ -1,7 +1,9 @@
 """Isolated localhost only: source and obligation races cannot overallocate."""
 import os, subprocess, uuid
+DB=os.environ.get('RECONCILIATION_TEST_DB','reconciliation2')
+assert DB.startswith('reconciliation'), 'isolated database required'
 ENV={**os.environ,'PGSSLMODE':'disable'}
-CMD=['psql','-X','-h','127.0.0.1','-p','55439','-U','lovable','-d','reconciliation2','-At','-v','ON_ERROR_STOP=1']
+CMD=['psql','-X','-h','127.0.0.1','-p','55439','-U','lovable','-d',DB,'-At','-v','ON_ERROR_STOP=1']
 A="SET LOCAL request.jwt.claim.sub='00000000-0000-0000-0000-000000000001';"
 def run(s): return subprocess.run(CMD,input=s,text=True,capture_output=True,env=ENV,timeout=15)
 def race(first,second):
