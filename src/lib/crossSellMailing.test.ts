@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { splitCohorts, buildInviteEmail, buildCompleteEmail, toPlainText, PUBLIC_INCLUDES_LINK, PREVIEW_LINK, PREVIEW_NAME, type MailingAudienceRow } from './crossSellMailing';
+import { splitCohorts, buildInviteEmail, buildCompleteEmail, capacityFromStatus, capacityText, canSendWithCapacity, needsManualReview, CAPACITY_FALLBACK, toPlainText, PUBLIC_INCLUDES_LINK, PREVIEW_LINK, PREVIEW_NAME, type MailingAudienceRow } from './crossSellMailing';
 import { depositAction, depositPending, isClicPayUrl } from './crossSellQuickBooking';
 
 const row = (p: Partial<MailingAudienceRow>): MailingAudienceRow => ({ source_reservation_id: crypto.randomUUID(), nombre: 'X', email: 'x@a.com', cohort: 'A', reason: '', roommate: null, ...p });
@@ -27,7 +27,7 @@ describe('plantillas', () => {
   const a = toPlainText(buildInviteEmail(PREVIEW_NAME, PREVIEW_LINK));
   const b = toPlainText(buildCompleteEmail(PREVIEW_NAME, PREVIEW_LINK));
   it('precios, seña y cuotas', () => {
-    for (const t of [a, b]) { expect(t).toContain('€3.000'); expect(t).toContain('€2.800'); expect(t).toContain('€500'); expect(t).toContain('8 cuotas'); expect(t).toContain('28 al 30 de junio'); expect(t).toContain('20 como máximo'); expect(t).toContain('Scarlett y Claudio — Ciclismo Reybaud'); }
+    for (const t of [a, b]) { expect(t).toContain('€3.000'); expect(t).toContain('€2.800'); expect(t).toContain('€500'); expect(t).toContain('8 cuotas'); expect(t).toContain('28 al 30 de junio'); expect(t).toContain('8 cuotas'); expect(t).toContain('Scarlett y Claudio — Ciclismo Reybaud'); }
   });
   it('la vista previa no lleva token', () => {
     expect(a).not.toMatch(/[a-f0-9]{64}/); expect(b).not.toMatch(/[a-f0-9]{64}/);
@@ -92,5 +92,35 @@ describe('pago de la seña tras reservar'
     expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 100 })).toBe(400);
     expect(depositPending({ status: 'solicitud_enviada', package: 'x', paid: 600 })).toBe(0);
     expect(depositAction({ status: 'solicitud_enviada', package: 'x', paid: 499.99 })).toBe('partial');
+  });
+});
+
+describe('cupos dinámicos', () => {
+  const cap = capacityFromStatus({ capacity: 20, available: 16, enabled: true });
+  it('20/16/4 como reservas registradas', () => {
+    expect(cap).toEqual({ capacity: 20, available: 16, booked: 4 });
+    const t = toPlainText(buildInviteEmail('Ana', PREVIEW_LINK, cap));
+    expect(t).toContain('El viaje tiene 20 plazas en total. Ya hay 4 reservas registradas y actualmente quedan 16 lugares disponibles.');
+    expect(t).toContain('La plaza se confirma una vez validada la seña, sujeta a disponibilidad.');
+    expect(t).not.toMatch(/confirmad[oa]s|pagad[oa]s/i);
+    expect(t).not.toMatch(/Somos 20|Tenemos 20/);
+    expect(toPlainText(buildCompleteEmail('Ana', PREVIEW_LINK, cap))).toContain('quedan 16 lugares');
+  });
+  it('sigue los cambios de cupo', () => {
+    expect(capacityText(capacityFromStatus({ capacity: 20, available: 1 }))).toContain('Ya hay 19 reservas registradas y actualmente queda 1 lugar disponible');
+  });
+  it('si falla el status muestra genérico y bloquea envío', () => {
+    for (const bad of [null, { capacity: 20, available: 25 }, { capacity: 'x' }, { capacity: 20, available: -1 }]) expect(capacityFromStatus(bad)).toBeNull();
+    expect(toPlainText(buildInviteEmail('Ana', PREVIEW_LINK, null))).toContain(CAPACITY_FALLBACK);
+    expect(canSendWithCapacity(null)).toBe(false); expect(canSendWithCapacity(cap)).toBe(true);
+  });
+  it('preview sin token ni datos reales', () => {
+    const t = toPlainText(buildInviteEmail(PREVIEW_NAME, PREVIEW_LINK, cap));
+    expect(t).not.toMatch(/acceso=[a-f0-9]/); expect(t).toContain('Hola Nombre');
+  });
+  it('alerta revisión: confirmada sin pago', () => {
+    expect(needsManualReview({ status: 'reserva_confirmada', amount_paid: 0 })).toBe(true);
+    expect(needsManualReview({ status: 'reserva_confirmada', amount_paid: 500 })).toBe(false);
+    expect(needsManualReview({ status: 'solicitud_enviada', amount_paid: 0 })).toBe(false);
   });
 });

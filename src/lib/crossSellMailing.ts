@@ -9,6 +9,11 @@ export interface MailingAudienceRow {
   cohort: MailingCohort; reason: string; roommate: string | null;
 }
 
+/** Alerta de revisión manual: reserva de origen confirmada sin pagos registrados (no excluye automáticamente). */
+export function needsManualReview(src: { status: string | null; amount_paid: number | null } | undefined): boolean {
+  return !!src && src.status === 'reserva_confirmada' && !(Number(src.amount_paid) > 0);
+}
+
 export interface MailingSummary { A: MailingAudienceRow[]; B: MailingAudienceRow[]; excluded: MailingAudienceRow[] }
 
 /** Separa cohortes y garantiza un único correo por persona entre A y B. */
@@ -51,21 +56,45 @@ const MORE: MailingBlock[] = [
   { kind: 'p', text: 'Y hay mucho más. Podés ver el programa completo, con lo que incluye y lo que no, en la página del viaje.' },
   { kind: 'cta', role: 'public', label: 'Ver todo lo que incluye', href: PUBLIC_INCLUDES_LINK },
 ];
-const TERMS: MailingBlock[] = [
-  { kind: 'p', text: 'Por venir de Alpes tenés una tarifa especial, en habitación doble: €3.000 con bici incluida o €2.800 si llevás la tuya. Somos 20 como máximo. Se reserva con una seña de €500 y el resto en 8 cuotas.' },
+export interface CapacityInfo { capacity: number; available: number; booked: number }
+export const CAPACITY_FALLBACK = 'Cupos sujetos a disponibilidad, consultá el detalle.';
+
+/** Valida cifras del servidor; null si no son coherentes (nunca inventa ocupación). */
+export function capacityFromStatus(st: unknown): CapacityInfo | null {
+  const c = Number((st as any)?.capacity), a = Number((st as any)?.available);
+  if (!Number.isInteger(c) || !Number.isInteger(a) || c <= 0 || a < 0 || a > c) return null;
+  return { capacity: c, available: a, booked: c - a };
+}
+
+/** Texto de cupos: "reservas registradas", nunca "confirmadas" ni "pagadas". */
+export function capacityText(cap: CapacityInfo | null | undefined): string {
+  const ok = cap && Number.isInteger(cap.capacity) && Number.isInteger(cap.available) && cap.capacity > 0 && cap.available >= 0 && cap.available <= cap.capacity && cap.booked === cap.capacity - cap.available;
+  if (!ok) return CAPACITY_FALLBACK;
+  const b = cap!.booked === 0 ? 'Todavía no hay reservas registradas' : `Ya ${cap!.booked === 1 ? 'hay 1 reserva registrada' : `hay ${cap!.booked} reservas registradas`}`;
+  const a = cap!.available === 1 ? 'queda 1 lugar disponible' : `quedan ${cap!.available} lugares disponibles`;
+  return `El viaje tiene ${cap!.capacity} plazas en total. ${b} y actualmente ${a}. La plaza se confirma una vez validada la seña, sujeta a disponibilidad.`;
+}
+
+/** Envío hipotético: solo si el cupo pudo verificarse justo antes. */
+export const canSendWithCapacity = (cap: CapacityInfo | null) => cap !== null && cap.available > 0;
+
+const terms = (cap?: CapacityInfo | null): MailingBlock[] => [
+  { kind: 'p', text: 'Por venir de Alpes tenés una tarifa especial, en habitación doble: €3.000 con bici incluida o €2.800 si llevás la tuya. Se reserva con una seña de €500 y el resto en 8 cuotas.' },
+  { kind: 'p', text: capacityText(cap) },
   { kind: 'p', text: 'Las 2 noches y el traslado entre los dos viajes (28 al 30 de junio) no están incluidos y se cotizan aparte.' },
   { kind: 'p', text: 'Tus datos ya los tenemos de Alpes, no hace falta cargarlos de nuevo. Si compartís habitación doble, mantenemos al mismo compañero siempre que los dos sigan. Si viajás en individual, vas a poder elegir con quién compartir o pedirnos que te asignemos.' },
+  { kind: 'p', text: 'Desde tu enlace personal ves tu reserva ya armada: elegís la tarifa, confirmás y te mostramos cómo pagar la seña.' },
 ];
 
 /** A: invitación a titulares Alpes sin solicitud ni reserva. */
-export function buildInviteEmail(firstName: string, link: string): MailingContent {
+export function buildInviteEmail(firstName: string, link: string, cap?: CapacityInfo | null): MailingContent {
   return {
     subject: 'Después de Alpes, la Maratona dles Dolomites',
     preheader: 'Una tarifa especial para quienes viajan a La Conquista Alpina.',
     blocks: [
       { kind: 'p', text: `Hola ${firstName || ''}, cómo estás?`.replace(' ,', ',') },
       { kind: 'p', text: 'Te escribimos porque después de La Conquista Alpina seguimos viaje a la Maratona dles Dolomites, del 30 de junio al 5 de julio de 2027. La carrera es el 4 de julio.' },
-      { kind: 'p', text: 'Algunas cosas que incluye:' }, SERVICES, ...MORE, ...TERMS,
+      { kind: 'p', text: 'Algunas cosas que incluye:' }, SERVICES, ...MORE, ...terms(cap),
       { kind: 'cta', role: 'personal', label: 'Acceder a mi reserva personalizada', href: link },
     ],
     footer: [LINK_NOTE, SIGNATURE],
@@ -73,14 +102,14 @@ export function buildInviteEmail(firstName: string, link: string): MailingConten
 }
 
 /** B: titulares Alpes que ya solicitaron y todavía no completaron la reserva. No es una nueva invitación. */
-export function buildCompleteEmail(firstName: string, link: string): MailingContent {
+export function buildCompleteEmail(firstName: string, link: string, cap?: CapacityInfo | null): MailingContent {
   return {
     subject: 'Tu solicitud de Maratona dles Dolomites',
     preheader: 'Ya abrimos las reservas: podés completar la tuya con la tarifa de Alpes.',
     blocks: [
       { kind: 'p', text: `Hola ${firstName || ''}, cómo estás?`.replace(' ,', ',') },
       { kind: 'p', text: 'Ya recibimos tu solicitud de Maratona, gracias. Te recordamos que es la continuación de La Conquista Alpina, del 30 de junio al 5 de julio de 2027, con la carrera el 4 de julio. Ya abrimos las reservas, así que ahora podés completar la tuya.' },
-      { kind: 'p', text: 'Algunas cosas que incluye:' }, SERVICES, ...MORE, ...TERMS,
+      { kind: 'p', text: 'Algunas cosas que incluye:' }, SERVICES, ...MORE, ...terms(cap),
       { kind: 'cta', role: 'personal', label: 'Completar mi reserva', href: link },
     ],
     footer: [LINK_NOTE, SIGNATURE],
