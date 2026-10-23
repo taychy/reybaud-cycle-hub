@@ -48,7 +48,7 @@ export default function CrossSellMailingPreview({ eventId }: { eventId: string }
     </p>
     <div className="flex flex-wrap items-center gap-2 rounded-md bg-muted/40 p-2 text-xs">
       <span>{capErr ? 'No se pudo consultar la disponibilidad: el correo muestra un texto genérico y un envío no podría autorizarse.' : cap ? `Disponibilidad: ${cap.capacity} plazas · ${cap.booked} reservas registradas · ${cap.available} disponibles` : 'Consultando disponibilidad…'}
-        {capAt && ` · consultado ${capAt.toLocaleString('es-AR')}`}. Se volverá a validar al momento de un envío real.</span>
+        {capAt && ` · Disponibilidad actualizada al momento de la consulta (${capAt.toLocaleString('es-AR')})`}. Se volverá a validar al momento de un envío real.</span>
       <Button size="sm" variant="outline" onClick={() => void loadCap()}><RefreshCw className="mr-1 h-3.5 w-3.5" />Actualizar disponibilidad</Button>
     </div>
     {review.length > 0 && <div role="alert" className="flex gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-2 text-xs">
