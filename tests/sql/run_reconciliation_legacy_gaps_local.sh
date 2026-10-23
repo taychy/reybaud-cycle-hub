@@ -11,5 +11,6 @@ for fixture in local_setup application_fixture consumption_fixture statement_fix
 done
 "${PSQL[@]}" -f "$ROOT/drizzle/migrations/0083_legacy_mp_credit_imputation_coherence.sql"
 "${PSQL[@]}" -f "${1:?supply follow-up migration SQL path}"
+"${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_rollback.sql"
 "${PSQL[@]}" -f "$ROOT/tests/sql/reconciliation_legacy_gaps_rollback.sql"
 python3 "$ROOT/tests/sql/reconciliation_legacy_gaps_concurrency.py"
