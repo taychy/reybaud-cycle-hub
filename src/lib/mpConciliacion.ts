@@ -19,6 +19,9 @@ export interface MpMovementLike {
   raw?: Record<string, any> | null;
   /** true si existe un crédito en cuenta corriente ya aplicado a una deuda */
   credito_aplicado?: boolean | null;
+  /** Parte de este cobro ya representada por créditos; no supone una deuda cancelada. */
+  credito_representado?: number | null;
+  monto_disponible?: number | null;
   /** Pago de reserva activo encontrado por mp_payment_id o payment_reference (aunque el movimiento no tenga el vínculo). */
   rp_existente?: { id: string; evento?: string | null } | null;
   /** Orden o preventa de tienda con este mp_payment_id. */
@@ -59,7 +62,9 @@ export function deriveMpConciliacionEstado(m: MpMovementLike): MpConciliacionEst
 
 /** Si el destino ya es conocido (tienda o pago de reserva existente) no se ofrece imputación genérica. */
 export function canOfferGenericImputation(m: MpMovementLike): boolean {
-  return deriveMpConciliacionEstado(m) !== "imputado" && !isTiendaMovement(m) && !m.rp_existente;
+  return deriveMpConciliacionEstado(m) !== "imputado" && !isTiendaMovement(m) && !m.rp_existente
+    && !(Number(m.credito_representado ?? 0) > 0)
+    && (m.monto_disponible == null || m.monto_disponible > 0);
 }
 
 /** Texto de destino para movimientos imputados ("Imputado a Training Camp …", "Imputado a Tienda"). */

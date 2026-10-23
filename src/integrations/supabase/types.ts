@@ -20261,11 +20261,16 @@ export type Database = {
         Args: { _id: string; _tipo: string }
         Returns: boolean
       }
+      pago_credito_representado: { Args: { _id: string }; Returns: number }
       pago_monto_bruto: {
         Args: { _id: string; _tipo: string }
         Returns: number
       }
       pago_monto_imputado: {
+        Args: { _id: string; _tipo: string }
+        Returns: number
+      }
+      pago_monto_legacy: {
         Args: { _id: string; _tipo: string }
         Returns: number
       }
