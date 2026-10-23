@@ -70,9 +70,10 @@ export function capacityFromStatus(st: unknown): CapacityInfo | null {
 export function capacityText(cap: CapacityInfo | null | undefined): string {
   const ok = cap && Number.isInteger(cap.capacity) && Number.isInteger(cap.available) && cap.capacity > 0 && cap.available >= 0 && cap.available <= cap.capacity && cap.booked === cap.capacity - cap.available;
   if (!ok) return CAPACITY_FALLBACK;
-  const b = cap!.booked === 0 ? 'Todavía no hay reservas registradas' : `Ya ${cap!.booked === 1 ? 'hay 1 reserva registrada' : `hay ${cap!.booked} reservas registradas`}`;
-  const a = cap!.available === 1 ? 'queda 1 lugar disponible' : `quedan ${cap!.available} lugares disponibles`;
-  return `El viaje tiene ${cap!.capacity} plazas en total. ${b} y actualmente ${a}. La plaza se confirma una vez validada la seña, sujeta a disponibilidad.`;
+  const c = cap!;
+  const reg = c.booked === 0 ? 'Todavía no hay reservas registradas' : c.booked === 1 ? 'Ya hay 1 reserva registrada' : `Ya hay ${c.booked} reservas registradas`;
+  const free = c.available === 0 ? 'por ahora no quedan lugares disponibles' : c.available === 1 ? 'queda 1 lugar disponible, en habitación doble' : `quedan ${c.available} lugares disponibles, todos en habitación doble`;
+  return `Para Maratona tenemos ${c.capacity} plazas en total. ${reg} y ${free}. La plaza se confirma una vez validada la seña, sujeta a disponibilidad.`;
 }
 
 /** Envío hipotético: solo si el cupo pudo verificarse justo antes. */

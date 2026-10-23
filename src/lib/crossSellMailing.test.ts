@@ -100,14 +100,22 @@ describe('cupos dinámicos', () => {
   it('20/16/4 como reservas registradas', () => {
     expect(cap).toEqual({ capacity: 20, available: 16, booked: 4 });
     const t = toPlainText(buildInviteEmail('Ana', PREVIEW_LINK, cap));
-    expect(t).toContain('El viaje tiene 20 plazas en total. Ya hay 4 reservas registradas y actualmente quedan 16 lugares disponibles.');
+    expect(t).toContain('Para Maratona tenemos 20 plazas en total. Ya hay 4 reservas registradas y quedan 16 lugares disponibles, todos en habitación doble.');
     expect(t).toContain('La plaza se confirma una vez validada la seña, sujeta a disponibilidad.');
     expect(t).not.toMatch(/confirmad[oa]s|pagad[oa]s/i);
     expect(t).not.toMatch(/Somos 20|Tenemos 20/);
     expect(toPlainText(buildCompleteEmail('Ana', PREVIEW_LINK, cap))).toContain('quedan 16 lugares');
   });
   it('sigue los cambios de cupo', () => {
-    expect(capacityText(capacityFromStatus({ capacity: 20, available: 1 }))).toContain('Ya hay 19 reservas registradas y actualmente queda 1 lugar disponible');
+    expect(capacityText(capacityFromStatus({ capacity: 20, available: 1 }))).toContain('Ya hay 19 reservas registradas y queda 1 lugar disponible');
+  });
+  it('cero disponibles', () => {
+    const z = capacityFromStatus({ capacity: 20, available: 0 });
+    expect(capacityText(z)).toContain('Ya hay 20 reservas registradas y por ahora no quedan lugares disponibles');
+    expect(canSendWithCapacity(z)).toBe(false);
+  });
+  it('fallback sin cifras', () => {
+    expect(capacityText(null)).not.toMatch(/\d/);
   });
   it('si falla el status muestra genérico y bloquea envío', () => {
     for (const bad of [null, { capacity: 20, available: 25 }, { capacity: 'x' }, { capacity: 20, available: -1 }]) expect(capacityFromStatus(bad)).toBeNull();
