@@ -1,5 +1,6 @@
 -- Exact hosted RPC definitions, executed only in isolated fixtures.
 SET check_function_bodies=off;
+CREATE TABLE public.audit_log(id uuid DEFAULT gen_random_uuid(),user_id uuid,user_email text,user_role text,action text,entity_type text,entity_id text,details jsonb);
 CREATE OR REPLACE FUNCTION public.apply_credit_ajuste_to_suscripcion(_ajuste_id uuid, _suscripcion_id uuid)
  RETURNS jsonb
  LANGUAGE plpgsql
