@@ -1,3 +1,8 @@
+## Cola de facturación · Exclusión reversible (23/10)
+- [ ] Exclusión/reinclusión individual y masiva auditadas, filtro y persistencia
+- [ ] Bloqueo servidor de todos los caminos de emisión y carreras
+- [ ] Tests reversibles sin pagos reales, navegador y compilación; sin publicar
+
 ## San Luis · Presentación reprogramada (20/10)
 - [x] Título, distintivo y fecha corregidos en catálogo, carrusel y detalle mediante helper aislado, sin modificar datos
 - [x] 22 pruebas OK; tarjeta y detalle desktop/móvil 320/390; sesión propia conserva Ver estado y reserva
