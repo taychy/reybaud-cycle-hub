@@ -30,8 +30,8 @@ BEGIN
  SELECT sum(haber) INTO before_total FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id IN(a,b);
  IF before_total<>164530 THEN RAISE EXCEPTION 'FAIL double credit/imputation or hidden remanent %',before_total; END IF;
  UPDATE public.suscripciones SET precio_base=80030,precio_final=80030 WHERE id=july;
- UPDATE public.mp_account_movements SET suscripcion_id=july WHERE id=m;
  UPDATE public.cuenta_ajustes SET aplicado_a_fuente_tabla='suscripciones',aplicado_a_fuente_id=july WHERE id=credit;
+ UPDATE public.mp_account_movements SET suscripcion_id=july WHERE id=m;
  SELECT sum(haber) INTO after_total FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id IN(a,b);
  IF after_total<>before_total OR NOT public.is_subscription_paid(july) OR public.obligacion_saldo_pendiente('suscripcion',july)<>0 THEN RAISE EXCEPTION 'FAIL July reconciliation'; END IF;
  -- Simulate a historical double representation; statement must retain credit but not add PI again.

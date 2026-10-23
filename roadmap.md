@@ -1,3 +1,8 @@
+## Conciliación 0083 · Dos huecos acotados (23/10)
+- [x] 0084 aplicada y existencia confirmada: ingreso reconocido separado del consumo; vista real mantiene haber1000 antes/después de aplicar200, obligación inicial0/otra600→400/disponible0
+- [x] RPC y trigger bloquean crédito→vínculo; crédito nuevo bloqueado tras vínculo; ambas carreras aisladas pasan; apply_credit_ajuste_to_suscripcion real conservada
+- [x] Test7 original reproducido solo en fixtures (49868+54000+71240+71240), split admin autorizado preservado; regresiones SQL anteriores y 802 tests pasan, compilación automática OK; Natalia sin modificaciones y frontend sin publicar
+
 ## Natalia Basilico · Conciliación autorizada (23/10)
 - [x] Evidencia y 26 candidatos revisados; sin corrección masiva
 - [x] Migración 0083 y UI; 802 tests, SQL rollback y carreras aisladas; compilación automática OK
