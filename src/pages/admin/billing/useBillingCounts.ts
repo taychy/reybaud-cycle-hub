@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
 export type BillingCounts = {
@@ -24,10 +24,13 @@ export function useBillingCounts(refreshKey: number = 0): BillingCounts {
     montoPendiente: 0,
   });
   const [loading, setLoading] = useState(true);
+  const generation = useRef(0);
 
   const load = useCallback(async () => {
+    const request = ++generation.current;
     setLoading(true);
     const { data, error } = await supabase.rpc("get_billing_dashboard" as any);
+    if (request !== generation.current) return;
     if (!error && data) {
       const d = data as any;
       setState({
@@ -41,7 +44,10 @@ export function useBillingCounts(refreshKey: number = 0): BillingCounts {
     setLoading(false);
   }, []);
 
-  useEffect(() => { load(); }, [load, refreshKey]);
+  useEffect(() => {
+    void load();
+    return () => { generation.current++; };
+  }, [load, refreshKey]);
 
   return { ...state, loading, refresh: load };
 }

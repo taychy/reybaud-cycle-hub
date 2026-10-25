@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -13,19 +13,22 @@ import { BulkInvoiceModal, BulkFacturaRow } from "./BulkInvoiceModal";
 import { resolverEmisorCobro } from "@/lib/invoiceEmisorResolver";
 import { isFacturaEmitida, edgeFunctionErrorMessage } from "@/lib/billingInvoiceLink";
 import { AlertTriangle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { FacturacionAutoConfigCard } from "@/components/admin/FacturacionAutoConfigCard";
 import { RuteoUnidadCard } from "@/components/admin/RuteoUnidadCard";
 import { ColaEmisorOverrideDialog } from "@/components/admin/ColaEmisorOverrideDialog";
 import { autoEstadoUi, emisorOrigenLabel, periodoLabel } from "@/lib/facturacionAuto";
 import { canChangeBillingExclusion, canInvoiceQueueRow, isBillingExcluded } from "@/lib/billingQueueExclusion";
 import { QueueExclusionAction } from "./QueueExclusionAction";
+import { billingStudentLink, readBillingNavigation, updateBillingNavigation } from "@/lib/billingTrayNavigation";
 
 interface PreflightRow {
   cola_id: string;
   clase: "ok" | "documento_faltante" | "documento_invalido" | "tipo_inconsistente" | "cliente_sin_identidad";
   mensaje: string | null;
   alumno_id: string | null;
+  documento_actual?: string | null;
+  documento_cola?: string | null;
 }
 
 const PREFLIGHT_UI: Record<string, { label: string; blocking: boolean }> = {
@@ -88,14 +91,17 @@ interface ColaRow {
   reinclusion_at: string | null;
 }
 
-export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
+export function TrayPendientes({ onChanged, refreshKey = 0 }: { onChanged?: () => void; refreshKey?: number }) {
+  const [params, setParams] = useSearchParams();
+  const { search, origen, estado: queueFilter } = readBillingNavigation(params);
+  const setFilter = (key: "q" | "origen" | "estado", value: string) =>
+    setParams((current) => updateBillingNavigation(current, key, value), { replace: true });
   const [rows, setRows] = useState<ColaRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
-  const [search, setSearch] = useState("");
-  const [debounced, setDebounced] = useState("");
-  const [origen, setOrigen] = useState<"todos" | "escuela" | "viajes" | "tienda">("todos");
+  const [debounced, setDebounced] = useState(search.trim());
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [emisores, setEmisores] = useState<any[]>([]);
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -105,7 +111,10 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   const [preflight, setPreflight] = useState<Map<string, PreflightRow>>(new Map());
   const [cuentas, setCuentas] = useState<Map<string, string>>(new Map());
   const [overrideRow, setOverrideRow] = useState<ColaRow | null>(null);
-  const [queueFilter, setQueueFilter] = useState<"pendiente" | "excluida">("pendiente");
+  const generation = useRef(0);
+  const pages = useRef(1);
+  const previousFilter = useRef("");
+  const busy = useRef(false);
 
   useEffect(() => {
     const t = setTimeout(() => setDebounced(search.trim()), 350);
@@ -113,13 +122,13 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   }, [search]);
 
   const fetchPage = useCallback(
-    async (from: number): Promise<ColaRow[]> => {
+    async (from: number, size = PAGE_SIZE): Promise<ColaRow[]> => {
       let q = supabase
         .from("facturacion_cola" as any)
         .select(COLS)
         .eq("estado", queueFilter)
         .order("pagado_at", { ascending: false })
-        .range(from, from + PAGE_SIZE - 1);
+        .range(from, from + size - 1);
 
       if (origen !== "todos") q = q.in("source", GROUP_SOURCES[origen]);
       if (debounced) q = q.or(`cliente_nombre.ilike.%${debounced}%,concepto.ilike.%${debounced}%`);
@@ -131,7 +140,8 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
       // Estado de facturas en UNA sola consulta (evita N+1 en el listado)
       const ids = Array.from(new Set(base.map((r) => r.factura_id).filter(Boolean))) as string[];
       if (ids.length > 0) {
-        const { data: facs } = await supabase.from("facturas").select("id, estado, cae").in("id", ids);
+        const { data: facs, error: facturaError } = await supabase.from("facturas").select("id, estado, cae").in("id", ids);
+        if (facturaError) throw facturaError;
         const map = new Map((facs || []).map((f: any) => [f.id, f]));
         base.forEach((r) => {
           const f = r.factura_id ? map.get(r.factura_id) : null;
@@ -145,42 +155,73 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
   );
 
   const load = useCallback(async () => {
-    setLoading(true);
+    const request = ++generation.current;
+    const filterKey = JSON.stringify([origen, debounced, queueFilter]);
+    const reset = previousFilter.current !== filterKey;
+    previousFilter.current = filterKey;
+    if (reset) pages.current = 1;
+    const size = pages.current * PAGE_SIZE;
+    busy.current = true;
+    setLoading(reset);
+    setRefreshing(true);
+    setLoadingMore(false);
     setSelected(new Set());
     try {
-      const [page, emisoresRes, preflightRes] = await Promise.all([
-        fetchPage(0),
+      const [page, emisoresRes, preflightRes, cuentasRes] = await Promise.all([
+        fetchPage(0, size),
         supabase
           .from("emisores_fiscales")
           .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
           .eq("activo", true),
         supabase.rpc("preflight_facturacion_cola" as any, {}),
+        supabase.from("cuentas_mp" as any).select("id, nombre"),
       ]);
-      const { data: cts } = await supabase.from("cuentas_mp" as any).select("id, nombre");
-      setCuentas(new Map(((cts as any[]) || []).map((c) => [c.id, c.nombre])));
+      if (request !== generation.current) return;
+      for (const result of [emisoresRes, preflightRes, cuentasRes]) {
+        if (result.error) throw result.error;
+      }
+      setCuentas(new Map(((cuentasRes.data as any[]) || []).map((c) => [c.id, c.nombre])));
       setEmisores((emisoresRes.data as any[]) || []);
       setPreflight(
         new Map(((preflightRes.data as any[]) || []).map((p: PreflightRow) => [p.cola_id, p])),
       );
-      setRows(page);
-      setHasMore(page.length === PAGE_SIZE);
+      const pf = new Map(((preflightRes.data as PreflightRow[]) || []).map((p) => [p.cola_id, p]));
+      setRows(page.map((row) => {
+        const current = pf.get(row.id);
+        return current ? { ...row, cliente_cuit: current.documento_actual ?? current.documento_cola ?? null } : row;
+      }));
+      setHasMore(page.length === size);
     } catch (e: any) {
-      toast({ title: "Error al cargar pendientes", description: e.message, variant: "destructive" });
+      if (request === generation.current) toast({ title: "Error al cargar pendientes", description: e.message, variant: "destructive" });
     } finally {
-      setLoading(false);
+      if (request === generation.current) {
+        busy.current = false;
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
-  }, [fetchPage]);
+  }, [fetchPage, origen, debounced, queueFilter]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => { generation.current++; };
+  }, [load, refreshKey]);
 
   const loadMore = async () => {
+    if (busy.current) return;
+    const request = ++generation.current;
+    busy.current = true;
     setLoadingMore(true);
     try {
       const page = await fetchPage(rows.length);
+      if (request !== generation.current) return;
+      pages.current++;
       setRows((prev) => [...prev, ...page]);
       setHasMore(page.length === PAGE_SIZE);
+    } catch (e: any) {
+      if (request === generation.current) toast({ title: "Error al cargar más cobros", description: e.message, variant: "destructive" });
     } finally {
-      setLoadingMore(false);
+      if (request === generation.current) { busy.current = false; setLoadingMore(false); }
     }
   };
 
@@ -325,10 +366,10 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[220px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input placeholder="Buscar cliente o concepto..." value={search} onChange={(e) => setSearch(e.target.value)} className="pl-9" />
+          <Input placeholder="Buscar cliente o concepto..." value={search} onChange={(e) => setFilter("q", e.target.value)} className="pl-9" />
         </div>
-        <Select value={origen} onValueChange={(v: any) => setOrigen(v)}>
-          <SelectTrigger className="w-40"><SelectValue /></SelectTrigger>
+        <Select value={origen} onValueChange={(v) => setFilter("origen", v)}>
+          <SelectTrigger className="w-40" aria-label="Origen de los cobros"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="todos">Todos</SelectItem>
             <SelectItem value="escuela">Escuela</SelectItem>
@@ -336,15 +377,15 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
             <SelectItem value="tienda">Tienda</SelectItem>
           </SelectContent>
         </Select>
-        <Select value={queueFilter} onValueChange={(value: "pendiente" | "excluida") => setQueueFilter(value)}>
+        <Select value={queueFilter} onValueChange={(value) => setFilter("estado", value)}>
           <SelectTrigger className="w-40" aria-label="Estado de la cola"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="pendiente">Pendientes</SelectItem>
             <SelectItem value="excluida">Excluidos</SelectItem>
           </SelectContent>
         </Select>
-        <Button variant="ghost" size="sm" onClick={load} disabled={loading}>
-          <RefreshCw className={`w-4 h-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
+        <Button variant="ghost" size="sm" onClick={load} disabled={refreshing}>
+          <RefreshCw className={`w-4 h-4 mr-1 ${refreshing ? "animate-spin" : ""}`} /> Actualizar
         </Button>
         <Button variant="secondary" size="sm" onClick={handleRebuild} disabled={rebuilding}>
           {rebuilding ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <Database className="w-4 h-4 mr-1" />}
@@ -364,9 +405,9 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
             </span>
           </label>
           <div className="flex flex-wrap gap-2">
-          <QueueExclusionAction ids={[...selected]} excluded={queueFilter === "excluida"} disabled={preparing}
+          <QueueExclusionAction ids={[...selected]} excluded={queueFilter === "excluida"} disabled={preparing || refreshing}
             onDone={() => { void load(); onChanged?.(); }} />
-          {queueFilter === "pendiente" && <Button size="sm" onClick={handleBulk} disabled={preparing || !rows.some((r) => selected.has(r.id) && canInvoiceQueueRow(r) && !isBlocked(r.id))}>
+          {queueFilter === "pendiente" && <Button size="sm" onClick={handleBulk} disabled={preparing || refreshing || !rows.some((r) => selected.has(r.id) && canInvoiceQueueRow(r) && !isBlocked(r.id))}>
             {preparing ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : <FileText className="w-4 h-4 mr-1" />}
             Facturar seleccionados {selected.size > 0 && `(${selected.size})`}
           </Button>}
@@ -420,7 +461,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                       <span>{pfUi.label}</span>
                       {pf?.mensaje && <span className="text-muted-foreground hidden sm:inline">· {pf.mensaje}</span>}
                       {r.alumno_id && (
-                        <Link to={`/admin/alumnos?alumno=${r.alumno_id}`} className="underline font-medium">
+                        <Link {...billingStudentLink(r.alumno_id)} className="underline font-medium">
                           Abrir ficha
                         </Link>
                       )}
@@ -447,6 +488,9 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                           {r.cuenta_mp_id && ` · cuenta ${cuentas.get(r.cuenta_mp_id) ?? "MP"}`}
                         </span>
                         {r.auto_motivo && <span className="text-muted-foreground">· {r.auto_motivo}</span>}
+                        {!excluded && !blocked && r.auto_estado === "requiere_datos_fiscales" && (
+                          <span className="text-muted-foreground">Datos fiscales actualizados. Reprocesar para reevaluar el estado automático.</span>
+                        )}
                         {!excluded && !emitida && r.auto_estado !== "emitiendo" && (
                           <button type="button" className="underline font-medium" onClick={() => setOverrideRow(r)}>
                             Cambiar emisor
@@ -473,10 +517,10 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
                 <div className="flex flex-wrap items-center gap-3 sm:justify-end">
                   <p className="text-sm font-bold tabular-nums">{formatPrice(r.monto, r.moneda as any)}</p>
                   {canChangeBillingExclusion(r) && <QueueExclusionAction ids={[r.id]} excluded={excluded}
-                    disabled={preparing} onDone={() => { void load(); onChanged?.(); }} />}
+                    disabled={preparing || refreshing} onDone={() => { void load(); onChanged?.(); }} />}
                   {excluded ? <Badge variant="secondary">Excluido de facturación</Badge> : !canInvoiceQueueRow(r) ? <Badge variant="outline">{emitida ? "Facturada" : "Emisión en curso"}</Badge> : blocked ? (
                     <span className="text-xs text-destructive font-medium">Completá los datos fiscales</span>
-                  ) : r.alumno_id ? (
+                  ) : refreshing ? <span className="text-xs text-muted-foreground">Actualizando datos fiscales…</span> : r.alumno_id ? (
                     <BillingInvoiceLauncher
                       source={toInvoiceSource(r)}
                       variant="default"
@@ -493,7 +537,7 @@ export function TrayPendientes({ onChanged }: { onChanged?: () => void }) {
 
           {hasMore && (
             <div className="pt-2 text-center">
-              <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore}>
+              <Button variant="outline" size="sm" onClick={loadMore} disabled={loadingMore || refreshing}>
                 {loadingMore ? <Loader2 className="w-4 h-4 mr-1 animate-spin" /> : null} Cargar más
               </Button>
             </div>
