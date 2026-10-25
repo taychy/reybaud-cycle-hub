@@ -1,7 +1,7 @@
 ## Facturación · UX de cola (25/10)
-- [ ] Ficha exacta en nueva pestaña; filtros y pestaña persistentes en URL sin selección
-- [ ] Refresco de solo lectura al volver, deduplicado, sin perder páginas ni aceptar respuestas antiguas
-- [ ] Pruebas de comportamiento y navegador desktop/móvil; compilación automática; sin datos reales ni publicación
+- [x] Ficha exacta en nueva pestaña; filtros y pestaña persistentes en URL sin selección
+- [x] Refresco de solo lectura al volver, deduplicado, sin perder páginas ni aceptar respuestas antiguas; Reprocesar explícito
+- [x] 33 pruebas; navegador autenticado desktop/móvil y F5; tipos/compilación automáticos OK; cero operaciones financieras, sin publicación
 
 ## Conciliación 0083 · Dos huecos acotados (23/10)
 - [x] 0084 aplicada y existencia confirmada: ingreso reconocido separado del consumo; vista real mantiene haber1000 antes/después de aplicar200, obligación inicial0/otra600→400/disponible0
