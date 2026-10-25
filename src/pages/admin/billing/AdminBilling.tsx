@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Settings2, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
@@ -10,6 +10,7 @@ import { TrayProblemas } from "./TrayProblemas";
 import { TrayHistorial } from "./TrayHistorial";
 import { FiscalComprobantesLab } from "./FiscalComprobantesLab";
 import { useBillingCounts } from "./useBillingCounts";
+import { listenForBillingReturn, readBillingNavigation, updateBillingNavigation } from "@/lib/billingTrayNavigation";
 
 interface Emisor {
   id: string;
@@ -20,8 +21,6 @@ interface Emisor {
   tiene_credenciales?: boolean;
   limite_anual_ars?: number | null;
 }
-
-type Tab = "pendientes" | "problemas" | "historial" | "fiscal-beta";
 
 function Indicator({
   label, value, loading, icon: Icon, tone,
@@ -42,7 +41,8 @@ function Indicator({
 }
 
 export default function AdminBilling() {
-  const [tab, setTab] = useState<Tab>("pendientes");
+  const [params, setParams] = useSearchParams();
+  const { tab } = readBillingNavigation(params);
   const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const counts = useBillingCounts(refreshKey);
@@ -55,7 +55,17 @@ export default function AdminBilling() {
     setEmisores((data as any[]) || []);
   }, []);
 
-  useEffect(() => { loadEmisores(); }, [loadEmisores]);
+  useEffect(() => {
+    let active = true;
+    // This read is independent of queue preparation or emission.
+    void supabase.from("emisores_fiscales")
+      .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
+      .order("created_at", { ascending: true })
+      .then(({ data }) => { if (active) setEmisores((data as any[]) || []); });
+    return () => { active = false; };
+  }, [refreshKey]);
+
+  useEffect(() => listenForBillingReturn(() => setRefreshKey((key) => key + 1)), []);
 
   const onChanged = () => setRefreshKey((k) => k + 1);
 
@@ -83,7 +93,7 @@ export default function AdminBilling() {
         <Indicator label="Emitidas este mes" value={counts.emitidasMes} loading={counts.loading} icon={CheckCircle2} tone="bg-emerald-500/10 text-emerald-500" />
       </div>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="space-y-4">
+      <Tabs value={tab} onValueChange={(v) => setParams((current) => updateBillingNavigation(current, "tab", v), { replace: true })} className="space-y-4">
         <TabsList className="bg-secondary flex-wrap h-auto">
           <TabsTrigger value="pendientes">Pendientes</TabsTrigger>
           <TabsTrigger value="problemas">Problemas</TabsTrigger>
@@ -92,7 +102,7 @@ export default function AdminBilling() {
         </TabsList>
 
         <TabsContent value="pendientes" className="mt-0">
-          {tab === "pendientes" && <TrayPendientes onChanged={onChanged} />}
+          {tab === "pendientes" && <TrayPendientes onChanged={onChanged} refreshKey={refreshKey} />}
         </TabsContent>
         <TabsContent value="problemas" className="mt-0">
           {tab === "problemas" && <TrayProblemas emisores={emisores} onChanged={onChanged} />}
