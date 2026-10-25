@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -46,14 +46,6 @@ export default function AdminBilling() {
   const [emisores, setEmisores] = useState<Emisor[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const counts = useBillingCounts(refreshKey);
-
-  const loadEmisores = useCallback(async () => {
-    const { data } = await supabase
-      .from("emisores_fiscales")
-      .select("id, nombre_fiscal, cuit, punto_venta, activo, tiene_credenciales, limite_anual_ars")
-      .order("created_at", { ascending: true });
-    setEmisores((data as any[]) || []);
-  }, []);
 
   useEffect(() => {
     let active = true;
