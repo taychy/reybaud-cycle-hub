@@ -4,6 +4,7 @@ import { Map, ExternalLink, MapPin, ChevronDown } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from "@/components/ui/collapsible";
 import { Roadbook, normalizeRoadbook } from "@/lib/roadbook";
+import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 
 interface Props { eventId: string }
 
@@ -86,6 +87,9 @@ const EventRoadbook = ({ eventId }: Props) => {
   }, [eventId]);
 
   if (loading || !rb) return null;
+  // Reprogramado: solo presentación; las fechas guardadas del roadbook no se modifican.
+  const resched = eventRescheduledPresentation(eventId);
+  const stripDate = (t: string) => (resched ? t.replace(/\s*[·\-–]\s*\d{1,2}\/\d{1,2}\/\d{2,4}\s*$/, "") : t);
 
   // Si no hay nada util cargado, no renderizamos.
   const hasItin = rb.dias?.some((d) => d.titulo || d.fecha);
@@ -103,7 +107,14 @@ const EventRoadbook = ({ eventId }: Props) => {
       {(rb.fechas_label || rb.recorrido_label) && (
         <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
           <div className="text-[10px] uppercase tracking-[0.22em] text-primary font-heading">Fechas</div>
-          {rb.fechas_label && <div className="text-sm font-semibold mt-0.5">{rb.fechas_label}</div>}
+          {(resched?.dateLabel || rb.fechas_label) && (
+            <div className="text-sm font-semibold mt-0.5">{resched?.dateLabel || rb.fechas_label}</div>
+          )}
+          {resched && (
+            <div className="text-[11px] text-muted-foreground mt-0.5">
+              Recorridos de referencia: el orden por día se confirma para las nuevas fechas.
+            </div>
+          )}
           {rb.recorrido_label && <div className="text-xs text-muted-foreground mt-0.5">{rb.recorrido_label}</div>}
         </div>
       )}
@@ -125,7 +136,7 @@ const EventRoadbook = ({ eventId }: Props) => {
                     {d.titulo || "—"}
                   </div>
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
-                    {d.fecha && <span>{d.fecha}</span>}
+                    {d.fecha && !resched && <span>{d.fecha}</span>}
                     {d.km && d.km !== "—" && (
                       <span className="text-cyan font-medium">{d.km} km</span>
                     )}
@@ -161,7 +172,7 @@ const EventRoadbook = ({ eventId }: Props) => {
         const s = rb[key];
         if (!s.enabled || !s.contenido) return null;
         return (
-          <SectionCollapsible key={key} title={s.titulo} eventId={eventId} sectionKey={key} defaultOpen={true}>
+          <SectionCollapsible key={key} title={stripDate(s.titulo)} eventId={eventId} sectionKey={key} defaultOpen={true}>
             <div className="rounded-lg border border-border/40 bg-muted/10 p-3 space-y-1">
               <p className="text-xs text-foreground/90 whitespace-pre-line leading-relaxed">{s.contenido}</p>
             </div>
