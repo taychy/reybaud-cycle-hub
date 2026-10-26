@@ -229,6 +229,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
             .in("reservation_id", resIds)
         : Promise.resolve({ data: [] as any[] }),
     ]);
+    if (seq !== loadSeq.current) return;
 
     const aluMap = new Map((aluR.data || []).map((a: any) => [a.id, a]));
     const extMap = new Map((extR.data || []).map((e: any) => [e.id, e]));
@@ -274,6 +275,7 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
 
     setLoading(false);
   };
+  loadAllRef.current = loadAll;
 
   useEffect(() => {
     if (open) loadAll();
