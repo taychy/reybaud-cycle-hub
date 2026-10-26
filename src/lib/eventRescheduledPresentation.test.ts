@@ -9,8 +9,8 @@ describe("rescheduling presentation isolation", () => {
     expect(stored.date).toBe("2026-10-22");
     expect(stored.end_date).toBe("2026-10-25");
   });
-  it("does not approve new places", () => {
-    expect(eventRescheduledPresentation(id)?.newPlacesApproved).toBe(false);
+  it("opens sale of approved released places", () => {
+    expect(eventRescheduledPresentation(id)?.newPlacesApproved).toBe(true);
   });
   it("leaves other events untouched", () => {
     expect(eventRescheduledPresentation("other")).toBeNull();

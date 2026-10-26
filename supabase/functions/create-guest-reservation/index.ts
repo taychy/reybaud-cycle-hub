@@ -101,6 +101,20 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!pkg || !pkg.activo) return jsonResp({ error: "Paquete no disponible" }, 400);
 
+    // Paquetes con habitaciones cargadas: no vender por encima del cupo real (incluye reservas sin habitación).
+    const { count: roomCount } = await admin
+      .from("event_rooms")
+      .select("id", { count: "exact", head: true })
+      .eq("package_id", pkg.id);
+    if ((roomCount ?? 0) > 0) {
+      const { data: spots, error: spotsErr } = await admin.rpc("get_package_available_spots", { p_package_id: pkg.id });
+      if (spotsErr) {
+        console.error("[create-guest-reservation] availability", spotsErr);
+        return jsonResp({ error: "No se pudo verificar el cupo" }, 500);
+      }
+      if (Number(spots ?? 0) <= 0) return jsonResp({ error: "Sin cupo disponible para este alojamiento" }, 409);
+    }
+
     // Resolver el precio efectivo exclusivamente en backend.
     // get_package_active_price aplica carry-forward de la última etapa iniciada
     // si la ventana vigente terminó o existe un hueco entre etapas.
