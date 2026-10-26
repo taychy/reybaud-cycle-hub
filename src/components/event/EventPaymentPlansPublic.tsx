@@ -45,6 +45,15 @@ const fmtDate = (d?: string | null) => {
 
 const round2 = (v: number) => Math.round(v * 100) / 100;
 
+export function isFullPaymentAtBooking(plan: any, todayISO?: string): boolean {
+  if (!plan || plan.regla_reserva_tardia !== "cobrar_al_reservar") return false;
+  const insts = (plan.installments ?? []) as { fecha_vencimiento: string | null }[];
+  if (insts.length === 0) return false;
+  const d = new Date();
+  const today = todayISO ?? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return insts.every((i) => !!i.fecha_vencimiento && i.fecha_vencimiento < today);
+}
+
 const computeAmount = (tipo: string, valor: number, total: number, sena: number = 0) => {
   if (tipo === "porcentaje") return round2((valor / 100) * total);
   if (tipo === "porcentaje_saldo") return round2((valor / 100) * Math.max(total - sena, 0));
@@ -105,7 +114,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
         if (stageId) {
           const { data } = await supabase
             .from("event_package_payment_plans" as any)
-            .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas")
+            .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas, regla_reserva_tardia")
             .eq("package_id", p.id)
             .eq("price_stage_id", stageId)
             .is("archived_at", null)
@@ -118,7 +127,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
         if (!plan) {
           const { data } = await supabase
             .from("event_package_payment_plans" as any)
-            .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas")
+            .select("id, nombre, sena_tipo, sena_valor, cantidad_cuotas, regla_reserva_tardia")
             .eq("package_id", p.id)
             .is("price_stage_id", null)
             .is("archived_at", null)
@@ -178,6 +187,8 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           const minCuota = cuotaMontos.length ? Math.min(...cuotaMontos) : 0;
           const maxCuota = cuotaMontos.length ? Math.max(...cuotaMontos) : 0;
           const cuotasIguales = cuotaMontos.length > 0 && minCuota === maxCuota;
+          // Si todas las cuotas ya vencieron y el plan cobra lo vencido al reservar, se paga el total hoy.
+          const pagoTotalAlReservar = isFullPaymentAtBooking(pkg.plan);
           const selectable = !!onSelect;
           const isSelected = selectable && selectedId === pkg.id;
           const open = !!openIds[pkg.id] || isSelected;
@@ -203,7 +214,9 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
                 {/* Izquierda: título + subtítulo */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">{pkg.nombre}{isSelected && <span className="ml-2 text-[10px] uppercase tracking-wider text-primary">Elegido</span>}</p>
-                  {pkg.plan ? (
+                  {pkg.plan && pagoTotalAlReservar ? (
+                    <p className="text-xs text-muted-foreground mt-0.5">Por persona · pago total al reservar</p>
+                  ) : pkg.plan ? (
                     <p className="text-xs text-muted-foreground mt-0.5">
                       Por persona · seña {formatPrice(sena, pkg.currency)}
                       {cuotas.length > 0 && (
