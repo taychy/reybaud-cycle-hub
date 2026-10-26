@@ -454,7 +454,7 @@ const EventDetail = () => {
   const hero = resolveEventHero(event.image_url, event.metadata, placeholderImages[event.type] || placeholderImages.otro);
   const paymentPolicy = parsePaymentPolicy(event.metadata);
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
-  const eventPast = new Date(event.date + "T23:59:59") < new Date();
+  const eventPast = new Date((rescheduled?.end || event.date) + "T23:59:59") < new Date();
   // checkinOpensAt: si el evento define metadata.checkin_opens_at (timestamp ISO),
   // usamos ese momento para habilitar el check-in (permite abrir antes del día oficial).
   // Default: día del evento 00:00 hora local (split '-' para evitar drift de timezone).
@@ -491,7 +491,7 @@ const EventDetail = () => {
   const editorialAlpine = premiumLanding?.layout_variant === "editorial_alpine";
   const premiumDates = premiumDateSummary(event);
   const premiumPrice = getEventPriceDisplay({ ...event, currency: packagesCurrency || event.currency, packages_min_price: packagesMinPrice });
-  const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview && !rescheduled;
+  const allowsParticipation = (isReservable || isInscriptionOnly) && !isDraftPreview && (!rescheduled || rescheduled.newPlacesApproved);
   const isTripLike = event.type === "camp" || event.type === "viaje";
   const isSoldOut = event.estado_publicacion === "agotado";
   const isProximamente = event.estado_publicacion === "proximamente";
@@ -609,6 +609,7 @@ const EventDetail = () => {
               )}
             </div>
             {rescheduled && <p className="text-xs text-muted-foreground">{rescheduled.originalDateLabel}</p>}
+            {rescheduled?.newPlacesApproved && <p className="text-xs text-foreground">{rescheduled.saleNote}</p>}
             {premiumLanding && (
               <div className="flex flex-wrap items-center gap-x-6 gap-y-3 border-y border-border py-4">
                 {event.duration_days && <span className="text-sm text-foreground">{event.duration_days} días</span>}
