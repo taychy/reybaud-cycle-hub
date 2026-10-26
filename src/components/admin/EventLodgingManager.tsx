@@ -6,8 +6,15 @@ import SharedRoomAssignmentPanel from "./SharedRoomAssignmentPanel";
  *   • Ver plazas ocupadas vs libres para definir últimos cupos
  * Reusable para todo evento tipo viaje/camp.
  */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  isInactiveStatus,
+  needsLodging,
+  withdrawalLabel,
+  withdrawnSeatMap,
+  type SeatReleaseLite,
+} from "@/lib/lodgingParticipation";
 import {
   Dialog,
   DialogContent,
@@ -151,6 +158,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [rooms, setRooms] = useState<Room[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [roommateGroups, setRoommateGroups] = useState<Record<string, string[]>>({}); // reservation_id -> [names of confirmed mates]
+  const [withdrawn, setWithdrawn] = useState<Map<string, SeatReleaseLite>>(new Map());
+  const loadAllRef = useRef<(silent?: boolean) => void>(() => {});
 
   // form nueva habitación
   const [newRoomOpen, setNewRoomOpen] = useState<string | null>(null); // package_id o "sin"
@@ -167,9 +176,11 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const [erTipo, setErTipo] = useState<RoomTipo | "">("");
   const [erNotas, setErNotas] = useState("");
 
-  const loadAll = async () => {
-    setLoading(true);
-    const [pkgR, resR, roomR, alumnosPreR] = await Promise.all([
+  const loadSeq = useRef(0);
+  const loadAll = async (silent = false) => {
+    const seq = ++loadSeq.current;
+    if (!silent) setLoading(true);
+    const [pkgR, resR, roomR, relR] = await Promise.all([
       supabase
         .from("event_packages")
         .select(
@@ -184,8 +195,13 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
         )
         .eq("event_id", eventId),
       (supabase as any).from("event_rooms").select("*").eq("event_id", eventId).order("sort_order").order("nombre"),
-      Promise.resolve(null),
+      (supabase as any)
+        .from("rescheduling_seat_releases")
+        .select("source_reservation_id, kind, state")
+        .eq("event_id", eventId),
     ]);
+    if (seq !== loadSeq.current) return;
+    setWithdrawn(withdrawnSeatMap(((relR as any).data || []) as SeatReleaseLite[]));
 
     const resList = (resR.data || []) as any[];
     const aluIds = resList.map((r) => r.alumno_id).filter(Boolean);
@@ -263,6 +279,26 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     if (open) loadAll();
   }, [open, eventId]);
 
+  // Tiempo real: cambios de reserva, habitación, asignación o baja refrescan el panel (deduplicado).
+  useEffect(() => {
+    if (!open) return;
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const refresh = () => {
+      if (t) clearTimeout(t);
+      t = setTimeout(() => loadAllRef.current(true), 300);
+    };
+    const ch = supabase.channel(`lodging-${eventId}-${Math.random().toString(36).slice(2)}`);
+    ["event_reservations", "event_rooms", "rescheduling_seat_releases"].forEach((table) =>
+      ch.on("postgres_changes" as any, { event: "*", schema: "public", table, filter: `event_id=eq.${eventId}` }, refresh),
+    );
+    ch.on("postgres_changes" as any, { event: "*", schema: "public", table: "event_room_assignments" }, refresh);
+    ch.subscribe();
+    return () => {
+      if (t) clearTimeout(t);
+      supabase.removeChannel(ch);
+    };
+  }, [open, eventId]);
+
   const packageById = useMemo(() => {
     const m: Record<string, Pkg> = {};
     packages.forEach((p) => {
@@ -312,14 +348,14 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
   const reservationsByPackage = useMemo(() => {
     const m: Record<string, Reservation[]> = {};
     reservations
-      .filter((r) => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
+      .filter((r) => needsLodging(r, withdrawn))
       .forEach((r) => {
         const k = lodgingGroupKey(r.package_id);
         m[k] ??= [];
         m[k].push(r);
       });
     return m;
-  }, [reservations, packageById]);
+  }, [reservations, packageById, withdrawn]);
 
   const occupantsByRoom = useMemo(() => {
     const m: Record<string, Reservation[]> = {};
@@ -595,9 +631,8 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
     !!p && (p.sin_alojamiento === true || /sin alojamiento|sin aloj/i.test(p.nombre));
   const noLodgingPkgIds = new Set(packages.filter(isNoLodgingPkg).map((p) => p.id));
 
-  const activeReservations = reservations.filter(
-    (r) => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada",
-  );
+  const activeReservations = reservations.filter((r) => needsLodging(r, withdrawn));
+  const bajasAprobadas = reservations.filter((r) => !isInactiveStatus(r.reservation_status) && withdrawn.has(r.id));
   // B) paquete sin alojamiento = ubicado conceptualmente
   const sinAlojamientoReservations = activeReservations.filter(
     (r) => r.package_id && noLodgingPkgIds.has(r.package_id),
@@ -675,6 +710,27 @@ const EventLodgingManager = ({ open, onOpenChange, eventId, eventTitle }: Props)
                 color={totalLibres > 0 ? "text-primary" : "text-muted-foreground"}
               />
             </div>
+
+            {/* Bajas aprobadas: historial, no ocupan plaza */}
+            {bajasAprobadas.length > 0 && (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                <div className="text-sm font-semibold">Bajas / Créditos aprobados ({bajasAprobadas.length})</div>
+                <p className="text-[11px] text-muted-foreground">
+                  Plaza liberada. No ocupan alojamiento ni cuentan como reserva activa; reserva, pagos y saldos se conservan.
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {bajasAprobadas.map((r) => {
+                    const s = withdrawn.get(r.id)!;
+                    return (
+                      <Badge key={r.id} variant="outline" className="text-xs">
+                        {r.nombre} {r.apellido} · {withdrawalLabel(s.kind)} · {s.state}
+                        {r.package_id && packageById[r.package_id] ? ` · ${packageById[r.package_id].nombre}` : ""}
+                      </Badge>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Participantes sin ubicar */}
             {pendientes.length > 0 && (
