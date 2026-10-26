@@ -34,12 +34,20 @@ export function formatAvailabilityRow(r: AvailabilityRow): string {
   return `${tipo}${gen}: ${r.available} ${r.available === 1 ? "lugar" : "lugares"}`;
 }
 
+/** Las habitaciones se cargan como mujeres/varones/mixto; la reserva usa femenina/masculina/mixta. */
+export function normalizeRoomGender(g: unknown): string {
+  const v = String(g || "mixta").toLowerCase();
+  if (v === "mujeres" || v === "femenina") return "femenina";
+  if (v === "varones" || v === "masculina") return "masculina";
+  return "mixta";
+}
+
 export async function fetchPackageAvailability(packageId: string): Promise<AvailabilityRow[]> {
   const { data, error } = await supabase.rpc("get_package_availability_breakdown" as any, { p_package_id: packageId });
   if (error || !data) return [];
   return (data as any[]).map((r) => ({
     tipo: String(r.tipo || "otro"),
-    genero: String(r.genero || "mixta"),
+    genero: normalizeRoomGender(r.genero),
     capacity: Number(r.capacity || 0),
     taken: Number(r.taken || 0),
     available: Number(r.available || 0),
