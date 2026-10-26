@@ -23,3 +23,4 @@
 - Kit: separate audited admin/staff sizes, soft removal. Why: provenance.
 - Trip intake: event_waitlist_entries; event_booking_openings gates native flow, locks one pool, audits idempotent conversion. Why: no premature places.
 - Cross-trip quick booking: identity/rate from source reservation via session or hashed 30-day link (event_crosssell_links); book only via crosssell_book (reuses opening guard and links the holder's own single matching request in the same transaction; ambiguous matches are logged, never linked); post-booking deposit info only from get_crosssell_context (ClicPay host validated). Mailing cohorts only from admin_crosssell_mailing_audience; previews never carry tokens. Why: no typed-email trust, no parallel flow, no leaked links.
+- Package availability counts active reservations without a room (except administratively released rescheduling seats) and guest reservations re-check it server-side. Why: avoid overselling rooms.
