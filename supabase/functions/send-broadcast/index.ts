@@ -34,6 +34,8 @@ interface SegmentFilters {
   waitlist_event_ids?: string[];       // eventos cuyas listas de espera se incluyen
   waitlist_estados?: string[];         // nuevo | contactado | convertido | descartado
   marketing_include_opt_out?: boolean;
+  // "plain": correo blanco simple (el contenido trae su propio HTML y botón); solo se agrega la baja.
+  layout?: "plain";
 }
 
 interface SendBody {
@@ -137,7 +139,19 @@ async function issueUnsubscribeUrl(admin: any, email: string): Promise<string | 
   return `${PUBLIC_ORIGIN}/baja-mailing?token=${data}`;
 }
 
-function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "", unsubscribeUrl?: string) {
+function plainWrap(content: string, preheader?: string, unsubscribeUrl?: string) {
+  const pre = preheader
+    ? `<div style="display:none;font-size:1px;color:#ffffff;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden">${escapeHtml(preheader)}</div>`
+    : "";
+  const foot = unsubscribeUrl
+    ? `<div style="max-width:640px;padding:16px;font-family:Arial,Helvetica,sans-serif;font-size:11px;color:#888888;">Si no querés recibir más comunicaciones, <a href="${unsubscribeUrl}" style="color:#888888;text-decoration:underline">date de baja acá</a>.</div>`
+    : "";
+  const inner = content.match(/<body[^>]*>([\s\S]*)<\/body>/i)?.[1] ?? content;
+  return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/></head><body style="margin:0;padding:0;background:#ffffff;">${pre}${inner}${foot}</body></html>`;
+}
+
+function htmlWrap(content: string, preheader?: string, cta?: { url?: string; label?: string }, promoHtml = "", unsubscribeUrl?: string, layout?: string) {
+  if (layout === "plain") return plainWrap(content, preheader, unsubscribeUrl);
   const safe = content.includes("<") && content.includes(">")
     ? content
     : linkifyPlain(escapeHtml(content)).replace(/\n/g, "<br/>");
@@ -478,6 +492,7 @@ Deno.serve(async (req) => {
         { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
         promoHtml,
         testUnsubUrl,
+        filters.layout,
       );
       const r = await sendOne({
         sender: { name: senderName, email: senderEmail },
@@ -568,6 +583,7 @@ Deno.serve(async (req) => {
               { url: personalize(body.cta_url, r), label: body.cta_label },
               promoHtml,
               unsubUrl,
+              filters.layout,
             );
             const r1 = await sendWithRetries({
               sender: { name: senderName, email: senderEmail },
@@ -690,6 +706,7 @@ Deno.serve(async (req) => {
               { url: personalize((bc.segment_filters as any)?.cta_url, recipient), label: (bc.segment_filters as any)?.cta_label },
               retryPromoHtml,
               retryUnsubUrl,
+              (bc.segment_filters as any)?.layout,
             );
             const r1 = await sendWithRetries({
               sender: { name: bc.sender_name, email: bc.sender_email },
