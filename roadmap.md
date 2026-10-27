@@ -1,3 +1,7 @@
+## Maratona · Disponibilidad compartida (27/10)
+- [x] Cupo comercial compartido servidor/frontend; inventario 10 dobles / 20 plazas sin género ni asignación; grupos de alojamiento comunes y auditoría, sin tocar solicitudes/reservas/pagos
+- [x] RPC público 15 disponibles en las cuatro modalidades; navegador invitado desktop/móvil, 21 pruebas unitarias y regresiones SQL aisladas; sin publicar ni crear reservas reales
+
 ## Facturación · UX de cola (25/10)
 - [x] Ficha exacta en nueva pestaña; filtros y pestaña persistentes en URL sin selección
 - [x] Refresco de solo lectura al volver, deduplicado, sin perder páginas ni aceptar respuestas antiguas; Reprocesar explícito
