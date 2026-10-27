@@ -89,5 +89,5 @@ export async function fetchPackagesAvailability(packageIds: string[]): Promise<R
 }
 
 export async function fetchPackageAvailability(packageId: string): Promise<AvailabilityRow[]> {
-  return (await fetchPackagesAvailability([packageId]))[packageId] || [];
+  return fetchRoomAvailability(packageId);
 }
