@@ -610,6 +610,13 @@
       "when": 1793038506174,
       "tag": "0086_lodging_withdrawn_seat_guard_realtime",
       "breakpoints": true
+    },
+    {
+      "idx": 87,
+      "version": "7",
+      "when": 1793143023543,
+      "tag": "0087_controlled_pool_commercial_package_availability",
+      "breakpoints": true
     }
   ]
 }
