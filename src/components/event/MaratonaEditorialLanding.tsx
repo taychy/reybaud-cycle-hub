@@ -215,7 +215,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
               <p className="mt-2 text-sm text-muted-foreground">{i?'Tarifa especial para participantes de La Conquista Alpina, sujeta a verificación. Precio solo del tramo Maratona.':'Una experiencia completa alrededor de la carrera.'}</p>
               <p className="mt-6 font-heading text-5xl font-black text-primary">{p?formatPrice(p.price,p.currency):'Consultando…'}</p>
               <p className="mt-2 text-sm text-muted-foreground">Por persona · habitación doble · {ownBike?'bicicleta propia':'bicicleta incluida'}</p>
-              {i&&!ownBike&&<p className="mt-3 text-sm">Alquiler Maratona valorizado en €200 tras bonificación del 50% por alquilar en ambos viajes; sujeto a validación.</p>}
+              {i === 1&&!ownBike&&<p className="mt-3 text-sm">Alquiler Maratona valorizado en €200 tras bonificación del 50% por alquilar en ambos viajes; sujeto a validación.</p>}
               <Button className="mt-6 w-full" disabled={!p} onClick={()=>reserve(p)}>{nativeOpen?'Reservar':'Solicitar reserva'} {i?'Maratona · La Conquista Alpina':'Solo Maratona'}</Button>
             </article>)}
           </div>
