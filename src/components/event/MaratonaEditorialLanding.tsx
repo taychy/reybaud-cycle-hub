@@ -202,6 +202,7 @@ export default function MaratonaEditorialLanding({ title, metadata, onBack, even
         <CrossSellQuickBooking eventId={eventId} />
         <section id="precio" className="scroll-mt-6 space-y-8">
           <div><p className={eyebrow}>Tarifas</p><h2 className={h2 + " mt-2"}>Elegí cómo vivirla</h2></div>
+          {opening?.controlled && <p className="text-sm text-muted-foreground">{opening.available} plazas disponibles de {opening.capacity}, compartidas entre las cuatro modalidades · habitación doble con asignación posterior, sin necesidad de reservar en pareja.</p>}
           <div className="flex flex-wrap gap-2" role="group" aria-label="Bicicleta para Maratona">
             <Button variant={!ownBike?'default':'outline'} aria-pressed={!ownBike} onClick={()=>setOwnBike(false)}><Bike className="mr-2 h-4 w-4"/>Bicicleta incluida</Button>
             <Button variant={ownBike?'default':'outline'} aria-pressed={ownBike} onClick={()=>setOwnBike(true)}>Llevo mi bicicleta</Button>

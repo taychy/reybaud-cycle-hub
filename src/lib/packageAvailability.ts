@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { canOpenNativeBooking, type BookingOpening } from "./eventBookingOpening";
 
 export interface AvailabilityRow {
   tipo: string;
@@ -9,6 +10,7 @@ export interface AvailabilityRow {
 }
 
 const TIPO_LABEL: Record<string, string> = {
+  pool: "Plazas compartidas entre modalidades",
   individual: "Individual",
   doble: "Doble",
   triple: "Triple",
@@ -29,6 +31,7 @@ export const generoLabel = (g: string) => GENERO_LABEL[g] || g;
 
 export function formatAvailabilityRow(r: AvailabilityRow): string {
   const tipo = tipoLabel(r.tipo);
+  if (r.tipo === "pool") return `${tipo}: ${r.available > 0 ? `${r.available} ${r.available === 1 ? "lugar" : "lugares"}` : "sin cupo"}`;
   const gen = r.genero && r.genero !== "mixta" ? ` ${generoLabel(r.genero)}` : r.genero === "mixta" ? " mixta" : "";
   if (r.available <= 0) return `${tipo}${gen}: sin cupo`;
   return `${tipo}${gen}: ${r.available} ${r.available === 1 ? "lugar" : "lugares"}`;
@@ -42,7 +45,16 @@ export function normalizeRoomGender(g: unknown): string {
   return "mixta";
 }
 
-export async function fetchPackageAvailability(packageId: string): Promise<AvailabilityRow[]> {
+/** Commercial availability only; physical room assignment continues to use the room RPC. */
+export function controlledPoolAvailability(status: BookingOpening): AvailabilityRow[] {
+  return [{
+    tipo: "pool", genero: "mixta", capacity: status.capacity,
+    taken: Math.max(0, status.capacity - status.available),
+    available: canOpenNativeBooking(status) ? status.available : 0,
+  }];
+}
+
+async function fetchRoomAvailability(packageId: string): Promise<AvailabilityRow[]> {
   const { data, error } = await supabase.rpc("get_package_availability_breakdown" as any, { p_package_id: packageId });
   if (error || !data) return [];
   return (data as any[]).map((r) => ({
@@ -56,6 +68,26 @@ export async function fetchPackageAvailability(packageId: string): Promise<Avail
 
 export async function fetchPackagesAvailability(packageIds: string[]): Promise<Record<string, AvailabilityRow[]>> {
   const out: Record<string, AvailabilityRow[]> = {};
-  await Promise.all(packageIds.map(async (id) => { out[id] = await fetchPackageAvailability(id); }));
+  const ids = [...new Set(packageIds)];
+  if (!ids.length) return out;
+  ids.forEach(id => { out[id] = []; });
+  const { data: packages, error } = await supabase.from("event_packages").select("id,event_id").in("id", ids);
+  if (error || !packages) return out;
+  const events = [...new Set(packages.map(p => p.event_id))];
+  await Promise.all(events.map(async eventId => {
+    const { data, error: openingError } = await supabase.rpc("event_booking_opening_status", { p_event_id: eventId });
+    if (openingError || !data) return; // Never fall back to a different capacity on failure.
+    const status = data as unknown as BookingOpening;
+    const eventPackages = packages.filter(p => p.event_id === eventId);
+    if (status.controlled) {
+      eventPackages.forEach(p => { out[p.id] = controlledPoolAvailability(status); });
+      return;
+    }
+    await Promise.all(eventPackages.map(async p => { out[p.id] = await fetchRoomAvailability(p.id); }));
+  }));
   return out;
+}
+
+export async function fetchPackageAvailability(packageId: string): Promise<AvailabilityRow[]> {
+  return (await fetchPackagesAvailability([packageId]))[packageId] || [];
 }
