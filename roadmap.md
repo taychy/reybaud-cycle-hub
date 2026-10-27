@@ -1,3 +1,7 @@
+## Maratona · Disponibilidad compartida (27/10)
+- [ ] Corregir cálculo e inventario de 20 plazas / 10 dobles sin tocar solicitudes, reservas ni pagos
+- [ ] Verificar disponibilidad servidor y flujo público con pruebas, sin publicar
+
 ## Facturación · UX de cola (25/10)
 - [x] Ficha exacta en nueva pestaña; filtros y pestaña persistentes en URL sin selección
 - [x] Refresco de solo lectura al volver, deduplicado, sin perder páginas ni aceptar respuestas antiguas; Reprocesar explícito
