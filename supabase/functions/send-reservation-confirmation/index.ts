@@ -240,7 +240,7 @@ Deno.serve(async (req) => {
 
     // ─── Reglamento ───
     const policySections: string[] = [];
-    if (meta.politica_sena) policySections.push(sectionCard("Política de seña", textBlock(meta.politica_sena)));
+    if (meta.politica_sena && meta?.full_payment_required !== true) policySections.push(sectionCard("Política de seña", textBlock(meta.politica_sena)));
     if (meta.politica_cancelacion) policySections.push(sectionCard("Política de cancelación", textBlock(meta.politica_cancelacion)));
     if (meta.politica_pagos) policySections.push(sectionCard("Política de pagos", textBlock(meta.politica_pagos)));
     if (meta.reglamento_texto) policySections.push(sectionCard("Reglamento del evento", textBlock(meta.reglamento_texto)));
