@@ -322,6 +322,6 @@
 - [ ] Activar: publicar + marcar el evento con pago total (espera autorización de la usuaria)
 
 ## San Luis · Devoluciones caso por caso (28/10)
-- [x] Hernán Martinero: crédito $106.000 registrado (28/10, vinculado a su reserva, "utilizable hasta enero 2027, control manual"). Pendiente: formalizar la transferencia de $838.900 (sin registro en app).
-- [x] Iván Martinero: crédito $106.000 registrado (28/10, mismas condiciones). Pendiente: conciliación MP de los $838.900 (captura muestra "Devuelto" pero la app sincronizada lo muestra acreditado; NO transferir hasta resolver).
+- [x] Hernán Martinero: crédito $106.000 registrado (28/10, vinculado a su reserva, "utilizable hasta enero 2027, control manual"). Devolución $838.900 registrada (28/10, transferencia, op. MP 186569448208, devolución 489b882c + gasto 17ab6ee9). Conciliación pendiente: salió de cuenta MP personal de Scarlett.
+- [x] Iván Martinero: crédito $106.000 registrado (28/10, mismas condiciones). Devolución $838.900 BLOQUEADA en audit_log (28/10): captura "Devuelto" vs app "acreditado"; pasos de conciliación documentados; NO transferir hasta resolver.
 - [ ] Restan 4 devoluciones aprobadas: Marcelo Hamui, María Eugenia Louys, Marcelo Suanni, Tamara Mazur.
