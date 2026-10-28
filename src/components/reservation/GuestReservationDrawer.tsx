@@ -11,6 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { toast } from "sonner";
 import { Loader2, ArrowRight, ArrowLeft, CreditCard, Upload, Copy } from "lucide-react";
+import { isFullPaymentRequired } from "@/lib/eventFullPayment";
 import { parsePaymentPolicy, type EventPaymentPolicy } from "@/lib/eventPaymentPolicy";
 import EventPaymentPolicyNotice from "@/components/event/EventPaymentPolicyNotice";
 import { SharedRoomChoice, sharedRoomValid, type SharedRoomMode } from "./SharedRoomChoice";
@@ -68,6 +69,8 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   const [controlled, setControlled] = useState(false);
   const [depositUrl, setDepositUrl] = useState<string | null>(null);
   const [verifiedOnlyIds, setVerifiedOnlyIds] = useState<string[]>([]);
+  // Pago total obligatorio (metadata.full_payment_required): sin seña ni cuotas.
+  const [fullPayment, setFullPayment] = useState(false);
 
   useEffect(() => {
     if (!open) { setStep(1); setPkgId(""); setComprobante(null); setTerms(false); setSharedMode(null); setSharedCompanion(""); setSharedAccepted(false); return; }
@@ -82,6 +85,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
         supabase.from("events").select("metadata").eq("id", eventId).maybeSingle(),
       ]);
       setPaymentPolicy(parsePaymentPolicy((eventData as any)?.metadata));
+      setFullPayment(isFullPaymentRequired((eventData as any)?.metadata));
       const declares = (eventData as any)?.metadata?.reservation_declared_payment === true;
       setDeclaresMethod(declares);
       if (declares) setMetodo("transferencia");
@@ -133,7 +137,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
   // Plan de pagos del paquete elegido (solo para mostrar el resumen)
   useEffect(() => {
     setPlanInfo(null);
-    if (!pkgId) return;
+    if (!pkgId || fullPayment) return;
     let cancelled = false;
     (async () => {
       const activeStageId = (() => { const p = packages.find((x) => x.id === pkgId); return p ? priceFor(p).activeStage?.id ?? null : null; })();
@@ -147,7 +151,7 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
       if (!cancelled && data) setPlanInfo({ ...(data as any), sena_valor: Number((data as any).sena_valor) });
     })();
     return () => { cancelled = true; };
-  }, [pkgId, packages, priceFor]);
+  }, [pkgId, packages, priceFor, fullPayment]);
   // Seña según el plan (misma regla que create-guest-reservation/chargeNow.ts). null = sin seña → total.
   const senaFor = (total: number): number | null => {
     if (!planInfo) return null;
@@ -311,9 +315,14 @@ export function GuestReservationDrawer({ open, onOpenChange, eventId, eventName,
             <div className="space-y-4">
               {(() => { const pr = priceFor(selectedPkg); const sena = senaFor(pr.precio); return (
               <div className="p-4 rounded-xl border bg-muted/30">
-                <div className="text-xs text-muted-foreground mb-1">{sena != null ? "Seña a pagar ahora" : "Vas a pagar"}</div>
+                <div className="text-xs text-muted-foreground mb-1">{sena != null ? "Seña a pagar ahora" : fullPayment ? "Pago total del paquete" : "Vas a pagar"}</div>
                 <div className="text-2xl font-bold text-primary">{fmtMoney(sena ?? pr.precio, pr.currency)}</div>
                 <div className="text-sm mt-1">{selectedPkg.nombre}</div>
+                {fullPayment && (
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Por la cercanía del viaje, las reservas nuevas se abonan en un solo pago, sin seña ni cuotas. Tu lugar queda confirmado cuando se acredita el pago.
+                  </div>
+                )}
                 {sena != null && (
                   <div className="text-xs text-muted-foreground mt-1">
                     Total del paquete {fmtMoney(pr.precio, pr.currency)}

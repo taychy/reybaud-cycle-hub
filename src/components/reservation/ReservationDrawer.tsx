@@ -1,3 +1,4 @@
+import { isFullPaymentRequired } from "@/lib/eventFullPayment";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { SharedRoomChoice, sharedRoomValid, type SharedRoomMode } from "./SharedRoomChoice";
 import { fetchSharedRoomQuote, buildSharedRoomConsent, isQuoteReady, type SharedRoomQuote } from "@/lib/sharedRoomAssignment";
@@ -122,6 +123,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
   const paymentPolicy = parsePaymentPolicy(event.metadata);
 
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+  const fullPayment = isFullPaymentRequired(event.metadata);
   const declaresMethod = !isInscriptionOnly && (event.metadata as any)?.reservation_declared_payment === true;
   const spotsLeft = event.max_capacity != null ? event.max_capacity - event.spots_taken : null;
   const anyPackagePaid = packages.some((p) => p.precio > 0);
@@ -226,7 +228,7 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
 
   // Detectar si el paquete elegido tiene plan de cuotas activo (para mostrar checkbox)
   useEffect(() => {
-    if (!selectedPackage || isInscriptionOnly || !effectivePrice || effectivePrice <= 0) {
+    if (!selectedPackage || isInscriptionOnly || fullPayment || !effectivePrice || effectivePrice <= 0) {
       setHasPaymentPlan(false);
       setAcceptedPaymentPlan(false);
       setPaymentPlanPreview(null);
@@ -579,7 +581,8 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
     } as any);
 
     // Materializar plan de cuotas si el paquete tiene uno activo
-    if (selectedPackage && !isInscriptionOnly && effectivePrice > 0) {
+    // Pago total obligatorio: no se materializa plan; se cobra el saldo completo.
+    if (selectedPackage && !isInscriptionOnly && !fullPayment && effectivePrice > 0) {
       try {
         const stageId = selectedPackage.active_stage_id ?? null;
         let plan: any = null;
