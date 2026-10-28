@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
 import { fetchPackagesAvailability, formatAvailabilityRow, type AvailabilityRow } from "@/lib/packageAvailability";
+import { isFullPaymentRequired } from "@/lib/eventFullPayment";
 import { Button } from "@/components/ui/button";
 import { WaitlistRequestDialog } from "./WaitlistRequestDialog";
 
@@ -88,6 +89,8 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
   const [openIds, setOpenIds] = useState<Record<string, boolean>>({});
   const [waitlistPkg, setWaitlistPkg] = useState<{ id: string; nombre: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  // Pago total obligatorio (metadata.full_payment_required): se ocultan seña y cuotas.
+  const [fullPaymentEvent, setFullPaymentEvent] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -99,6 +102,9 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           .order("sort_order", { ascending: true });
 
       const pkgList = (pkgs as any[]) || [];
+      const { data: evMeta } = await supabase.from("events").select("metadata").eq("id", eventId).maybeSingle();
+      const fullPayment = isFullPaymentRequired((evMeta as any)?.metadata);
+      setFullPaymentEvent(fullPayment);
       if (pkgList.length === 0) { setLoading(false); return; }
 
       const stagesMap = await fetchPriceStages(pkgList.map((p) => p.id));
@@ -149,7 +155,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           nextStage: resolved.nextStage,
           availability: availMap[p.id] || [],
         };
-        if (!plan) return base;
+        if (!plan || fullPayment) return base;
         const { data: insts } = await supabase
           .from("event_package_payment_plan_installments" as any)
           .select("numero, descripcion, monto_tipo, monto_valor, fecha_vencimiento")
@@ -214,7 +220,9 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
                 {/* Izquierda: título + subtítulo */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-foreground">{pkg.nombre}{isSelected && <span className="ml-2 text-[10px] uppercase tracking-wider text-primary">Elegido</span>}</p>
-                  {pkg.plan && pagoTotalAlReservar ? (
+                  {fullPaymentEvent ? (
+                    <p className="text-xs text-muted-foreground mt-0.5">Por persona · pago total al reservar, sin seña ni cuotas</p>
+                  ) : pkg.plan && pagoTotalAlReservar ? (
                     <p className="text-xs text-muted-foreground mt-0.5">Por persona · pago total al reservar</p>
                   ) : pkg.plan ? (
                     <p className="text-xs text-muted-foreground mt-0.5">
@@ -328,7 +336,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           );
         })}
       </div>
-      <p className="text-[11px] text-muted-foreground">La seña confirma tu lugar.</p>
+      <p className="text-[11px] text-muted-foreground">{fullPaymentEvent ? "Tu lugar se confirma cuando se acredita el pago total." : "La seña confirma tu lugar."}</p>
       {waitlistPkg && (
         <WaitlistRequestDialog
           open={!!waitlistPkg}

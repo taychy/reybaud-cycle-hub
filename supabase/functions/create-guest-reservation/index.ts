@@ -319,13 +319,14 @@ Deno.serve(async (req) => {
     }
 
     // 5) MP — importe a cobrar ahora resuelto en servidor (nunca desde el frontend).
+    const fullPaymentOnly = (eventRow as any).metadata?.full_payment_required === true;
     let rpcNow: any = null;
-    try {
+    if (!fullPaymentOnly) try {
       const { data } = await admin.rpc("importe_a_pagar_ahora", { _reservation_id: reservationId });
       rpcNow = data;
     } catch (e) { console.warn("[create-guest-reservation] importe_a_pagar_ahora", e); }
     let plan: any = null;
-    if (!(rpcNow?.installment_number != null && Number(rpcNow?.amount) > 0)) {
+    if (!fullPaymentOnly && !(rpcNow?.installment_number != null && Number(rpcNow?.amount) > 0)) {
       const stageId = resolvedPrice?.stage_id ?? null;
       const base = () => admin.from("event_package_payment_plans")
         .select("id, sena_tipo, sena_valor").eq("package_id", pkg.id)
@@ -334,7 +335,7 @@ Deno.serve(async (req) => {
       if (stageId) plan = (await base().eq("price_stage_id", stageId).maybeSingle()).data;
       if (!plan) plan = (await base().is("price_stage_id", null).maybeSingle()).data;
     }
-    const charge = resolveChargeNow({ amountTotal: amount_total, rpc: rpcNow, plan, packageSena: pkg.sena });
+    const charge = resolveChargeNow({ amountTotal: amount_total, rpc: rpcNow, plan, packageSena: pkg.sena, fullPaymentOnly });
     const chargeNow = charge.amount;
     if (!chargeNow || chargeNow <= 0) return jsonResp({ error: "No hay importe a cobrar" }, 400);
 

@@ -19,3 +19,6 @@ Deno.test("sin seña ni plan cobra total", () => {
 Deno.test("nunca supera el total", () => {
   assertEquals(resolveChargeNow({ amountTotal: 100, packageSena: 500 }).amount, 100);
 });
+Deno.test("pago total obligatorio ignora seña, plan y cuota", () => {
+  assertEquals(resolveChargeNow({ amountTotal: 684860, fullPaymentOnly: true, rpc: { amount: 100000, installment_number: 1 }, plan: { sena_tipo: "monto_fijo", sena_valor: 100000 }, packageSena: 197000 }), { amount: 684860, source: "total" });
+});

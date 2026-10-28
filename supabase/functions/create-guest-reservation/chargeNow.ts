@@ -6,12 +6,15 @@ export interface ChargeNowInput {
   rpc?: { amount?: number | null; installment_number?: number | null } | null;
   plan?: { sena_tipo?: string | null; sena_valor?: number | null } | null;
   packageSena?: number | null;
+  /** events.metadata.full_payment_required: cobra el 100% e ignora seña/plan. */
+  fullPaymentOnly?: boolean;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
 export function resolveChargeNow(i: ChargeNowInput): { amount: number; source: string } {
   const total = Math.max(0, Number(i.amountTotal) || 0);
+  if (i.fullPaymentOnly) return { amount: round2(total), source: "total" };
   const cap = (n: number) => round2(Math.min(n, total));
   const rpcAmt = Number(i.rpc?.amount ?? 0);
   if (i.rpc?.installment_number != null && rpcAmt > 0) return { amount: cap(rpcAmt), source: "importe_a_pagar_ahora" };
