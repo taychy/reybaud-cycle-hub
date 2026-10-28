@@ -322,6 +322,6 @@
 - [ ] Activar: publicar + marcar el evento con pago total (espera autorización de la usuaria)
 
 ## San Luis · Devoluciones caso por caso (28/10)
-- [ ] Hernán Martinero: usuaria dice que ya transfirió $838.900 y dejó $106.000 de crédito, pero NO hay registro en la app (sin devolución, gasto, obligación ni ajuste). Falta formalizar para evitar doble egreso.
-- [ ] Iván Martinero: ficha lista; pagado $944.900 ($838.900 MP + $106.000 "dinero a cuenta TCSL2025" cargado como efectivo). Falta confirmar origen real de los $106.000 y datos bancarios.
+- [x] Hernán Martinero: crédito $106.000 registrado (28/10, vinculado a su reserva, "utilizable hasta enero 2027, control manual"). Pendiente: formalizar la transferencia de $838.900 (sin registro en app).
+- [x] Iván Martinero: crédito $106.000 registrado (28/10, mismas condiciones). Pendiente: conciliación MP de los $838.900 (captura muestra "Devuelto" pero la app sincronizada lo muestra acreditado; NO transferir hasta resolver).
 - [ ] Restan 4 devoluciones aprobadas: Marcelo Hamui, María Eugenia Louys, Marcelo Suanni, Tamara Mazur.
