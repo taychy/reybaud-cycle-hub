@@ -14,3 +14,6 @@ export function amountDueAtBooking(total: number, sena: number | null, fullPayme
   if (fullPayment) return t;
   return sena != null && sena > 0 ? Math.min(sena, t) : t;
 }
+
+export const FULL_PAYMENT_NOTICE =
+  "Por la cercanía del viaje, las reservas nuevas se abonan en un solo pago del 100% del paquete, sin seña ni cuotas. Tu lugar queda confirmado cuando se acredita el pago. Las reservas anteriores mantienen su plan de pagos.";

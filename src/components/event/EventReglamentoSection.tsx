@@ -5,6 +5,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { isFullPaymentRequired, FULL_PAYMENT_NOTICE } from "@/lib/eventFullPayment";
 import { extractReglamento, hasAnyReglamento, type ReglamentoFields } from "@/lib/eventReglamentoDefaults";
 
 interface Props {
@@ -41,6 +42,8 @@ const Subsection = ({
 const EventReglamentoSection = ({ metadata, defaultOpen = false, compact = false }: Props) => {
   const r: ReglamentoFields = extractReglamento(metadata);
   if (!hasAnyReglamento(r)) return null;
+  // Pago total obligatorio: la política de seña no aplica a reservas nuevas.
+  const fullPayment = isFullPaymentRequired(metadata);
 
   return (
     <div className={`glass-card rounded-xl ${compact ? "p-4" : "p-5"} space-y-2`}>
@@ -51,11 +54,13 @@ const EventReglamentoSection = ({ metadata, defaultOpen = false, compact = false
         </h3>
       </div>
       <p className="text-xs text-muted-foreground">
-        Antes de reservar, revisá las políticas de seña, pagos, cancelación y el reglamento del evento.
+        Antes de reservar, revisá las políticas de {fullPayment ? "" : "seña, "}pagos, cancelación y el reglamento del evento.
       </p>
 
-      <Accordion type="multiple" defaultValue={defaultOpen ? ["Política de seña"] : []} className="w-full">
-        <Subsection icon={Wallet} title="Política de seña" body={r.politica_sena} />
+      <Accordion type="multiple" defaultValue={defaultOpen ? [fullPayment ? "Forma de pago" : "Política de seña"] : []} className="w-full">
+        {fullPayment
+          ? <Subsection icon={Wallet} title="Forma de pago" body={FULL_PAYMENT_NOTICE} />
+          : <Subsection icon={Wallet} title="Política de seña" body={r.politica_sena} />}
         <Subsection icon={Ban} title="Política de cancelación" body={r.politica_cancelacion} />
         <Subsection icon={CreditCard} title="Política de pagos" body={r.politica_pagos} />
         <Subsection icon={ScrollText} title="Reglamento del evento" body={r.reglamento_texto} />
