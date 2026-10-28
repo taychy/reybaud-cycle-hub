@@ -336,7 +336,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           );
         })}
       </div>
-      <p className="text-[11px] text-muted-foreground">La seña confirma tu lugar.</p>
+      <p className="text-[11px] text-muted-foreground">{fullPaymentEvent ? "Tu lugar se confirma cuando se acredita el pago total." : "La seña confirma tu lugar."}</p>
       {waitlistPkg && (
         <WaitlistRequestDialog
           open={!!waitlistPkg}
