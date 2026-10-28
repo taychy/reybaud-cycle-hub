@@ -222,7 +222,7 @@ Deno.serve(async (req) => {
   <p style="font-size:11px;color:#9ca3af;margin:0">Reybaud Ciclismo · <a href="${unsubUrl}" style="color:#9ca3af">Cancelar suscripción</a></p>
 </div>`;
 
-    const text = `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${primaryPayUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
+    const text = fullPaymentRequired ? `Tu reserva fue aceptada. Pago total a realizar: ${fmtMoney(amount, currency)} (sin seña ni cuotas). Tu lugar queda confirmado cuando se acredita el pago.\n\nPagar ahora: ${primaryPayUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}` : `Tu reserva fue confirmada. Próximo pago sugerido: ${fmtMoney(amount, currency)}.\n\nPagar ahora: ${primaryPayUrl}\nAvisar efectivo: ${cashUrl}\nVer reserva: ${viewUrl}${installmentsTableText}`;
 
 
     const messageId = force
