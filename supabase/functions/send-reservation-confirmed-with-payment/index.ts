@@ -173,14 +173,22 @@ Deno.serve(async (req) => {
     const unsubUrl = `${APP_DOMAIN}/email/unsubscribe?token=${unsubToken}`;
 
 
-    const subject = `Tu reserva fue confirmada — coordinemos la seña`;
+    // Pago total obligatorio: la reserva fue aceptada pero el lugar se confirma al acreditarse el 100%.
+    const fullPaymentRequired = (ev as any)?.metadata?.full_payment_required === true;
+    const subject = fullPaymentRequired
+      ? `Tu reserva fue aceptada — completá el pago total`
+      : `Tu reserva fue confirmada — coordinemos la seña`;
+    const headline = fullPaymentRequired ? "Tu reserva fue aceptada" : "¡Tu reserva está confirmada!";
+    const intro = fullPaymentRequired
+      ? `Por la cercanía del viaje, las reservas nuevas se abonan en un solo pago del 100% del paquete, sin seña ni cuotas. Tu lugar queda confirmado cuando se acredita el pago.`
+      : `ya quedaste anotado en <strong>${ev?.title || "el evento"}</strong>.`;
     const html = `
 <div style="font-family:system-ui,-apple-system,sans-serif;max-width:620px;margin:0 auto;background:#fff;color:#111;padding:24px">
-  <h1 style="font-size:22px;margin:0 0 8px;color:#0a0a0a">¡Tu reserva está confirmada!</h1>
-  <p style="margin:0 0 16px;color:#444">Hola <strong>${nombre || "ciclista"}</strong>, ya quedaste anotado en <strong>${ev?.title || "el evento"}</strong>.</p>
+  <h1 style="font-size:22px;margin:0 0 8px;color:#0a0a0a">${headline}</h1>
+  <p style="margin:0 0 16px;color:#444">Hola <strong>${nombre || "ciclista"}</strong>, ${fullPaymentRequired ? `recibimos tu reserva para <strong>${ev?.title || "el evento"}</strong>. ${intro}` : intro}</p>
 
   <div style="border:1px solid #e5e7eb;border-radius:12px;padding:16px;margin:16px 0">
-    <p style="margin:0;color:#6b7280;font-size:12px">Próximo pago sugerido</p>
+    <p style="margin:0;color:#6b7280;font-size:12px">${fullPaymentRequired ? "Pago total a realizar" : "Próximo pago sugerido"}</p>
     <p style="margin:4px 0 0;font-size:24px;font-weight:700;color:#ea580c">${fmtMoney(amount, currency)}</p>
     <p style="margin:8px 0 0;color:#6b7280;font-size:12px">${concepto === "saldo" ? "Saldo total" : concepto.replace("_", " ").replace("seña", "Seña")}</p>
   </div>
