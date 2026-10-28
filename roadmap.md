@@ -316,3 +316,7 @@
 - [x] Vista previa del mailing A (10) / B (1) con exclusiones, sin enlaces reales
 - [ ] Envío del mailing: no implementado; A es promocional (requiere servicio de marketing), B espera aprobación de Dirección
 - [ ] Rectificación de Natalia Basilico ya enviada por error (22:23); Victoria Landó pendiente de revisión
+
+## San Luis · Pago total reservas nuevas (28/10)
+- [x] Código: landing, formularios, cobro MP invitado, mails; 796 tests + prueba Deno; navegador con política simulada sin reservas
+- [ ] Activar: publicar + marcar el evento con pago total (espera autorización de la usuaria)
