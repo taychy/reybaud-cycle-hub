@@ -320,3 +320,8 @@
 ## San Luis · Pago total reservas nuevas (28/10)
 - [x] Código: landing, formularios, cobro MP invitado, mails; 796 tests + prueba Deno; navegador con política simulada sin reservas
 - [ ] Activar: publicar + marcar el evento con pago total (espera autorización de la usuaria)
+
+## San Luis · Devoluciones caso por caso (28/10)
+- [ ] Hernán Martinero: usuaria dice que ya transfirió $838.900 y dejó $106.000 de crédito, pero NO hay registro en la app (sin devolución, gasto, obligación ni ajuste). Falta formalizar para evitar doble egreso.
+- [ ] Iván Martinero: ficha lista; pagado $944.900 ($838.900 MP + $106.000 "dinero a cuenta TCSL2025" cargado como efectivo). Falta confirmar origen real de los $106.000 y datos bancarios.
+- [ ] Restan 4 devoluciones aprobadas: Marcelo Hamui, María Eugenia Louys, Marcelo Suanni, Tamara Mazur.
