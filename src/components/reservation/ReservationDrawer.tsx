@@ -802,6 +802,9 @@ const ReservationDrawer = ({ open, onOpenChange, event, alumno, onReserved, even
                     <p className="text-xl font-heading font-bold text-primary">
                       {formatPrice(effectivePrice ?? selectedPackage.precio, selectedPackage.currency)}
                     </p>
+                    {fullPayment && (
+                      <p className="text-xs text-muted-foreground">Pago total del paquete, sin seña ni cuotas. Tu lugar se confirma cuando se acredita el pago.</p>
+                    )}
                     {paymentPlanPreview && (
                       <p className="text-xs text-muted-foreground">
                         Seña {formatPrice(paymentPlanPreview.sena_monto, selectedPackage.currency)}
