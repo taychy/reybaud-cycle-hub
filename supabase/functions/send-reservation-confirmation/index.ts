@@ -181,6 +181,10 @@ Deno.serve(async (req) => {
         console.error("[send-reservation-confirmation] fx EUR/USD", e);
       }
     }
+    // Fechas de presentación (reprogramación): no reemplazan las fechas guardadas.
+    const dispStart = typeof meta?.display_dates?.start === "string" ? meta.display_dates.start : null;
+    const dispEnd = typeof meta?.display_dates?.end === "string" ? meta.display_dates.end : null;
+    if (dispStart) { (event as any).date = dispStart; (event as any).end_date = dispEnd; }
     const packageNombre = (reservation as any).package_nombre_snapshot || null;
     const total = (reservation as any).amount_total ?? (reservation as any).price_snapshot ?? 0;
     const paid = (reservation as any).amount_paid ?? 0;
@@ -242,7 +246,18 @@ Deno.serve(async (req) => {
     if (meta.reglamento_texto) policySections.push(sectionCard("Reglamento del evento", textBlock(meta.reglamento_texto)));
     const reglamentoUrl = meta.reglamento || meta.reglamento_url;
 
-    const subject = `Confirmación de tu reserva – ${event.title}`;
+    // Pago total obligatorio: no prometer confirmación antes de la acreditación.
+    const fullPaymentRequired = meta?.full_payment_required === true;
+    const awaitingPayment = fullPaymentRequired && balance > 0;
+    const subject = awaitingPayment
+      ? `Recibimos tu reserva – ${event.title}`
+      : `Confirmación de tu reserva – ${event.title}`;
+    const heading = awaitingPayment ? "Reserva registrada · pago pendiente" : "Reserva confirmada";
+    const pendingPaymentHtml = awaitingPayment ? `
+      <div style="border:1px solid #f0d6bf;border-radius:10px;padding:16px 18px;margin:12px 0;background:#fffaf5;">
+        <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#121212;">Pago total pendiente</p>
+        <p style="margin:0;font-size:13px;color:#444;line-height:1.55;">Por la cercanía del viaje, las reservas nuevas se abonan en un solo pago del 100% del paquete (${escapeHtml(fmtCurrency(total, currency))}), sin seña ni cuotas. Tu lugar queda confirmado recién cuando el pago se acredita. Si el pago no se completa, la reserva no queda confirmada.</p>
+      </div>` : "";
 
     const html = `
 <!DOCTYPE html>
@@ -252,7 +267,7 @@ Deno.serve(async (req) => {
   <div style="max-width:600px;margin:0 auto;padding:32px 24px;">
     <div style="text-align:center;margin-bottom:24px;">
       <h1 style="font-size:22px;margin:0;font-weight:800;text-transform:uppercase;letter-spacing:2px;color:#121212;">
-        Reserva confirmada
+        ${escapeHtml(heading)}
       </h1>
       <p style="font-size:13px;color:#888;margin:8px 0 0;">${escapeHtml(event.title)}</p>
     </div>
@@ -262,6 +277,8 @@ Deno.serve(async (req) => {
     </p>
 
     ${sectionCard("Resumen de tu reserva", resumenHtml + cuotasHtml)}
+
+    ${pendingPaymentHtml}
 
     ${depositPaymentUrl ? `
       <div style="border:1px solid #f0d6bf;border-radius:10px;padding:16px 18px;margin:12px 0;background:#fffaf5;text-align:center;">
@@ -304,6 +321,7 @@ Deno.serve(async (req) => {
       `Hola ${recipientName.split(" ")[0] || recipientName},`,
       ``,
       `Tu reserva para ${event.title} quedó registrada.`,
+      awaitingPayment ? `Pago total pendiente: las reservas nuevas se abonan en un solo pago del 100% del paquete, sin seña ni cuotas. Tu lugar queda confirmado cuando se acredita el pago.` : null,
       `Fecha: ${fmtDate(event.date)}${event.end_date ? " – " + fmtDate(event.end_date) : ""}`,
       packageNombre ? `Paquete: ${packageNombre}` : null,
       `Total: ${fmtCurrency(total, currency)} · Pagado: ${fmtCurrency(paid, currency)} · Saldo: ${fmtCurrency(balance, currency)}`,

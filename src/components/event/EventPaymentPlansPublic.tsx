@@ -155,7 +155,7 @@ const EventPaymentPlansPublic = ({ eventId, selectedId = null, onSelect }: Event
           nextStage: resolved.nextStage,
           availability: availMap[p.id] || [],
         };
-        if (!plan) return base;
+        if (!plan || fullPayment) return base;
         const { data: insts } = await supabase
           .from("event_package_payment_plan_installments" as any)
           .select("numero, descripcion, monto_tipo, monto_valor, fecha_vencimiento")
