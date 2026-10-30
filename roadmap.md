@@ -1,6 +1,7 @@
 ## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
 - [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
 - [x] Comidas adicionales solo del programa real y Extras activos, total cantidad × precio, excluye ya contratadas; solicitud validada en servidor; visible en reporte admin
+- [x] Opción «Agregar todas las comidas de mi estadía» + individual + ninguna; servidor excluye ya compradas
 - [ ] Cargar programa real de almuerzos/cenas y Extras ARS 35.000 (bloqueado: falta el programa de comidas) y habilitar la encuesta para San Luis
 
 ## Maratona · Disponibilidad compartida (27/10)
