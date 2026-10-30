@@ -1,39 +1,40 @@
-# Auditoría solo lectura — Landing TC San Luis (5–9 nov 2026)
+# Auditoría y plan App Store iOS — Reybaud (octubre 2026)
 
-Evidencia: consultas SELECT en la base al 28/10 17:34 UTC. No se tocó ningún dato, código ni publicación. Todavía no se recorrió el navegador en esta auditoría.
+Solo auditoría: no se cambió código, configuración ni se desplegó. Se contrastó la checklist de julio 2026 con lo que hay hoy en el proyecto.
 
-## Resultados ya comprobados en la base
+## Estado real
 
-| Punto | Estado | Evidencia |
-|---|---|---|
-| Publicación | Aprobado (datos) | Evento activo, `show_public=true`, `publicado`. Falta comprobar la URL en el navegador. |
-| Fechas guardadas | Riesgo | En la base siguen siendo 22–25/10. La fecha 5–9/11 sale solo de la capa de reprogramación; cualquier pantalla o mail que lea la fecha guardada mostrará octubre. |
-| Paquete doble | Aprobado (datos) | Activo, ARS 1.039.390, seña ARS 197.000, cupo 10. |
-| Paquete individual | Falla / decisión | Ahora figura **ACTIVO** (ARS 1.196.690, seña 197.000). El mailing dijo que no estaba a la venta. Hay que confirmar si se activó a propósito. |
-| Cabaña triple | Riesgo | Activa, ARS 684.860, **sin seña configurada**. Falta verificar qué cobra o muestra el formulario. |
-| Seña general | Inconsistente | `deposit_amount` del evento = 100.000 y los paquetes = 197.000 o vacío. |
-| Habitaciones | Aprobado (datos) | 21 habitaciones. Lugares libres: mixta 2, varones 2+2+2, mujeres 1 en triple, 2 individuales con capacidad libre (una de mujeres). |
-| Bajas | Aprobado | 10 plazas liberadas con trazabilidad, sin habitación asignada. |
-| Scarlett Barros | **Falla bloqueante** | La reserva `ef7ec532` está `reserva_confirmada` en individual, con pago 0, sin habitación y sin liberación. El cálculo cuenta las reservas activas sin habitación, así que **ocupa 1 de las 2 individuales libres**. |
-| Reservas nuevas desde el 26/10 | Información | Ninguna. No hay compras posteriores al mailing. |
-| Sincronización de cupos | Riesgo | `events.spots_taken=16` y `metadata.available_spots=0` son valores viejos que no coinciden con el inventario real. Hay que confirmar que la landing no los use. |
-| Plan de pagos | Riesgo | 3 reservas confirmadas no tienen plan de pagos asignado. |
-| Apertura controlada | Información | No hay apertura controlada. La venta usa el flujo normal por habitación. |
+| Área | Ya implementado | Faltante | Bloqueante |
+|---|---|---|---|
+| 1. Capacitor / iOS | Capacitor 8 (core, cli) y proyecto Android | No está el paquete iOS ni la carpeta del proyecto iPhone. El nombre de la app es "reybaud-cycle-hub" | **Sí.** La app apunta a la vista previa de desarrollo (`server.url` lovableproject.com) con `cleartext: true`. Apple la rechazaría y mostraría la versión en edición, no la publicada |
+| 2. Inicio de sesión | Código por email y Google (`Login.tsx`) | Iniciar sesión con Apple: no existe. Falta probar Google dentro de la app iPhone | **Sí.** Apple exige su propio botón si se ofrece Google (4.8) |
+| 3. Eliminar cuenta | — | No hay botón ni proceso de borrado. Hay que conservar facturas y registros fiscales | **Sí** (5.1.1(v)) |
+| 4. Privacidad | Hay página de privacidad y términos | Revisar contenido: certificados médicos, pagos, Mercado Pago, Google, proveedor de mails, cómo borrar la cuenta y contacto. No encontré Meta Pixel en el inicio de la app; hay que confirmarlo antes de responder la encuesta de privacidad de Apple | Sí, para enviar a revisión |
+| 5. Pagos | Solo servicios presenciales, viajes y productos físicos, por Mercado Pago (exentos de compra dentro de la app según 3.1.3(e)) | Revisar textos: que no digan "desbloquear" ni "premium" | Riesgo medio |
+| 6. Permisos y enlaces | Se usa cámara en depósito y coach | Textos de permiso de cámara y fotos (se crean junto con el proyecto iPhone). Revisar enlaces a WhatsApp y Mercado Pago. No hay notificaciones push | Sí, sin los textos la app se cierra al abrir la cámara |
+| 7. Imágenes | Íconos web 192 y 512 | Ícono 1024 sin transparencia, pantalla de inicio, capturas de iPhone 6.9"/6.5" | Sí, para la ficha |
+| 8. Pruebas y Apple | — | Cuenta Apple Developer, Mac con Xcode 26 o posterior, certificados, TestFlight, cuenta demo para revisión | **Sí, depende de ustedes** |
+| 9. Compatibilidad | Web y Android en uso | Cambiar la dirección del servidor también afecta Android; borrar cuenta y Apple tocan a todos los usuarios | Riesgo a controlar |
 
-## Pendientes de verificar (no comprobados todavía)
+## Depende de credenciales Apple (no lo puedo hacer yo)
+- Inscripción en Apple Developer (USD 99/año) y validación de identidad.
+- Crear la app en App Store Connect con el mismo identificador.
+- Firma, certificados y subida desde Xcode en una Mac.
+- Iniciar sesión con Apple en la app iPhone puede requerir datos propios de Apple (Service ID y clave). Hay que confirmarlo al configurarlo.
 
-1. Navegador como invitado, en computadora y celular, en reybaud-app.com: fecha que se ve, paquetes, precios, cupos, variantes 5–8 y 6–9 solo como consulta, botón de reserva.
-2. Formulario con cuenta y sin cuenta: validaciones, género para triple, apto físico, aceptación de condiciones. Se llega hasta antes de confirmar, sin enviar.
-3. Pago y vencimiento: qué seña aparece en cada paquete (triple sin seña), cuándo vence una reserva sin pago y si se libera.
-4. Mails de confirmación: plantilla, fecha que muestra (riesgo de octubre) y que se encolen sin duplicados. Se revisa el código, sin enviar.
-5. Concurrencia y sobreventa: revisar en el código el control de cupo del servidor (`create-guest-reservation`, `get_package_available_spots`, guardas de habitación). Se prueba la carrera por el último lugar solo en una base aislada.
-6. Errores: paquete agotado, doble envío del formulario, enlace inválido.
+## Plan, de menor a mayor riesgo
+1. **Decisiones sin código:** nombre final, identificador definitivo (hoy `app.lovable.reybaudcyclehub`, compartido con Android; no cambiarlo si Android ya está en Play), cuenta demo y email de privacidad.
+2. **Trámite Apple** en paralelo: cuenta de desarrollador y ficha.
+3. **Privacidad y textos de pago:** actualizar la página de privacidad y revisar textos de planes, eventos y tienda. Sin efecto en pagos.
+4. **Iniciar sesión con Apple:** botón al lado de Google, que vincule por email a la ficha existente sin duplicar alumnos. Probar en web primero.
+5. **Eliminar cuenta:** pedido con doble confirmación, período para arrepentirse, anonimiza datos personales y certificado médico; conserva facturas, pagos y registros obligatorios. Requiere tu aprobación del alcance.
+6. **Configurar iOS:** agregar el paquete iOS, quitar la vista previa y `cleartext` de la configuración que se compila, textos de permisos, ícono y pantalla de inicio. Verificar que Android no cambie.
+7. **En tu Mac:** crear el proyecto iPhone, probar en simulador y en un iPhone real (inicio de sesión, Google, Apple, Mercado Pago, WhatsApp, cámara), compilar con Xcode 26+ y subir a TestFlight.
+8. **Capturas y envío a revisión.** Es normal que haya una o dos rondas de correcciones.
 
-## Acciones sugeridas (requieren autorización aparte)
-
-- Decidir qué hacer con la reserva de Scarlett Barros: cancelarla o liberarla como prueba, de forma auditada, para que deje de bloquear la individual.
-- Confirmar si la individual debe estar a la venta. Si no, desactivarla.
-- Definir la seña de la triple y unificar la seña general.
-- Corregir los contadores viejos (`spots_taken` y `available_spots`), o confirmar que nada los muestra.
-
-Si se aprueba, ejecuto los pendientes 1 a 6 sin escribir datos y entrego un informe final con aprobado / falla / no verificado por cada punto.
+## Detalle técnico
+- `capacitor.config.ts`: `server.url` debe salir del build de producción (solo para recarga en desarrollo); `appName` "Reybaud".
+- Agregar `@capacitor/ios` 8.x; Info.plist: `NSCameraUsageDescription`, `NSPhotoLibraryUsageDescription`, `NSPhotoLibraryAddUsageDescription`.
+- Apple: `supabase--configure_social_auth` + `lovable.auth.signInWithOAuth("apple")`; respetar el vínculo de identidad por email.
+- Borrado: RPC SECURITY DEFINER con marca de pedido + tarea programada de anonimización; nunca borrar facturas, pagos, `pagado_at` ni auditoría.
+- WKWebView: confirmar que el popup de Google/Apple vuelve a la app; enlaces `wa.me` y Mercado Pago deben abrirse por fuera.
