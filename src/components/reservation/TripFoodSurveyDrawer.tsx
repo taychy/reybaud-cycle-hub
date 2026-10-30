@@ -13,6 +13,7 @@ import {
   isFoodSurveyAnswered, normalizeFoodSurvey, suggestionFromHistory, validateFoodSurvey,
   MEAL_TYPE_LABELS, type MealSlot, contractedMealsFromAddons, dedupeMeals, formatMealDate,
   mealKey, mealRequestTotal, offerableMeals, parseMealProgram,
+  allStayMeals, mealSelectionMode, type MealMode,
 } from "@/lib/foodSurvey";
 import { formatPrice as formatCurrency } from "@/lib/currency";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -58,12 +59,14 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
   const [offer, setOffer] = useState<ReturnType<typeof offerableMeals>>([]);
   const [contracted, setContracted] = useState<MealSlot[]>([]);
   const [hasProgram, setHasProgram] = useState(false);
+  const [mealMode, setMealMode] = useState<MealMode | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
     setErrors({});
     setHistoryAt(null);
+    setMealMode(null);
     (async () => {
       try {
         let current: any = null;
@@ -303,27 +306,60 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                     Ya contratadas: {contracted.map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}.
                   </p>
                 )}
-                {!hasProgram ? (
-                  <p className="text-[11px] text-muted-foreground">Todavía no está publicado el programa de almuerzos y cenas de este viaje. Te avisamos cuando esté.</p>
-                ) : offer.length === 0 ? (
-                  <p className="text-[11px] text-muted-foreground">No hay comidas adicionales disponibles para tu reserva.</p>
-                ) : (
-                  <>
-                    <div className="space-y-1.5">
-                      {offer.map((m) => (
-                        <label key={mealKey(m)} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 cursor-pointer">
-                          <Checkbox checked={selected.some((x) => mealKey(x) === mealKey(m))} onCheckedChange={() => toggleMeal(m)} />
-                          <span className="text-sm flex-1">{MEAL_TYPE_LABELS[m.tipo]} · {formatMealDate(m.fecha)}</span>
-                          <span className="text-xs text-muted-foreground">{formatCurrency(m.precio, m.currency)}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {totals.cantidad > 0 && (
-                      <p className="text-sm">{totals.cantidad} comida(s) · Total <span className="font-semibold">{formatCurrency(totals.total, currency)}</span></p>
-                    )}
-                    <p className="text-[11px] text-muted-foreground">Es una solicitud: no se cobra nada ahora. Administración la confirma y el pago se hace como cualquier otro Extra.</p>
-                  </>
-                )}
+                {(() => {
+                  const disabled = !hasProgram || offer.length === 0;
+                  const mode = mealSelectionMode(selected, offer, mealMode);
+                  const pick = (m: MealMode) => {
+                    setMealMode(m);
+                    if (m === "ninguna") set({ comidas_solicitadas: [] });
+                    if (m === "todas") set({ comidas_solicitadas: allStayMeals(offer) });
+                  };
+                  return (
+                    <>
+                      <div className="grid gap-2">
+                        <Choice active={!disabled && mode === "todas"} onClick={() => !disabled && pick("todas")}>
+                          Agregar todas las comidas de mi estadía{!disabled ? ` (${offer.length})` : ""}
+                        </Choice>
+                        <Choice active={!disabled && mode === "individual"} onClick={() => !disabled && pick("individual")}>
+                          Elegir almuerzos y cenas individuales
+                        </Choice>
+                        <Choice active={disabled || mode === "ninguna"} onClick={() => pick("ninguna")}>
+                          No agregar comidas
+                        </Choice>
+                      </div>
+                      {!hasProgram ? (
+                        <p className="text-[11px] text-muted-foreground">Las comidas adicionales todavía no están disponibles: Administración aún no cargó el programa de almuerzos y cenas de este viaje. No se contrata ni se cobra nada.</p>
+                      ) : offer.length === 0 ? (
+                        <p className="text-[11px] text-muted-foreground">No hay comidas adicionales disponibles para tu reserva.</p>
+                      ) : (
+                        <>
+                          {mode === "individual" && (
+                            <div className="space-y-1.5">
+                              {offer.map((m) => (
+                                <label key={mealKey(m)} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 cursor-pointer">
+                                  <Checkbox checked={selected.some((x) => mealKey(x) === mealKey(m))} onCheckedChange={() => toggleMeal(m)} />
+                                  <span className="text-sm flex-1">{MEAL_TYPE_LABELS[m.tipo]} · {formatMealDate(m.fecha)}</span>
+                                  <span className="text-xs text-muted-foreground">{formatCurrency(m.precio, m.currency)}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                          {totals.cantidad > 0 && (
+                            <div className="rounded-md bg-muted/30 p-2 text-xs space-y-0.5">
+                              {offer.filter((o) => selected.some((x) => mealKey(x) === mealKey(o))).map((o) => (
+                                <div key={mealKey(o)} className="flex justify-between"><span>{MEAL_TYPE_LABELS[o.tipo]} · {formatMealDate(o.fecha)}</span><span>{formatCurrency(o.precio, o.currency)}</span></div>
+                              ))}
+                              <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-semibold">
+                                <span>{totals.cantidad} comida(s)</span><span>{formatCurrency(totals.total, currency)}</span>
+                              </div>
+                            </div>
+                          )}
+                          <p className="text-[11px] text-muted-foreground">Desayuno incluido, no se suma. Es una solicitud: no se cobra nada ahora. Administración la confirma y el pago se hace como cualquier otro Extra.</p>
+                        </>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
             )}
 
