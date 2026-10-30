@@ -21,7 +21,10 @@ export interface FoodSurveyData {
   contaminacion_cruzada?: boolean | null;
   contaminacion_detalle?: string | null;
   observaciones?: string | null;
+  /** DEPRECATED: la encuesta ya no pregunta por pensión completa (se deriva del paquete). */
   pension_interes?: boolean | null;
+  /** Solicitud (no compra) de comidas adicionales del programa real. */
+  comidas_solicitadas?: MealSlot[] | null;
   pension_incluida?: boolean | null;
   pension_solicitada_at?: string | null;
   pension_gestion?: PensionGestion | null;
@@ -84,7 +87,8 @@ export const normalizeFoodSurvey = (d: FoodSurveyData, pensionIncluded: boolean)
     contaminacion_cruzada: d.tiene_alergias ? d.contaminacion_cruzada ?? null : null,
     contaminacion_detalle: d.tiene_alergias && d.contaminacion_cruzada ? d.contaminacion_detalle?.trim() || null : null,
     observaciones: d.observaciones?.trim() || null,
-    pension_interes: pensionIncluded ? false : !!d.pension_interes,
+    pension_interes: false,
+    comidas_solicitadas: pensionIncluded ? [] : dedupeMeals(d.comidas_solicitadas ?? []),
     historico_confirmado: d.historico_confirmado ?? null,
   };
   return out;
@@ -122,4 +126,105 @@ export const describeFoodSurvey = (d: FoodSurveyData | null | undefined): string
   parts.push(d!.tiene_alergias ? `Alergias/intolerancias: ${d!.alergias_detalle ?? ""}` : "Sin alergias");
   if (d!.contaminacion_cruzada) parts.push(`Contaminación cruzada${d!.contaminacion_detalle ? `: ${d!.contaminacion_detalle}` : ""}`);
   return parts.join(" · ");
+};
+
+// ── Comidas adicionales (Extras) ─────────────────────────────────────────────
+// Programa real configurado por viaje en `events.metadata.food_survey.meal_program`:
+// { almuerzo_addon_id, cena_addon_id, meals: [{ fecha: "YYYY-MM-DD", tipo, package_ids? }] }.
+// El precio sale del Extra (event_addons) de cada tipo: nunca se inventa.
+// Sin programa no se ofrece ninguna comida.
+export type MealType = "almuerzo" | "cena";
+export interface MealSlot { fecha: string; tipo: MealType }
+export interface MealProgramEntry extends MealSlot { package_ids?: string[] | null }
+export interface MealProgram {
+  almuerzo_addon_id?: string | null;
+  cena_addon_id?: string | null;
+  meals: MealProgramEntry[];
+}
+export interface MealAddon { id: string; precio: number; currency: string; activo: boolean }
+
+export const MEAL_TYPE_LABELS: Record<MealType, string> = { almuerzo: "Almuerzo", cena: "Cena" };
+
+const ISO = /^\d{4}-\d{2}-\d{2}$/;
+export const mealKey = (m: MealSlot) => `${m.fecha}|${m.tipo}`;
+
+export const dedupeMeals = (list: MealSlot[]): MealSlot[] => {
+  const seen = new Set<string>();
+  const out: MealSlot[] = [];
+  for (const m of list || []) {
+    if (!m || !ISO.test(m.fecha) || (m.tipo !== "almuerzo" && m.tipo !== "cena")) continue;
+    const k = mealKey(m);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    out.push({ fecha: m.fecha, tipo: m.tipo });
+  }
+  return out.sort((a, b) => mealKey(a).localeCompare(mealKey(b)));
+};
+
+export const parseMealProgram = (meta: any): MealProgram | null => {
+  const p = meta?.food_survey?.meal_program;
+  if (!p || !Array.isArray(p.meals) || p.meals.length === 0) return null;
+  const meals = (p.meals as any[])
+    .filter((m) => m && ISO.test(m.fecha) && (m.tipo === "almuerzo" || m.tipo === "cena"))
+    .map((m) => ({ fecha: m.fecha, tipo: m.tipo as MealType, package_ids: Array.isArray(m.package_ids) ? m.package_ids : null }));
+  if (!meals.length) return null;
+  return { almuerzo_addon_id: p.almuerzo_addon_id ?? null, cena_addon_id: p.cena_addon_id ?? null, meals };
+};
+
+/** Fechas "D/M" de una ISO sin crear Date (evita corrimiento horario). */
+export const formatMealDate = (iso: string) => {
+  const [, m, d] = iso.split("-");
+  return `${parseInt(d, 10)}/${parseInt(m, 10)}`;
+};
+
+/**
+ * Comidas que se pueden ofrecer a una reserva: solo si el paquete NO incluye pensión,
+ * del programa real, del paquete de la reserva, con Extra activo y con precio,
+ * excluyendo las ya contratadas/abonadas.
+ */
+export const offerableMeals = (args: {
+  program: MealProgram | null;
+  pensionIncluded: boolean;
+  packageId: string | null;
+  addons: MealAddon[];
+  contracted: MealSlot[];
+}): Array<MealSlot & { addon_id: string; precio: number; currency: string }> => {
+  const { program, pensionIncluded, packageId, addons, contracted } = args;
+  if (!program || pensionIncluded) return [];
+  const taken = new Set(contracted.map(mealKey));
+  const out: Array<MealSlot & { addon_id: string; precio: number; currency: string }> = [];
+  for (const m of program.meals) {
+    if (m.package_ids?.length && (!packageId || !m.package_ids.includes(packageId))) continue;
+    const addonId = m.tipo === "almuerzo" ? program.almuerzo_addon_id : program.cena_addon_id;
+    const addon = addons.find((a) => a.id === addonId);
+    if (!addon || !addon.activo || !(addon.precio > 0)) continue;
+    if (taken.has(mealKey(m))) continue;
+    out.push({ fecha: m.fecha, tipo: m.tipo, addon_id: addon.id, precio: addon.precio, currency: addon.currency });
+  }
+  return dedupeMeals(out).map((s) => out.find((o) => mealKey(o) === mealKey(s))!);
+};
+
+/** Comidas ya contratadas: fechas ISO anotadas en las notas del Extra de esa comida. */
+export const contractedMealsFromAddons = (
+  program: MealProgram | null,
+  rows: Array<{ addon_id: string; notas?: string | null }>,
+): MealSlot[] => {
+  if (!program) return [];
+  const out: MealSlot[] = [];
+  for (const r of rows) {
+    const tipo: MealType | null =
+      r.addon_id === program.almuerzo_addon_id ? "almuerzo" : r.addon_id === program.cena_addon_id ? "cena" : null;
+    if (!tipo) continue;
+    for (const f of (r.notas || "").match(/\d{4}-\d{2}-\d{2}/g) || []) out.push({ fecha: f, tipo });
+  }
+  return dedupeMeals(out);
+};
+
+export const mealRequestTotal = (
+  selected: MealSlot[],
+  offer: Array<MealSlot & { precio: number }>,
+): { cantidad: number; total: number } => {
+  const keys = new Set(dedupeMeals(selected).map(mealKey));
+  const chosen = offer.filter((o) => keys.has(mealKey(o)));
+  return { cantidad: chosen.length, total: chosen.reduce((s, o) => s + o.precio, 0) };
 };
