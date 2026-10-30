@@ -228,3 +228,16 @@ export const mealRequestTotal = (
   const chosen = offer.filter((o) => keys.has(mealKey(o)));
   return { cantidad: chosen.length, total: chosen.reduce((s, o) => s + o.precio, 0) };
 };
+
+export type MealMode = "todas" | "individual" | "ninguna";
+
+/** "Todas las comidas de mi estadía": todo lo ofertable (ya excluye desayuno, incluidas y compradas). */
+export const allStayMeals = (offer: MealSlot[]): MealSlot[] => dedupeMeals(offer);
+
+/** Modo visible: elegido explícitamente, o derivado de lo guardado. */
+export const mealSelectionMode = (selected: MealSlot[], offer: MealSlot[], chosen: MealMode | null): MealMode => {
+  if (chosen) return chosen;
+  const keys = new Set(dedupeMeals(selected).map(mealKey));
+  if (keys.size === 0) return "ninguna";
+  return offer.length > 0 && offer.every((o) => keys.has(mealKey(o))) ? "todas" : "individual";
+};

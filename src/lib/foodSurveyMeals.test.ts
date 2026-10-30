@@ -56,3 +56,21 @@ describe("comidas adicionales", () => {
     expect(normalizeFoodSurvey({ comidas_solicitadas: [{ fecha: "2026-11-06", tipo: "cena" }] }, true).comidas_solicitadas).toEqual([]);
   });
 });
+
+describe("agregar todas las comidas de mi estadía", () => {
+  it("selecciona todos los almuerzos y cenas ofertables, sin los ya comprados, a 35.000 c/u", async () => {
+    const { allStayMeals, mealSelectionMode } = await import("./foodSurvey");
+    const done = contractedMealsFromAddons(program, [{ addon_id: "A", notas: "2026-11-06" }]);
+    const offer = offerableMeals({ program, pensionIncluded: false, packageId: "p", addons, contracted: done });
+    const all = allStayMeals(offer);
+    expect(all.map((m) => `${m.fecha}|${m.tipo}`)).toEqual(["2026-11-05|cena", "2026-11-06|cena"]);
+    expect(mealRequestTotal(all, offer)).toEqual({ cantidad: 2, total: 70000 });
+    expect(mealSelectionMode(all, offer, null)).toBe("todas");
+    expect(mealSelectionMode([], offer, null)).toBe("ninguna");
+  });
+
+  it("sin programa no selecciona nada", async () => {
+    const { allStayMeals } = await import("./foodSurvey");
+    expect(allStayMeals(offerableMeals({ program: null, pensionIncluded: false, packageId: "p", addons, contracted: [] }))).toEqual([]);
+  });
+});
