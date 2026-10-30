@@ -1,8 +1,9 @@
 /**
  * Encuesta gastronómica del viaje (paso `gastronomia`).
  * Sirve para alumno autenticado (RLS propia) o enlace personal (/viaje?token=).
- * No pide nombre/paquete/pensión: se derivan de la reserva.
- * "Me interesa pensión completa" es solo una solicitud: no genera pago ni cambia la reserva.
+ * No pide nombre/paquete/pensión: se derivan de la reserva (tarjeta informativa).
+ * Comidas adicionales: solo del programa real (metadata.food_survey.meal_program) y Extras
+ * activos; la selección es una solicitud, no una compra: el cobro sigue el circuito de Extras.
  */
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -10,7 +11,10 @@ import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
 import {
   FOOD_TYPE_LABELS, type FoodSurveyData, type FoodType,
   isFoodSurveyAnswered, normalizeFoodSurvey, suggestionFromHistory, validateFoodSurvey,
+  MEAL_TYPE_LABELS, type MealSlot, contractedMealsFromAddons, dedupeMeals, formatMealDate,
+  mealKey, mealRequestTotal, offerableMeals, parseMealProgram,
 } from "@/lib/foodSurvey";
+import { formatCurrency } from "@/lib/currency";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -51,6 +55,9 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
   const [included, setIncluded] = useState(false);
   const [historyAt, setHistoryAt] = useState<string | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [offer, setOffer] = useState<ReturnType<typeof offerableMeals>>([]);
+  const [contracted, setContracted] = useState<MealSlot[]>([]);
+  const [hasProgram, setHasProgram] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -62,6 +69,11 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         let current: any = null;
         let legacy: any = null;
         let history: { step_key: string; data: any; updated_at: string } | null = null;
+        let meta: any = null;
+        let pkgId: string | null = null;
+        let inc0 = false;
+        let addons: any[] = [];
+        let resAddons: any[] = [];
         if (token) {
           const r = await tripTokenGet(token);
           current = r.checklist.find((c) => c.step_key === "gastronomia") ?? null;
@@ -69,10 +81,18 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           history = r.food_history ?? null;
           setPkgName(r.package?.nombre ?? null);
           setIncluded(!!r.package?.incluye_gastronomia);
+          inc0 = !!r.package?.incluye_gastronomia;
+          meta = r.event?.metadata ?? null;
+          pkgId = r.package?.id ?? null;
+          if (parseMealProgram(meta)) {
+            const { data: ex } = await supabase.functions.invoke("manage-trip-extras-by-token", { body: { action: "get", token } });
+            addons = (ex as any)?.addons ?? [];
+            resAddons = (ex as any)?.contracted ?? [];
+          }
         } else {
           const { data: res } = await supabase
             .from("event_reservations")
-            .select("package_id, package_nombre_snapshot")
+            .select("package_id, package_nombre_snapshot, event_id, events(metadata)")
             .eq("id", reservationId)
             .maybeSingle();
           let inc = false;
@@ -88,6 +108,17 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           }
           setPkgName(name);
           setIncluded(inc);
+          inc0 = inc;
+          meta = (res as any)?.events?.metadata ?? null;
+          pkgId = res?.package_id ?? null;
+          if (parseMealProgram(meta) && res?.event_id) {
+            const [{ data: a }, { data: ra }] = await Promise.all([
+              supabase.from("event_addons").select("id, precio, currency, activo").eq("event_id", res.event_id),
+              supabase.from("reservation_addons").select("addon_id, notas").eq("reservation_id", reservationId),
+            ]);
+            addons = a || [];
+            resAddons = ra || [];
+          }
           // Solo datos propios: por alumno (otras reservas suyas) o por esta reserva.
           let q = supabase
             .from("reservation_checklist_data")
@@ -101,6 +132,15 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           history = list.find((r) => r.reservation_id !== reservationId) ?? null;
         }
 
+        const program = parseMealProgram(meta);
+        const done = contractedMealsFromAddons(program, resAddons);
+        setHasProgram(!!program);
+        setContracted(done);
+        setOffer(offerableMeals({
+          program, pensionIncluded: inc0, packageId: pkgId, contracted: done,
+          addons: addons.map((x: any) => ({ id: x.id, precio: Number(x.precio) || 0, currency: x.currency || "ARS", activo: x.activo !== false })),
+        }));
+
         if (current?.data && isFoodSurveyAnswered(current.data)) {
           setSaved(current.data);
           setValues(current.data);
@@ -109,7 +149,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           const src = legacy ? { step_key: "alimentacion", data: legacy.data, updated_at: legacy.updated_at } : history;
           const sug = src ? suggestionFromHistory(src.step_key, src.data) : null;
           if (sug) {
-            setValues({ ...sug, pension_interes: false });
+            setValues({ ...sug, pension_interes: false, comidas_solicitadas: [] });
             setHistoryAt(src!.updated_at ?? "");
           } else {
             setValues({});
@@ -123,6 +163,15 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
     })();
   }, [open, reservationId, token]);
 
+  const selected = dedupeMeals(values.comidas_solicitadas ?? []).filter((m) => offer.some((o) => mealKey(o) === mealKey(m)));
+  const totals = mealRequestTotal(selected, offer);
+  const currency = offer[0]?.currency ?? "ARS";
+  const toggleMeal = (m: MealSlot) => {
+    const k = mealKey(m);
+    const has = selected.some((x) => mealKey(x) === k);
+    setValues((v) => ({ ...v, comidas_solicitadas: has ? selected.filter((x) => mealKey(x) !== k) : [...selected, { fecha: m.fecha, tipo: m.tipo }] }));
+  };
+
   const set = (patch: Partial<FoodSurveyData>) => setValues((v) => ({ ...v, ...patch }));
 
   const handleSave = async () => {
@@ -134,7 +183,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
     }
     setSaving(true);
     const data = normalizeFoodSurvey(
-      { ...values, historico_confirmado: historyAt !== null ? true : values.historico_confirmado ?? null },
+      { ...values, comidas_solicitadas: selected, historico_confirmado: historyAt !== null ? true : values.historico_confirmado ?? null },
       included,
     ) as Record<string, unknown>;
     try {
@@ -182,7 +231,8 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           <div className="px-4 pb-6 space-y-5 overflow-y-auto">
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs space-y-1">
               <p><span className="text-muted-foreground">Tu paquete:</span> <span className="font-medium">{pkgName || "—"}</span></p>
-              <p className="text-muted-foreground">{included ? "Incluye pensión completa (desayuno, almuerzo y cena)." : "No incluye pensión completa."}</p>
+              <p className="font-medium text-foreground">{included ? "Tu paquete incluye pensión completa" : "Tu paquete no incluye pensión completa"}</p>
+              <p className="text-muted-foreground">{included ? "Desayuno, almuerzo y cena incluidos." : "El desayuno está incluido."}</p>
               {saved?.actualizado_at && <p className="text-muted-foreground">Última actualización: {fmt(saved.actualizado_at)}</p>}
             </div>
 
@@ -246,15 +296,35 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
             </div>
 
             {!included && (
-              <label className="flex items-start gap-3 rounded-lg border border-border p-3 cursor-pointer">
-                <Checkbox checked={!!values.pension_interes} onCheckedChange={(v) => set({ pension_interes: !!v })} className="mt-0.5" />
-                <span className="text-sm">
-                  Me interesa contratar pensión completa
-                  <span className="block text-[11px] text-muted-foreground mt-0.5">
-                    Es solo una consulta: no se cobra nada ni cambia tu reserva. Administración te contactará con la opción y el precio.
-                  </span>
-                </span>
-              </label>
+              <div className="rounded-lg border border-border p-3 space-y-2">
+                <p className="text-sm font-medium">Comidas adicionales (opcional)</p>
+                {contracted.length > 0 && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Ya contratadas: {contracted.map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}.
+                  </p>
+                )}
+                {!hasProgram ? (
+                  <p className="text-[11px] text-muted-foreground">Todavía no está publicado el programa de almuerzos y cenas de este viaje. Te avisamos cuando esté.</p>
+                ) : offer.length === 0 ? (
+                  <p className="text-[11px] text-muted-foreground">No hay comidas adicionales disponibles para tu reserva.</p>
+                ) : (
+                  <>
+                    <div className="space-y-1.5">
+                      {offer.map((m) => (
+                        <label key={mealKey(m)} className="flex items-center gap-3 rounded-md border border-border/60 px-3 py-2 cursor-pointer">
+                          <Checkbox checked={selected.some((x) => mealKey(x) === mealKey(m))} onCheckedChange={() => toggleMeal(m)} />
+                          <span className="text-sm flex-1">{MEAL_TYPE_LABELS[m.tipo]} · {formatMealDate(m.fecha)}</span>
+                          <span className="text-xs text-muted-foreground">{formatCurrency(m.precio, m.currency)}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {totals.cantidad > 0 && (
+                      <p className="text-sm">{totals.cantidad} comida(s) · Total <span className="font-semibold">{formatCurrency(totals.total, currency)}</span></p>
+                    )}
+                    <p className="text-[11px] text-muted-foreground">Es una solicitud: no se cobra nada ahora. Administración la confirma y el pago se hace como cualquier otro Extra.</p>
+                  </>
+                )}
+              </div>
             )}
 
             <Button className="w-full h-12" onClick={handleSave} disabled={saving}>
