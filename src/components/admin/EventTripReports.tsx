@@ -7,7 +7,7 @@
  * Ambos exportables a CSV.
  */
 import { useEffect, useState, useMemo } from "react";
-import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS } from "@/lib/foodSurvey";
+import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS, MEAL_TYPE_LABELS, formatMealDate } from "@/lib/foodSurvey";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -318,13 +318,18 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         encuesta_detalle: describeFoodSurvey(sd),
         encuesta_obs: sd?.observaciones || "",
         encuesta_actualizada: sd?.actualizado_at ? new Date(sd.actualizado_at).toLocaleString("es-AR") : "",
-        pension_solicitud: sd?.pension_interes ? "Solicita pensión completa" : "",
+        pension_solicitud: [
+          sd?.pension_interes ? "Solicitó pensión completa (encuesta anterior)" : "",
+          Array.isArray(sd?.comidas_solicitadas) && sd.comidas_solicitadas.length
+            ? `Solicita comidas: ${sd.comidas_solicitadas.map((m: any) => `${MEAL_TYPE_LABELS[m.tipo as "almuerzo" | "cena"] ?? m.tipo} ${formatMealDate(m.fecha)}`).join(", ")}`
+            : "",
+        ].filter(Boolean).join(" · "),
       };
     });
   }, [rows, foodRows, addonRows, gastronomyCatalog]);
 
   const exportGastronomia = () => {
-    const header = ["Nombre", "Apellido", "Paquete", "Gastronomía base", "Comidas extra", "Dieta", "Alergias", "Restricciones", "Ficha alimentación", "Encuesta", "Detalle encuesta", "Observaciones", "Solicitud pensión", "Actualizada"];
+    const header = ["Nombre", "Apellido", "Paquete", "Gastronomía base", "Comidas extra", "Dieta", "Alergias", "Restricciones", "Ficha alimentación", "Encuesta", "Detalle encuesta", "Observaciones", "Solicitud comidas", "Actualizada"];
     const body = gastronomyRows.map((r) => [
       r.nombre, r.apellido, r.package_nombre ?? "", r.gastronomia_base, r.comidas_extra,
       r.dieta, r.alergias, r.restricciones, r.alimentacion_completada ? "Completa" : "Pendiente",
