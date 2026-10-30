@@ -14,7 +14,7 @@ import {
   MEAL_TYPE_LABELS, type MealSlot, contractedMealsFromAddons, dedupeMeals, formatMealDate,
   mealKey, mealRequestTotal, offerableMeals, parseMealProgram,
 } from "@/lib/foodSurvey";
-import { formatCurrency } from "@/lib/currency";
+import { formatPrice as formatCurrency } from "@/lib/currency";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
