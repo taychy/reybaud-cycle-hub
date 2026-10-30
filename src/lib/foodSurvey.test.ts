@@ -22,7 +22,7 @@ describe("foodSurvey", () => {
     const n = normalizeFoodSurvey({ tipo_alimentacion: "normal", tiene_alergias: false, alergias_detalle: "x", pension_interes: true }, true);
     expect(n.pension_interes).toBe(false);
     expect(n.alergias_detalle).toBeNull();
-    expect(normalizeFoodSurvey({ pension_interes: true }, false).pension_interes).toBe(true);
+    expect(normalizeFoodSurvey({ pension_interes: true }, false).pension_interes).toBe(false);
   });
 
   it("convierte ficha histórica sin darla por confirmada", () => {

@@ -1,3 +1,8 @@
+## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
+- [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
+- [x] Comidas adicionales solo del programa real y Extras activos, total cantidad × precio, excluye ya contratadas; solicitud validada en servidor; visible en reporte admin
+- [ ] Cargar programa real de almuerzos/cenas y Extras ARS 35.000 (bloqueado: falta el programa de comidas) y habilitar la encuesta para San Luis
+
 ## Maratona · Disponibilidad compartida (27/10)
 - [x] Cupo comercial compartido servidor/frontend; inventario 10 dobles / 20 plazas sin género ni asignación; grupos de alojamiento comunes y auditoría, sin tocar solicitudes/reservas/pagos
 - [x] RPC público 15 disponibles en las cuatro modalidades; navegador invitado desktop/móvil, 21 pruebas unitarias y regresiones SQL aisladas; sin publicar ni crear reservas reales
