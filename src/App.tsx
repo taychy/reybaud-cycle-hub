@@ -90,6 +90,7 @@ import AdminScanIncidents from "./pages/admin/AdminScanIncidents";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EventTerms from "./pages/EventTerms";
 import ExternalTripView from "./pages/ExternalTripView";
+import FoodSurveyQa from "./pages/FoodSurveyQa";
 import ChoiceSurveyPage from "./pages/ChoiceSurveyPage";
 import EventRescheduling from "./pages/EventRescheduling";
 import PublicPreorderPage from "./pages/PublicPreorderPage";
@@ -221,6 +222,7 @@ const App = () => (
           <Route path="/condiciones/:token" element={<ReservationTermsAccept />} />
           <Route path="/admin/ver-como/:alumnoId" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><ImpersonateStudent /></ProtectedRoute>} />
           <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/pruebas/encuesta-gastronomica" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><FoodSurveyQa /></ProtectedRoute>} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
             <Route path="resumen" element={<AdminResumen />} />

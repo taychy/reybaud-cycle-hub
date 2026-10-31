@@ -24,6 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Utensils, History, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { normalizeFoodSurveyQa } from "@/lib/foodSurveyQa";
 
 interface Props {
   open: boolean;
@@ -32,6 +33,8 @@ interface Props {
   alumnoId: string | null;
   token?: string;
   onSaved: () => void;
+  /** Private owner-scoped QA adapter; never queries/writes real reservations. */
+  qaId?: string;
 }
 
 const fmt = (iso?: string | null) =>
@@ -50,7 +53,7 @@ const Choice = ({ active, disabled = false, onClick, children }: { active: boole
   </Button>
 );
 
-const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved }: Props) => {
+const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved, qaId }: Props) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<FoodSurveyData>({});
@@ -63,11 +66,13 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
   const [contracted, setContracted] = useState<MealSlot[]>([]);
   const [hasProgram, setHasProgram] = useState(false);
   const [hasStay, setHasStay] = useState(false);
+  const [loadError, setLoadError] = useState(false);
   const [mealMode, setMealMode] = useState<MealMode | null>(null);
 
   useEffect(() => {
     if (!open) return;
     setLoading(true);
+    setLoadError(false);
     setErrors({});
     setHistoryAt(null);
     setMealMode(null);
@@ -76,6 +81,20 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
     let cancelled = false;
     (async () => {
       try {
+        if (qaId) {
+          const { data: qa, error } = await supabase.from("trip_food_survey_qa").select("case_key,response").eq("id", qaId).maybeSingle();
+          if (error || !qa) throw new Error("Prueba no disponible");
+          if (cancelled) return;
+          setPkgName(qa.case_key === "con_pension" ? "TEST · Con pensión completa" : "TEST · Sin pensión completa");
+          setIncluded(qa.case_key === "con_pension");
+          setHasProgram(false);
+          setHasStay(true);
+          setContracted([]);
+          const response = qa.response as FoodSurveyData | null;
+          setSaved(response);
+          setValues(response ?? {});
+          return;
+        }
         let current: any = null;
         let legacy: any = null;
         let history: { step_key: string; data: any; updated_at: string } | null = null;
@@ -175,6 +194,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         }
       } catch {
         if (cancelled) return;
+        setLoadError(true);
         setOffer([]);
         setHasStay(false);
         setValues({});
@@ -183,7 +203,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
       }
     })();
     return () => { cancelled = true; };
-  }, [open, reservationId, token]);
+  }, [open, reservationId, token, qaId]);
 
   const selected = dedupeMeals(values.comidas_solicitadas ?? []).filter((m) => offer.some((o) => mealKey(o) === mealKey(m)));
   const totals = mealRequestTotal(selected, offer);
@@ -210,7 +230,10 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
       included,
     ) as Record<string, unknown>;
     try {
-      if (token) {
+      if (qaId) {
+        const { error } = await supabase.rpc("save_trip_food_survey_qa", { p_id: qaId, p_data: normalizeFoodSurveyQa(values, included) as any });
+        if (error) throw error;
+      } else if (token) {
         await tripTokenSaveStep({ token, step_key: "gastronomia", completed: true, needs_advice: false, data, file_url: null });
       } else {
         const { error } = await supabase
@@ -250,6 +273,8 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
 
         {loading ? (
           <div className="flex justify-center py-12"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
+        ) : loadError ? (
+          <p role="alert" className="px-4 pb-6 text-destructive">No pudimos abrir la encuesta para esta cuenta. Cerrá y volvé a intentar.</p>
         ) : (
           <div className="px-4 pb-6 space-y-5 overflow-y-auto">
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs space-y-1">
