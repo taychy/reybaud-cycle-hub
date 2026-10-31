@@ -1,3 +1,8 @@
+## Tienda · Correcciones auditadas (31/10)
+- [ ] Auditar etapas, permisos y casos Gustavo/Marcelo en lectura
+- [ ] Implementar corrección administrativa con antes/después, motivo, confirmación e historial inmutable; compensación física separada
+- [ ] Probar reglas, idempotencia, seguridad y pantalla sin corregir registros reales; informar sin publicar
+
 ## Tienda · Recibir devolución (31/10)
 - [x] Auditar 17 registros (13 cambios), casos Marcelo/Gustavo/Francisco y últimos cambios de código; sin modificar registros comerciales
 - [x] Original/variante precargados si constan, una unidad por cambio y pedido; discrepancia con motivo, identidad física separada, bloqueo con stock histórico
