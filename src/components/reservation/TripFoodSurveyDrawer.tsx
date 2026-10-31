@@ -35,6 +35,10 @@ interface Props {
   onSaved: () => void;
   /** Private owner-scoped QA adapter; never queries/writes real reservations. */
   qaId?: string;
+  /** QA participant view: simulated package name + illustrative (never saved) meal program. */
+  qaParticipant?: boolean;
+  /** QA: start with a blank local form; DB only changes on save. */
+  qaFresh?: boolean;
 }
 
 const fmt = (iso?: string | null) =>
@@ -85,14 +89,17 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           const { data: qa, error } = await supabase.from("trip_food_survey_qa").select("case_key,response").eq("id", qaId).maybeSingle();
           if (error || !qa) throw new Error("Prueba no disponible");
           if (cancelled) return;
-          setPkgName(qa.case_key === "con_pension" ? "TEST · Con pensión completa" : "TEST · Sin pensión completa");
-          setIncluded(qa.case_key === "con_pension");
-          setHasProgram(false);
+          const key = qa.case_key === "con_pension" ? "con_pension" : "sin_pension";
+          setPkgName(qaParticipant ? QA_PACKAGE_LABEL[key] : key === "con_pension" ? "TEST · Con pensión completa" : "TEST · Sin pensión completa");
+          setIncluded(key === "con_pension");
+          const demo = qaParticipant ? qaDemoOffer(key) : [];
+          setHasProgram(demo.length > 0);
+          setOffer(demo);
           setHasStay(true);
           setContracted([]);
           const response = qa.response as FoodSurveyData | null;
-          setSaved(response);
-          setValues(response ?? {});
+          setSaved(qaFresh ? null : response);
+          setValues(qaFresh ? {} : response ?? {});
           return;
         }
         let current: any = null;
