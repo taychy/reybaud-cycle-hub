@@ -652,6 +652,13 @@
       "when": 1793411753043,
       "tag": "0092_store_return_identity_permissions",
       "breakpoints": true
+    },
+    {
+      "idx": 93,
+      "version": "7",
+      "when": 1793416754708,
+      "tag": "0093_store_cambio_audited_corrections",
+      "breakpoints": true
     }
   ]
 }
