@@ -15868,6 +15868,32 @@ export type Database = {
           },
         ]
       }
+      trip_food_survey_qa_access: {
+        Row: {
+          active: boolean
+          event_id: string
+          owner_id: string
+        }
+        Insert: {
+          active?: boolean
+          event_id: string
+          owner_id: string
+        }
+        Update: {
+          active?: boolean
+          event_id?: string
+          owner_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_food_survey_qa_access_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       turnera_notificaciones: {
         Row: {
           canal: string
@@ -19001,6 +19027,10 @@ export type Database = {
       cambiar_sede_retiro_store_order: {
         Args: { _order_id: string; _sede_id: string }
         Returns: Json
+      }
+      can_access_trip_food_survey_qa: {
+        Args: { p_event_id: string }
+        Returns: boolean
       }
       can_correct_store_cambio: { Args: never; Returns: boolean }
       cancel_store_order:

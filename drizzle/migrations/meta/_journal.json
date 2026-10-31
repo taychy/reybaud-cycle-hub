@@ -680,6 +680,13 @@
       "when": 1793418571848,
       "tag": "0096_private_food_survey_qa",
       "breakpoints": true
+    },
+    {
+      "idx": 97,
+      "version": "7",
+      "when": 1793418874933,
+      "tag": "0097_food_qa_owner_allowlist",
+      "breakpoints": true
     }
   ]
 }
