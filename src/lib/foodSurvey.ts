@@ -154,7 +154,20 @@ export interface MealProgram {
   cena_addon_id?: string | null;
   meals: MealProgramEntry[];
 }
-export interface MealAddon { id: string; precio: number; currency: string; activo: boolean }
+export interface MealAddon { id: string; event_id: string; precio: number; currency: string; activo: boolean; aplica_a_paquetes?: string[] | null }
+export interface MealStay { start: string; end: string }
+
+/** Literal dates only; missing/ambiguous stays offer no meals. Arrival/departure
+ * days are bounds, not invented services: availability still comes from program. */
+export const isMealInStay = (fecha: string, stay: MealStay | null): boolean => {
+  const valid = (s: string) => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const [y, m, d] = s.split("-").map(Number);
+    return m >= 1 && m <= 12 && d >= 1 && d <= new Date(Date.UTC(y, m, 0)).getUTCDate();
+  };
+  return !!stay && valid(fecha) && valid(stay.start) && valid(stay.end)
+    && stay.start <= stay.end && fecha >= stay.start && fecha <= stay.end;
+};
 
 export const MEAL_TYPE_LABELS: Record<MealType, string> = { almuerzo: "Almuerzo", cena: "Cena" };
 
@@ -197,22 +210,26 @@ export const formatMealDate = (iso: string) => {
  */
 export const offerableMeals = (args: {
   program: MealProgram | null;
+  eventId: string;
+  stay: MealStay | null;
   pensionIncluded: boolean;
   packageId: string | null;
   addons: MealAddon[];
   contracted: MealSlot[];
 }): Array<MealSlot & { addon_id: string; precio: number; currency: string }> => {
-  const { program, pensionIncluded, packageId, addons, contracted } = args;
-  if (!program || pensionIncluded) return [];
+  const { program, eventId, stay, pensionIncluded, packageId, addons, contracted } = args;
+  if (!program || pensionIncluded || !stay || !eventId) return [];
   const taken = new Set(contracted.map(mealKey));
   const out: Array<MealSlot & { addon_id: string; precio: number; currency: string }> = [];
   for (const m of program.meals) {
     // También proteger entradas directas/no tipadas: desayuno jamás ofertable.
     if (!m || !ISO.test(m.fecha) || (m.tipo !== "almuerzo" && m.tipo !== "cena")) continue;
+    if (!isMealInStay(m.fecha, stay)) continue;
     if (m.package_ids?.length && (!packageId || !m.package_ids.includes(packageId))) continue;
     const addonId = m.tipo === "almuerzo" ? program.almuerzo_addon_id : program.cena_addon_id;
     const addon = addons.find((a) => a.id === addonId);
-    if (!addon || !addon.activo || !(addon.precio > 0)) continue;
+    if (!addon || addon.event_id !== eventId || !addon.activo || !(addon.precio > 0)) continue;
+    if (addon.aplica_a_paquetes?.length && (!packageId || !addon.aplica_a_paquetes.includes(packageId))) continue;
     if (taken.has(mealKey(m))) continue;
     out.push({ fecha: m.fecha, tipo: m.tipo, addon_id: addon.id, precio: addon.precio, currency: addon.currency });
   }
