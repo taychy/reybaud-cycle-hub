@@ -8,6 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { CheckCircle2, XCircle, Package, Truck, Plus, Loader2, AlertTriangle } from "lucide-react";
 import AdminCreateCambioDialog from "@/components/admin/AdminCreateCambioDialog";
 import AddPruebaDialog from "@/components/store/AddPruebaDialog";
+import { CambioCorrectionAccess } from "@/components/deposito/CorrectCambioDialog";
 import { estadoCambioClass, estadoCambioLabel } from "@/lib/cambios";
 import { esSustitucionFaltaStock, RESOLUCION_LABEL, type ResolucionEconomica } from "@/lib/faltaStock";
 
@@ -286,6 +287,7 @@ const AdminCambios = () => {
 
                 <div className="space-y-2 pt-3 border-t border-border">
                   <p className="text-xs text-muted-foreground">Acciones</p>
+                  <CambioCorrectionAccess cambio={selected} onSaved={() => { setSelected(null); void load(); }} />
                   {esPruebaActiva(selected) && (
                     <div className="rounded-lg border border-border p-3 space-y-2">
                       <p className="text-xs">

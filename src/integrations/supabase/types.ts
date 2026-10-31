@@ -13828,6 +13828,110 @@ export type Database = {
         }
         Relationships: []
       }
+      store_cambio_corrections: {
+        Row: {
+          actor_id: string
+          actor_label: string
+          after_data: Json
+          before_data: Json
+          cambio_id: string
+          created_at: string
+          id: string
+          kind: string
+          operational_snapshot: Json
+          reason: string
+          replacement_movement_id: string | null
+          request_id: string
+          reverse_movement_id: string | null
+          revision: number | null
+          source_movement_id: string | null
+        }
+        Insert: {
+          actor_id: string
+          actor_label: string
+          after_data: Json
+          before_data: Json
+          cambio_id: string
+          created_at?: string
+          id?: string
+          kind: string
+          operational_snapshot: Json
+          reason: string
+          replacement_movement_id?: string | null
+          request_id: string
+          reverse_movement_id?: string | null
+          revision?: number | null
+          source_movement_id?: string | null
+        }
+        Update: {
+          actor_id?: string
+          actor_label?: string
+          after_data?: Json
+          before_data?: Json
+          cambio_id?: string
+          created_at?: string
+          id?: string
+          kind?: string
+          operational_snapshot?: Json
+          reason?: string
+          replacement_movement_id?: string | null
+          request_id?: string
+          reverse_movement_id?: string | null
+          revision?: number | null
+          source_movement_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "store_cambio_corrections_cambio_id_fkey"
+            columns: ["cambio_id"]
+            isOneToOne: false
+            referencedRelation: "store_cambios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambio_corrections_replacement_movement_id_fkey"
+            columns: ["replacement_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambio_corrections_replacement_movement_id_fkey"
+            columns: ["replacement_movement_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
+          },
+          {
+            foreignKeyName: "store_cambio_corrections_reverse_movement_id_fkey"
+            columns: ["reverse_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambio_corrections_reverse_movement_id_fkey"
+            columns: ["reverse_movement_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
+          },
+          {
+            foreignKeyName: "store_cambio_corrections_source_movement_id_fkey"
+            columns: ["source_movement_id"]
+            isOneToOne: false
+            referencedRelation: "stock_movements"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambio_corrections_source_movement_id_fkey"
+            columns: ["source_movement_id"]
+            isOneToOne: false
+            referencedRelation: "vw_stock_negativo"
+            referencedColumns: ["movimiento_id"]
+          },
+        ]
+      }
       store_cambios: {
         Row: {
           admin_iniciador_id: string | null
@@ -13836,6 +13940,8 @@ export type Database = {
           cerrado_at: string | null
           comentario: string | null
           compra_id: string | null
+          correccion_administrativa: Json
+          correccion_revision: number
           created_at: string
           cuenta_ajuste_id: string | null
           devolucion_id: string | null
@@ -13908,6 +14014,8 @@ export type Database = {
           cerrado_at?: string | null
           comentario?: string | null
           compra_id?: string | null
+          correccion_administrativa?: Json
+          correccion_revision?: number
           created_at?: string
           cuenta_ajuste_id?: string | null
           devolucion_id?: string | null
@@ -13980,6 +14088,8 @@ export type Database = {
           cerrado_at?: string | null
           comentario?: string | null
           compra_id?: string | null
+          correccion_administrativa?: Json
+          correccion_revision?: number
           created_at?: string
           cuenta_ajuste_id?: string | null
           devolucion_id?: string | null
@@ -18342,8 +18452,32 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_compensate_store_cambio: {
+        Args: {
+          p_cambio_id: string
+          p_confirm: boolean
+          p_expected_updated_at: string
+          p_product_id: string
+          p_reason: string
+          p_request_id: string
+          p_source_id: string
+          p_variant: Json
+        }
+        Returns: Json
+      }
       admin_continue_booking_request: {
         Args: { p_confirm?: boolean; p_entry_id: string }
+        Returns: Json
+      }
+      admin_correct_store_cambio: {
+        Args: {
+          p_cambio_id: string
+          p_confirm: boolean
+          p_expected_updated_at: string
+          p_patch: Json
+          p_reason: string
+          p_request_id: string
+        }
         Returns: Json
       }
       admin_crear_cambio_desde_venta: {
@@ -18829,6 +18963,7 @@ export type Database = {
         Args: { _order_id: string; _sede_id: string }
         Returns: Json
       }
+      can_correct_store_cambio: { Args: never; Returns: boolean }
       cancel_store_order:
         | { Args: { _order_id: string; _reason: string }; Returns: Json }
         | { Args: { p_order_id: string }; Returns: Json }
@@ -21160,6 +21295,10 @@ export type Database = {
         }
       }
       stock_control_desde: { Args: never; Returns: string }
+      store_cambio_correction_product: {
+        Args: { p_product: string; p_variant: Json }
+        Returns: undefined
+      }
       store_order_compromete_stock: {
         Args: { p_status: string }
         Returns: boolean

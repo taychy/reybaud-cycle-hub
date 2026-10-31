@@ -15,10 +15,13 @@ import {
   resultadoClass, resultadoLabel, tipoRegistro,
 } from "@/lib/pruebas";
 import { esSustitucionFaltaStock } from "@/lib/faltaStock";
+import { CambioCorrectionAccess } from "@/components/deposito/CorrectCambioDialog";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 
 const DepositoCambios = () => {
   const [items, setItems] = useState<any[]>([]);
+  const [detail, setDetail] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<"pendientes" | "esperando" | "listos" | "pruebas" | "cerrados">("pendientes");
   const [scanFor, setScanFor] = useState<any | null>(null);
@@ -121,6 +124,8 @@ const DepositoCambios = () => {
           <Badge variant="destructive">Verificar stock: ingreso sin recepción</Badge>
         )}
       </div>
+      <Button size="sm" variant="outline" onClick={() => setDetail(c)}>Ver detalle</Button>
+      {c.correccion_revision > 0 && <Badge variant="outline">Datos administrativos corregidos · {c.correccion_revision}</Badge>}
     </div>
     );
   };
@@ -223,7 +228,7 @@ const DepositoCambios = () => {
           {buckets.pruebasActivas.length === 0 ? vacio("No hay prendas en prueba") : buckets.pruebasActivas.map(renderPrueba)}
         </TabsContent>
         <TabsContent value="cerrados" className="mt-3 space-y-2">
-          <p className="text-[11px] text-muted-foreground">Histórico de solo lectura, para consultar casos ya resueltos.</p>
+          <p className="text-[11px] text-muted-foreground">Casos cerrados · historial y correcciones administrativas autorizadas.</p>
           {buckets.cerrados.length === 0 && buckets.pruebasCerradas.length === 0
             ? vacio("Sin casos cerrados")
             : (
@@ -234,6 +239,19 @@ const DepositoCambios = () => {
             )}
         </TabsContent>
       </Tabs>
+
+      <Sheet open={!!detail} onOpenChange={v => { if (!v) setDetail(null); }}><SheetContent className="overflow-y-auto">
+        {detail && <><SheetHeader><SheetTitle>Cambio #{detail.id.slice(0, 8)}</SheetTitle></SheetHeader><div className="space-y-4 mt-4 text-sm">
+          <p>{detail.alumnos?.nombre} {detail.alumnos?.apellido} · {estadoCambioLabel(detail.estado)}</p>
+          <p>Original histórico: {detail.producto?.name} · {formatVariante(detail.variante_origen)}</p>
+          <p>Reemplazo histórico: {formatVariante(detail.variante_destino)}</p>
+          <p>Pedido: {detail.order_id || detail.compra_id || "Sin referencia"}</p>
+          <p>Recepción histórica: {detail.recibido_en ? new Date(detail.recibido_en).toLocaleString("es-AR") : "Pendiente"}</p>
+          <p>Stock ingresado: {detail.stock_devuelto_at || "No registrado"}</p>
+          <CambioCorrectionAccess cambio={detail} onSaved={() => { setDetail(null); void load(); }} />
+          {(detail.historial || []).map((h: any, i: number) => <p key={i} className="text-xs text-muted-foreground">{h.evento || h.estado} · {h.at} · {h.nota}</p>)}
+        </div></>}
+      </SheetContent></Sheet>
 
       {scanFor && (
         <ScanCambioDialog
