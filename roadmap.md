@@ -9,7 +9,7 @@
 - [x] 21 pruebas Vitest; PostgreSQL aislado (stock +1, reintento, discrepancias, defectos y concurrencia); navegador propio desktop/390 sin recepción; sin publicar
 
 ## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
-- [ ] Validar estadía individual, Extra del mismo evento y exclusión de incluidas/contratadas; probar sin activar ni comidas reales
+- [x] Estadía desde snapshot validado de reprogramación vía get_trip_food_stay; no fechas inferidas. Cliente/servidor excluyen desayuno, pensión, Extras ajenos y contratados (sin fecha bloquea hasta conciliar). 30 tests + 13 controles SQL aislados; RPC autenticada real confirma 5–8/5–9/6–9. Compilación OK; sin respuestas/compras reales, activación, mensajes ni publicación
 - [x] Aclaración definitiva: desayuno por alojamiento nunca Extra; pensión = almuerzos/cenas reales; encuesta, accesos y admin/CSV desde paquete (no catálogo Extras); 20 pruebas incluyendo guardado simulado, sin activación ni publicación
 - [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
 - [x] Comidas adicionales solo del programa real y Extras activos, total cantidad × precio, excluye ya contratadas; solicitud validada en servidor; visible en reporte admin
