@@ -49,6 +49,7 @@ const CambiosPreparacionSection = () => {
       .from("store_cambios" as any)
       .select("*, producto:store_products!store_cambios_producto_id_fkey(name, image_url), alumnos(nombre, apellido, telefono)")
       .in("estado", ["aprobado", "en_deposito", "listo_retiro"])
+      .in("tipo", ["cambio", "sustitucion_falta_stock"])
       .order("created_at", { ascending: true });
 
     if (error) {
@@ -124,14 +125,16 @@ const CambiosPreparacionSection = () => {
 
   const recibirDevolucion = async (cambio: Cambio, devuelto: any) => {
     if (!devuelto) throw new Error("Falta identificar la prenda devuelta");
-    const { error } = await supabase.rpc("deposito_recibir_devolucion" as any, {
+    const { data, error } = await supabase.rpc("deposito_confirmar_devolucion", {
       p_cambio_id: cambio.id,
       p_metodo: devuelto.metodo,
       p_producto_id: devuelto.productId,
       p_variante: devuelto.variante,
+      p_confirmacion_fisica: true,
+      p_motivo_discrepancia: devuelto.discrepancyReason || undefined,
     });
     if (error) throw error;
-    toast({ title: "Devolución recibida. Stock registrado según corresponda." });
+    toast({ title: (data as { ya_recibido?: boolean })?.ya_recibido ? "Esta devolución ya estaba recibida. Sin nuevo ingreso." : "Devolución recibida. Stock registrado según corresponda." });
     await load();
   };
 
@@ -445,6 +448,13 @@ const CambiosPreparacionSection = () => {
       {scanFor && (
         <ScanCambioDialog
           mode="return"
+          cambioId={scanFor.id}
+          orderReference={(() => {
+            const orderId = scanFor.order_id || scanFor.compra_id;
+            const order = orderId ? orders[orderId] : null;
+            return order?.order_number ? `Pedido #${order.order_number}` : orderId ? `Pedido ${orderId}` : scanFor.preorder_id ? `Preventa ${scanFor.preorder_id}` : undefined;
+          })()}
+          historicalReturnStock={Boolean(scanFor.stock_devuelto_at)}
           open={!!scanFor}
           onOpenChange={(v) => !v && setScanFor(null)}
           title={`Recibir cambio · ${scanFor.producto?.name || ""}`}
