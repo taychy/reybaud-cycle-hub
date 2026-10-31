@@ -19,6 +19,7 @@ import { nocheTimingShortLabel } from "@/lib/nocheExtra";
 import { formatPrice } from "@/lib/currency";
 import EventChoiceSurveyReport, { useChoiceSurveys } from "./EventChoiceSurveyReport";
 import { Shirt } from "lucide-react";
+import EventFoodProgramEditor from "./EventFoodProgramEditor";
 
 
 
@@ -473,6 +474,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
 
             <TabsContent value="gastronomia" className="space-y-3 mt-4">
+              <EventFoodProgramEditor eventId={eventId} />
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <p className="text-xs text-muted-foreground">{gastronomyRows.length} participante(s)</p>
