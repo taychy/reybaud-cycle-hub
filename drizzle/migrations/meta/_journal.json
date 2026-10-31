@@ -694,6 +694,13 @@
       "when": 1793483662520,
       "tag": "0098_admin_food_program_config",
       "breakpoints": true
+    },
+    {
+      "idx": 99,
+      "version": "7",
+      "when": 1793484393168,
+      "tag": "0099_cancel_reservation_on_approved_withdrawal",
+      "breakpoints": true
     }
   ]
 }
