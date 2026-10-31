@@ -1,3 +1,8 @@
+## San Luis · Prueba funcional privada (31/10)
+- [ ] Encuesta real reutilizada con dos casos privados por cuenta y respuestas aisladas; sin reservas ni cobros
+- [ ] Pruebas de guardado/recuperación, seguridad y navegador; verificar enlace antes de cualquier email de prueba
+- [ ] Programa real y difusión pública siguen bloqueados; no cambiar fechas históricas ni roadbook
+
 ## Tienda · Correcciones auditadas (31/10)
 - [x] Auditar etapas, permisos y casos Gustavo/Marcelo en lectura; ambos cerrados, 4 movimientos intactos y referencias de pedido ausentes
 - [x] Corrección administrativa separada (antes/después, motivo, confirmación, actor/fecha inmutables); compensación de un movimiento identificado en dos asientos atómicos; Cerrados protegidos
