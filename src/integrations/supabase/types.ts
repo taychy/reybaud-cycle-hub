@@ -18373,6 +18373,7 @@ export type Database = {
         Returns: number
       }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
+      _trip_food_stay: { Args: { p_reservation_id: string }; Returns: Json }
       _turnera_calcular_movimiento: {
         Args: { p_servicio_id: string }
         Returns: Record<string, unknown>
@@ -20117,6 +20118,10 @@ export type Database = {
           preguntas: Json
           titulo: string
         }[]
+      }
+      get_trip_food_stay: {
+        Args: { p_reservation_id: string; p_token?: string }
+        Returns: Json
       }
       get_turnera_bank_config: {
         Args: never

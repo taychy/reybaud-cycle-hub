@@ -666,6 +666,13 @@
       "when": 1793416992971,
       "tag": "0094_store_cambio_closed_record_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 95,
+      "version": "7",
+      "when": 1793417686397,
+      "tag": "0095_trip_food_stay_event_validation",
+      "breakpoints": true
     }
   ]
 }

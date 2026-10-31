@@ -62,6 +62,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
   const [offer, setOffer] = useState<ReturnType<typeof offerableMeals>>([]);
   const [contracted, setContracted] = useState<MealSlot[]>([]);
   const [hasProgram, setHasProgram] = useState(false);
+  const [hasStay, setHasStay] = useState(false);
   const [mealMode, setMealMode] = useState<MealMode | null>(null);
 
   useEffect(() => {
@@ -70,6 +71,9 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
     setErrors({});
     setHistoryAt(null);
     setMealMode(null);
+    setOffer([]);
+    setHasStay(false);
+    let cancelled = false;
     (async () => {
       try {
         let current: any = null;
@@ -77,6 +81,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         let history: { step_key: string; data: any; updated_at: string } | null = null;
         let meta: any = null;
         let pkgId: string | null = null;
+        let eventId = "";
         let inc0 = false;
         let addons: any[] = [];
         let resAddons: any[] = [];
@@ -90,6 +95,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           inc0 = !!r.package?.incluye_gastronomia;
           meta = r.event?.metadata ?? null;
           pkgId = r.package?.id ?? null;
+          eventId = r.reservation.event_id;
           if (parseMealProgram(meta)) {
             const { data: ex } = await supabase.functions.invoke("manage-trip-extras-by-token", { body: { action: "get", token } });
             addons = (ex as any)?.addons ?? [];
@@ -117,9 +123,10 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           inc0 = inc;
           meta = (res as any)?.events?.metadata ?? null;
           pkgId = res?.package_id ?? null;
+          eventId = res?.event_id || "";
           if (parseMealProgram(meta) && res?.event_id) {
             const [{ data: a }, { data: ra }] = await Promise.all([
-              supabase.from("event_addons").select("id, precio, currency, activo").eq("event_id", res.event_id),
+              supabase.from("event_addons").select("id, event_id, precio, currency, activo, aplica_a_paquetes").eq("event_id", res.event_id),
               supabase.from("reservation_addons").select("addon_id, notas").eq("reservation_id", reservationId),
             ]);
             addons = a || [];
@@ -138,13 +145,18 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           history = list.find((r) => r.reservation_id !== reservationId) ?? null;
         }
 
+        const { data: stayData, error: stayError } = await supabase.rpc("get_trip_food_stay", { p_reservation_id: reservationId, p_token: token ?? undefined });
+        if (stayError) throw stayError;
+        if (cancelled) return;
+        const stay = stayData as { start: string; end: string } | null;
+        setHasStay(!!stay?.start && !!stay?.end);
         const program = parseMealProgram(meta);
         const done = contractedMealsFromAddons(program, resAddons);
         setHasProgram(!!program);
         setContracted(done);
         setOffer(offerableMeals({
-          program, pensionIncluded: inc0, packageId: pkgId, contracted: done,
-          addons: addons.map((x: any) => ({ id: x.id, precio: Number(x.precio) || 0, currency: x.currency || "ARS", activo: x.activo !== false })),
+          program, eventId, stay, pensionIncluded: inc0, packageId: pkgId, contracted: done,
+          addons: addons.map((x: any) => ({ id: x.id, event_id: x.event_id, aplica_a_paquetes: x.aplica_a_paquetes, precio: Number(x.precio) || 0, currency: x.currency || "ARS", activo: x.activo !== false })),
         }));
 
         if (current?.data && isFoodSurveyAnswered(current.data)) {
@@ -162,11 +174,15 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           }
         }
       } catch {
+        if (cancelled) return;
+        setOffer([]);
+        setHasStay(false);
         setValues({});
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+    return () => { cancelled = true; };
   }, [open, reservationId, token]);
 
   const selected = dedupeMeals(values.comidas_solicitadas ?? []).filter((m) => offer.some((o) => mealKey(o) === mealKey(m)));
@@ -311,7 +327,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                   </p>
                 )}
                 {(() => {
-                  const disabled = !hasProgram || offer.length === 0;
+                  const disabled = !hasProgram || !hasStay || offer.length === 0;
                   const mode = mealSelectionMode(selected, offer, mealMode);
                   const pick = (m: MealMode) => {
                     setMealMode(m);
@@ -333,6 +349,8 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                       </div>
                       {!hasProgram ? (
                         <p className="text-[11px] text-muted-foreground">Las comidas adicionales todavía no están disponibles: Administración aún no cargó el programa de almuerzos y cenas de este viaje. No se contrata ni se cobra nada.</p>
+                      ) : !hasStay ? (
+                        <p className="text-[11px] text-muted-foreground">Administración debe verificar las fechas de tu estadía antes de ofrecer comidas adicionales. No se contrata ni se cobra nada.</p>
                       ) : offer.length === 0 ? (
                         <p className="text-[11px] text-muted-foreground">No hay comidas adicionales disponibles para tu reserva.</p>
                       ) : (
