@@ -645,6 +645,13 @@
       "when": 1793411527803,
       "tag": "0091_store_return_physical_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 92,
+      "version": "7",
+      "when": 1793411753043,
+      "tag": "0092_store_return_identity_permissions",
+      "breakpoints": true
     }
   ]
 }
