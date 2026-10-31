@@ -1,3 +1,8 @@
+## San Luis · Jornada adicional provisional (31/10)
+- [ ] Registrar tres Extras inactivos por modalidad con fuente de presupuesto y condiciones de asistencia.
+- [ ] Verificar idempotencia, restricciones de paquete y conservación de los Extras anteriores; pruebas relevantes.
+- [ ] Activación comercial bloqueada: confirmar cuarta noche y almuerzo proveedor, validar attend_5_9 y solapamientos con noches independientes; requiere validación servidor y autorización posterior.
+
 ## San Luis · Prueba funcional privada (31/10)
 - [x] Cuentas laborales habilitadas (2 casos cada una), propietario + allowlist servidor sin cambios de roles; ambas probadas en SQL local aislado, retorno/login y persistencia con sesión propia en navegador; 68 tests relevantes OK
 - [x] Alcance de publicación auditado: no se puede publicar solo la ruta con Publish; otras mejoras de tienda/Maratona/pago total sin publicar y versión productiva exacta no establecida. Recomendada vista previa compartida, no publicar ni enviar
