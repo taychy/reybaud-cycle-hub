@@ -4,6 +4,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { returnIdentityDiffers, validateReturnReceipt } from "@/lib/storeReturnReceipt";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
@@ -16,6 +19,7 @@ export interface ScanSlotValue {
   productName: string;
   variante: Record<string, string>;
   metodo: "qr" | "manual";
+  discrepancyReason?: string;
 }
 
 interface Props {
@@ -31,6 +35,8 @@ interface Props {
   expectedDeliverProductId?: string;
   expectedDeliverVariante?: Record<string, any> | null;
   cambioId?: string;
+  orderReference?: string;
+  historicalReturnStock?: boolean;
   onPrintLabel?: () => void;
   // Callbacks
   onConfirm: (data: { devuelto: ScanSlotValue | null; recibido: ScanSlotValue | null }) => Promise<void> | void;
@@ -55,6 +61,7 @@ const ScanSlot = ({
   expectedVariante,
   checkStock,
   expectedCambioId,
+  preloadOriginal = false,
 }: {
   label: ReactNode;
   value: ScanSlotValue | null;
@@ -63,6 +70,7 @@ const ScanSlot = ({
   expectedVariante?: Record<string, any> | null;
   checkStock?: boolean;
   expectedCambioId?: string;
+  preloadOriginal?: boolean;
 }) => {
   const [scannerOpen, setScannerOpen] = useState(false);
   const [manualOpen, setManualOpen] = useState(false);
@@ -71,6 +79,8 @@ const ScanSlot = ({
   const [variante, setVariante] = useState<Record<string, string>>({});
   const [loadingProds, setLoadingProds] = useState(false);
   const [productLoaded, setProductLoaded] = useState<ProductLite | null>(null);
+  const [manualCorrection, setManualCorrection] = useState(false);
+  const [manualFromQr, setManualFromQr] = useState(false);
   const { toast } = useToast();
 
   const loadProducts = async () => {
@@ -92,6 +102,24 @@ const ScanSlot = ({
       .eq("id", id)
       .maybeSingle();
     return (data as any) || null;
+  };
+
+  const openManual = async () => {
+    setManualOpen(true);
+    setManualCorrection(false);
+    setManualFromQr(false);
+    setProductLoaded(null);
+    setProductId(preloadOriginal ? expectedProductId || "" : "");
+    setVariante(preloadOriginal ? { ...expectedVariante } : {});
+    if (preloadOriginal && expectedProductId) {
+      setLoadingProds(true);
+      const original = await fetchProduct(expectedProductId);
+      setProductLoaded(original);
+      setLoadingProds(false);
+      if (!original) toast({ title: "No se pudo cargar el original", variant: "destructive" });
+    } else {
+      await loadProducts();
+    }
   };
 
   const handleQrText = async (raw: string) => {
@@ -191,6 +219,8 @@ const ScanSlot = ({
     // QR reconocido pero sin variante → pedir solamente talle/color/etc.
     setProductId(prod.id);
     setVariante({});
+    setManualFromQr(true);
+    setManualCorrection(false);
     setManualOpen(true);
   };
 
@@ -200,7 +230,8 @@ const ScanSlot = ({
     const changeCode = text.match(/RBCAM1\s*:\s*[0-9a-f]{8}-[0-9a-f-]{27,}/i)?.[0]?.replace(/\s/g, "");
     const sku = text.match(/RYB-[A-Z0-9_-]+/i)?.[0];
     if (changeCode || sku) {
-      void handleQrText(changeCode || sku!);
+      const code = changeCode || sku;
+      if (code) void handleQrText(code);
     } else {
       toast({
         title: "No se encontró un código de producto legible",
@@ -223,7 +254,7 @@ const ScanSlot = ({
       toast({ title: "Completá todas las variantes", variant: "destructive" });
       return;
     }
-    onChange({ productId: p.id, productName: p.name, variante, metodo: productLoaded ? "qr" : "manual" });
+    onChange({ productId: p.id, productName: p.name, variante, metodo: manualFromQr ? "qr" : "manual" });
     setManualOpen(false);
     setProductLoaded(null);
   };
@@ -248,9 +279,9 @@ const ScanSlot = ({
       <div className="flex items-center justify-between">
         <Label className="text-xs font-heading uppercase tracking-wider text-muted-foreground">{label}</Label>
         {value && (
-          <button className="text-[10px] text-destructive hover:underline" onClick={() => { onChange(null); setProductLoaded(null); }}>
+          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => { onChange(null); setProductLoaded(null); }}>
             quitar
-          </button>
+          </Button>
         )}
       </div>
 
@@ -286,7 +317,7 @@ const ScanSlot = ({
           <Button size="sm" onClick={() => setScannerOpen(true)}>
             <Camera className="w-3.5 h-3.5 mr-1" /> Escanear
           </Button>
-          <Button size="sm" variant="outline" onClick={() => { setManualOpen(true); loadProducts(); }}>
+          <Button size="sm" variant="outline" onClick={() => void openManual()}>
             <Keyboard className="w-3.5 h-3.5 mr-1" /> Manual
           </Button>
         </div>
@@ -298,13 +329,13 @@ const ScanSlot = ({
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle>Carga manual</DialogTitle>
-            <DialogDescription>Elegí producto y variante.</DialogDescription>
+            <DialogDescription>{preloadOriginal ? "Verificá la prenda original que recibiste." : "Elegí producto y variante."}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
-            {productLoaded ? (
+            {productLoaded && !manualCorrection ? (
               <div className="rounded border border-border p-2 text-xs">
                 <p className="font-semibold">{productLoaded.name}</p>
-                <p className="text-muted-foreground">Detectado por QR — completá variante.</p>
+                <p className="text-muted-foreground">{manualFromQr ? "Detectado por QR" : "Producto original del cambio"}</p>
               </div>
             ) : (
               <div>
@@ -312,7 +343,7 @@ const ScanSlot = ({
                 {loadingProds ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Select value={productId} onValueChange={(v) => { setProductId(v); setVariante({}); }}>
+                  <Select value={productId} onValueChange={(v) => { setProductId(v); setProductLoaded(null); setVariante({}); }}>
                     <SelectTrigger><SelectValue placeholder="Elegí producto" /></SelectTrigger>
                     <SelectContent>
                       {products.map((p) => <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>)}
@@ -325,7 +356,7 @@ const ScanSlot = ({
             {variantSpecs.map((spec) => (
               <div key={spec.name}>
                 <Label className="text-xs">{spec.name}</Label>
-                <Select value={variante[spec.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [spec.name]: v }))}>
+                <Select disabled={preloadOriginal && !manualCorrection && Boolean(expectedVariante?.[spec.name])} value={variante[spec.name] || ""} onValueChange={(v) => setVariante((p) => ({ ...p, [spec.name]: v }))}>
                   <SelectTrigger><SelectValue placeholder={`Elegí ${spec.name}`} /></SelectTrigger>
                   <SelectContent>
                     {spec.options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
@@ -334,9 +365,15 @@ const ScanSlot = ({
               </div>
             ))}
 
+            {preloadOriginal && expectedProductId && !manualCorrection && (
+              <Button size="sm" variant="outline" onClick={() => { setManualCorrection(true); setManualFromQr(false); void loadProducts(); }}>
+                Corregir discrepancia física
+              </Button>
+            )}
+
             <div className="flex justify-end gap-2">
               <Button variant="ghost" size="sm" onClick={() => setManualOpen(false)}>Cancelar</Button>
-              <Button size="sm" onClick={handleManualConfirm}>Confirmar</Button>
+              <Button size="sm" disabled={loadingProds} onClick={handleManualConfirm}>Confirmar</Button>
             </div>
           </div>
         </DialogContent>
@@ -349,12 +386,14 @@ const ScanCambioDialog = ({
   open, onOpenChange, title = "Procesar cambio", mode = "both",
   expectedReturnProductId, expectedReturnVariante,
   requireReemplazo, expectedDeliverProductId, expectedDeliverVariante,
-  cambioId, onPrintLabel, onConfirm,
+  cambioId, orderReference, historicalReturnStock = false, onPrintLabel, onConfirm,
 }: Props) => {
   const [devuelto, setDevuelto] = useState<ScanSlotValue | null>(null);
   const [recibido, setRecibido] = useState<ScanSlotValue | null>(null);
   const [enviarReemplazo, setEnviarReemplazo] = useState<boolean>(!!requireReemplazo);
   const [saving, setSaving] = useState(false);
+  const [physicalConfirmed, setPhysicalConfirmed] = useState(false);
+  const [discrepancyReason, setDiscrepancyReason] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -362,15 +401,22 @@ const ScanCambioDialog = ({
       setDevuelto(null);
       setRecibido(null);
       setEnviarReemplazo(!!requireReemplazo);
+      setPhysicalConfirmed(false);
+      setDiscrepancyReason("");
     }
-  }, [open, requireReemplazo]);
+  }, [open, requireReemplazo, cambioId, expectedReturnProductId]);
 
   const handleConfirm = async () => {
+    if (saving) return;
     if (mode !== "replacement" && !devuelto) { toast({ title: "Falta escanear la prenda devuelta", variant: "destructive" }); return; }
+    if (mode !== "replacement") {
+      const error = validateReturnReceipt(devuelto, expectedReturnProductId, expectedReturnVariante, discrepancyReason, historicalReturnStock);
+      if (error || !physicalConfirmed) { toast({ title: error || "Confirmá la recepción física", variant: "destructive" }); return; }
+    }
     if ((mode === "replacement" || (mode === "both" && enviarReemplazo)) && !recibido) { toast({ title: "Falta escanear el reemplazo", variant: "destructive" }); return; }
     setSaving(true);
     try {
-      await onConfirm({ devuelto: mode === "replacement" ? null : devuelto, recibido: mode === "return" ? null : (mode === "replacement" || enviarReemplazo ? recibido : null) });
+      await onConfirm({ devuelto: mode === "replacement" || !devuelto ? null : { ...devuelto, discrepancyReason: discrepancyReason.trim() }, recibido: mode === "return" ? null : (mode === "replacement" || enviarReemplazo ? recibido : null) });
       onOpenChange(false);
     } catch (e: any) {
       toast({ title: "Error", description: e?.message || "No se pudo procesar", variant: "destructive" });
@@ -388,6 +434,11 @@ const ScanCambioDialog = ({
         </DialogHeader>
 
         <div className="space-y-3">
+          {mode !== "replacement" && <div className="text-sm text-muted-foreground">
+            <p>{orderReference || "Sin pedido vinculado"}</p>
+            <p>Cantidad de este cambio: 1 unidad</p>
+            {historicalReturnStock && <p className="text-destructive">Ingreso de stock preexistente: no se generará otro ingreso. Cualquier discrepancia requiere revisión administrativa.</p>}
+          </div>}
           {mode === "replacement" && (
             <div className="rounded-lg border border-border p-3 space-y-2">
               <p className="text-xs text-muted-foreground">La etiqueta de la bolsa identifica al alumno y su cambio, y sirve para el control de camioneta.</p>
@@ -404,9 +455,11 @@ const ScanCambioDialog = ({
           {mode !== "replacement" && <ScanSlot
             label={<><ArrowLeft className="w-3 h-3 inline mr-1" />Prenda que devuelve el alumno</>}
             value={devuelto}
-            onChange={setDevuelto}
+            key={`${cambioId || expectedReturnProductId || "new"}:${open}`}
+            onChange={(v) => { setDevuelto(v); setPhysicalConfirmed(false); setDiscrepancyReason(""); }}
             expectedProductId={expectedReturnProductId}
             expectedVariante={expectedReturnVariante}
+            preloadOriginal
           />}
 
           {mode === "both" && !requireReemplazo && (
@@ -415,6 +468,17 @@ const ScanCambioDialog = ({
               <Switch checked={enviarReemplazo} onCheckedChange={setEnviarReemplazo} />
             </label>
           )}
+
+          {mode !== "replacement" && devuelto && <div className="space-y-3">
+            {returnIdentityDiffers(devuelto, expectedReturnProductId, expectedReturnVariante) && <div>
+              <Label htmlFor="return-discrepancy">Motivo de la discrepancia física</Label>
+              <Textarea id="return-discrepancy" value={discrepancyReason} onChange={(e) => setDiscrepancyReason(e.target.value)} />
+            </div>}
+            <label className="flex gap-2 items-start text-sm">
+              <Checkbox checked={physicalConfirmed} onCheckedChange={(v) => setPhysicalConfirmed(v === true)} />
+              Recibí físicamente 1 unidad de la prenda indicada
+            </label>
+          </div>}
 
           {(mode === "replacement" || (mode === "both" && enviarReemplazo)) && (
             <ScanSlot
@@ -430,7 +494,7 @@ const ScanCambioDialog = ({
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" onClick={() => onOpenChange(false)} disabled={saving}>Cancelar</Button>
-            <Button onClick={handleConfirm} disabled={saving}>
+            <Button onClick={handleConfirm} disabled={saving || (mode !== "replacement" && (!physicalConfirmed || Boolean(validateReturnReceipt(devuelto, expectedReturnProductId, expectedReturnVariante, discrepancyReason, historicalReturnStock))))}>
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Confirmar"}
             </Button>
           </div>
