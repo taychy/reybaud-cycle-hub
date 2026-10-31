@@ -277,3 +277,35 @@ export const mealSelectionMode = (selected: MealSlot[], offer: MealSlot[], chose
   if (keys.size === 0) return "ninguna";
   return offer.length > 0 && offer.every((o) => keys.has(mealKey(o))) ? "todas" : "individual";
 };
+
+// ── Configuración administrativa del programa (borrador → activo) ───────────
+export type MealSlotState = "activo" | "inactivo" | "pendiente";
+export interface CalendarSlot extends MealSlot { estado: MealSlotState }
+
+const addDayIso = (iso: string) => {
+  const [y, m, d] = iso.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d + 1));
+  return dt.toISOString().slice(0, 10);
+};
+
+/** Grilla almuerzo/cena por fecha literal entre límites; lo no guardado queda "pendiente" (nunca activo de oficio). */
+export const buildMealCalendar = (bounds: MealStay | null, saved: CalendarSlot[] | null | undefined): CalendarSlot[] => {
+  if (!bounds || !ISO.test(bounds.start) || !ISO.test(bounds.end) || bounds.start > bounds.end) return [];
+  const map = new Map((saved || []).map((s) => [mealKey(s), s.estado]));
+  const out: CalendarSlot[] = [];
+  for (let f = bounds.start, i = 0; f <= bounds.end && i < 62; f = addDayIso(f), i++) {
+    for (const tipo of ["almuerzo", "cena"] as MealType[]) out.push({ fecha: f, tipo, estado: map.get(`${f}|${tipo}`) ?? "pendiente" });
+  }
+  return out;
+};
+
+export const calendarReadiness = (cal: CalendarSlot[], addons: { almuerzo: boolean; cena: boolean }) => {
+  const pendientes = cal.filter((c) => c.estado === "pendiente");
+  const activos = cal.filter((c) => c.estado === "activo");
+  const faltaExtra = (["almuerzo", "cena"] as MealType[]).filter((t) => activos.some((a) => a.tipo === t) && !addons[t]);
+  return { pendientes, activos, faltaExtra, ready: cal.length > 0 && pendientes.length === 0 && faltaExtra.length === 0 };
+};
+
+/** Servicios activos que tocan una estadía concreta (para vista previa por reserva). */
+export const activeMealsForStay = (cal: CalendarSlot[], stay: MealStay) =>
+  cal.filter((c) => c.estado === "activo" && isMealInStay(c.fecha, stay));
