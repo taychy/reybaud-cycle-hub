@@ -111,7 +111,7 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
   // Encuesta gastronómica habilitada por viaje: reemplaza la ficha genérica de alimentación.
   if (isFoodSurveyEnabled(meta)) {
     list = list.filter(item => item.id !== "alimentacion");
-    list.push({ id: "gastronomia", label: "Encuesta gastronómica", description: "Alimentación, alergias y pensión completa", icon: Utensils, completed: !!checklistData["gastronomia"]?.completed, actionType: "food", stepKey: "gastronomia" });
+    list.push({ id: "gastronomia", label: "Encuesta gastronómica", description: "Alimentación, alergias y almuerzos/cenas disponibles", icon: Utensils, completed: !!checklistData["gastronomia"]?.completed, actionType: "food", stepKey: "gastronomia" });
   }
   for (const sv of getChoiceSurveys(meta)) {
     const sk = choiceSurveyStepKey(sv.key);

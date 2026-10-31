@@ -7,7 +7,7 @@
  * Ambos exportables a CSV.
  */
 import { useEffect, useState, useMemo } from "react";
-import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS, MEAL_TYPE_LABELS, formatMealDate } from "@/lib/foodSurvey";
+import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS, MEAL_TYPE_LABELS, formatMealDate, stayMealCoverage, dedupeMeals } from "@/lib/foodSurvey";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -51,6 +51,7 @@ interface Row {
   room_capacidad: number | null;
   room_tipo: string | null;
   package_nombre: string | null;
+  pension_incluida: boolean | null;
 }
 
 
@@ -74,7 +75,6 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   const choiceSurveys = useChoiceSurveys(eventId, open);
   const [addonRows, setAddonRows] = useState<any[]>([]);
   const [foodRows, setFoodRows] = useState<any[]>([]);
-  const [gastronomyCatalog, setGastronomyCatalog] = useState<any[]>([]);
 
 
   useEffect(() => {
@@ -105,7 +105,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           ? supabase.from("event_external_participants").select("id, nombre, apellido, email, telefono").in("id", extIds)
           : Promise.resolve({ data: [] as any[] }),
         pkgIds.length
-          ? supabase.from("event_packages").select("id, nombre, personas_por_habitacion").in("id", pkgIds)
+          ? supabase.from("event_packages").select("id, nombre, personas_por_habitacion, incluye_gastronomia").in("id", pkgIds)
           : Promise.resolve({ data: [] as any[] }),
         (supabase as any).from("event_rooms").select("id, nombre, genero, capacidad, tipo, package_id").eq("event_id", eventId),
         resIds.length
@@ -147,6 +147,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
           room_capacidad: room?.capacidad ?? null,
           room_tipo: room?.tipo ?? null,
           package_nombre: pkg?.nombre ?? null,
+          pension_incluida: pkg ? pkg.incluye_gastronomia === true : null,
         };
 
       });
@@ -162,23 +163,14 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         : { data: [] as any[] };
       setAddonRows((addonsData as any[]) || []);
 
-      const [{ data: foodData }, { data: gastroData }] = await Promise.all([
-        resIds.length
-          ? (supabase as any)
+      const { data: foodData } = resIds.length
+          ? await (supabase as any)
               .from("reservation_checklist_data")
               .select("reservation_id, completed, data, step_key, updated_at")
               .in("reservation_id", resIds)
               .in("step_key", ["alimentacion", "gastronomia"])
-          : Promise.resolve({ data: [] as any[] }),
-        (supabase as any)
-          .from("event_addons")
-          .select("id, nombre, activo, categoria, aplica_a_paquetes, sort_order")
-          .eq("event_id", eventId)
-          .eq("categoria", "gastronomia")
-          .order("sort_order", { ascending: true }),
-      ]);
+          : { data: [] as any[] };
       setFoodRows((foodData as any[]) || []);
-      setGastronomyCatalog((gastroData as any[]) || []);
 
       setLoading(false);
     })();
@@ -297,18 +289,14 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
     });
 
     return rows.map((r) => {
-      const applicable = gastronomyCatalog.filter((a: any) => {
-        const scoped = Array.isArray(a.aplica_a_paquetes) ? a.aplica_a_paquetes : [];
-        return scoped.length === 0 || (!!r.package_id && scoped.includes(r.package_id));
-      });
       const food: any = foodMap.get(r.reservation_id);
       const survey: any = (foodRows as any[]).find((f: any) => f.reservation_id === r.reservation_id && f.step_key === "gastronomia");
       const sd = survey?.data || null;
       const data = food?.data || {};
-      const includedByPackage = gastronomyCatalog.length > 0 && applicable.length === 0;
+      const coverage = stayMealCoverage(r.pension_incluida);
       return {
         ...r,
-        gastronomia_base: includedByPackage ? "Incluida en paquete" : "No incluida / contratar aparte",
+        gastronomia_base: `${coverage.breakfast} ${coverage.meals}`,
         comidas_extra: (addonByReservation.get(r.reservation_id) || []).join(" · "),
         dieta: data.dieta || "",
         alergias: data.alergias || "",
@@ -319,14 +307,14 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         encuesta_obs: sd?.observaciones || "",
         encuesta_actualizada: sd?.actualizado_at ? new Date(sd.actualizado_at).toLocaleString("es-AR") : "",
         pension_solicitud: [
-          sd?.pension_interes ? "Solicitó pensión completa (encuesta anterior)" : "",
-          Array.isArray(sd?.comidas_solicitadas) && sd.comidas_solicitadas.length
-            ? `Solicita comidas: ${sd.comidas_solicitadas.map((m: any) => `${MEAL_TYPE_LABELS[m.tipo as "almuerzo" | "cena"] ?? m.tipo} ${formatMealDate(m.fecha)}`).join(", ")}`
+          sd?.pension_interes ? "Solicitó almuerzos y cenas / pensión completa (encuesta anterior)" : "",
+          Array.isArray(sd?.comidas_solicitadas) && sd.comidas_solicitadas.length && r.pension_incluida !== true
+            ? `Solicita almuerzos y cenas: ${dedupeMeals(sd.comidas_solicitadas).map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}`
             : "",
         ].filter(Boolean).join(" · "),
       };
     });
-  }, [rows, foodRows, addonRows, gastronomyCatalog]);
+  }, [rows, foodRows, addonRows]);
 
   const exportGastronomia = () => {
     const header = ["Nombre", "Apellido", "Paquete", "Gastronomía base", "Comidas extra", "Dieta", "Alergias", "Restricciones", "Ficha alimentación", "Encuesta", "Detalle encuesta", "Observaciones", "Solicitud comidas", "Actualizada"];
