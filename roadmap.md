@@ -1,7 +1,7 @@
 ## Tienda · Correcciones auditadas (31/10)
-- [ ] Auditar etapas, permisos y casos Gustavo/Marcelo en lectura
-- [ ] Implementar corrección administrativa con antes/después, motivo, confirmación e historial inmutable; compensación física separada
-- [ ] Probar reglas, idempotencia, seguridad y pantalla sin corregir registros reales; informar sin publicar
+- [x] Auditar etapas, permisos y casos Gustavo/Marcelo en lectura; ambos cerrados, 4 movimientos intactos y referencias de pedido ausentes
+- [x] Corrección administrativa separada (antes/después, motivo, confirmación, actor/fecha inmutables); compensación de un movimiento identificado en dos asientos atómicos; Cerrados protegidos
+- [x] 18 pruebas Vitest, 34 controles SQL aislados y concurrencia; navegador admin real desktop/390 sin guardar; 0 correcciones reales, Gustavo/Marcelo intactos, compilación OK; app sin publicar (protecciones de datos aplicadas en Lovable Cloud compartido)
 
 ## Tienda · Recibir devolución (31/10)
 - [x] Auditar 17 registros (13 cambios), casos Marcelo/Gustavo/Francisco y últimos cambios de código; sin modificar registros comerciales
