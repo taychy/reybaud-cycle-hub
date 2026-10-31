@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Utensils, History, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { normalizeFoodSurveyQa } from "@/lib/foodSurveyQa";
+import { normalizeFoodSurveyQa, qaDemoOffer, QA_PACKAGE_LABEL } from "@/lib/foodSurveyQa";
 
 interface Props {
   open: boolean;
@@ -35,6 +35,10 @@ interface Props {
   onSaved: () => void;
   /** Private owner-scoped QA adapter; never queries/writes real reservations. */
   qaId?: string;
+  /** QA participant view: simulated package name + illustrative (never saved) meal program. */
+  qaParticipant?: boolean;
+  /** QA: start with a blank local form; DB only changes on save. */
+  qaFresh?: boolean;
 }
 
 const fmt = (iso?: string | null) =>
@@ -53,7 +57,7 @@ const Choice = ({ active, disabled = false, onClick, children }: { active: boole
   </Button>
 );
 
-const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved, qaId }: Props) => {
+const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved, qaId, qaParticipant = false, qaFresh = false }: Props) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<FoodSurveyData>({});
@@ -85,14 +89,17 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           const { data: qa, error } = await supabase.from("trip_food_survey_qa").select("case_key,response").eq("id", qaId).maybeSingle();
           if (error || !qa) throw new Error("Prueba no disponible");
           if (cancelled) return;
-          setPkgName(qa.case_key === "con_pension" ? "TEST · Con pensión completa" : "TEST · Sin pensión completa");
-          setIncluded(qa.case_key === "con_pension");
-          setHasProgram(false);
+          const key = qa.case_key === "con_pension" ? "con_pension" : "sin_pension";
+          setPkgName(qaParticipant ? QA_PACKAGE_LABEL[key] : key === "con_pension" ? "TEST · Con pensión completa" : "TEST · Sin pensión completa");
+          setIncluded(key === "con_pension");
+          const demo = qaParticipant ? qaDemoOffer(key) : [];
+          setHasProgram(demo.length > 0);
+          setOffer(demo);
           setHasStay(true);
           setContracted([]);
           const response = qa.response as FoodSurveyData | null;
-          setSaved(response);
-          setValues(response ?? {});
+          setSaved(qaFresh ? null : response);
+          setValues(qaFresh ? {} : response ?? {});
           return;
         }
         let current: any = null;
@@ -203,7 +210,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
       }
     })();
     return () => { cancelled = true; };
-  }, [open, reservationId, token, qaId]);
+  }, [open, reservationId, token, qaId, qaParticipant, qaFresh]);
 
   const selected = dedupeMeals(values.comidas_solicitadas ?? []).filter((m) => offer.some((o) => mealKey(o) === mealKey(m)));
   const totals = mealRequestTotal(selected, offer);
@@ -346,6 +353,11 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
             {!included && (
               <div className="rounded-lg border border-border p-3 space-y-2">
                 <p className="text-sm font-medium">Almuerzos y cenas adicionales (opcional)</p>
+                {qaId && qaParticipant && offer.length > 0 && (
+                  <p className="rounded-md bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
+                    Ejemplo ilustrativo, programa real pendiente. En esta prueba las comidas elegidas no se guardan ni se cobran.
+                  </p>
+                )}
                 {contracted.length > 0 && (
                   <p className="text-[11px] text-muted-foreground">
                     Ya contratadas: {contracted.map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}.
