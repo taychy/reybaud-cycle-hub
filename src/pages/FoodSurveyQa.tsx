@@ -15,7 +15,7 @@ function ParticipantView({ row, caseKey, onSaved }: { row: QaRow | null; caseKey
   const [autoOpened, setAutoOpened] = useState(false);
   const answered = !!row?.response;
   useEffect(() => {
-    if (row && !autoOpened) { setAutoOpened(true); setFresh(false); setOpen(true); }
+    if (row && !autoOpened) { setAutoOpened(true); setFresh(true); setOpen(true); }
   }, [row, autoOpened]);
   const pension = caseKey === "con_pension";
   const openWith = (f: boolean) => { setFresh(f); setOpen(true); };
