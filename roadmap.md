@@ -1,6 +1,7 @@
 ## San Luis · Prueba funcional privada (31/10)
-- [ ] Habilitar cuentas laborales con propietario + lista autorizada por evento sin cambiar roles; probar acceso y persistencia
-- [ ] Auditar alcance/riesgo de publicación; no publicar ni enviar emails, recomendar preview compartido si no es acotable
+- [x] Cuentas laborales habilitadas (2 casos cada una), propietario + allowlist servidor sin cambios de roles; ambas probadas en SQL local aislado, retorno/login y persistencia con sesión propia en navegador; 68 tests relevantes OK
+- [x] Alcance de publicación auditado: no se puede publicar solo la ruta con Publish; otras mejoras de tienda/Maratona/pago total sin publicar y versión productiva exacta no establecida. Recomendada vista previa compartida, no publicar ni enviar
+- [ ] Recorrido navegador con sesiones laborales: requiere acceso de ambas usuarias; no se impersonaron cuentas laborales, sus cuatro casos están sin respuesta
 - [x] Encuesta real reutilizada con dos casos privados por cuenta (Scarlett/Claudio), respuesta aislada y revocación por active; sin reservas ni cobros
 - [x] 28 pruebas automatizadas; navegador sesión propia guarda/recupera ambos casos en escritorio y móvil; servidor bloquea terceros, respuestas inválidas, comidas y edición directa; anónimo requiere login
 - [ ] Enlace externo/email test: bloqueado, preview devuelve 401; app sin publicar. Claudio pendiente de recorrido con su propia sesión (casos habilitados, no impersonado)
