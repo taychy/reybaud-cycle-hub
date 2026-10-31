@@ -1,7 +1,8 @@
 ## San Luis · Prueba funcional privada (31/10)
-- [ ] Encuesta real reutilizada con dos casos privados por cuenta y respuestas aisladas; sin reservas ni cobros
-- [ ] Pruebas de guardado/recuperación, seguridad y navegador; verificar enlace antes de cualquier email de prueba
-- [ ] Programa real y difusión pública siguen bloqueados; no cambiar fechas históricas ni roadbook
+- [x] Encuesta real reutilizada con dos casos privados por cuenta (Scarlett/Claudio), respuesta aislada y revocación por active; sin reservas ni cobros
+- [x] 28 pruebas automatizadas; navegador sesión propia guarda/recupera ambos casos en escritorio y móvil; servidor bloquea terceros, respuestas inválidas, comidas y edición directa; anónimo requiere login
+- [ ] Enlace externo/email test: bloqueado, preview devuelve 401; app sin publicar. Claudio pendiente de recorrido con su propia sesión (casos habilitados, no impersonado)
+- [ ] Programa real y difusión pública: requieren cronograma confirmado y Extras ARS 35.000; fechas históricas/roadbook intactos
 
 ## Tienda · Correcciones auditadas (31/10)
 - [x] Auditar etapas, permisos y casos Gustavo/Marcelo en lectura; ambos cerrados, 4 movimientos intactos y referencias de pedido ausentes
