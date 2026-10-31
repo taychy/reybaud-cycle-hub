@@ -1,3 +1,8 @@
+## Tienda · Recibir devolución (31/10)
+- [ ] Auditar cambios recientes y casos Marcelo/Gustavo/Francisco sin modificar registros
+- [ ] Precargar original/variante/cantidad/pedido; corrección explícita con motivo y trazabilidad
+- [ ] Pruebas de precarga, confirmación, inventario/idempotencia y navegador sin recepciones reales; informar sin publicar
+
 ## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
 - [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
 - [x] Comidas adicionales solo del programa real y Extras activos, total cantidad × precio, excluye ya contratadas; solicitud validada en servidor; visible en reporte admin
