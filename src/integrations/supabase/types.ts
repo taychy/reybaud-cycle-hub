@@ -18360,6 +18360,7 @@ export type Database = {
       }
       _fact_segmento_norm: { Args: { p: string }; Returns: string }
       _fact_unidades: { Args: { p_seg: string }; Returns: string[] }
+      _food_program_bounds: { Args: { p_event: string }; Returns: Json }
       _liq_context: {
         Args: { p_coach_id: string; p_mes: string }
         Returns: Json
@@ -18631,6 +18632,11 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_food_program_ensure_addons: {
+        Args: { p_event: string; p_precio: number }
+        Returns: Json
+      }
+      admin_food_program_status: { Args: { p_event: string }; Returns: Json }
       admin_get_liquidacion_context: {
         Args: { p_coach_id: string; p_mes: string }
         Returns: Json
@@ -18736,6 +18742,10 @@ export type Database = {
         Args: { p_enable?: boolean; p_event_id: string; p_input: Json }
         Returns: Json
       }
+      admin_save_food_program: {
+        Args: { p_calendar: Json; p_event: string }
+        Returns: Json
+      }
       admin_save_rescheduling_settlement: {
         Args: {
           p_command_id: string
@@ -18759,6 +18769,10 @@ export type Database = {
       admin_set_facturacion_exclusion: {
         Args: { p_excluir: boolean; p_ids: string[] }
         Returns: number
+      }
+      admin_set_food_survey_enabled: {
+        Args: { p_enabled: boolean; p_event: string }
+        Returns: Json
       }
       admin_set_reservation_price_snapshot: {
         Args: { p_note?: string; p_price?: number; p_reservation_id: string }

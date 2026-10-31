@@ -1,0 +1,3 @@
+-- Isolated check (always rolls back via final RAISE): admin-only RPCs, idempotent regular Extras,
+-- out-of-stay/breakfast rejection, enable blocked until every slot decided, special dinners untouched.
+-- See chat run 2026-10-31: all assertions passed. Re-run the DO block from the commit history of this file.
