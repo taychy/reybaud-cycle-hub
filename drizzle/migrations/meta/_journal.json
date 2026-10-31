@@ -673,6 +673,13 @@
       "when": 1793417686397,
       "tag": "0095_trip_food_stay_event_validation",
       "breakpoints": true
+    },
+    {
+      "idx": 96,
+      "version": "7",
+      "when": 1793418571848,
+      "tag": "0096_private_food_survey_qa",
+      "breakpoints": true
     }
   ]
 }
