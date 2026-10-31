@@ -274,7 +274,7 @@ const buildChecklist = (reservation: Reservation, meta: any, checklistData: Reco
     base.push({
       id: "gastronomia",
       label: "Encuesta gastronómica",
-      description: "Alimentación, alergias y pensión completa",
+      description: "Alimentación, alergias y almuerzos/cenas disponibles",
       icon: Package,
       completed: !!checklistData["gastronomia"]?.completed,
       actionType: "food",
