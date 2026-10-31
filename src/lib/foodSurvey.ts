@@ -218,7 +218,7 @@ export const offerableMeals = (args: {
   contracted: MealSlot[];
 }): Array<MealSlot & { addon_id: string; precio: number; currency: string }> => {
   const { program, eventId, stay, pensionIncluded, packageId, addons, contracted } = args;
-  if (!program || pensionIncluded || !stay || !eventId) return [];
+  if (!program || pensionIncluded || !stay || !eventId || !packageId) return [];
   const taken = new Set(contracted.map(mealKey));
   const out: Array<MealSlot & { addon_id: string; precio: number; currency: string }> = [];
   for (const m of program.meals) {

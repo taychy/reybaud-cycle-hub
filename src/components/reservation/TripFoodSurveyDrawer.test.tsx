@@ -15,7 +15,7 @@ vi.mock("@/components/ui/drawer", () => ({
 
 afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
-async function openSurvey(included: boolean, withProgram = true) {
+async function openSurvey(included: boolean, withProgram = true, stay: { start: string; end: string } | null = { start: "2026-11-05", end: "2026-11-09" }) {
   mock.get.mockResolvedValue({
     reservation: { event_id: "event" },
     checklist: [], package: { id: "p", nombre: "Paquete de prueba", incluye_gastronomia: included },
@@ -35,12 +35,30 @@ async function openSurvey(included: boolean, withProgram = true) {
     ],
     contracted: [{ addon_id: "c", notas: "2026-11-05" }],
   } });
-  mock.rpc.mockResolvedValue({ data: { start: "2026-11-05", end: "2026-11-09" }, error: null });
+  mock.rpc.mockResolvedValue({ data: stay, error: null });
   render(<TripFoodSurveyDrawer open onOpenChange={vi.fn()} reservationId="fixture" alumnoId={null} token="fixture-token" onSaved={vi.fn()} />);
   await screen.findByText("Paquete de prueba");
 }
 
 describe("solicitudes gastronómicas sin operaciones reales", () => {
+  it("estadía desde el 6 solicita solo servicios del 6 aunque el programa comience el 5", async () => {
+    await openSurvey(false, true, { start: "2026-11-06", end: "2026-11-09" });
+    fireEvent.click(screen.getByRole("button", { name: /Agregar todos los almuerzos/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Normal" }));
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar respuestas" }));
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    expect(mock.save.mock.calls[0][0].data.comidas_solicitadas).toEqual([{ fecha: "2026-11-06", tipo: "almuerzo" }, { fecha: "2026-11-06", tipo: "cena" }]);
+    expect(mock.rpc.mock.calls[0]).toEqual(["get_trip_food_stay", { p_reservation_id: "fixture", p_token: "fixture-token" }]);
+  });
+  it("sin fechas verificadas guarda dieta sin solicitar comidas", async () => {
+    await openSurvey(false, true, null);
+    fireEvent.click(screen.getByRole("button", { name: "Normal" }));
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar respuestas" }));
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    expect(mock.save.mock.calls[0][0].data.comidas_solicitadas).toEqual([]);
+  });
   it("un clic solicita solo dos servicios reales no comprados, sin desayuno ni compra automática", async () => {
     await openSurvey(false);
     fireEvent.click(screen.getByRole("button", { name: /Agregar todos los almuerzos/ }));
