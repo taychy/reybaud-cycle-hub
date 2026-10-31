@@ -17,6 +17,8 @@ CREATE FUNCTION _build_variant_key(uuid,jsonb) RETURNS text LANGUAGE sql AS $$ S
 -- Actual production stock function extracted by the local runner before migration.
 \i /tmp/store-correction-stock-function.sql
 \i /dev-server/drizzle/migrations/0093_store_cambio_audited_corrections.sql
+ALTER TABLE store_cambios ADD COLUMN motivo text, ADD COLUMN recibido_por uuid, ADD COLUMN reemplazo_estado text, ADD COLUMN order_id uuid, ADD COLUMN compra_id uuid, ADD COLUMN preorder_id uuid, ADD COLUMN order_item_id uuid;
+\i /dev-server/drizzle/migrations/0094_store_cambio_closed_record_guard.sql
 INSERT INTO user_roles VALUES('00000000-0000-0000-0000-000000000001','admin'),('00000000-0000-0000-0000-000000000002','deposito'),('00000000-0000-0000-0000-000000000003','admin'),('00000000-0000-0000-0000-000000000004','admin');
 INSERT INTO admin_profiles VALUES('00000000-0000-0000-0000-000000000001','super_admin','active','Test','Admin'),('00000000-0000-0000-0000-000000000003','support','active','Test','Support'),('00000000-0000-0000-0000-000000000004','admin','active','Test','Admin');
 INSERT INTO store_products VALUES('10000000-0000-0000-0000-000000000001','Original','[{"name":"Talle","options":["L","M","XL"]}]',20,'{"Talle:L":2,"Talle:M":3,"Talle:XL":2}',now()),('10000000-0000-0000-0000-000000000002','Replacement','[{"name":"Talle","options":["L","M","XL"]}]',10,'{"Talle:L":2,"Talle:M":3,"Talle:XL":2}',now());
@@ -48,6 +50,9 @@ SELECT expect_error($q$UPDATE store_cambios SET variante_destino='{"Talle":"L"}'
 SELECT expect_error($q$UPDATE store_cambios SET stock_devuelto_at=null$q$,'stock marker protected');
 SELECT expect_error($q$UPDATE store_cambios SET recibido_en=null$q$,'physical receipt protected');
 SELECT expect_error($q$UPDATE store_cambios SET correccion_administrativa='{}',correccion_revision=4$q$,'direct overlay edit prohibited');
+SELECT expect_error($q$UPDATE store_cambios SET estado='aprobado'$q$,'closed case cannot reopen silently');
+SELECT expect_error($q$UPDATE store_cambios SET comentario='silent'$q$,'closed description cannot change silently');
+SELECT expect_error($q$UPDATE store_cambios SET order_id=gen_random_uuid()$q$,'closed order reference immutable');
 SELECT set_config('test.actor','00000000-0000-0000-0000-000000000002',false);
 SELECT assert_true(NOT can_correct_store_cambio(),'warehouse denied');
 SELECT expect_error($q$SELECT admin_correct_store_cambio(id,'{"comentario":"x"}','why',true,gen_random_uuid(),updated_at) FROM store_cambios LIMIT 1$q$,'warehouse RPC denied');
