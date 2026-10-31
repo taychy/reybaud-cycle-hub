@@ -1,3 +1,8 @@
+## San Luis · Confirmación personalizada del día adicional (31/10)
+- [ ] Pregunta de interés dirigida por reserva, permisos de dueño/token y elegibilidad dinámica validada en servidor; sin compra ni cargos.
+- [ ] Reporte administrativo con revisión de noches previas, respuestas y trazabilidad.
+- [ ] Pruebas aisladas SQL/Vitest y navegador sin respuestas comerciales; no publicación ni mensajes.
+
 ## San Luis · Jornada adicional provisional (31/10)
 - [x] Registrados tres Extras inactivos por modalidad con fuente de presupuesto y condiciones de asistencia, sin cambiar simulación.
 - [x] Inserción idempotente; 10 controles SQL aprobados, 46 tests relevantes; siete Extras anteriores, 42 reservas, 143 pagos y 22 asignaciones intactos por huella antes/después. Navegador con sesión propia confirma precio, interruptor apagado y condiciones completas, sin guardar.
