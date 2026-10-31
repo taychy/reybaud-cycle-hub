@@ -15830,6 +15830,44 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_food_survey_qa: {
+        Row: {
+          active: boolean
+          case_key: string
+          event_id: string
+          id: string
+          owner_id: string
+          response: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          active?: boolean
+          case_key: string
+          event_id: string
+          id?: string
+          owner_id: string
+          response?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          active?: boolean
+          case_key?: string
+          event_id?: string
+          id?: string
+          owner_id?: string
+          response?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_food_survey_qa_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       turnera_notificaciones: {
         Row: {
           canal: string
@@ -21194,6 +21232,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_trip_food_survey_qa: {
+        Args: { p_data: Json; p_id: string }
+        Returns: Json
       }
       service_liquidacion_link: {
         Args: { p_coach_id: string; p_mes: string }
