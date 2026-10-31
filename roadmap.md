@@ -1,3 +1,8 @@
+## Tienda · Recibir devolución (31/10)
+- [x] Auditar 17 registros (13 cambios), casos Marcelo/Gustavo/Francisco y últimos cambios de código; sin modificar registros comerciales
+- [x] Original/variante precargados si constan, una unidad por cambio y pedido; discrepancia con motivo, identidad física separada, bloqueo con stock histórico
+- [x] 21 pruebas Vitest; PostgreSQL aislado (stock +1, reintento, discrepancias, defectos y concurrencia); navegador propio desktop/390 sin recepción; sin publicar
+
 ## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
 - [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
 - [x] Comidas adicionales solo del programa real y Extras activos, total cantidad × precio, excluye ya contratadas; solicitud validada en servidor; visible en reporte admin

@@ -13873,6 +13873,7 @@ export type Database = {
           preparado_at: string | null
           preparado_por: string | null
           producto_id: string
+          producto_recibido_id: string | null
           producto_reemplazo_id: string | null
           prueba_cierre_at: string | null
           prueba_idempotency_key: string | null
@@ -13898,6 +13899,7 @@ export type Database = {
           updated_at: string
           variante_destino: Json | null
           variante_origen: Json
+          variante_recibida: Json | null
         }
         Insert: {
           admin_iniciador_id?: string | null
@@ -13943,6 +13945,7 @@ export type Database = {
           preparado_at?: string | null
           preparado_por?: string | null
           producto_id: string
+          producto_recibido_id?: string | null
           producto_reemplazo_id?: string | null
           prueba_cierre_at?: string | null
           prueba_idempotency_key?: string | null
@@ -13968,6 +13971,7 @@ export type Database = {
           updated_at?: string
           variante_destino?: Json | null
           variante_origen?: Json
+          variante_recibida?: Json | null
         }
         Update: {
           admin_iniciador_id?: string | null
@@ -14013,6 +14017,7 @@ export type Database = {
           preparado_at?: string | null
           preparado_por?: string | null
           producto_id?: string
+          producto_recibido_id?: string | null
           producto_reemplazo_id?: string | null
           prueba_cierre_at?: string | null
           prueba_idempotency_key?: string | null
@@ -14038,6 +14043,7 @@ export type Database = {
           updated_at?: string
           variante_destino?: Json | null
           variante_origen?: Json
+          variante_recibida?: Json | null
         }
         Relationships: [
           {
@@ -14106,6 +14112,13 @@ export type Database = {
           {
             foreignKeyName: "store_cambios_producto_id_fkey"
             columns: ["producto_id"]
+            isOneToOne: false
+            referencedRelation: "store_products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "store_cambios_producto_recibido_id_fkey"
+            columns: ["producto_recibido_id"]
             isOneToOne: false
             referencedRelation: "store_products"
             referencedColumns: ["id"]
@@ -19230,6 +19243,17 @@ export type Database = {
       delivery_toggle_item_by_token: {
         Args: { _item_id: string; _preparado: boolean; _token: string }
         Returns: boolean
+      }
+      deposito_confirmar_devolucion: {
+        Args: {
+          p_cambio_id: string
+          p_confirmacion_fisica: boolean
+          p_metodo: Database["public"]["Enums"]["cambio_metodo"]
+          p_motivo_discrepancia?: string
+          p_producto_id: string
+          p_variante: Json
+        }
+        Returns: Json
       }
       deposito_definir_reemplazo: {
         Args: {
