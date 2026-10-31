@@ -12,6 +12,8 @@ export default function FoodSurveyQaAccess({ children }: { children: ReactNode }
   useEffect(() => {
     let cancelled = false;
     let sequence = 0;
+    let redirecting = false;
+    const returnPath = window.location.pathname + window.location.search;
     const check = async () => {
       const request = ++sequence;
       setStatus("loading");
@@ -19,7 +21,10 @@ export default function FoodSurveyQaAccess({ children }: { children: ReactNode }
       if (cancelled || request !== sequence) return;
       setIdentity(session?.user.id ?? null);
       if (!session) {
-        navigate(`/admin/login?returnTo=${encodeURIComponent(window.location.pathname + window.location.search)}`, { replace: true });
+        if (!redirecting) {
+          redirecting = true;
+          navigate(`/admin/login?returnTo=${encodeURIComponent(returnPath)}`, { replace: true });
+        }
         return;
       }
       if (!eventId || !/^[0-9a-f-]{36}$/i.test(eventId)) { setStatus("denied"); return; }
