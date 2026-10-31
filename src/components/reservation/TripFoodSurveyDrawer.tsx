@@ -24,7 +24,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Utensils, History, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
-import { normalizeFoodSurveyQa } from "@/lib/foodSurveyQa";
+import { normalizeFoodSurveyQa, qaDemoOffer, QA_PACKAGE_LABEL } from "@/lib/foodSurveyQa";
 
 interface Props {
   open: boolean;
@@ -57,7 +57,7 @@ const Choice = ({ active, disabled = false, onClick, children }: { active: boole
   </Button>
 );
 
-const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved, qaId }: Props) => {
+const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved, qaId, qaParticipant = false, qaFresh = false }: Props) => {
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [values, setValues] = useState<FoodSurveyData>({});
@@ -210,7 +210,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
       }
     })();
     return () => { cancelled = true; };
-  }, [open, reservationId, token, qaId]);
+  }, [open, reservationId, token, qaId, qaParticipant, qaFresh]);
 
   const selected = dedupeMeals(values.comidas_solicitadas ?? []).filter((m) => offer.some((o) => mealKey(o) === mealKey(m)));
   const totals = mealRequestTotal(selected, offer);
