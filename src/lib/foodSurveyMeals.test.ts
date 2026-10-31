@@ -16,10 +16,11 @@ const meta = {
   },
 };
 const addons = [
-  { id: "A", precio: 35000, currency: "ARS", activo: true },
-  { id: "C", precio: 35000, currency: "ARS", activo: true },
+  { id: "A", event_id: "event", precio: 35000, currency: "ARS", activo: true },
+  { id: "C", event_id: "event", precio: 35000, currency: "ARS", activo: true },
 ];
 const program = parseMealProgram(meta);
+const scope = { eventId: "event", stay: { start: "2026-11-05", end: "2026-11-09" } };
 
 describe("comidas adicionales", () => {
   it("desayuno cubierto por alojamiento con y sin pensión y aun sin paquete conocido", () => {

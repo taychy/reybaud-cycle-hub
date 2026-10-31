@@ -248,7 +248,9 @@ export const contractedMealsFromAddons = (
     const tipo: MealType | null =
       r.addon_id === program.almuerzo_addon_id ? "almuerzo" : r.addon_id === program.cena_addon_id ? "cena" : null;
     if (!tipo) continue;
-    for (const f of (r.notas || "").match(/\d{4}-\d{2}-\d{2}/g) || []) out.push({ fecha: f, tipo });
+    const dates = (r.notas || "").match(/\d{4}-\d{2}-\d{2}/g) || [];
+    // An existing meal Extra without dated notes is ambiguous, not available again.
+    for (const f of dates.length ? dates : program.meals.filter(m => m.tipo === tipo).map(m => m.fecha)) out.push({ fecha: f, tipo });
   }
   return dedupeMeals(out);
 };

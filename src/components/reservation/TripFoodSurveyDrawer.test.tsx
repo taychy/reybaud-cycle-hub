@@ -2,9 +2,9 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, describe, expect, it, vi } from "vitest";
 import TripFoodSurveyDrawer from "./TripFoodSurveyDrawer";
 
-const mock = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), invoke: vi.fn() }));
+const mock = vi.hoisted(() => ({ get: vi.fn(), save: vi.fn(), invoke: vi.fn(), rpc: vi.fn() }));
 vi.mock("@/lib/tripTokenApi", () => ({ tripTokenGet: mock.get, tripTokenSaveStep: mock.save }));
-vi.mock("@/integrations/supabase/client", () => ({ supabase: { functions: { invoke: mock.invoke } } }));
+vi.mock("@/integrations/supabase/client", () => ({ supabase: { rpc: mock.rpc, functions: { invoke: mock.invoke } } }));
 vi.mock("@/components/ui/drawer", () => ({
   Drawer: ({ children }: any) => <div>{children}</div>,
   DrawerContent: ({ children }: any) => <div>{children}</div>,
@@ -17,6 +17,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 async function openSurvey(included: boolean, withProgram = true) {
   mock.get.mockResolvedValue({
+    reservation: { event_id: "event" },
     checklist: [], package: { id: "p", nombre: "Paquete de prueba", incluye_gastronomia: included },
     event: { metadata: { food_survey: withProgram ? { meal_program: {
       almuerzo_addon_id: "a", cena_addon_id: "c", meals: [
@@ -29,11 +30,12 @@ async function openSurvey(included: boolean, withProgram = true) {
   });
   mock.invoke.mockResolvedValue({ data: {
     addons: [
-      { id: "a", precio: 35000, currency: "ARS", activo: true },
-      { id: "c", precio: 35000, currency: "ARS", activo: true },
+      { id: "a", event_id: "event", precio: 35000, currency: "ARS", activo: true },
+      { id: "c", event_id: "event", precio: 35000, currency: "ARS", activo: true },
     ],
     contracted: [{ addon_id: "c", notas: "2026-11-05" }],
   } });
+  mock.rpc.mockResolvedValue({ data: { start: "2026-11-05", end: "2026-11-09" }, error: null });
   render(<TripFoodSurveyDrawer open onOpenChange={vi.fn()} reservationId="fixture" alumnoId={null} token="fixture-token" onSaved={vi.fn()} />);
   await screen.findByText("Paquete de prueba");
 }
