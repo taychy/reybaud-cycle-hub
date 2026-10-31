@@ -1,7 +1,7 @@
 ## Tienda · Recibir devolución (31/10)
-- [ ] Auditar cambios recientes y casos Marcelo/Gustavo/Francisco sin modificar registros
-- [ ] Precargar original/variante/cantidad/pedido; corrección explícita con motivo y trazabilidad
-- [ ] Pruebas de precarga, confirmación, inventario/idempotencia y navegador sin recepciones reales; informar sin publicar
+- [x] Auditar 17 registros (13 cambios), casos Marcelo/Gustavo/Francisco y últimos cambios de código; sin modificar registros comerciales
+- [x] Original/variante precargados si constan, una unidad por cambio y pedido; discrepancia con motivo, identidad física separada, bloqueo con stock histórico
+- [x] 21 pruebas Vitest; PostgreSQL aislado (stock +1, reintento, discrepancias, defectos y concurrencia); navegador propio desktop/390 sin recepción; sin publicar
 
 ## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
 - [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
