@@ -66,6 +66,15 @@ const AdminLogin = () => {
 
     clearPendingOtpState();
 
+    // QA access is allowlisted per event and does not grant a staff role.
+    if (otpReturnTo?.split("?")[0] === "/pruebas/encuesta-gastronomica") {
+      const eventId = new URL(otpReturnTo, window.location.origin).searchParams.get("evento");
+      if (eventId) {
+        const { data, error } = await supabase.rpc("can_access_trip_food_survey_qa", { p_event_id: eventId });
+        if (!error && data === true) { navigate(otpReturnTo, { replace: true }); return true; }
+      }
+    }
+
     // Explicit returnTo respected if user has that portal
     if ((otpReturnTo?.startsWith("/admin") || otpReturnTo?.startsWith("/eventos/")) && available.includes("admin")) {
       navigate(otpReturnTo, { replace: true });
