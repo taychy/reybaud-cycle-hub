@@ -352,3 +352,8 @@
 - [x] Hernán Martinero: crédito $106.000 registrado (28/10, vinculado a su reserva, "utilizable hasta enero 2027, control manual"). Devolución $838.900 registrada (28/10, transferencia, op. MP 186569448208, devolución 489b882c + gasto 17ab6ee9). Conciliación pendiente: salió de cuenta MP personal de Scarlett.
 - [x] Iván Martinero: crédito $106.000 registrado (28/10, mismas condiciones). Devolución $838.900 BLOQUEADA en audit_log (28/10): captura "Devuelto" vs app "acreditado"; pasos de conciliación documentados; NO transferir hasta resolver.
 - [ ] Restan 4 devoluciones aprobadas: Marcelo Hamui, María Eugenia Louys, Marcelo Suanni, Tamara Mazur.
+
+## Programa gastronómico San Luis (31/10)
+- [x] Pantalla admin (Reportes → Gastronomía): calendario 5–9/11 en borrador, Extras regulares ARS 35.000 sin tocar cenas especiales, activación con validación servidor, aviso de fechas del evento.
+- [ ] Decidir con el organizador cada almuerzo/cena (bloqueado: decisión humana).
+- [ ] Activar encuesta y publicar (bloqueado: autorización explícita).
