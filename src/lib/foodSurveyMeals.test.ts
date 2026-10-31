@@ -110,3 +110,38 @@ describe("agregar todas las comidas de mi estadía", () => {
     expect(allStayMeals(offerableMeals({ ...scope, program: null, pensionIncluded: false, packageId: "p", addons, contracted: [] }))).toEqual([]);
   });
 });
+
+describe("estadía individual y evento", () => {
+  const dates: MealProgram = { almuerzo_addon_id: "A", cena_addon_id: "C", meals: [
+    { fecha: "2026-11-04", tipo: "cena" }, { fecha: "2026-11-05", tipo: "cena" },
+    { fecha: "2026-11-06", tipo: "almuerzo" }, { fecha: "2026-11-08", tipo: "cena" },
+    { fecha: "2026-11-09", tipo: "almuerzo" }, { fecha: "2026-11-10", tipo: "cena" },
+  ] };
+  const offer = (start: string, end: string) => offerableMeals({ ...scope, program: dates, stay: { start, end }, pensionIncluded: false, packageId: "p", addons, contracted: [] });
+  it("5–9 noviembre excluye 4 y 10, sin inventar servicios intermedios", () => {
+    expect(offer("2026-11-05", "2026-11-09").map(m => m.fecha)).toEqual(["2026-11-05", "2026-11-06", "2026-11-08", "2026-11-09"]);
+  });
+  it("5–8 noviembre excluye el día 9 aunque comparta paquete", () => {
+    expect(offer("2026-11-05", "2026-11-08").map(m => m.fecha)).toEqual(["2026-11-05", "2026-11-06", "2026-11-08"]);
+  });
+  it("6–9 noviembre excluye el día 5 aunque comparta paquete", () => {
+    expect(offer("2026-11-06", "2026-11-09").map(m => m.fecha)).toEqual(["2026-11-06", "2026-11-08", "2026-11-09"]);
+  });
+  it("sin estadía verificable no ofrece comidas", () => {
+    expect(offerableMeals({ ...scope, stay: null, program: dates, pensionIncluded: false, packageId: "p", addons, contracted: [] })).toEqual([]);
+  });
+  it("Extra ajeno al evento jamás se ofrece", () => {
+    const result = offerableMeals({ ...scope, program, pensionIncluded: false, packageId: "p", addons: addons.map(a => ({ ...a, event_id: "other-event" })), contracted: [] });
+    expect(result).toEqual([]);
+  });
+  it("Extra contratado sin fecha bloquea ese servicio hasta conciliar", () => {
+    expect(offerableMeals({ ...scope, program, pensionIncluded: false, packageId: "p", addons, contracted: contractedMealsFromAddons(program, [{ addon_id: "C", notas: null }]) }).map(m => m.tipo)).toEqual(["almuerzo"]);
+  });
+  it("Extra restringido a otro paquete queda excluido", () => {
+    expect(offerableMeals({ ...scope, program, pensionIncluded: false, packageId: "p", addons: addons.map(a => ({ ...a, aplica_a_paquetes: ["other-package"] })), contracted: [] })).toEqual([]);
+  });
+  it("rechaza fechas inválidas o límites invertidos", () => {
+    expect(offer("2026-11-09", "2026-11-05")).toEqual([]);
+    expect(offer("2026-11-31", "2026-12-01")).toEqual([]);
+  });
+});
