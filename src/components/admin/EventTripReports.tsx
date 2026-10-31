@@ -164,7 +164,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
       setAddonRows((addonsData as any[]) || []);
 
       const { data: foodData } = resIds.length
-          ? (supabase as any)
+          ? await (supabase as any)
               .from("reservation_checklist_data")
               .select("reservation_id, completed, data, step_key, updated_at")
               .in("reservation_id", resIds)
