@@ -19,12 +19,12 @@ describe("return manual defaults", () => {
     await waitFor(() => expect(within(manual).getByText("Original inactivo")).toBeInTheDocument());
     expect(mocks.fetch).toHaveBeenCalledWith("original");
     expect(within(manual).getByRole("combobox")).toBeDisabled();
-    fireEvent.click(within(manual).getByRole("button", { name: "Confirmar", exact: true }));
+    fireEvent.click(within(manual).getByRole("button", { name: /^Confirmar$/ }));
     await waitFor(() => expect(screen.queryByRole("dialog", { name: "Carga manual" })).not.toBeInTheDocument());
     expect(confirm).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Confirmar", exact: true })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^Confirmar$/ })).toBeDisabled();
     fireEvent.click(screen.getByRole("checkbox"));
-    fireEvent.click(screen.getByRole("button", { name: "Confirmar", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^Confirmar$/ }));
     await waitFor(() => expect(confirm).toHaveBeenCalledTimes(1));
     expect(confirm.mock.calls[0][0].devuelto).toEqual({ productId: "original", productName: "Original inactivo", variante: { Talle: "L" }, metodo: "manual", discrepancyReason: "" });
   });
@@ -41,6 +41,7 @@ describe("return manual defaults", () => {
   it("keeps manual replacement selection independent of the original", async () => {
     render(<ScanCambioDialog {...props} mode="replacement" onConfirm={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Manual" }));
+    await waitFor(() => expect(screen.getByRole("combobox")).toBeInTheDocument());
     expect(mocks.fetch).not.toHaveBeenCalled();
     expect(screen.queryByText("Producto original del cambio")).not.toBeInTheDocument();
   });
