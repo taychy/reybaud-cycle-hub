@@ -659,6 +659,13 @@
       "when": 1793416754708,
       "tag": "0093_store_cambio_audited_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 94,
+      "version": "7",
+      "when": 1793416992971,
+      "tag": "0094_store_cambio_closed_record_guard",
+      "breakpoints": true
     }
   ]
 }
