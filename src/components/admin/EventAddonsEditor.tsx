@@ -182,7 +182,12 @@ export const EventAddonsEditor = ({ eventId, eventCurrency }: Props) => {
                     <span className="text-[10px] text-muted-foreground">máx/persona: {a.max_por_participante}</span>
                   )}
                 </div>
-                {a.descripcion && <p className="text-[11px] text-muted-foreground truncate">{a.descripcion}</p>}
+                {a.descripcion && (
+                  <details className="mt-1 text-xs text-muted-foreground">
+                    <summary className="cursor-pointer">Descripción y condiciones</summary>
+                    <p className="mt-2 whitespace-pre-line break-words">{a.descripcion}</p>
+                  </details>
+                )}
                 <div className="mt-2 space-y-1.5">
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] text-muted-foreground">Categoría:</span>
