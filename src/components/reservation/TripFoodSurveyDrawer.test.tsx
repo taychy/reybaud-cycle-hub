@@ -43,7 +43,7 @@ describe("solicitudes gastronómicas sin operaciones reales", () => {
     await openSurvey(false);
     fireEvent.click(screen.getByRole("button", { name: /Agregar todos los almuerzos/ }));
     fireEvent.click(screen.getByRole("button", { name: "Normal" }));
-    fireEvent.click(screen.getByRole("button", { name: "No", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Guardar respuestas" }));
     await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
     const data = mock.save.mock.calls[0][0].data;
@@ -58,7 +58,7 @@ describe("solicitudes gastronómicas sin operaciones reales", () => {
   it("sin programa no solicita servicios aunque se guarden preferencias alimentarias", async () => {
     await openSurvey(false, false);
     fireEvent.click(screen.getByRole("button", { name: "Normal" }));
-    fireEvent.click(screen.getByRole("button", { name: "No", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Guardar respuestas" }));
     await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
     expect(mock.save.mock.calls[0][0].data.comidas_solicitadas).toEqual([]);
@@ -68,7 +68,7 @@ describe("solicitudes gastronómicas sin operaciones reales", () => {
   it("pensión incluida guarda preferencias sin duplicar solicitud de almuerzos/cenas", async () => {
     await openSurvey(true);
     fireEvent.click(screen.getByRole("button", { name: "Normal" }));
-    fireEvent.click(screen.getByRole("button", { name: "No", exact: true }));
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
     fireEvent.click(screen.getByRole("button", { name: "Guardar respuestas" }));
     await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
     expect(mock.save.mock.calls[0][0].data.comidas_solicitadas).toEqual([]);
