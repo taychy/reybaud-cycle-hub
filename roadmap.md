@@ -4,6 +4,7 @@
 - [x] 21 pruebas Vitest; PostgreSQL aislado (stock +1, reintento, discrepancias, defectos y concurrencia); navegador propio desktop/390 sin recepción; sin publicar
 
 ## San Luis · Encuesta gastronómica con comidas adicionales (30/10)
+- [ ] Aclaración definitiva: desayuno por alojamiento nunca Extra; pensión = almuerzos/cenas reales; textos encuesta/admin y regresiones, sin activación ni publicación
 - [x] Tarjeta informativa de pensión desde el paquete + desayuno incluido; sin pregunta de pensión
 - [x] Comidas adicionales solo del programa real y Extras activos, total cantidad × precio, excluye ya contratadas; solicitud validada en servidor; visible en reporte admin
 - [x] Opción «Agregar todas las comidas de mi estadía» + individual + ninguna; servidor excluye ya compradas
