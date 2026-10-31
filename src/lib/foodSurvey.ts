@@ -1,7 +1,8 @@
 /**
  * Encuesta gastronómica de viajes (paso `gastronomia` en reservation_checklist_data).
  * Se habilita por viaje con `events.metadata.food_survey.enabled`.
- * La pensión completa incluida sale de `event_packages.incluye_gastronomia`;
+ * Desayuno siempre incluido por alojamiento, nunca Extra. Pensión completa =
+ * almuerzos/cenas reales incluidos según `event_packages.incluye_gastronomia`;
  * el trigger `trip_food_survey_guard` replica estas reglas en servidor.
  */
 export type FoodType = "normal" | "vegetariana" | "vegana" | "otra";
@@ -12,6 +13,18 @@ export const FOOD_TYPE_LABELS: Record<FoodType, string> = {
   vegana: "Vegana",
   otra: "Otra",
 };
+
+/** Cobertura derivada del paquete; no inferir pensión por ausencia de Extras. */
+export const stayMealCoverage = (pensionIncluded: boolean | null) => ({
+  breakfastIncluded: true as const,
+  pensionIncluded,
+  breakfast: "Tu estadía incluye desayuno.",
+  meals: pensionIncluded === true
+    ? "Tu paquete incluye pensión completa: almuerzos y cenas disponibles durante tu estadía."
+    : pensionIncluded === false
+      ? "Tu paquete no incluye almuerzos y cenas"
+      : "Inclusión de almuerzos y cenas: pendiente de verificar el paquete.",
+});
 
 export interface FoodSurveyData {
   tipo_alimentacion?: FoodType | null;
@@ -56,9 +69,9 @@ export const isFoodSurveyAnswered = (d: FoodSurveyData | null | undefined): bool
   !!d && !!d.tipo_alimentacion && typeof d.tiene_alergias === "boolean";
 
 export const foodSurveyStatus = (d: FoodSurveyData | null | undefined): FoodSurveyStatus => {
-  if (!isFoodSurveyAnswered(d)) return "sin_respuesta";
+  if (!d || !isFoodSurveyAnswered(d)) return "sin_respuesta";
   const restricted =
-    d!.tipo_alimentacion !== "normal" || d!.tiene_alergias === true || d!.contaminacion_cruzada === true;
+    d.tipo_alimentacion !== "normal" || d.tiene_alergias === true || d.contaminacion_cruzada === true;
   return restricted ? "con_restricciones" : "sin_restricciones";
 };
 
@@ -119,12 +132,12 @@ export const suggestionFromHistory = (stepKey: string, data: any): FoodSurveyDat
 };
 
 export const describeFoodSurvey = (d: FoodSurveyData | null | undefined): string => {
-  if (!isFoodSurveyAnswered(d)) return "Sin respuesta";
+  if (!d || !isFoodSurveyAnswered(d) || !d.tipo_alimentacion) return "Sin respuesta";
   const parts = [
-    d!.tipo_alimentacion === "otra" ? `Otra: ${d!.tipo_otra_detalle ?? ""}` : FOOD_TYPE_LABELS[d!.tipo_alimentacion!],
+    d.tipo_alimentacion === "otra" ? `Otra: ${d.tipo_otra_detalle ?? ""}` : FOOD_TYPE_LABELS[d.tipo_alimentacion],
   ];
-  parts.push(d!.tiene_alergias ? `Alergias/intolerancias: ${d!.alergias_detalle ?? ""}` : "Sin alergias");
-  if (d!.contaminacion_cruzada) parts.push(`Contaminación cruzada${d!.contaminacion_detalle ? `: ${d!.contaminacion_detalle}` : ""}`);
+  parts.push(d.tiene_alergias ? `Alergias/intolerancias: ${d.alergias_detalle ?? ""}` : "Sin alergias");
+  if (d.contaminacion_cruzada) parts.push(`Contaminación cruzada${d.contaminacion_detalle ? `: ${d.contaminacion_detalle}` : ""}`);
   return parts.join(" · ");
 };
 
@@ -194,6 +207,8 @@ export const offerableMeals = (args: {
   const taken = new Set(contracted.map(mealKey));
   const out: Array<MealSlot & { addon_id: string; precio: number; currency: string }> = [];
   for (const m of program.meals) {
+    // También proteger entradas directas/no tipadas: desayuno jamás ofertable.
+    if (!m || !ISO.test(m.fecha) || (m.tipo !== "almuerzo" && m.tipo !== "cena")) continue;
     if (m.package_ids?.length && (!packageId || !m.package_ids.includes(packageId))) continue;
     const addonId = m.tipo === "almuerzo" ? program.almuerzo_addon_id : program.cena_addon_id;
     const addon = addons.find((a) => a.id === addonId);
@@ -201,7 +216,8 @@ export const offerableMeals = (args: {
     if (taken.has(mealKey(m))) continue;
     out.push({ fecha: m.fecha, tipo: m.tipo, addon_id: addon.id, precio: addon.precio, currency: addon.currency });
   }
-  return dedupeMeals(out).map((s) => out.find((o) => mealKey(o) === mealKey(s))!);
+  const unique = new Map(out.map((m) => [mealKey(m), m]));
+  return [...unique.values()].sort((a, b) => mealKey(a).localeCompare(mealKey(b)));
 };
 
 /** Comidas ya contratadas: fechas ISO anotadas en las notas del Extra de esa comida. */
@@ -225,7 +241,8 @@ export const mealRequestTotal = (
   offer: Array<MealSlot & { precio: number }>,
 ): { cantidad: number; total: number } => {
   const keys = new Set(dedupeMeals(selected).map(mealKey));
-  const chosen = offer.filter((o) => keys.has(mealKey(o)));
+  const unique = new Map(offer.map((o) => [mealKey(o), o]));
+  const chosen = [...unique.values()].filter((o) => keys.has(mealKey(o)));
   return { cantidad: chosen.length, total: chosen.reduce((s, o) => s + o.precio, 0) };
 };
 

@@ -13,7 +13,7 @@ import {
   isFoodSurveyAnswered, normalizeFoodSurvey, suggestionFromHistory, validateFoodSurvey,
   MEAL_TYPE_LABELS, type MealSlot, contractedMealsFromAddons, dedupeMeals, formatMealDate,
   mealKey, mealRequestTotal, offerableMeals, parseMealProgram,
-  allStayMeals, mealSelectionMode, type MealMode,
+  allStayMeals, mealSelectionMode, stayMealCoverage, type MealMode,
 } from "@/lib/foodSurvey";
 import { formatPrice as formatCurrency } from "@/lib/currency";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -37,14 +37,17 @@ interface Props {
 const fmt = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) : "";
 
-const Choice = ({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) => (
-  <button
+const Choice = ({ active, disabled = false, onClick, children }: { active: boolean; disabled?: boolean; onClick: () => void; children: React.ReactNode }) => (
+  <Button
     type="button"
+    variant="outline"
+    aria-pressed={active}
+    disabled={disabled}
     onClick={onClick}
-    className={`h-11 rounded-lg border px-3 text-sm transition ${active ? "border-primary bg-primary/15 text-primary font-medium" : "border-border bg-muted/30 hover:bg-muted/50"}`}
+    className={`min-h-11 h-auto whitespace-normal rounded-lg border px-3 py-2 text-sm transition ${active ? "border-primary bg-primary/15 text-primary font-medium" : "border-border bg-muted/30 hover:bg-muted/50"}`}
   >
     {children}
-  </button>
+  </Button>
 );
 
 const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, token, onSaved }: Props) => {
@@ -153,7 +156,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           const sug = src ? suggestionFromHistory(src.step_key, src.data) : null;
           if (sug) {
             setValues({ ...sug, pension_interes: false, comidas_solicitadas: [] });
-            setHistoryAt(src!.updated_at ?? "");
+            setHistoryAt(src?.updated_at ?? "");
           } else {
             setValues({});
           }
@@ -168,6 +171,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
 
   const selected = dedupeMeals(values.comidas_solicitadas ?? []).filter((m) => offer.some((o) => mealKey(o) === mealKey(m)));
   const totals = mealRequestTotal(selected, offer);
+  const coverage = stayMealCoverage(included);
   const currency = offer[0]?.currency ?? "ARS";
   const toggleMeal = (m: MealSlot) => {
     const k = mealKey(m);
@@ -234,8 +238,8 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
           <div className="px-4 pb-6 space-y-5 overflow-y-auto">
             <div className="rounded-lg border border-border bg-muted/20 p-3 text-xs space-y-1">
               <p><span className="text-muted-foreground">Tu paquete:</span> <span className="font-medium">{pkgName || "—"}</span></p>
-              <p className="font-medium text-foreground">{included ? "Tu paquete incluye pensión completa" : "Tu paquete no incluye pensión completa"}</p>
-              <p className="text-muted-foreground">{included ? "Desayuno, almuerzo y cena incluidos." : "El desayuno está incluido."}</p>
+              <p className="text-muted-foreground">{coverage.breakfast}</p>
+              <p className="font-medium text-foreground">{coverage.meals}</p>
               {saved?.actualizado_at && <p className="text-muted-foreground">Última actualización: {fmt(saved.actualizado_at)}</p>}
             </div>
 
@@ -300,7 +304,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
 
             {!included && (
               <div className="rounded-lg border border-border p-3 space-y-2">
-                <p className="text-sm font-medium">Comidas adicionales (opcional)</p>
+                <p className="text-sm font-medium">Almuerzos y cenas adicionales (opcional)</p>
                 {contracted.length > 0 && (
                   <p className="text-[11px] text-muted-foreground">
                     Ya contratadas: {contracted.map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}.
@@ -317,10 +321,10 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                   return (
                     <>
                       <div className="grid gap-2">
-                        <Choice active={!disabled && mode === "todas"} onClick={() => !disabled && pick("todas")}>
-                          Agregar todas las comidas de mi estadía{!disabled ? ` (${offer.length})` : ""}
+                        <Choice disabled={disabled} active={!disabled && mode === "todas"} onClick={() => pick("todas")}>
+                          Agregar todos los almuerzos y cenas disponibles de mi estadía{!disabled ? ` (${offer.length})` : ""}
                         </Choice>
-                        <Choice active={!disabled && mode === "individual"} onClick={() => !disabled && pick("individual")}>
+                        <Choice disabled={disabled} active={!disabled && mode === "individual"} onClick={() => pick("individual")}>
                           Elegir almuerzos y cenas individuales
                         </Choice>
                         <Choice active={disabled || mode === "ninguna"} onClick={() => pick("ninguna")}>
@@ -350,11 +354,11 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                                 <div key={mealKey(o)} className="flex justify-between"><span>{MEAL_TYPE_LABELS[o.tipo]} · {formatMealDate(o.fecha)}</span><span>{formatCurrency(o.precio, o.currency)}</span></div>
                               ))}
                               <div className="flex justify-between border-t border-border/60 pt-1 text-sm font-semibold">
-                                <span>{totals.cantidad} comida(s)</span><span>{formatCurrency(totals.total, currency)}</span>
+                                <span>{totals.cantidad} servicio(s)</span><span>{formatCurrency(totals.total, currency)}</span>
                               </div>
                             </div>
                           )}
-                          <p className="text-[11px] text-muted-foreground">Desayuno incluido, no se suma. Es una solicitud: no se cobra nada ahora. Administración la confirma y el pago se hace como cualquier otro Extra.</p>
+                          <p className="text-[11px] text-muted-foreground">El desayuno está incluido por el alojamiento: nunca se contrata ni cobra como Extra. Esto es una solicitud; no genera facturación ni cobro automático. Administración debe confirmarla antes de contratar y pagar los Extras.</p>
                         </>
                       )}
                     </>
