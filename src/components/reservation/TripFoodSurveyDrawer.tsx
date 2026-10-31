@@ -353,6 +353,11 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
             {!included && (
               <div className="rounded-lg border border-border p-3 space-y-2">
                 <p className="text-sm font-medium">Almuerzos y cenas adicionales (opcional)</p>
+                {qaId && qaParticipant && offer.length > 0 && (
+                  <p className="rounded-md bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground">
+                    Ejemplo ilustrativo, programa real pendiente. En esta prueba las comidas elegidas no se guardan ni se cobran.
+                  </p>
+                )}
                 {contracted.length > 0 && (
                   <p className="text-[11px] text-muted-foreground">
                     Ya contratadas: {contracted.map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}.
