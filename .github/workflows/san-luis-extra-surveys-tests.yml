@@ -16,6 +16,6 @@ jobs:
         with:
           node-version: '22'
           cache: npm
-      - run: npm ci
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Probar las encuestas de jornada y alojamiento
         run: npm run test -- src/components/reservation/SanLuisAdditionalSurveys.test.ts src/lib/tripAdditionalDay.test.ts
