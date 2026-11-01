@@ -3,9 +3,10 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import { initFontScale } from "./components/FontSizeToggle";
-import { getAppLaunchDestination, SURVEY_LAUNCH_EVENT } from "./lib/appUpdate";
+import { getAppLaunchDestination, stripCacheBustParam, SURVEY_LAUNCH_EVENT } from "./lib/appUpdate";
 
 initFontScale();
+stripCacheBustParam();
 
 // Capture PWA install prompt globally before any component mounts
 (window as any).__pwaInstallPrompt = null;

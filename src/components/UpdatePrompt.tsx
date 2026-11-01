@@ -11,7 +11,6 @@ import {
   isServiceWorkerAllowed,
   readAttempt,
   recordAttempt,
-  stripCacheBustParam,
   unregisterServiceWorkers,
   requiresSurveyUpdateCheck,
   SURVEY_LAUNCH_EVENT,
@@ -108,7 +107,6 @@ const UpdatePrompt = ({ children }: { children?: ReactNode }) => {
 
   // Service worker: registrar solo en producción real; en preview/dev limpiarlo.
   useEffect(() => {
-    stripCacheBustParam();
     if (!("serviceWorker" in navigator)) return;
     if (!isServiceWorkerAllowed()) {
       unregisterServiceWorkers().catch(() => {});
