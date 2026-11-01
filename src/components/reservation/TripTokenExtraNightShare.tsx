@@ -82,8 +82,9 @@ const TripTokenExtraNightShare = ({ addons, onChanged }: { addons: { id: string;
     <div className="rounded-lg border border-border p-3 space-y-2">
       <div className="flex items-center gap-2">
         <BedDouble className="w-4 h-4 text-primary" />
-        <p className="text-sm font-semibold">Noche extra</p>
+        <p className="text-sm font-semibold">Noche extra de alojamiento</p>
       </div>
+      <p className="text-xs text-muted-foreground">Solo alojamiento antes o después de las fechas de tu paquete. No amplía tu participación ni incluye automáticamente actividades del Training Camp. «Solo necesito dormir una noche antes o después».</p>
       <p className="text-xs text-muted-foreground">
         {actual ? `${actual.nombre} · ${nocheTimingShortLabel(actual.noche_timing) || "sin definir"}` : "Sin noche extra"}
         {activa && ` · ${extraNightEstadoLabel(activa.estado)}${activa.companero ? ` con ${activa.companero}` : ""}`}

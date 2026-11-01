@@ -258,6 +258,8 @@ const TripTokenExtrasCard = ({ eventId }: Props) => {
 
                   {night ? (
                     <div className="space-y-1.5">
+                      <p className="text-xs font-medium">Noche extra de alojamiento</p>
+                      <p className="text-xs text-muted-foreground">Solo dormir antes o después de las fechas de tu paquete; no suma un día de Training Camp ni incluye automáticamente actividades.</p>
                       <Label className="text-xs text-muted-foreground">¿Cuándo necesitás la noche extra?</Label>
                       <Select value={nightValue} onValueChange={(value) => setTiming(addon, value)}>
                         <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
