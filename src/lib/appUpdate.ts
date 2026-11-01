@@ -25,8 +25,8 @@ export const CLIENT_BUILD_ID: string =
 
 export const getCacheBustedUrl = (href = window.location.href) => {
   const url = new URL(href);
-  url.searchParams.set(UPDATE_QUERY_PARAM, Date.now().toString());
-  return url.toString();
+  const search = url.search.slice(1).split("&").filter((part) => part && part.split("=")[0] !== UPDATE_QUERY_PARAM).join("&");
+  return `${url.origin}${url.pathname}?${search ? search + "&" : ""}${UPDATE_QUERY_PARAM}=${Date.now()}${url.hash}`;
 };
 
 /** Removes the technical `_v` param after a forced reload, keeping everything else. */
@@ -34,8 +34,8 @@ export const stripCacheBustParam = () => {
   try {
     const url = new URL(window.location.href);
     if (!url.searchParams.has(UPDATE_QUERY_PARAM)) return;
-    url.searchParams.delete(UPDATE_QUERY_PARAM);
-    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    const search = url.search.slice(1).split("&").filter((part) => part.split("=")[0] !== UPDATE_QUERY_PARAM).join("&");
+    window.history.replaceState(window.history.state, "", url.pathname + (search ? "?" + search : "") + url.hash);
   } catch {
     /* noop */
   }
