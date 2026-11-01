@@ -722,6 +722,13 @@
       "when": 1793533135844,
       "tag": "0102_trip_additional_day_companions",
       "breakpoints": true
+    },
+    {
+      "idx": 103,
+      "version": "7",
+      "when": 1793550492861,
+      "tag": "0103_package_change_effective_start",
+      "breakpoints": true
     }
   ]
 }
