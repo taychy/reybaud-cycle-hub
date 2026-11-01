@@ -1,3 +1,9 @@
+## San Luis · Activar encuesta real sin programa (01/11)
+- [x] Separar activación de preferencias y oferta gastronómica; interés editable sin servicios ficticios ni compras. 47 Vitest y controles PostgreSQL aislados aprobados.
+- [x] Enlace general privado y reporte de interés; navegador con sesión personal y token propio abre, guarda y recupera en Scarlett test, móvil/escritorio. Sin pensión: pruebas aisladas de las tres opciones, no escrituras en clientes reales.
+- [x] Flag real San Luis activado, meals_enabled=false, sin programa; 24 confirmadas, 42 reservas y 10 Extras con huellas idénticas.
+- [ ] Publicar interfaz nueva y verificar dominio público: ruta general aún no publicada. No se publicó toda la app automáticamente ni se enviaron mensajes.
+
 ## San Luis · Confirmación personalizada del día adicional (31/10)
 - [x] Pregunta de interés por reserva, dueño/token y elegibilidad dinámica; 4 versus 3 noches, sin compra/cargos, con historial y respuesta editable.
 - [x] Reporte admin dinámico: 7 elegibles (3 doble/2 individual/2 triple), 3 alertas de noche previa; enlace existente bajo demanda, revisión con nota, sin envíos.

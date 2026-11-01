@@ -14,6 +14,7 @@ import {
   MEAL_TYPE_LABELS, type MealSlot, contractedMealsFromAddons, dedupeMeals, formatMealDate,
   mealKey, mealRequestTotal, offerableMeals, parseMealProgram,
   allStayMeals, mealSelectionMode, stayMealCoverage, type MealMode,
+  MEAL_INTEREST_LABELS,
 } from "@/lib/foodSurvey";
 import { formatPrice as formatCurrency } from "@/lib/currency";
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from "@/components/ui/drawer";
@@ -72,6 +73,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
   const [hasStay, setHasStay] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [mealMode, setMealMode] = useState<MealMode | null>(null);
+  const [interestPrice, setInterestPrice] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -82,6 +84,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
     setMealMode(null);
     setOffer([]);
     setHasStay(false);
+    setInterestPrice(null);
     let cancelled = false;
     (async () => {
       try {
@@ -113,6 +116,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         let resAddons: any[] = [];
         if (token) {
           const r = await tripTokenGet(token);
+          if (r.reservation.reservation_status !== "reserva_confirmada") throw new Error("Reserva no habilitada");
           current = r.checklist.find((c) => c.step_key === "gastronomia") ?? null;
           legacy = r.checklist.find((c) => c.step_key === "alimentacion") ?? null;
           history = r.food_history ?? null;
@@ -130,9 +134,10 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         } else {
           const { data: res } = await supabase
             .from("event_reservations")
-            .select("package_id, package_nombre_snapshot, event_id, events(metadata)")
+            .select("package_id, package_nombre_snapshot, event_id, reservation_status, events(metadata)")
             .eq("id", reservationId)
             .maybeSingle();
+          if (!res || res.reservation_status !== "reserva_confirmada") throw new Error("Reserva no habilitada");
           let inc = false;
           let name = res?.package_nombre_snapshot ?? null;
           if (res?.package_id) {
@@ -177,6 +182,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         const stay = stayData as { start: string; end: string } | null;
         setHasStay(!!stay?.start && !!stay?.end);
         const program = parseMealProgram(meta);
+        setInterestPrice(meta?.food_survey?.publication_mode === "preferencias_activas" && Number(meta?.food_survey?.meal_interest_price) > 0 ? Number(meta.food_survey.meal_interest_price) : null);
         const done = contractedMealsFromAddons(program, resAddons);
         setHasProgram(!!program);
         setContracted(done);
@@ -364,6 +370,18 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                   </p>
                 )}
                 {(() => {
+                  if (!hasProgram && interestPrice) return (
+                    <>
+                      <p className="text-xs text-muted-foreground">Almuerzos o cenas adicionales: {formatCurrency(interestPrice, "ARS")} por comida. El menú/fechas se confirmarán. No se compra ni cobra al completar esta encuesta.</p>
+                      <div className="grid gap-2">
+                        {(["todas", "individual", "ninguna"] as MealMode[]).map((m) => (
+                          <Choice key={m} active={values.comidas_interes_modo === m} onClick={() => set({ comidas_interes_modo: m, comidas_solicitadas: [] })}>
+                            {MEAL_INTEREST_LABELS[m]}
+                          </Choice>
+                        ))}
+                      </div>
+                    </>
+                  );
                   const disabled = !hasProgram || !hasStay || offer.length === 0;
                   const mode = mealSelectionMode(selected, offer, mealMode);
                   const pick = (m: MealMode) => {
@@ -384,6 +402,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                           No agregar comidas
                         </Choice>
                       </div>
+                      {values.comidas_interes_modo && <p className="text-xs text-muted-foreground">Preferencia previa: {MEAL_INTEREST_LABELS[values.comidas_interes_modo]}. Elegí y confirmá ahora los servicios; no se seleccionan automáticamente.</p>}
                       {!hasProgram ? (
                         <p className="text-[11px] text-muted-foreground">Las comidas adicionales todavía no están disponibles: Administración aún no cargó el programa de almuerzos y cenas de este viaje. No se contrata ni se cobra nada.</p>
                       ) : !hasStay ? (

@@ -708,6 +708,13 @@
       "when": 1793491323116,
       "tag": "0100_trip_additional_day_interest",
       "breakpoints": true
+    },
+    {
+      "idx": 101,
+      "version": "7",
+      "when": 1793498488361,
+      "tag": "0101_food_preferences_independent_activation",
+      "breakpoints": true
     }
   ]
 }

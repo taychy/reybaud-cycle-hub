@@ -38,6 +38,7 @@ export interface FoodSurveyData {
   pension_interes?: boolean | null;
   /** Solicitud (no compra) de comidas adicionales del programa real. */
   comidas_solicitadas?: MealSlot[] | null;
+  comidas_interes_modo?: MealMode | null;
   pension_incluida?: boolean | null;
   pension_solicitada_at?: string | null;
   pension_gestion?: PensionGestion | null;
@@ -102,6 +103,7 @@ export const normalizeFoodSurvey = (d: FoodSurveyData, pensionIncluded: boolean)
     observaciones: d.observaciones?.trim() || null,
     pension_interes: false,
     comidas_solicitadas: pensionIncluded ? [] : dedupeMeals(d.comidas_solicitadas ?? []),
+    comidas_interes_modo: pensionIncluded ? null : normalizeMealInterest(d.comidas_interes_modo),
     historico_confirmado: d.historico_confirmado ?? null,
   };
   return out;
@@ -188,6 +190,7 @@ export const dedupeMeals = (list: MealSlot[]): MealSlot[] => {
 };
 
 export const parseMealProgram = (meta: any): MealProgram | null => {
+  if (meta?.food_survey?.meals_enabled === false) return null;
   const p = meta?.food_survey?.meal_program;
   if (!p || !Array.isArray(p.meals) || p.meals.length === 0) return null;
   const meals = (p.meals as any[])
@@ -266,6 +269,13 @@ export const mealRequestTotal = (
 };
 
 export type MealMode = "todas" | "individual" | "ninguna";
+export const normalizeMealInterest = (value: unknown): MealMode | null =>
+  value === "todas" || value === "individual" || value === "ninguna" ? value : null;
+export const MEAL_INTEREST_LABELS: Record<MealMode, string> = {
+  todas: "Me interesa sumar todas las comidas disponibles de mi estadía",
+  individual: "Prefiero elegir almuerzos y cenas cuando esté el programa",
+  ninguna: "No quiero agregar comidas por ahora",
+};
 
 /** "Todas las comidas de mi estadía": todo lo ofertable (ya excluye desayuno, incluidas y compradas). */
 export const allStayMeals = (offer: MealSlot[]): MealSlot[] => dedupeMeals(offer);

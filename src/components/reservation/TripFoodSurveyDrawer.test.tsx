@@ -17,7 +17,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 async function openSurvey(included: boolean, withProgram = true, stay: { start: string; end: string } | null = { start: "2026-11-05", end: "2026-11-09" }) {
   mock.get.mockResolvedValue({
-    reservation: { event_id: "event" },
+    reservation: { event_id: "event", reservation_status: "reserva_confirmada" },
     checklist: [], package: { id: "p", nombre: "Paquete de prueba", incluye_gastronomia: included },
     event: { metadata: { food_survey: withProgram ? { meal_program: {
       almuerzo_addon_id: "a", cena_addon_id: "c", meals: [
@@ -26,7 +26,7 @@ async function openSurvey(included: boolean, withProgram = true, stay: { start: 
         { fecha: "2026-11-06", tipo: "cena" },
         { fecha: "2026-11-06", tipo: "desayuno" },
       ],
-    } } : {} } },
+    } } : { publication_mode: "preferencias_activas", meal_interest_price: 35000 } } },
   });
   mock.invoke.mockResolvedValue({ data: {
     addons: [
@@ -41,6 +41,18 @@ async function openSurvey(included: boolean, withProgram = true, stay: { start: 
 }
 
 describe("solicitudes gastronómicas sin operaciones reales", () => {
+  it.each(["todas", "individual", "ninguna"] as const)("sin programa guarda interés %s sin inventar servicios", async (mode) => {
+    await openSurvey(false, false, null);
+    const names = { todas: /Me interesa sumar todas/, individual: /Prefiero elegir almuerzos/, ninguna: /No quiero agregar comidas/ };
+    fireEvent.click(screen.getByRole("button", { name: names[mode] }));
+    fireEvent.click(screen.getByRole("button", { name: "Normal" }));
+    fireEvent.click(screen.getByRole("button", { name: /^No$/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Guardar respuestas" }));
+    await waitFor(() => expect(mock.save).toHaveBeenCalledOnce());
+    expect(mock.save.mock.calls[0][0].data.comidas_interes_modo).toBe(mode);
+    expect(mock.save.mock.calls[0][0].data.comidas_solicitadas).toEqual([]);
+    expect(mock.invoke).not.toHaveBeenCalled();
+  });
   it("estadía desde el 6 solicita solo servicios del 6 aunque el programa comience el 5", async () => {
     await openSurvey(false, true, { start: "2026-11-06", end: "2026-11-09" });
     fireEvent.click(screen.getByRole("button", { name: /Agregar todos los almuerzos/ }));

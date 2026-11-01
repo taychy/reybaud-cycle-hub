@@ -32,7 +32,7 @@ const EventFoodProgramEditor = ({ eventId }: { eventId: string }) => {
   const [addons, setAddons] = useState<any[]>([]);
   const [cal, setCal] = useState<CalendarSlot[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<null | "enable" | "disable" | "addons">(null);
+  const [confirm, setConfirm] = useState<null | "enable" | "disable" | "addons" | "meals">(null);
 
   const load = async () => {
     const { data, error } = await (supabase.rpc as any)("admin_food_program_status", { p_event: eventId });
@@ -119,7 +119,8 @@ const EventFoodProgramEditor = ({ eventId }: { eventId: string }) => {
               <div key={f} className="contents">
                 <span className="pr-2 py-1">{formatMealDate(f)}</span>
                 {(["almuerzo", "cena"] as const).map((t) => {
-                  const slot = cal.find((c) => c.fecha === f && c.tipo === t)!;
+                  const slot = cal.find((c) => c.fecha === f && c.tipo === t);
+                  if (!slot) return null;
                   return (
                     <Button key={t} size="sm" type="button" aria-label={`${MEAL_TYPE_LABELS[t]} ${formatMealDate(f)}: ${STATE_LABEL[slot.estado]}`}
                       variant={slot.estado === "activo" ? "default" : slot.estado === "inactivo" ? "secondary" : "outline"}
@@ -156,17 +157,19 @@ const EventFoodProgramEditor = ({ eventId }: { eventId: string }) => {
         {fs.enabled ? (
           <Button size="sm" variant="outline" disabled={!!busy} onClick={() => setConfirm("disable")}><Power className="w-3.5 h-3.5 mr-1" />Desactivar encuesta</Button>
         ) : (
-          <Button size="sm" disabled={!readiness.ready || dirty || !!busy} onClick={() => setConfirm("enable")}><Power className="w-3.5 h-3.5 mr-1" />Activar encuesta para participantes</Button>
+          <Button size="sm" disabled={!!busy} onClick={() => setConfirm("enable")}><Power className="w-3.5 h-3.5 mr-1" />Activar preferencias alimentarias</Button>
         )}
-        {!fs.enabled && !readiness.ready && <p className="text-[11px] text-muted-foreground self-center">Se habilita cuando todos los servicios estén decididos y guardados.</p>}
+        <Button size="sm" variant="outline" disabled={!readiness.ready || dirty || !!busy || !fs.enabled} onClick={() => setConfirm("meals")}>Habilitar oferta de comidas</Button>
+        <p className="text-[11px] text-muted-foreground">{fs.meals_enabled ? "Oferta de comidas habilitada" : "Comidas pendientes: la encuesta recoge preferencias e interés sin compras. La oferta requiere calendario confirmado y Extras regulares autorizados."}</p>
       </div>
 
       <AlertDialog open={!!confirm} onOpenChange={(o) => !o && setConfirm(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>{confirm === "enable" ? "¿Activar la encuesta?" : confirm === "disable" ? "¿Desactivar la encuesta?" : "¿Crear Extras regulares?"}</AlertDialogTitle>
+            <AlertDialogTitle>{confirm === "meals" ? "¿Habilitar oferta de comidas?" : confirm === "enable" ? "¿Activar la encuesta?" : confirm === "disable" ? "¿Desactivar la encuesta?" : "¿Crear Extras regulares?"}</AlertDialogTitle>
             <AlertDialogDescription>
-              {confirm === "enable" && "Los participantes verán la encuesta y podrán solicitar comidas. Los Extras regulares usados quedarán activos. No se envían mensajes ni se cobra nada automáticamente."}
+              {confirm === "enable" && "Activa solamente preferencias alimentarias e interés. El calendario puede seguir pendiente. No activa Extras, compras, cobros ni envía mensajes."}
+              {confirm === "meals" && "Se valida el calendario completo y se activan solamente los Extras regulares asociados. Las solicitudes no generan compras ni cobros automáticos."}
               {confirm === "disable" && "Se oculta la encuesta. Respuestas, Extras y compras existentes no se modifican."}
               {confirm === "addons" && `Se crean (o se reutilizan si ya existen) "Almuerzo regular" y "Cena regular" a ${formatPrice(PRECIO_REGULAR, "ARS")}, inactivos. Las cenas especiales no se tocan.`}
             </AlertDialogDescription>
@@ -176,6 +179,7 @@ const EventFoodProgramEditor = ({ eventId }: { eventId: string }) => {
             <AlertDialogAction onClick={(e) => {
               e.preventDefault();
               if (confirm === "addons") run("addons", () => (supabase.rpc as any)("admin_food_program_ensure_addons", { p_event: eventId, p_precio: PRECIO_REGULAR }), "Extras regulares asociados");
+              else if (confirm === "meals") run("meals", () => (supabase.rpc as any)("admin_enable_food_meals", { p_event: eventId }), "Oferta de comidas habilitada");
               else run("toggle", () => (supabase.rpc as any)("admin_set_food_survey_enabled", { p_event: eventId, p_enabled: confirm === "enable" }), confirm === "enable" ? "Encuesta activada" : "Encuesta desactivada");
             }}>Confirmar</AlertDialogAction>
           </AlertDialogFooter>

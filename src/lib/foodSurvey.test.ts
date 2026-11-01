@@ -1,7 +1,15 @@
 import { describe, it, expect } from "vitest";
-import { foodSurveyStatus, validateFoodSurvey, normalizeFoodSurvey, suggestionFromHistory, isFoodSurveyEnabled } from "./foodSurvey";
+import { foodSurveyStatus, validateFoodSurvey, normalizeFoodSurvey, suggestionFromHistory, isFoodSurveyEnabled, parseMealProgram, normalizeMealInterest } from "./foodSurvey";
 
 describe("foodSurvey", () => {
+  it("interés independiente no genera servicios, y pensión lo excluye", () => {
+    expect(normalizeFoodSurvey({ comidas_interes_modo: "todas" }, false)).toMatchObject({ comidas_interes_modo: "todas", comidas_solicitadas: [] });
+    expect(normalizeFoodSurvey({ comidas_interes_modo: "todas" }, true).comidas_interes_modo).toBeNull();
+    expect(normalizeMealInterest("comprar")).toBeNull();
+  });
+  it("programa borrador no ofrece comidas aunque tenga slots", () => {
+    expect(parseMealProgram({ food_survey: { enabled: true, meals_enabled: false, meal_program: { meals: [{ fecha: "2026-11-05", tipo: "cena" }] } } })).toBeNull();
+  });
   it("distingue sin respuesta de sin restricciones", () => {
     expect(foodSurveyStatus(null)).toBe("sin_respuesta");
     expect(foodSurveyStatus({ tipo_alimentacion: "normal" })).toBe("sin_respuesta");

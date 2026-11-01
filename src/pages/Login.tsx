@@ -19,6 +19,12 @@ import { canRequestOtpAgain, clearPendingOtpState, finishOtpRequest, getOtpError
  * Only fall back to admin/coach if user has no alumno record.
  */
 async function redirectByRole(userId: string, navigate: ReturnType<typeof useNavigate>, returnTo: string | null) {
+  const safe = getSafeReturnTo(returnTo);
+  if (safe?.split("?")[0] === "/viaje/encuesta-gastronomica") {
+    clearPendingOtpState();
+    navigate(safe, { replace: true });
+    return;
+  }
   // Student portal: check alumno FIRST
   const { data: alumno } = await supabase
     .from("alumnos")
