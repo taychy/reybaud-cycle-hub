@@ -1,3 +1,8 @@
+## Encuesta · Apertura y actualización PWA (01/11)
+- [ ] Integrar chequeo inmediato de versión y apertura exacta de enlaces generales/personales con actualizador existente; sesión/query intactas, sin envíos ni base.
+- [ ] Autoabrir gastronomía por token propio solo con reserva confirmada y encuesta activa; probar enlaces, límite de recargas, offline y móviles sin guardar.
+- [ ] Publicación y verificación del enlace productivo posteriores: requieren autorización; Gmail a cargo de la usuaria.
+
 ## San Luis · Auditoría de fechas de extensión (01/11)
 - [x] Cruzadas tres ventanas y siete elegibles; texto pregunta por servicios dentro de fechas ya elegidas, con guardia de duración coherente. 10 Vitest y navegador QA/admin móvil/escritorio sin guardar; compilación OK.
 - [ ] Definir jornada y servicios/condiciones comerciales; conciliar Valeria (actividad 6–9, alojamiento 5–9). Bloqueado por decisión del organizador; importes, respuestas y base intactos, sin publicar.
