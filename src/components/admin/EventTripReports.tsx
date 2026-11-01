@@ -77,6 +77,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
   const choiceSurveys = useChoiceSurveys(eventId, open);
   const [addonRows, setAddonRows] = useState<any[]>([]);
   const [foodRows, setFoodRows] = useState<any[]>([]);
+  const [nightSurveyRows, setNightSurveyRows] = useState<any[]>([]);
 
 
   useEffect(() => {
@@ -173,6 +174,17 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
               .in("step_key", ["alimentacion", "gastronomia"])
           : { data: [] as any[] };
       setFoodRows((foodData as any[]) || []);
+
+      // Solicitudes por encuesta; independientes de noches efectivamente contratadas.
+      const { data: nightSurveyData } = resIds.length
+        ? await (supabase as any)
+            .from("reservation_checklist_data")
+            .select("reservation_id, data, updated_at")
+            .in("reservation_id", resIds)
+            .eq("step_key", "encuesta_noches_extra_san_luis")
+        : { data: [] as any[] };
+      setNightSurveyRows((nightSurveyData as any[]) || []);
+
 
       setLoading(false);
     })();
@@ -422,6 +434,35 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
             <TabsContent value="extras" className="space-y-3 mt-4">
               <EventAdditionalDayReport eventId={eventId} />
+              {eventId === "67b4e85d-b00b-4b74-9644-99458d948c65" && (
+                <div className="rounded-lg border border-border p-3 space-y-2">
+                  <h3 className="text-sm font-medium">Encuesta · noches extras de alojamiento</h3>
+                  <p className="text-xs text-muted-foreground">
+                    {nightSurveyRows.length} respuesta(s), independientes de las noches ya agregadas a la reserva.
+                    Las solicitudes no generan cargos ni reservas automáticas.
+                  </p>
+                  {nightSurveyRows.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Todavía no hay respuestas.</p>
+                  ) : nightSurveyRows.map((survey: any) => {
+                    const participant = rows.find((row) => row.reservation_id === survey.reservation_id);
+                    const choice = survey.data?.respuesta;
+                    const label = choice === "antes" ? "Una noche antes" :
+                      choice === "despues" ? "Una noche después" :
+                      choice === "ambas" ? "Antes y después" :
+                      choice === "ninguna" ? "No necesita noches extras" : "Respuesta por revisar";
+                    return (
+                      <div key={survey.reservation_id} className="flex flex-wrap gap-2 items-center justify-between rounded-md bg-muted/30 p-2 text-xs">
+                        <span>{participant ? `${participant.nombre} ${participant.apellido}`.trim() : "Participante"}</span>
+                        <span className="text-muted-foreground">{label}</span>
+                        <Badge variant="outline">
+                          {choice === "ninguna" ? "No solicitada" : "Pendiente de Administración"}
+                        </Badge>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <div className="space-y-1">
                 <h3 className="text-sm font-medium">Extras contratados · servicios independientes</h3>
                 <p className="text-xs text-muted-foreground">Alojamiento extra: {extrasResumen.filter((g) => isNocheExtra(g.nombre)).reduce((sum, g) => sum + g.cantidad, 0)} noche(s) registrada(s). Este conteo no incluye respuestas de extensión del programa.</p>
