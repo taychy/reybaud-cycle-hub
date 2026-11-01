@@ -1,3 +1,6 @@
+## San Luis · Fechas visibles en Mi Reserva (01/11)
+- [ ] Usar presentación reprogramada y contexto seguro ya consultado; probar fechas generales/elección propia y navegación móvil sin guardar. No publicar ni cambiar datos.
+
 ## Jornada extra · Tarjeta simple (01/11)
 - [x] Tarjeta simple y dos opciones con mismos valores backend; consultas previas preservadas. QA admin lee tres referencias reales a confirmar; participante muestra valor pendiente. 38 pruebas, navegador móvil/admin sin guardar, compilación OK.
 - [ ] Aprobar tarifa/jornada y resolver matiz de Valeria antes de venta; publicación posterior requiere autorización. Extras inactivos y base intacta.
