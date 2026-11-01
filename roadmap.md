@@ -1,3 +1,7 @@
+## San Luis · Auditoría de fechas de extensión (01/11)
+- [x] Cruzadas tres ventanas y siete elegibles; texto pregunta por servicios dentro de fechas ya elegidas, con guardia de duración coherente. 10 Vitest y navegador QA/admin móvil/escritorio sin guardar; compilación OK.
+- [ ] Definir jornada y servicios/condiciones comerciales; conciliar Valeria (actividad 6–9, alojamiento 5–9). Bloqueado por decisión del organizador; importes, respuestas y base intactos, sin publicar.
+
 ## Encuesta gastronómica · Acceso sin cuenta (01/11)
 - [x] Interfaz separa extensión del programa y noches de alojamiento; elimina conflicto automático en reporte, 9 pruebas y QA móvil/escritorio sin guardar ni publicar.
 - [x] Auditoría día adicional: pregunta publicada en Mi Viaje, 7 elegibles/3 noches previas, 0 respuestas comerciales; Extras inactivos, sin envío acreditado.

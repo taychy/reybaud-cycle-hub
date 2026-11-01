@@ -1,7 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { isAdditionalDayExtension, needsAdditionalDayReview, showProgramExtensionReview } from "./tripAdditionalDay";
+import { additionalDaySelectedStay, isAdditionalDayExtension, needsAdditionalDayReview, showProgramExtensionReview } from "./tripAdditionalDay";
 
 describe("día adicional", () => {
+  it("5–9 conserva las fechas elegidas y cuatro noches, sin ofrecer 5–10 o 4–9", () => {
+    expect(additionalDaySelectedStay({ start: "2026-11-05", end: "2026-11-09", original_nights: 3, selected_nights: 4 })).toEqual({ start: "2026-11-05", end: "2026-11-09", selectedNights: 4, originalNights: 3 });
+  });
+  it("5–8 son tres noches, no corresponde pregunta de jornada adicional", () => {
+    expect(additionalDaySelectedStay({ start: "2026-11-05", end: "2026-11-08", original_nights: 3, selected_nights: 3 })).toBeNull();
+  });
+  it("6–9 son tres noches, no corresponde pregunta de jornada adicional", () => {
+    expect(additionalDaySelectedStay({ start: "2026-11-06", end: "2026-11-09", original_nights: 3, selected_nights: 3 })).toBeNull();
+  });
+  it("rechaza duración incoherente con las fechas sin corregirlas", () => {
+    expect(additionalDaySelectedStay({ start: "2026-11-05", end: "2026-11-08", original_nights: 3, selected_nights: 4 })).toBeNull();
+  });
   it("4 noches frente al paquete original de 3 es ampliación", () => expect(isAdditionalDayExtension({ original_nights: 3, selected_nights: 4 })).toBe(true));
   it("3 noches reprogramadas no son ampliación", () => expect(isAdditionalDayExtension({ original_nights: 3, selected_nights: 3 })).toBe(false));
   it("respuesta No queda en revisión", () => expect(needsAdditionalDayReview({ status: "no", existing_night: false })).toBe(true));

@@ -17,6 +17,20 @@ export const ADDITIONAL_DAY_STATUS_LABELS: Record<AdditionalDayStatus, string> =
 /** The extension is exactly one additional night compared with the original package. */
 export const isAdditionalDayExtension = (c: Pick<AdditionalDayContext, "original_nights" | "selected_nights">) =>
   c.selected_nights === c.original_nights + 1;
+/** Presentation stays inside the validated chosen stay; it never proposes new dates. */
+export const additionalDaySelectedStay = (c: Pick<AdditionalDayContext, "start" | "end" | "original_nights" | "selected_nights">) => {
+  const parse = (value: string) => {
+    const parts = value.split("-").map(Number);
+    if (parts.length !== 3 || parts.some((part) => !Number.isInteger(part))) return NaN;
+    const [year, month, day] = parts;
+    const date = new Date(Date.UTC(year, month - 1, day));
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return NaN;
+    return date.getTime();
+  };
+  const nights = (parse(c.end) - parse(c.start)) / 86400000;
+  if (!isAdditionalDayExtension(c) || nights !== c.selected_nights) return null;
+  return { start: c.start, end: c.end, selectedNights: nights, originalNights: c.original_nights };
+};
 export const needsAdditionalDayReview = (c: Pick<AdditionalDayContext, "status" | "existing_night">) =>
   c.status === "no" || (c.existing_night && c.status !== "resuelto");
 
