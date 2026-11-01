@@ -1,6 +1,6 @@
 ## Encuesta · Apertura y actualización PWA (01/11)
-- [ ] Integrar chequeo inmediato de versión y apertura exacta de enlaces generales/personales con actualizador existente; sesión/query intactas, sin envíos ni base.
-- [ ] Autoabrir gastronomía por token propio solo con reserva confirmada y encuesta activa; probar enlaces, límite de recargas, offline y móviles sin guardar.
+- [x] Actualizador global comprueba rutas al entrar/relanzar y no monta encuesta antes; chequeo no-store con timeout, URLs/sesión intactas y limpieza solo app.
+- [x] Autoapertura por encuesta=gastronomia/step=gastronomia con token validado, confirmada y encuesta activa; 32 Vitest, Chromium móvil/Firefox escritorio simulados: launch, login, dos recargas máximo, offline y sesión/query. Cuenta propia abre encuesta real sin guardar; compilación OK.
 - [ ] Publicación y verificación del enlace productivo posteriores: requieren autorización; Gmail a cargo de la usuaria.
 
 ## San Luis · Auditoría de fechas de extensión (01/11)
