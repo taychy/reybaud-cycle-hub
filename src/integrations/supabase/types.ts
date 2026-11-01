@@ -18834,6 +18834,7 @@ export type Database = {
           source_reservation_id: string
         }[]
       }
+      admin_enable_food_meals: { Args: { p_event: string }; Returns: Json }
       admin_extra_night_preview: {
         Args: {
           p_addon_id: string
@@ -20153,6 +20154,7 @@ export type Database = {
           roommates: string[]
         }[]
       }
+      get_my_trip_food_survey: { Args: { p_event: string }; Returns: Json }
       get_package_active_price: {
         Args: { p_now?: string; p_package_id: string }
         Returns: {
