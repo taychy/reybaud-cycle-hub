@@ -15938,6 +15938,7 @@ export type Database = {
         Row: {
           answer: string | null
           case_key: string
+          companions_answer: string | null
           event_id: string
           owner_id: string
           updated_at: string | null
@@ -15945,6 +15946,7 @@ export type Database = {
         Insert: {
           answer?: string | null
           case_key: string
+          companions_answer?: string | null
           event_id: string
           owner_id: string
           updated_at?: string | null
@@ -15952,6 +15954,7 @@ export type Database = {
         Update: {
           answer?: string | null
           case_key?: string
+          companions_answer?: string | null
           event_id?: string
           owner_id?: string
           updated_at?: string | null
@@ -15970,6 +15973,7 @@ export type Database = {
         Row: {
           actor_id: string | null
           answer: string
+          companions_answer: string | null
           created_at: string
           eligibility_snapshot: Json
           event_id: string
@@ -15985,6 +15989,7 @@ export type Database = {
         Insert: {
           actor_id?: string | null
           answer: string
+          companions_answer?: string | null
           created_at?: string
           eligibility_snapshot: Json
           event_id: string
@@ -16000,6 +16005,7 @@ export type Database = {
         Update: {
           actor_id?: string | null
           answer?: string
+          companions_answer?: string | null
           created_at?: string
           eligibility_snapshot?: Json
           event_id?: string
@@ -18649,6 +18655,11 @@ export type Database = {
         Returns: boolean
       }
       _trip_day_context: { Args: { p_reservation_id: string }; Returns: Json }
+      _trip_day_roommate_mismatch: {
+        Args: { p_reservation_id: string }
+        Returns: boolean
+      }
+      _trip_day_shared: { Args: { p_reservation_id: string }; Returns: boolean }
       _trip_food_stay: { Args: { p_reservation_id: string }; Returns: Json }
       _turnera_calcular_movimiento: {
         Args: { p_servicio_id: string }
@@ -21510,7 +21521,15 @@ export type Database = {
         Args: { p_answer: string; p_reservation_id: string; p_token?: string }
         Returns: Json
       }
+      save_trip_additional_day_companions: {
+        Args: { p_answer: string; p_reservation_id: string; p_token?: string }
+        Returns: Json
+      }
       save_trip_additional_day_qa: {
+        Args: { p_answer: string; p_case_key: string; p_event_id: string }
+        Returns: undefined
+      }
+      save_trip_additional_day_qa_companions: {
         Args: { p_answer: string; p_case_key: string; p_event_id: string }
         Returns: undefined
       }
