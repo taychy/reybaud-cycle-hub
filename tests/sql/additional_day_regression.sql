@@ -4,6 +4,9 @@ CREATE FUNCTION denied_day(q text,label text) RETURNS void LANGUAGE plpgsql AS $
 SELECT assert_day((_trip_day_context('40000000-0000-0000-0000-000000000001')->>'selected_nights')::int=4,'4 nights versus original 3');
 SELECT assert_day(_trip_day_context('40000000-0000-0000-0000-000000000002') IS NULL,'5–8 excluded');
 SELECT assert_day(_trip_day_context('40000000-0000-0000-0000-000000000003') IS NULL,'6–9 excluded');
+INSERT INTO event_addons VALUES('30000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001',NULL,false,60000,'ARS','noche_extra','Noche extra');
+INSERT INTO reservation_addons VALUES('40000000-0000-0000-0000-000000000001','30000000-0000-0000-0000-000000000001','antes');
+SELECT assert_day((_trip_day_context('40000000-0000-0000-0000-000000000001')->>'existing_night')::boolean,'prior night alerts without discount or purchase');
 SET ROLE anon;
 SELECT denied_day($q$SELECT get_trip_additional_day('40000000-0000-0000-0000-000000000001')$q$,'anonymous without token denied');
 SELECT denied_day($q$SELECT get_trip_additional_day('40000000-0000-0000-0000-000000000001',repeat('2',64))$q$,'another reservation token denied');
@@ -42,6 +45,6 @@ UPDATE reservation_rescheduling_requests SET review_status='validada' WHERE rese
 UPDATE event_reservations SET reservation_status='cancelada' WHERE id='40000000-0000-0000-0000-000000000001';
 SELECT assert_day(_trip_day_context('40000000-0000-0000-0000-000000000001') IS NULL,'cancelled excluded');
 SELECT denied_day($q$SELECT save_trip_additional_day('40000000-0000-0000-0000-000000000001','interesado',repeat('1',64))$q$,'cancelled cannot save');
-SELECT assert_day((SELECT count(*) FROM reservation_addons)=0,'no purchases generated');
+SELECT assert_day((SELECT count(*) FROM reservation_addons)=1,'no purchases generated; prior night preserved');
 SELECT assert_day((SELECT bool_and(NOT activo) FROM event_addons),'provisional extra inactive');
 SELECT assert_day((SELECT count(*) FROM trip_additional_day_responses)=1,'QA did not create commercial response');

@@ -1,9 +1,12 @@
+\set ON_ERROR_STOP on
+DO $$ BEGIN IF to_regclass('public.events') IS NOT NULL THEN RAISE EXCEPTION 'Requires empty LOCAL database'; END IF; END $$;
 CREATE SCHEMA auth;
+GRANT USAGE ON SCHEMA auth TO PUBLIC;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('test.actor',true),'')::uuid $$;
 CREATE FUNCTION current_alumno_id() RETURNS uuid LANGUAGE sql AS $$ SELECT auth.uid() $$;
 CREATE FUNCTION _rescheduling_admin() RETURNS boolean LANGUAGE sql AS $$ SELECT coalesce(current_setting('test.admin',true),'')='on' $$;
 CREATE FUNCTION can_access_trip_food_survey_qa(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT auth.uid() IS NOT NULL $$;
-CREATE ROLE authenticated; CREATE ROLE anon; CREATE ROLE service_role;
+DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role; END IF; END $$;
 CREATE TABLE events(id uuid PRIMARY KEY,date date,end_date date);
 CREATE TABLE event_packages(id uuid PRIMARY KEY,event_id uuid,nombre text);
 CREATE TABLE event_addons(id uuid PRIMARY KEY,event_id uuid,aplica_a_paquetes uuid[],activo boolean,precio numeric,currency text,categoria text,nombre text);

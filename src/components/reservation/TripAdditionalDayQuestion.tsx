@@ -4,11 +4,15 @@ import { Button } from "@/components/ui/button";
 import { CalendarPlus, Loader2 } from "lucide-react";
 import { ADDITIONAL_DAY_OPTIONS, type AdditionalDayAnswer, type AdditionalDayContext } from "@/lib/tripAdditionalDay";
 
-export const AdditionalDayQuestionCard = ({ context, saving, onAnswer }: { context: Pick<AdditionalDayContext, "answer" | "existing_night" | "status">; saving: boolean; onAnswer: (a: AdditionalDayAnswer) => void }) => (
+const literalDate = (value: string) => {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString("es-AR", { day: "numeric", month: "long" });
+};
+export const AdditionalDayQuestionCard = ({ context, saving, onAnswer }: { context: Pick<AdditionalDayContext, "answer" | "existing_night" | "status" | "start" | "end" | "original_nights" | "original_days">; saving: boolean; onAnswer: (a: AdditionalDayAnswer) => void }) => (
   <section className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3" aria-labelledby="additional-day-title">
     <div className="flex gap-3"><CalendarPlus className="w-5 h-5 text-primary shrink-0 mt-0.5" /><div>
       <h3 id="additional-day-title" className="font-heading font-semibold text-sm uppercase tracking-wide">Día adicional</h3>
-      <p className="text-sm mt-2 leading-relaxed">Elegiste participar del 5 al 9 de noviembre. Tu paquete original incluía 3 noches y 4 jornadas; esta alternativa suma una noche y una jornada más. ¿Querés agregar el día adicional completo a tu viaje?</p>
+      <p className="text-sm mt-2 leading-relaxed">Elegiste participar del {literalDate(context.start)} al {literalDate(context.end)}. Tu paquete original incluía {context.original_nights} noches y {context.original_days} jornadas; esta alternativa suma una noche y una jornada más. ¿Querés agregar el día adicional completo a tu viaje?</p>
     </div></div>
     <div className="grid gap-2">{ADDITIONAL_DAY_OPTIONS.map((o) => (
       <Button key={o.value} type="button" variant={context.answer === o.value ? "default" : "outline"} className="h-auto min-h-11 whitespace-normal justify-start text-left" disabled={saving} aria-pressed={context.answer === o.value} onClick={() => onAnswer(o.value)}>{o.label}</Button>
@@ -26,12 +30,14 @@ export default function TripAdditionalDayQuestion({ reservationId, token }: { re
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
+    setContext(null); setError(null);
     (supabase as any).rpc("get_trip_additional_day", { p_reservation_id: reservationId, p_token: token ?? null })
       .then(({ data }: any) => { if (active) setContext(data ?? null); });
     return () => { active = false; };
   }, [reservationId, token]);
   if (!context) return null;
   const save = async (answer: AdditionalDayAnswer) => {
+    if (saving) return;
     setSaving(true); setError(null);
     const { data, error: e } = await (supabase as any).rpc("save_trip_additional_day", { p_reservation_id: reservationId, p_answer: answer, p_token: token ?? null });
     setSaving(false);
