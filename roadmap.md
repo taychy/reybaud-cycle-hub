@@ -1,3 +1,6 @@
+## San Luis · Auditoría de fechas de extensión (01/11)
+- [ ] Cruzar ventanas, siete elegibles, costos y servicios; corregir solo presentación falsa y probar tres ventanas, sin escrituras comerciales ni publicación.
+
 ## Encuesta gastronómica · Acceso sin cuenta (01/11)
 - [x] Interfaz separa extensión del programa y noches de alojamiento; elimina conflicto automático en reporte, 9 pruebas y QA móvil/escritorio sin guardar ni publicar.
 - [x] Auditoría día adicional: pregunta publicada en Mi Viaje, 7 elegibles/3 noches previas, 0 respuestas comerciales; Extras inactivos, sin envío acreditado.
