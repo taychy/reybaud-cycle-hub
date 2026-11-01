@@ -1,0 +1,25 @@
+\set ON_ERROR_STOP on
+DO $$ BEGIN IF to_regclass('public.events') IS NOT NULL THEN RAISE EXCEPTION 'Requires empty LOCAL database'; END IF; END $$;
+CREATE SCHEMA auth;
+GRANT USAGE ON SCHEMA auth TO PUBLIC;
+CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT nullif(current_setting('test.actor',true),'')::uuid $$;
+CREATE FUNCTION current_alumno_id() RETURNS uuid LANGUAGE sql AS $$ SELECT auth.uid() $$;
+CREATE FUNCTION _rescheduling_admin() RETURNS boolean LANGUAGE sql AS $$ SELECT coalesce(current_setting('test.admin',true),'')='on' $$;
+CREATE FUNCTION can_access_trip_food_survey_qa(uuid) RETURNS boolean LANGUAGE sql AS $$ SELECT auth.uid() IS NOT NULL $$;
+DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role; END IF; END $$;
+CREATE TABLE events(id uuid PRIMARY KEY,date date,end_date date);
+CREATE TABLE event_packages(id uuid PRIMARY KEY,event_id uuid,nombre text);
+CREATE TABLE event_addons(id uuid PRIMARY KEY,event_id uuid,aplica_a_paquetes uuid[],activo boolean,precio numeric,currency text,categoria text,nombre text);
+CREATE TABLE event_reservations(id uuid PRIMARY KEY,event_id uuid,package_id uuid,alumno_id uuid,external_participant_id uuid,external_first_name text,external_last_name text,access_token text,reservation_status text);
+CREATE TABLE reservation_rescheduling_requests(reservation_id uuid PRIMARY KEY,event_id uuid,choice text,review_status text,snapshot jsonb,revision integer);
+CREATE TABLE reservation_addons(reservation_id uuid,addon_id uuid,noche_timing text);
+CREATE TABLE alumnos(id uuid,nombre text,apellido text);
+CREATE TABLE event_external_participants(id uuid,nombre text,apellido text);
+CREATE TABLE trip_food_survey_qa_access(event_id uuid,owner_id uuid,active boolean);
+CREATE FUNCTION _trip_food_stay(uuid) RETURNS jsonb LANGUAGE sql AS $$ SELECT snapshot->'option' FROM reservation_rescheduling_requests WHERE reservation_id=$1 AND review_status='validada' $$;
+INSERT INTO events VALUES('10000000-0000-0000-0000-000000000001','2026-10-22','2026-10-25');
+INSERT INTO event_packages VALUES('20000000-0000-0000-0000-000000000001','10000000-0000-0000-0000-000000000001','Doble PC');
+INSERT INTO event_addons VALUES('a2a86448-789a-4f86-bf5b-c2b1e179c111','10000000-0000-0000-0000-000000000001',ARRAY['20000000-0000-0000-0000-000000000001'::uuid],false,280000,'ARS','servicio','Día');
+INSERT INTO event_reservations SELECT ('40000000-0000-0000-0000-00000000000'||i)::uuid,'10000000-0000-0000-0000-000000000001','20000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',null,null,null,repeat(i::text,64),'reserva_confirmada' FROM generate_series(1,3)i;
+INSERT INTO reservation_rescheduling_requests SELECT id,event_id,CASE right(id::text,1) WHEN '1' THEN 'attend_5_9' WHEN '2' THEN 'attend_5_8' ELSE 'attend_6_9' END,'validada',jsonb_build_object('option',jsonb_build_object('start',CASE right(id::text,1) WHEN '3' THEN '2026-11-06' ELSE '2026-11-05' END,'end',CASE right(id::text,1) WHEN '2' THEN '2026-11-08' ELSE '2026-11-09' END)),1 FROM event_reservations;
+INSERT INTO trip_food_survey_qa_access VALUES('10000000-0000-0000-0000-000000000001','50000000-0000-0000-0000-000000000001',true);

@@ -15830,6 +15830,212 @@ export type Database = {
         }
         Relationships: []
       }
+      trip_additional_day_config: {
+        Row: {
+          addon_id: string
+          event_id: string
+          extra_nights: number
+          original_nights: number
+          package_id: string
+          required_choice: string
+        }
+        Insert: {
+          addon_id: string
+          event_id: string
+          extra_nights?: number
+          original_nights: number
+          package_id: string
+          required_choice: string
+        }
+        Update: {
+          addon_id?: string
+          event_id?: string
+          extra_nights?: number
+          original_nights?: number
+          package_id?: string
+          required_choice?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_additional_day_config_addon_id_fkey"
+            columns: ["addon_id"]
+            isOneToOne: false
+            referencedRelation: "event_addons"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_additional_day_config_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_additional_day_config_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_additional_day_history: {
+        Row: {
+          actor_id: string | null
+          after_data: Json
+          before_data: Json | null
+          created_at: string
+          event_id: string
+          id: string
+          reservation_id: string
+          source: string
+        }
+        Insert: {
+          actor_id?: string | null
+          after_data: Json
+          before_data?: Json | null
+          created_at?: string
+          event_id: string
+          id?: string
+          reservation_id: string
+          source: string
+        }
+        Update: {
+          actor_id?: string | null
+          after_data?: Json
+          before_data?: Json | null
+          created_at?: string
+          event_id?: string
+          id?: string
+          reservation_id?: string
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_additional_day_history_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_additional_day_history_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_additional_day_history_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
+      trip_additional_day_qa: {
+        Row: {
+          answer: string | null
+          case_key: string
+          event_id: string
+          owner_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          answer?: string | null
+          case_key: string
+          event_id: string
+          owner_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          answer?: string | null
+          case_key?: string
+          event_id?: string
+          owner_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_additional_day_qa_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_additional_day_responses: {
+        Row: {
+          actor_id: string | null
+          answer: string
+          created_at: string
+          eligibility_snapshot: Json
+          event_id: string
+          reservation_id: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by: string | null
+          revision: number
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          actor_id?: string | null
+          answer: string
+          created_at?: string
+          eligibility_snapshot: Json
+          event_id: string
+          reservation_id: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          revision?: number
+          source: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          actor_id?: string | null
+          answer?: string
+          created_at?: string
+          eligibility_snapshot?: Json
+          event_id?: string
+          reservation_id?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          revision?: number
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_additional_day_responses_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_additional_day_responses_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_additional_day_responses_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       trip_food_survey_qa: {
         Row: {
           active: boolean
@@ -18438,6 +18644,11 @@ export type Database = {
         Returns: number
       }
       _supplier_variant_norm: { Args: { v: Json }; Returns: string }
+      _trip_day_access: {
+        Args: { p_reservation_id: string; p_token?: string }
+        Returns: boolean
+      }
+      _trip_day_context: { Args: { p_reservation_id: string }; Returns: Json }
       _trip_food_stay: { Args: { p_reservation_id: string }; Returns: Json }
       _turnera_calcular_movimiento: {
         Args: { p_servicio_id: string }
@@ -18724,6 +18935,10 @@ export type Database = {
         Args: { p_event_id: string }
         Returns: Json
       }
+      admin_resolve_trip_additional_day: {
+        Args: { p_note: string; p_reservation_id: string }
+        Returns: undefined
+      }
       admin_review_rescheduling: {
         Args: {
           p_command_id: string
@@ -18785,6 +19000,14 @@ export type Database = {
           p_nota?: string
           p_reservation_id: string
         }
+        Returns: Json
+      }
+      admin_trip_additional_day_link: {
+        Args: { p_reservation_id: string }
+        Returns: string
+      }
+      admin_trip_additional_day_report: {
+        Args: { p_event_id: string }
         Returns: Json
       }
       admin_update_turnera_reservation: {
@@ -20201,6 +20424,10 @@ export type Database = {
           titulo: string
         }[]
       }
+      get_trip_additional_day: {
+        Args: { p_reservation_id: string; p_token?: string }
+        Returns: Json
+      }
       get_trip_food_stay: {
         Args: { p_reservation_id: string; p_token?: string }
         Returns: Json
@@ -21276,6 +21503,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_trip_additional_day: {
+        Args: { p_answer: string; p_reservation_id: string; p_token?: string }
+        Returns: Json
+      }
+      save_trip_additional_day_qa: {
+        Args: { p_answer: string; p_case_key: string; p_event_id: string }
+        Returns: undefined
       }
       save_trip_food_survey_qa: {
         Args: { p_data: Json; p_id: string }

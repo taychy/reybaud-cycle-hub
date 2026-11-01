@@ -1,3 +1,9 @@
+## San Luis · Confirmación personalizada del día adicional (31/10)
+- [x] Pregunta de interés por reserva, dueño/token y elegibilidad dinámica; 4 versus 3 noches, sin compra/cargos, con historial y respuesta editable.
+- [x] Reporte admin dinámico: 7 elegibles (3 doble/2 individual/2 triple), 3 alertas de noche previa; enlace existente bajo demanda, revisión con nota, sin envíos.
+- [x] 26 controles SQL locales y 12 Vitest; navegador sesión personal guarda/recupera las tres opciones en QA, móvil/escritorio y login anónimo; 0 respuestas comerciales, compilación correcta.
+- [ ] Publicación de interfaz y prueba laboral/Claudio: requieren autorización de publicación y sesiones propias; ruta QA /pruebas/dia-adicional?evento=67b4e85d-b00b-4b74-9644-99458d948c65 disponible en preview.
+
 ## San Luis · Jornada adicional provisional (31/10)
 - [x] Registrados tres Extras inactivos por modalidad con fuente de presupuesto y condiciones de asistencia, sin cambiar simulación.
 - [x] Inserción idempotente; 10 controles SQL aprobados, 46 tests relevantes; siete Extras anteriores, 42 reservas, 143 pagos y 22 asignaciones intactos por huella antes/después. Navegador con sesión propia confirma precio, interruptor apagado y condiciones completas, sin guardar.
