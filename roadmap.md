@@ -1,5 +1,6 @@
 ## Jornada extra · Tarjeta simple (01/11)
-- [ ] Simplificar pregunta/opciones y reporte; referencia provisional por paquete en QA, valor pendiente sin tarifa aprobada. Probar ventanas/precios sin guardar ni publicar.
+- [x] Tarjeta simple y dos opciones con mismos valores backend; consultas previas preservadas. QA admin lee tres referencias reales a confirmar; participante muestra valor pendiente. 38 pruebas, navegador móvil/admin sin guardar, compilación OK.
+- [ ] Aprobar tarifa/jornada y resolver matiz de Valeria antes de venta; publicación posterior requiere autorización. Extras inactivos y base intacta.
 
 ## Encuesta · Apertura y actualización PWA (01/11)
 - [x] Actualizador global comprueba rutas al entrar/relanzar y no monta encuesta antes; chequeo no-store con timeout, URLs/sesión intactas y limpieza solo app.
