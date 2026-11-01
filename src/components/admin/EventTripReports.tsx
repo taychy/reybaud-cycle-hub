@@ -7,7 +7,7 @@
  * Ambos exportables a CSV.
  */
 import { useEffect, useState, useMemo } from "react";
-import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS, MEAL_TYPE_LABELS, formatMealDate, stayMealCoverage, dedupeMeals } from "@/lib/foodSurvey";
+import { foodSurveyStatus, describeFoodSurvey, FOOD_STATUS_LABELS, MEAL_TYPE_LABELS, formatMealDate, stayMealCoverage, dedupeMeals, MEAL_INTEREST_LABELS, normalizeMealInterest } from "@/lib/foodSurvey";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -309,6 +309,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
         encuesta_obs: sd?.observaciones || "",
         encuesta_actualizada: sd?.actualizado_at ? new Date(sd.actualizado_at).toLocaleString("es-AR") : "",
         pension_solicitud: [
+          r.pension_incluida !== true && normalizeMealInterest(sd?.comidas_interes_modo) ? MEAL_INTEREST_LABELS[normalizeMealInterest(sd?.comidas_interes_modo) as keyof typeof MEAL_INTEREST_LABELS] : "",
           sd?.pension_interes ? "Solicitó almuerzos y cenas / pensión completa (encuesta anterior)" : "",
           Array.isArray(sd?.comidas_solicitadas) && sd.comidas_solicitadas.length && r.pension_incluida !== true
             ? `Solicita almuerzos y cenas: ${dedupeMeals(sd.comidas_solicitadas).map((m) => `${MEAL_TYPE_LABELS[m.tipo]} ${formatMealDate(m.fecha)}`).join(", ")}`
