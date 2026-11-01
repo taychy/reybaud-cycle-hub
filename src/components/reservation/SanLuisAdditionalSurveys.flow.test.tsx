@@ -40,7 +40,7 @@ describe("encuestas en Mi Reserva", () => {
     vi.clearAllMocks();
     getReservation.mockResolvedValue(booking() as any);
     save.mockResolvedValue({ ok: true } as any);
-    rpc.mockImplementation(async (name: string) => {
+    rpc.mockImplementation((async (name: string) => {
       if (name === "manage_trip_extras_by_token") {
         return { data: { ok: true, event_id: SAN_LUIS_EVENT_ID, addons: [], contracted: [] }, error: null } as any;
       }
@@ -48,7 +48,7 @@ describe("encuestas en Mi Reserva", () => {
         return { data: { ok: true, actual: null }, error: null } as any;
       }
       return { data: { answer: null }, error: null } as any;
-    });
+    }) as any);
   });
 
   it("guarda la noche extra como solicitud y sigue mostrando la reserva completa", async () => {
@@ -84,7 +84,7 @@ describe("encuestas en Mi Reserva", () => {
   });
 
   it("no vuelve a ofrecer noches ya contratadas", async () => {
-    rpc.mockImplementation(async (name: string) => {
+    rpc.mockImplementation((async (name: string) => {
       if (name === "manage_trip_extras_by_token") {
         return { data: {
           ok: true, event_id: SAN_LUIS_EVENT_ID,
@@ -94,7 +94,7 @@ describe("encuestas en Mi Reserva", () => {
         }, error: null } as any;
       }
       return { data: { answer: null }, error: null } as any;
-    });
+    }) as any);
 
     render(<SanLuisAdditionalSurveys {...sharedProps} />);
     expect(await screen.findByText(/Ya tenés noche extra registrada/)).toBeTruthy();
