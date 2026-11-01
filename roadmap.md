@@ -1,3 +1,8 @@
+## San Luis · Activar encuesta real sin programa (01/11)
+- [ ] Separar activación de preferencias y oferta gastronómica; interés editable sin servicios ficticios ni compras.
+- [ ] Enlace general privado, pruebas cliente/token/canceladas y reporte administrativo.
+- [ ] Activar solo San Luis después de pruebas; verificar flag, invariantes y comunicar publicación pendiente.
+
 ## San Luis · Confirmación personalizada del día adicional (31/10)
 - [x] Pregunta de interés por reserva, dueño/token y elegibilidad dinámica; 4 versus 3 noches, sin compra/cargos, con historial y respuesta editable.
 - [x] Reporte admin dinámico: 7 elegibles (3 doble/2 individual/2 triple), 3 alertas de noche previa; enlace existente bajo demanda, revisión con nota, sin envíos.
