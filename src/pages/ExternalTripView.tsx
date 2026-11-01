@@ -19,7 +19,7 @@ import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import TripTokenExtrasCard from "@/components/reservation/TripTokenExtrasCard";
 import TripFormDrawer from "@/components/reservation/TripFormDrawer";
 import TripFoodSurveyDrawer from "@/components/reservation/TripFoodSurveyDrawer";
-import TripAdditionalDayQuestion from "@/components/reservation/TripAdditionalDayQuestion";
+import SanLuisAdditionalSurveys from "@/components/reservation/SanLuisAdditionalSurveys";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
 import { wantsFoodSurvey } from "@/lib/appUpdate";
 import TripChoiceSurveyDrawer from "@/components/reservation/TripChoiceSurveyDrawer";
@@ -256,7 +256,7 @@ const ExternalTripView = () => {
   const eventDateFormatted = rescheduled?.dateLabel ?? new Date(year, month - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 
   return (
-    <div className="min-h-screen bg-background">
+    <div id="reserva-completa" className="min-h-screen bg-background">
       {/* Header */}
       <div className="relative">
         {event.image_url && (
@@ -422,7 +422,7 @@ const ExternalTripView = () => {
           </div>
         )}
 
-        <TripAdditionalDayQuestion reservationId={reservation.id} token={token ?? undefined} />
+        <SanLuisAdditionalSurveys eventId={event.id} reservationId={reservation.id} token={token ?? ""} packageName={pkg?.nombre} lodgingName={lodging?.nombre} stayLabel={rescheduled?.participantDateLabel} />
         {/* Checklist */}
         {checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="rounded-xl border border-border p-4 space-y-4">
