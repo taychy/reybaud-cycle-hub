@@ -1,3 +1,8 @@
+## Encuesta gastronómica · Acceso sin cuenta (01/11)
+- [ ] Identificación neutral, verificación OTP limitada a encuesta y recepción privada pendiente sin asociación automática.
+- [ ] Bandeja admin con conciliación explícita auditada, pruebas negativas y recorrido anónimo/autenticado sin correos reales.
+- [ ] Publicación posterior por la usuaria; no publicar ni enviar mensajes durante implementación.
+
 ## San Luis · Activar encuesta real sin programa (01/11)
 - [x] Separar activación de preferencias y oferta gastronómica; interés editable sin servicios ficticios ni compras. 47 Vitest y controles PostgreSQL aislados aprobados.
 - [x] Enlace general privado y reporte de interés; navegador con sesión personal y token propio abre, guarda y recupera en Scarlett test, móvil/escritorio. Sin pensión: pruebas aisladas de las tres opciones, no escrituras en clientes reales.
