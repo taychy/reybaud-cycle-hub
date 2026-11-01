@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/currency";
-import { ADDITIONAL_DAY_STATUS_LABELS, showProgramExtensionReview, type AdditionalDayContext } from "@/lib/tripAdditionalDay";
+import { ADDITIONAL_DAY_STATUS_LABELS, additionalDayRoomingReview, type AdditionalDayCompanions, showProgramExtensionReview, type AdditionalDayContext } from "@/lib/tripAdditionalDay";
 import { useToast } from "@/hooks/use-toast";
 
-type Row = AdditionalDayContext & { name: string; package: string; estimated_amount: number; currency: string; resolution_note: string | null };
+type Row = AdditionalDayContext & { name: string; package: string; estimated_amount: number; currency: string; resolution_note: string | null; shared: boolean; roommate_mismatch: boolean; companions_answer: AdditionalDayCompanions | null };
+const COMPANIONS: Record<AdditionalDayCompanions, string> = { si: "Compañeros: sí se quedan", no: "Compañeros: no se quedan", no_se: "Compañeros: no sabe" };
 
 export default function EventAdditionalDayReport({ eventId }: { eventId: string }) {
   const [rows, setRows] = useState<Row[]>([]);
@@ -34,12 +35,16 @@ export default function EventAdditionalDayReport({ eventId }: { eventId: string 
   if (rows.length === 0) return null;
   return (
     <section className="rounded-lg border border-border p-3 space-y-3">
-      <div><h3 className="font-medium text-sm">Jornada extra de Training Camp</h3><p className="text-xs text-muted-foreground">{rows.length} elegible(s) · solicitudes dentro de las fechas elegidas, pendientes de confirmación. Valores de referencia a confirmar; no son compras.</p><p className="text-xs text-muted-foreground mt-1">{rows.filter((r) => r.existing_night).length} con alojamiento extra independiente.</p></div>
+      <div><h3 className="font-medium text-sm">Jornada extra de Training Camp</h3><p className="text-xs text-muted-foreground">{rows.length} elegible(s) · solicitudes dentro de las fechas elegidas, pendientes de confirmación. Valores aprobados; los Extras siguen inactivos y no son compras. Habitaciones compartidas: no se cambia rooming ni precio automáticamente.</p><p className="text-xs text-muted-foreground mt-1">{rows.filter((r) => r.existing_night).length} con alojamiento extra independiente.</p></div>
       <div className="space-y-2">{rows.map((r) => (
         <div key={r.reservation_id} className="rounded-md bg-muted/30 p-2 text-xs flex flex-wrap items-center gap-2">
           <span className="font-medium min-w-40">{r.name}</span><span>{r.package}</span>
           <Badge variant="outline">{ADDITIONAL_DAY_STATUS_LABELS[r.status]}</Badge>
-          <span>Referencia {formatPrice(r.estimated_amount, r.currency)} · a confirmar</span>
+          <span>Valor {formatPrice(r.estimated_amount, r.currency)} · aprobado, Extra inactivo</span>
+          {r.shared && <Badge variant="outline">Compartida</Badge>}
+          {r.roommate_mismatch && <Badge variant="outline">Compañero con otra estadía</Badge>}
+          {r.companions_answer && <Badge variant="outline">{COMPANIONS[r.companions_answer]}</Badge>}
+          {additionalDayRoomingReview(r) && <Badge variant="destructive">Revisar habitación · posible individual sujeta a disponibilidad</Badge>}
           <span>Estadía elegida: {r.start.split("-").reverse().join("/")} → {r.end.split("-").reverse().join("/")} · paquete original {r.original_nights} noches</span>
           {r.existing_night && <Badge variant="outline">Alojamiento extra independiente</Badge>}
           {r.stale && <Badge variant="outline">Respuesta anterior desactualizada</Badge>}

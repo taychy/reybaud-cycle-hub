@@ -39,3 +39,23 @@ describe("día adicional", () => {
     }
   });
 });
+import { additionalDayRoomingReview, askAdditionalDayCompanions } from "./tripAdditionalDay";
+describe("jornada extra en habitación compartida", () => {
+  it("pregunta por compañeros solo si dice Sí y es compartida", () => {
+    expect(askAdditionalDayCompanions({ answer: "interesado", shared: true })).toBe(true);
+    expect(askAdditionalDayCompanions({ answer: "interesado", shared: false })).toBe(false);
+    expect(askAdditionalDayCompanions({ answer: "no", shared: true })).toBe(false);
+  });
+  it("compañeros que no se quedan o sin saber requieren revisión administrativa", () => {
+    expect(additionalDayRoomingReview({ answer: "interesado", shared: true, companions_answer: "no" })).toBe(true);
+    expect(additionalDayRoomingReview({ answer: "interesado", shared: true, companions_answer: "no_se" })).toBe(true);
+    expect(additionalDayRoomingReview({ answer: "interesado", shared: true, companions_answer: null })).toBe(true);
+  });
+  it("compañero con otra estadía (sale el 8) sigue en revisión aunque diga Sí", () => {
+    expect(additionalDayRoomingReview({ answer: "interesado", shared: true, companions_answer: "si", roommate_mismatch: true })).toBe(true);
+    expect(additionalDayRoomingReview({ answer: "interesado", shared: true, companions_answer: "si", roommate_mismatch: false })).toBe(false);
+  });
+  it("individual no requiere revisión de compañeros", () => {
+    expect(additionalDayRoomingReview({ answer: "interesado", shared: false, companions_answer: null })).toBe(false);
+  });
+});

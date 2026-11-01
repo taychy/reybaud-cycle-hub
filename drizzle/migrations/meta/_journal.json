@@ -715,6 +715,13 @@
       "when": 1793498488361,
       "tag": "0101_food_preferences_independent_activation",
       "breakpoints": true
+    },
+    {
+      "idx": 102,
+      "version": "7",
+      "when": 1793533135844,
+      "tag": "0102_trip_additional_day_companions",
+      "breakpoints": true
     }
   ]
 }
