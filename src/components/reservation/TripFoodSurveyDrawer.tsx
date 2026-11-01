@@ -73,6 +73,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
   const [hasStay, setHasStay] = useState(false);
   const [loadError, setLoadError] = useState(false);
   const [mealMode, setMealMode] = useState<MealMode | null>(null);
+  const [interestPrice, setInterestPrice] = useState<number | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +84,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
     setMealMode(null);
     setOffer([]);
     setHasStay(false);
+    setInterestPrice(null);
     let cancelled = false;
     (async () => {
       try {
@@ -114,6 +116,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         let resAddons: any[] = [];
         if (token) {
           const r = await tripTokenGet(token);
+          if (r.reservation.reservation_status !== "reserva_confirmada") throw new Error("Reserva no habilitada");
           current = r.checklist.find((c) => c.step_key === "gastronomia") ?? null;
           legacy = r.checklist.find((c) => c.step_key === "alimentacion") ?? null;
           history = r.food_history ?? null;
@@ -179,6 +182,7 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
         const stay = stayData as { start: string; end: string } | null;
         setHasStay(!!stay?.start && !!stay?.end);
         const program = parseMealProgram(meta);
+        setInterestPrice(meta?.food_survey?.publication_mode === "preferencias_activas" && Number(meta?.food_survey?.meal_interest_price) > 0 ? Number(meta.food_survey.meal_interest_price) : null);
         const done = contractedMealsFromAddons(program, resAddons);
         setHasProgram(!!program);
         setContracted(done);
@@ -366,9 +370,9 @@ const TripFoodSurveyDrawer = ({ open, onOpenChange, reservationId, alumnoId, tok
                   </p>
                 )}
                 {(() => {
-                  if (!hasProgram) return (
+                  if (!hasProgram && interestPrice) return (
                     <>
-                      <p className="text-xs text-muted-foreground">Almuerzos o cenas adicionales: $35.000 por comida. El menú/fechas se confirmarán. No se compra ni cobra al completar esta encuesta.</p>
+                      <p className="text-xs text-muted-foreground">Almuerzos o cenas adicionales: {formatCurrency(interestPrice, "ARS")} por comida. El menú/fechas se confirmarán. No se compra ni cobra al completar esta encuesta.</p>
                       <div className="grid gap-2">
                         {(["todas", "individual", "ninguna"] as MealMode[]).map((m) => (
                           <Choice key={m} active={values.comidas_interes_modo === m} onClick={() => set({ comidas_interes_modo: m, comidas_solicitadas: [] })}>

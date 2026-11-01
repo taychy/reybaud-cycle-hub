@@ -17,7 +17,7 @@ afterEach(() => { cleanup(); vi.clearAllMocks(); });
 
 async function openSurvey(included: boolean, withProgram = true, stay: { start: string; end: string } | null = { start: "2026-11-05", end: "2026-11-09" }) {
   mock.get.mockResolvedValue({
-    reservation: { event_id: "event" },
+    reservation: { event_id: "event", reservation_status: "reserva_confirmada" },
     checklist: [], package: { id: "p", nombre: "Paquete de prueba", incluye_gastronomia: included },
     event: { metadata: { food_survey: withProgram ? { meal_program: {
       almuerzo_addon_id: "a", cena_addon_id: "c", meals: [
@@ -26,7 +26,7 @@ async function openSurvey(included: boolean, withProgram = true, stay: { start: 
         { fecha: "2026-11-06", tipo: "cena" },
         { fecha: "2026-11-06", tipo: "desayuno" },
       ],
-    } } : {} } },
+    } } : { publication_mode: "preferencias_activas", meal_interest_price: 35000 } } },
   });
   mock.invoke.mockResolvedValue({ data: {
     addons: [
