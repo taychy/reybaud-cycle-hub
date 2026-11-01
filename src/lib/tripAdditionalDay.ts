@@ -41,3 +41,14 @@ export const needsAdditionalDayReview = (c: Pick<AdditionalDayContext, "status" 
 /** Presentation-only: independent lodging never implies a program-extension conflict. */
 export const showProgramExtensionReview = (c: Pick<AdditionalDayContext, "answer" | "status">) =>
   c.answer !== null && c.status !== "resuelto";
+export type AdditionalDayCompanions = "si" | "no" | "no_se";
+export const ADDITIONAL_DAY_COMPANION_OPTIONS: { value: AdditionalDayCompanions; label: string }[] = [
+  { value: "si", label: "Sí" }, { value: "no", label: "No" }, { value: "no_se", label: "No sé todavía" },
+];
+export const ADDITIONAL_DAY_SHARED_NOTE = "El valor corresponde a habitación/cabaña compartida. Para mantenerlo, tus compañeros también deben quedarse esa jornada. Si no, podés solicitar habitación individual, sujeta a disponibilidad y tarifa correspondiente.";
+/** Follow-up only after "Sí" on a shared room; never changes rooming or price. */
+export const askAdditionalDayCompanions = (c: { answer: AdditionalDayAnswer | null; shared?: boolean | null }) =>
+  c.answer === "interesado" && c.shared === true;
+/** Admin review: any shared "Sí" without confirmed companions, or roommates with a different stay. */
+export const additionalDayRoomingReview = (c: { answer: AdditionalDayAnswer | null; shared?: boolean | null; companions_answer?: AdditionalDayCompanions | null; roommate_mismatch?: boolean | null }) =>
+  askAdditionalDayCompanions(c) && (c.companions_answer !== "si" || c.roommate_mismatch === true);
