@@ -36,7 +36,7 @@ export const AdditionalDayQuestionCard = ({ context, saving, onAnswer, onCompani
 );
 };
 
-export default function TripAdditionalDayQuestion({ reservationId, token }: { reservationId: string; token?: string }) {
+export default function TripAdditionalDayQuestion({ reservationId, token, onChanged }: { reservationId: string; token?: string; onChanged?: () => void }) {
   const [context, setContext] = useState<(AdditionalDayContext & { shared?: boolean; amount?: number; currency?: string; companions_answer?: AdditionalDayCompanions | null }) | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,7 +54,7 @@ export default function TripAdditionalDayQuestion({ reservationId, token }: { re
     const { error: e } = await (supabase as any).rpc(fn, { p_reservation_id: reservationId, p_answer: answer, p_token: token ?? null });
     if (e) { setSaving(false); return setError("No pudimos guardar tu respuesta. Intentá nuevamente."); }
     const { data } = await (supabase as any).rpc("get_trip_additional_day", { p_reservation_id: reservationId, p_token: token ?? null });
-    setSaving(false); setContext(data ?? null);
+    setSaving(false); setContext(data ?? null); onChanged?.();
   };
   return <div className="space-y-2"><AdditionalDayQuestionCard context={context} reference={additionalDayReference(Number(context.amount), context.currency)} saving={saving} onAnswer={(a) => run("save_trip_additional_day", a)} onCompanions={(a) => run("save_trip_additional_day_companions", a)} />{error && <p role="alert" className="text-xs text-destructive">{error}</p>}</div>;
 }

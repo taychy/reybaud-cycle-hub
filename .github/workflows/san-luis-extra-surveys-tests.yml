@@ -1,0 +1,21 @@
+name: Pruebas de encuestas San Luis
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/components/reservation/SanLuisAdditionalSurveys*'
+      - 'src/components/reservation/TripAdditionalDayQuestion.tsx'
+      - 'src/lib/tripAdditionalDay*'
+      - '.github/workflows/san-luis-extra-surveys-tests.yml'
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm install --legacy-peer-deps --no-audit --no-fund
+      - name: Probar las encuestas de jornada y alojamiento
+        run: npm run test -- src/components/reservation/SanLuisAdditionalSurveys.test.ts src/lib/tripAdditionalDay.test.ts
