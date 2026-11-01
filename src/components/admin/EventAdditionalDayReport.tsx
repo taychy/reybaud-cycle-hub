@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/currency";
-import { ADDITIONAL_DAY_STATUS_LABELS, type AdditionalDayContext } from "@/lib/tripAdditionalDay";
+import { ADDITIONAL_DAY_STATUS_LABELS, showProgramExtensionReview, type AdditionalDayContext } from "@/lib/tripAdditionalDay";
 import { useToast } from "@/hooks/use-toast";
 
 type Row = AdditionalDayContext & { name: string; package: string; estimated_amount: number; currency: string; resolution_note: string | null };
@@ -45,7 +45,7 @@ export default function EventAdditionalDayReport({ eventId }: { eventId: string 
           {r.stale && <Badge variant="outline">Respuesta anterior desactualizada</Badge>}
           <span className="ml-auto flex gap-1">
             <Button size="sm" variant="outline" onClick={() => copyLink(r.reservation_id)}>Ver enlace personal</Button>
-            {r.answer && r.status !== "resuelto" && <Button size="sm" variant="outline" onClick={() => resolve(r.reservation_id)}>Marcar resuelto</Button>}
+            {showProgramExtensionReview(r) && <Button size="sm" variant="outline" onClick={() => resolve(r.reservation_id)}>Marcar resuelto</Button>}
           </span>
           {r.resolution_note && <p className="basis-full text-muted-foreground">Resolución: {r.resolution_note}</p>}
         </div>

@@ -19,3 +19,7 @@ export const isAdditionalDayExtension = (c: Pick<AdditionalDayContext, "original
   c.selected_nights === c.original_nights + 1;
 export const needsAdditionalDayReview = (c: Pick<AdditionalDayContext, "status" | "existing_night">) =>
   c.status === "no" || (c.existing_night && c.status !== "resuelto");
+
+/** Presentation-only: independent lodging never implies a program-extension conflict. */
+export const showProgramExtensionReview = (c: Pick<AdditionalDayContext, "answer" | "status">) =>
+  c.answer !== null && c.status !== "resuelto";
