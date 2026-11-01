@@ -1,4 +1,23 @@
 export const UPDATE_QUERY_PARAM = "_v";
+export const SURVEY_LAUNCH_EVENT = "reybaud:survey-launch";
+
+export const wantsFoodSurvey = (search: string) => {
+  const params = new URLSearchParams(search);
+  return params.get("encuesta") === "gastronomia" || params.get("step") === "gastronomia";
+};
+export const requiresSurveyUpdateCheck = (pathname: string, search: string) =>
+  pathname === "/viaje/encuesta-gastronomica" || (pathname === "/viaje/mi-reserva" && wantsFoodSurvey(search));
+
+/** Whitelist launch destinations; never log a target containing a private token. */
+export const getAppLaunchDestination = (targetURL: string, origin: string): string | null => {
+  try {
+    const target = new URL(targetURL);
+    if (target.origin !== origin) return null;
+    const allowed = target.pathname === "/formacion-inicial" || target.pathname.startsWith("/preinscripcion/") ||
+      target.pathname === "/viaje/encuesta-gastronomica" || target.pathname === "/viaje/mi-reserva";
+    return allowed ? target.pathname + target.search + target.hash : null;
+  } catch { return null; }
+};
 
 /** Build id embedded in this bundle at build time (full ISO timestamp). */
 export const CLIENT_BUILD_ID: string =
@@ -6,8 +25,8 @@ export const CLIENT_BUILD_ID: string =
 
 export const getCacheBustedUrl = (href = window.location.href) => {
   const url = new URL(href);
-  url.searchParams.set(UPDATE_QUERY_PARAM, Date.now().toString());
-  return url.toString();
+  const search = url.search.slice(1).split("&").filter((part) => part && part.split("=")[0] !== UPDATE_QUERY_PARAM).join("&");
+  return `${url.origin}${url.pathname}?${search ? search + "&" : ""}${UPDATE_QUERY_PARAM}=${Date.now()}${url.hash}`;
 };
 
 /** Removes the technical `_v` param after a forced reload, keeping everything else. */
@@ -15,8 +34,8 @@ export const stripCacheBustParam = () => {
   try {
     const url = new URL(window.location.href);
     if (!url.searchParams.has(UPDATE_QUERY_PARAM)) return;
-    url.searchParams.delete(UPDATE_QUERY_PARAM);
-    window.history.replaceState(window.history.state, "", url.pathname + url.search + url.hash);
+    const search = url.search.slice(1).split("&").filter((part) => part.split("=")[0] !== UPDATE_QUERY_PARAM).join("&");
+    window.history.replaceState(window.history.state, "", url.pathname + (search ? "?" + search : "") + url.hash);
   } catch {
     /* noop */
   }
@@ -44,13 +63,19 @@ export const isServiceWorkerAllowed = () => {
 export const clearBrowserCaches = async () => {
   if (!("caches" in window)) return;
   const keys = await caches.keys();
-  await Promise.all(keys.map((key) => caches.delete(key)));
+  const scope = `${window.location.origin}/`;
+  await Promise.all(keys.filter((key) => /(^|-)precache-v\d+-|(^|-)runtime-|(^|-)googleAnalytics-/.test(key) && key.endsWith(scope)).map((key) => caches.delete(key)));
 };
 
 export const unregisterServiceWorkers = async () => {
   if (!("serviceWorker" in navigator)) return;
   const registrations = await navigator.serviceWorker.getRegistrations();
-  await Promise.all(registrations.map((registration) => registration.unregister().catch(() => false)));
+  await Promise.all(registrations.filter((registration) => {
+    const worker = registration.active ?? registration.waiting ?? registration.installing;
+    if (!worker) return false;
+    const url = new URL(worker.scriptURL);
+    return url.origin === window.location.origin && url.pathname === "/sw.js";
+  }).map((registration) => registration.unregister().catch(() => false)));
 };
 
 /**
@@ -59,11 +84,14 @@ export const unregisterServiceWorkers = async () => {
  * Primary source: /app-version.json (emitted on every build, never precached).
  */
 export const fetchDeployedBuildId = async (): Promise<string | null> => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 5000);
   try {
     const res = await fetch(`/app-version.json?t=${Date.now()}`, {
       cache: "no-store",
       credentials: "same-origin",
       headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+      signal: controller.signal,
     });
     if (!res.ok) return null;
     const type = res.headers.get("content-type") || "";
@@ -72,6 +100,8 @@ export const fetchDeployedBuildId = async (): Promise<string | null> => {
     return typeof data?.buildTime === "string" ? data.buildTime : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timeout);
   }
 };
 

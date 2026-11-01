@@ -1,3 +1,8 @@
+## Encuesta · Apertura y actualización PWA (01/11)
+- [x] Actualizador global comprueba rutas al entrar/relanzar y no monta encuesta antes; chequeo no-store con timeout, URLs/sesión intactas y limpieza solo app.
+- [x] Autoapertura por encuesta=gastronomia/step=gastronomia con token validado, confirmada y encuesta activa; 32 Vitest, Chromium móvil/Firefox escritorio simulados: launch, login, dos recargas máximo, offline y sesión/query. Cuenta propia abre encuesta real sin guardar; compilación OK.
+- [ ] Publicación y verificación del enlace productivo posteriores: requieren autorización; Gmail a cargo de la usuaria.
+
 ## San Luis · Auditoría de fechas de extensión (01/11)
 - [x] Cruzadas tres ventanas y siete elegibles; texto pregunta por servicios dentro de fechas ya elegidas, con guardia de duración coherente. 10 Vitest y navegador QA/admin móvil/escritorio sin guardar; compilación OK.
 - [ ] Definir jornada y servicios/condiciones comerciales; conciliar Valeria (actividad 6–9, alojamiento 5–9). Bloqueado por decisión del organizador; importes, respuestas y base intactos, sin publicar.

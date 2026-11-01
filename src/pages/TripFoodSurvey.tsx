@@ -23,7 +23,7 @@ export default function TripFoodSurvey() {
       const { data: { session } } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!session) {
-        navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search)}`, { replace: true });
+        navigate(`/login?returnTo=${encodeURIComponent(location.pathname + location.search + location.hash)}`, { replace: true });
         return;
       }
       if (!eventId) { setError("No encontramos el viaje de este enlace."); setLoading(false); return; }
@@ -38,7 +38,7 @@ export default function TripFoodSurvey() {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [eventId, navigate, location.pathname, location.search]);
+  }, [eventId, navigate, location.pathname, location.search, location.hash]);
   return <main className="min-h-screen bg-background text-foreground px-4 py-10">
     <div className="mx-auto max-w-xl space-y-5">
       <Utensils className="text-primary h-8 w-8" />

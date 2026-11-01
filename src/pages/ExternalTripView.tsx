@@ -21,6 +21,7 @@ import TripFormDrawer from "@/components/reservation/TripFormDrawer";
 import TripFoodSurveyDrawer from "@/components/reservation/TripFoodSurveyDrawer";
 import TripAdditionalDayQuestion from "@/components/reservation/TripAdditionalDayQuestion";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
+import { wantsFoodSurvey } from "@/lib/appUpdate";
 import TripChoiceSurveyDrawer from "@/components/reservation/TripChoiceSurveyDrawer";
 import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
 import { Shirt } from "lucide-react";
@@ -126,6 +127,7 @@ const buildChecklist = (meta: any, checklistData: Record<string, any>): Checklis
 const ExternalTripView = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
+  const surveyRequested = wantsFoodSurvey(searchParams.toString());
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -172,6 +174,12 @@ const ExternalTripView = () => {
   }, [token]);
 
   useEffect(() => { loadData(); }, [loadData]);
+
+  useEffect(() => {
+    setShowFoodDrawer(false);
+    if (loading || error || !token || !reservation || !event || !surveyRequested) return;
+    if (["reserva_confirmada", "confirmada"].includes(reservation.reservation_status) && isFoodSurveyEnabled(event.metadata)) setShowFoodDrawer(true);
+  }, [token, loading, error, reservation?.id, reservation?.reservation_status, event?.metadata, surveyRequested]);
 
   const reloadChecklist = async () => {
     if (!token) return;
