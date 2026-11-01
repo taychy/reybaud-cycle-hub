@@ -38,6 +38,13 @@ describe("enlaces de encuesta y PWA instalada", () => {
     expect(decideUpdateAction("old", "new", readAttempt())).toBe("blocking");
     expect(decideUpdateAction("old", null, readAttempt())).toBe("none");
   });
+  it("conserva exactamente query codificada, duplicados y retorno de login", () => {
+    const query = "?token=fixture%2F%2b&x=a%20b&x=c&returnTo=%2Fviaje%2Fencuesta-gastronomica%3Fevento%3De";
+    const href = origin + "/viaje/mi-reserva" + query + "#form";
+    const updated = getCacheBustedUrl(href);
+    expect(updated.replace(/&_v=\d+/, "")).toBe(href);
+    expect(getAppLaunchDestination(href, origin)).toBe("/viaje/mi-reserva" + query + "#form");
+  });
   it("consulta versión sin caché ni URL privada", async () => {
     const fetcher = vi.fn().mockResolvedValue(new Response(JSON.stringify({ buildTime: "new" }), { headers: { "content-type": "application/json" } }));
     vi.stubGlobal("fetch", fetcher);

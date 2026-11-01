@@ -1,4 +1,4 @@
-import { render, screen, waitFor, cleanup, act } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, act, fireEvent } from "@testing-library/react";
 import { MemoryRouter, useNavigate } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import UpdatePrompt from "./UpdatePrompt";
@@ -45,6 +45,16 @@ describe("comprobación global antes de abrir encuesta", () => {
     mocks.fetch.mockResolvedValue(null);
     start("/viaje/mi-reserva?token=fixture&step=gastronomia");
     await screen.findByText("form-ready");
+    expect(mocks.reload).not.toHaveBeenCalled();
+  });
+  it("entrar desde otra pantalla y relanzar el mismo enlace evita debounce", async () => {
+    mocks.fetch.mockResolvedValue("client");
+    start("/eventos");
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole("button", { name: "open" }));
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(2));
+    await act(async () => { window.dispatchEvent(new Event("reybaud:survey-launch")); });
+    await waitFor(() => expect(mocks.fetch).toHaveBeenCalledTimes(3));
     expect(mocks.reload).not.toHaveBeenCalled();
   });
 });

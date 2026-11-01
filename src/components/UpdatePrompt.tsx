@@ -93,7 +93,7 @@ const UpdatePrompt = ({ children }: { children?: ReactNode }) => {
 
   useEffect(() => {
     if (surveyCheck) check(true);
-  }, [destination, surveyCheck, check]);
+  }, [destination, location.key, surveyCheck, check]);
 
   useEffect(() => {
     const onLaunch = () => {
