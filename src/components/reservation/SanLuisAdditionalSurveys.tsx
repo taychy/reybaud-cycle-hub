@@ -96,13 +96,16 @@ export default function SanLuisAdditionalSurveys({
     if (!token || eventId !== SAN_LUIS_EVENT_ID) return;
     setLoading(true);
     try {
-      const [reservationData, extrasData, dayData] = await Promise.all([
+      const [reservationData, extrasData, dayData, legacyNightData] = await Promise.all([
         tripTokenGet(token),
         (supabase as any).rpc("manage_trip_extras_by_token", {
           p_token: token, p_action: "get", p_selections: [],
         }),
         (supabase as any).rpc("get_trip_additional_day", {
           p_reservation_id: reservationId, p_token: token,
+        }),
+        (supabase as any).rpc("manage_extra_night_by_token", {
+          p_token: token, p_action: "get",
         }),
       ]);
       if (reservationData.reservation.id !== reservationId ||
@@ -122,8 +125,23 @@ export default function SanLuisAdditionalSurveys({
         extrasData.data?.ok === true &&
         extrasData.data.event_id === eventId &&
         Array.isArray(extrasData.data.contracted);
-      setNightCanBeChecked(validExtras);
-      setRecordedNights(validExtras ? recordedNightFromExtras(extrasData.data) : []);
+      const existingNights = validExtras ? recordedNightFromExtras(extrasData.data) : [];
+      // El flujo antiguo conoce extras con fecha aún sin definir o inactivos.
+      const legacyActual = !legacyNightData.error && legacyNightData.data?.ok
+        ? legacyNightData.data.actual
+        : null;
+      if (legacyActual && existingNights.length === 0) {
+        existingNights.push({
+          id: "legacy-night",
+          nombre: String(legacyActual.nombre ?? "Noche extra de alojamiento"),
+          cantidad: Math.max(1, Number(legacyActual.cantidad || 1)),
+          timing: legacyActual.noche_timing ?? null,
+          amount: null,
+          currency: "ARS",
+        });
+      }
+      setNightCanBeChecked(validExtras || !!legacyActual);
+      setRecordedNights(existingNights);
       setError(null);
     } catch {
       setError("No pudimos cargar las encuestas. Volvé a intentar.");
