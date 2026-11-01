@@ -3,16 +3,16 @@ import { Share2, MessageCircle, Link2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { copyText, productShareText, productShareUrl, tryNativeShare, whatsappShareUrl } from "@/lib/productShare";
+import { type ShareKind, copyText, productShareText, productShareUrl, tryNativeShare, whatsappShareUrl } from "@/lib/productShare";
 
-type Props = { productId: string; productName: string; variant?: "full" | "icon"; className?: string };
+type Props = { productId: string; productName: string; variant?: "full" | "icon"; className?: string; kind?: ShareKind };
 
 const stop = (e: React.SyntheticEvent) => { e.preventDefault(); e.stopPropagation(); };
 
-export default function ShareProductButton({ productId, productName, variant = "full", className = "" }: Props) {
+export default function ShareProductButton({ productId, productName, variant = "full", className = "", kind = "producto" }: Props) {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const url = productShareUrl(productId);
+  const url = productShareUrl(productId, undefined, kind);
   const text = productShareText(productName);
 
   const onTrigger = async (e: React.MouseEvent) => {

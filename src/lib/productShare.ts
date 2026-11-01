@@ -10,8 +10,12 @@ export function shareOrigin(hostname?: string, origin?: string): string {
   return org; // preview / local: respetar el entorno
 }
 
-export function productShareUrl(productId: string, origin = shareOrigin()): string {
-  return `${origin.replace(/\/+$/, "")}/tienda/producto/${encodeURIComponent(productId)}`;
+export type ShareKind = "producto" | "preventa";
+
+/** Página pública real: preventas abiertas usan /preventa/:id; el resto /tienda/producto/:id. */
+export function productShareUrl(productId: string, origin = shareOrigin(), kind: ShareKind = "producto"): string {
+  const path = kind === "preventa" ? "/preventa/" : "/tienda/producto/";
+  return `${origin.replace(/\/+$/, "")}${path}${encodeURIComponent(productId)}`;
 }
 
 export function productShareText(name: string): string {

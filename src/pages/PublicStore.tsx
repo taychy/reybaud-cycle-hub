@@ -128,7 +128,9 @@ const PublicStore = () => {
                     </div>
                   </div>
                 </Link>
-                <ShareProductButton variant="icon" productId={p.id} productName={p.name} className="absolute bottom-2 right-2" />
+                <div className="pointer-events-none absolute inset-x-0 top-0 aspect-square">
+                  <ShareProductButton variant="icon" productId={p.id} productName={p.name} className={`pointer-events-auto absolute right-2 ${st <= 0 ? "bottom-8" : "bottom-2"}`} />
+                </div>
                 </div>
               );
             })}

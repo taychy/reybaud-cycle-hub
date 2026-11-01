@@ -64,10 +64,11 @@ const ProductCard = ({
   // Toda la tarjeta abre el detalle interno (solo lectura, no crea pedidos).
   const location = useLocation();
   return (
+    <div className="relative flex flex-col">
     <Link
       to={`/tienda/producto/${product.id}`}
       state={{ from: `${location.pathname}${location.search}` }}
-      className={`group flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10`}
+      className={`group flex-1 flex flex-col rounded-xl border ${isPreorder ? "border-primary/40" : "border-border"} bg-card overflow-hidden transition-all hover:border-primary/40 hover:shadow-lg hover:shadow-primary/10`}
     >
       <div className="relative aspect-square bg-secondary overflow-hidden">
         <img
@@ -94,7 +95,6 @@ const ProductCard = ({
             -{hasPromo ? promo!.descuento_pct : product.discount}%
           </span>
         )}
-        <ShareProductButton variant="icon" productId={product.id} productName={product.name} className="absolute bottom-2 right-2" />
       </div>
       <div className="p-3 flex-1 flex flex-col gap-1">
         <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{product.name}</p>
@@ -138,6 +138,17 @@ const ProductCard = ({
         </div>
       </div>
     </Link>
+    {/* Hermano del Link (no anidado): superpuesto sobre la esquina inferior derecha de la imagen. */}
+    <div className="pointer-events-none absolute inset-x-0 top-0 aspect-square">
+      <ShareProductButton
+        variant="icon"
+        productId={product.id}
+        productName={product.name}
+        kind={isPreorder ? "preventa" : "producto"}
+        className="pointer-events-auto absolute bottom-2 right-2"
+      />
+    </div>
+    </div>
   );
 };
 
