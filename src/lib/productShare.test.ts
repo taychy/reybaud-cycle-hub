@@ -12,6 +12,9 @@ describe("productShare", () => {
   it("URL del producto sin parámetros", () => {
     expect(productShareUrl("abc-1", "https://reybaud-app.com")).toBe("https://reybaud-app.com/tienda/producto/abc-1");
   });
+  it("preventa abierta usa su página pública", () => {
+    expect(productShareUrl("p1", "https://reybaud-app.com", "preventa")).toBe("https://reybaud-app.com/preventa/p1");
+  });
   it("WhatsApp sin destinatario fijo", () => {
     const u = whatsappShareUrl(productShareText("Jersey"), "https://reybaud-app.com/tienda/producto/1");
     expect(u.startsWith("https://wa.me/?text=")).toBe(true);
