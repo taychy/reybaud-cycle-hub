@@ -736,6 +736,13 @@
       "when": 1793551360039,
       "tag": "0104_package_change_capacity_breakdown",
       "breakpoints": true
+    },
+    {
+      "idx": 105,
+      "version": "7",
+      "when": 1793552494307,
+      "tag": "0105_admin_purge_test_reservation",
+      "breakpoints": true
     }
   ]
 }
