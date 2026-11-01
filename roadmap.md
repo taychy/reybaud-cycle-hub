@@ -1,4 +1,5 @@
 ## Encuesta gastronómica · Acceso sin cuenta (01/11)
+- [ ] Auditoría solo lectura solicitada: existencia, público objetivo y respuestas de pregunta de día adicional.
 - [ ] Identificación neutral, verificación OTP limitada a encuesta y recepción privada pendiente sin asociación automática.
 - [ ] Bandeja admin con conciliación explícita auditada, pruebas negativas y recorrido anónimo/autenticado sin correos reales.
 - [ ] Publicación posterior por la usuaria; no publicar ni enviar mensajes durante implementación.
