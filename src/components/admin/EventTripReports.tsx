@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Download, Loader2, BedDouble, ShieldCheck, AlertCircle, ShoppingBag, Utensils } from "lucide-react";
 import { tipoLabel, inferTipoFromCapacidad } from "./EventLodgingManager";
-import { nocheTimingShortLabel } from "@/lib/nocheExtra";
+import { nocheTimingShortLabel, isNocheExtra } from "@/lib/nocheExtra";
 import { formatPrice } from "@/lib/currency";
 import EventChoiceSurveyReport, { useChoiceSurveys } from "./EventChoiceSurveyReport";
 import { Shirt } from "lucide-react";
@@ -422,6 +422,10 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
             <TabsContent value="extras" className="space-y-3 mt-4">
               <EventAdditionalDayReport eventId={eventId} />
+              <div className="space-y-1">
+                <h3 className="text-sm font-medium">Extras contratados · servicios independientes</h3>
+                <p className="text-xs text-muted-foreground">Alojamiento extra: {extrasResumen.filter((g) => isNocheExtra(g.nombre)).reduce((sum, g) => sum + g.cantidad, 0)} noche(s) registrada(s). Este conteo no incluye respuestas de extensión del programa.</p>
+              </div>
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-xs text-muted-foreground">
                   {extrasResumen.length} extra(s) · {extrasTotalUnidades} unidad(es)
@@ -453,6 +457,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
                           {Object.entries(g.montos).map(([c, v]) => formatPrice(v, c)).join(" + ")}
                         </span>
                       </div>
+                      {isNocheExtra(g.nombre) && <p className="text-xs text-muted-foreground mb-2">Noche extra de alojamiento: solo antes/después del paquete, sin ampliar actividades del camp.</p>}
                       <div className="space-y-1">
                         {[...g.participantes].sort((a, b) => a.nombre.localeCompare(b.nombre)).map((p, i) => (
                           <div key={i} className="flex items-start justify-between gap-2 text-xs">
