@@ -19,6 +19,7 @@ import TripDocumentDrawer from "@/components/reservation/TripDocumentDrawer";
 import TripTokenExtrasCard from "@/components/reservation/TripTokenExtrasCard";
 import TripFormDrawer from "@/components/reservation/TripFormDrawer";
 import TripFoodSurveyDrawer from "@/components/reservation/TripFoodSurveyDrawer";
+import TripAdditionalDayQuestion from "@/components/reservation/TripAdditionalDayQuestion";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
 import TripChoiceSurveyDrawer from "@/components/reservation/TripChoiceSurveyDrawer";
 import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
@@ -405,6 +406,7 @@ const ExternalTripView = () => {
           </div>
         )}
 
+        <TripAdditionalDayQuestion reservationId={reservation.id} token={token ?? undefined} />
         {/* Checklist */}
         {checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="rounded-xl border border-border p-4 space-y-4">

@@ -20,6 +20,7 @@ import { formatPrice } from "@/lib/currency";
 import EventChoiceSurveyReport, { useChoiceSurveys } from "./EventChoiceSurveyReport";
 import { Shirt } from "lucide-react";
 import EventFoodProgramEditor from "./EventFoodProgramEditor";
+import EventAdditionalDayReport from "./EventAdditionalDayReport";
 
 
 
@@ -419,6 +420,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
             </TabsContent>
 
             <TabsContent value="extras" className="space-y-3 mt-4">
+              <EventAdditionalDayReport eventId={eventId} />
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <p className="text-xs text-muted-foreground">
                   {extrasResumen.length} extra(s) · {extrasTotalUnidades} unidad(es)

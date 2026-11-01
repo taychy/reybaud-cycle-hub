@@ -25,6 +25,7 @@ import TripTransportDrawer from "./TripTransportDrawer";
 import TripDocumentDrawer from "./TripDocumentDrawer";
 import TripExtrasDrawer from "./TripExtrasDrawer";
 import TripFoodSurveyDrawer from "./TripFoodSurveyDrawer";
+import TripAdditionalDayQuestion from "./TripAdditionalDayQuestion";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
 import TripChoiceSurveyDrawer from "./TripChoiceSurveyDrawer";
 import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
@@ -1140,6 +1141,7 @@ const ReservationStatusCard = ({
         {/* Slot del evento (p. ej. "¿Querés cambiar tu paquete?") justo debajo de "Tu paquete" */}
         {afterPackageSlot}
 
+        {isTripLike && <TripAdditionalDayQuestion reservationId={reservation.id} />}
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
         {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="glass-card rounded-xl p-5 space-y-4">
