@@ -28,6 +28,8 @@ import { Shirt } from "lucide-react";
 import EventAnnouncements from "@/components/reservation/EventAnnouncements";
 import ReschedulingEntry from "@/components/rescheduling/ReschedulingEntry";
 import TripRoommatesDrawer from "@/components/reservation/TripRoommatesDrawer";
+import { externalTripRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
+import type { ReschedulingContext } from "@/lib/rescheduling";
 
 interface ReservationData {
   id: string;
@@ -137,6 +139,7 @@ const ExternalTripView = () => {
   const [checklistData, setChecklistData] = useState<Record<string, any>>({});
   const [pkg, setPkg] = useState<TripTokenPackage | null>(null);
   const [lodging, setLodging] = useState<TripTokenLodging | null>(null);
+  const [rescheduling, setRescheduling] = useState<ReschedulingContext | null>(null);
 
   const [showBikeDrawer, setShowBikeDrawer] = useState(false);
   const [showFoodDrawer, setShowFoodDrawer] = useState(false);
@@ -247,7 +250,10 @@ const ExternalTripView = () => {
     }
   };
 
-  const eventDateFormatted = new Date(event.date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
+  const rescheduled = externalTripRescheduledPresentation(event.id, reservation.id, rescheduling);
+  const eventTitle = rescheduled?.title ?? event.title;
+  const [year, month, day] = event.date.split("-").map(Number);
+  const eventDateFormatted = rescheduled?.dateLabel ?? new Date(year, month - 1, day).toLocaleDateString("es-AR", { day: "numeric", month: "long", year: "numeric" });
 
   return (
     <div className="min-h-screen bg-background">
@@ -255,7 +261,7 @@ const ExternalTripView = () => {
       <div className="relative">
         {event.image_url && (
           <div className="h-40 overflow-hidden">
-            <img src={event.image_url} alt={event.title} className="w-full h-full object-cover" />
+            <img src={event.image_url} alt={eventTitle} className="w-full h-full object-cover" />
             <div className="absolute inset-0 h-40 bg-gradient-to-b from-black/20 to-background" />
           </div>
         )}
@@ -266,18 +272,20 @@ const ExternalTripView = () => {
                 Hola, <span className="font-semibold text-foreground">{participant.nombre}</span>
               </p>
             )}
-            <h1 className="text-xl font-bold text-foreground">{event.title}</h1>
+            <h1 className="text-xl font-bold text-foreground">{eventTitle}</h1>
+            {rescheduled && <p className="text-sm font-semibold text-primary">Reprogramado</p>}
             <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" /> {eventDateFormatted}</span>
               {event.location && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" /> {event.location}</span>}
-              {event.duration_days && <span>{event.duration_days} días{event.duration_nights ? ` / ${event.duration_nights} noches` : ""}</span>}
+              {!rescheduled && event.duration_days && <span>{event.duration_days} días{event.duration_nights ? ` / ${event.duration_nights} noches` : ""}</span>}
             </div>
+            {rescheduled?.participantDateLabel && <p className="text-sm text-foreground">Tu opción validada: {rescheduled.participantDateLabel}</p>}
           </div>
         </div>
       </div>
 
       <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
-        <ReschedulingEntry eventId={event.id} reservationId={reservation.id} token={reservation.access_token} />
+        <ReschedulingEntry key={token} eventId={event.id} reservationId={reservation.id} token={reservation.access_token} onContext={setRescheduling} />
 
         {/* Status banner */}
         <div className={`rounded-xl border-2 p-4 ${tone.border} ${tone.bg}`}>
@@ -397,7 +405,7 @@ const ExternalTripView = () => {
               ) : (
                 <a
                   href={buildWhatsAppUrl(
-                    `Hola! Soy ${participant?.nombre ?? ""} ${participant?.apellido ?? ""}. Quiero coordinar el pago de mi reserva para ${event.title}. Saldo pendiente: ${formatPrice(reservation.balance_due ?? 0, currency)}.`.trim()
+                    `Hola! Soy ${participant?.nombre ?? ""} ${participant?.apellido ?? ""}. Quiero coordinar el pago de mi reserva para ${eventTitle}. Saldo pendiente: ${formatPrice(reservation.balance_due ?? 0, currency)}.`.trim()
                   )}
                   target="_blank"
                   rel="noopener noreferrer"

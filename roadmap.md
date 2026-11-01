@@ -1,3 +1,7 @@
+## San Luis · Fechas visibles en Mi Reserva (01/11)
+- [x] Presentación San Luis 5–9 noviembre/Reprogramado; reutiliza contexto seguro existente para alternativa propia validada. 31 tests, reserva propia móvil y tres alternativas ficticias Chromium/Firefox OK; compilación OK, sin guardar ni cambiar datos.
+- [ ] Publicación y comprobación productiva a cargo de la usuaria antes del correo; no se publicó ni envió.
+
 ## Jornada extra · Tarjeta simple (01/11)
 - [x] Tarjeta simple y dos opciones con mismos valores backend; consultas previas preservadas. QA admin lee tres referencias reales a confirmar; participante muestra valor pendiente. 38 pruebas, navegador móvil/admin sin guardar, compilación OK.
 - [ ] Aprobar tarifa/jornada y resolver matiz de Valeria antes de venta; publicación posterior requiere autorización. Extras inactivos y base intacta.
