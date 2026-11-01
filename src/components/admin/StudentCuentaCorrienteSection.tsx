@@ -1,3 +1,4 @@
+import { coincideFiltroOrigen, ORIGEN_GRUPOS } from "@/lib/cuentaCorrienteFilters";
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -7,7 +8,7 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel,
 } from "@/components/ui/select";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -461,7 +462,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
   const filtered = useMemo(() => {
     return movimientos.filter((m) => {
       if (monedaFilter !== "all" && m.moneda !== monedaFilter) return false;
-      if (tipoFilter !== "all" && m.tipo !== tipoFilter) return false;
+      if (!coincideFiltroOrigen(m as any, tipoFilter)) return false;
       return true;
     });
   }, [movimientos, monedaFilter, tipoFilter]);
@@ -649,12 +650,30 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todos los tipos</SelectItem>
-            {Object.entries(TIPO_LABEL).map(([key, v]) => (
-              <SelectItem key={key} value={key}>{v.label}</SelectItem>
-            ))}
+            <SelectGroup>
+              <SelectLabel className="text-[10px]">Por origen</SelectLabel>
+              {ORIGEN_GRUPOS.map((g) => (
+                <SelectItem key={g.key} value={`grupo:${g.key}`}>{g.label}</SelectItem>
+              ))}
+            </SelectGroup>
+            <SelectGroup>
+              <SelectLabel className="text-[10px]">Tipo exacto</SelectLabel>
+              {Object.entries(TIPO_LABEL).map(([key, v]) => (
+                <SelectItem key={key} value={key}>{v.label}{key === "cargo_reserva" ? " (solo cargo)" : ""}</SelectItem>
+              ))}
+            </SelectGroup>
           </SelectContent>
         </Select>
         <span className="text-xs text-muted-foreground">{filtered.length} movimientos</span>
+        {tipoFilter !== "all" && (() => {
+          const debe = filtered.reduce((a, m: any) => a + Number(m.debe || 0), 0);
+          const haber = filtered.reduce((a, m: any) => a + Number(m.haber || 0), 0);
+          return (
+            <span className="text-xs text-muted-foreground">
+              Cargos {debe.toLocaleString("es-AR")} · Pagos {haber.toLocaleString("es-AR")} · Diferencia {(debe - haber).toLocaleString("es-AR")}
+            </span>
+          );
+        })()}
       </div>
 
       {/* Tabla de movimientos */}
@@ -680,7 +699,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 </TableCell>
               </TableRow>
             ) : (
-              (showAll ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
+              ((showAll || tipoFilter !== "all") ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
                 const tipoInfo = TIPO_LABEL[m.tipo] || { label: m.tipo, className: "" };
                 const isAjuste = m.fuente_tabla === "cuenta_ajustes";
                 const rx = m.referencia_extra || {};
@@ -953,7 +972,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
             )}
           </TableBody>
         </Table>
-        {filtered.length > PREVIEW_LIMIT && (
+        {tipoFilter === "all" && filtered.length > PREVIEW_LIMIT && (
           <div className="border-t border-border bg-secondary/20">
             <Button
               variant="ghost"
