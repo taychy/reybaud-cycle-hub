@@ -9,6 +9,7 @@ import { urgencyText, promoPaymentNote, type EffectivePrice } from "@/lib/campai
 import { effectiveStock, variantStockSum } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
 import { compareVariantsBySize } from "@/lib/variantSort";
+import ShareProductButton from "@/components/store/ShareProductButton";
 
 interface PubProduct {
   id: string;
@@ -167,6 +168,7 @@ const PublicProduct = () => {
               >
                 <MessageCircle className="w-4 h-4" /> Consultar por WhatsApp
               </a>
+              <ShareProductButton productId={p.id} productName={p.name} />
             </div>
           </div>
         </div>

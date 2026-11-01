@@ -8,6 +8,7 @@ import type { Tables } from "@/integrations/supabase/types";
 import PreorderReserveDialog from "@/components/store/PreorderReserveDialog";
 import BuyProductDialog from "@/components/store/BuyProductDialog";
 import MisComprasSection from "@/components/store/MisComprasSection";
+import ShareProductButton from "@/components/store/ShareProductButton";
 import { promoMap, urgencyText, type PromoRow } from "@/lib/campaigns";
 
 // Fallback images
@@ -93,6 +94,7 @@ const ProductCard = ({
             -{hasPromo ? promo!.descuento_pct : product.discount}%
           </span>
         )}
+        <ShareProductButton variant="icon" productId={product.id} productName={product.name} className="absolute bottom-2 right-2" />
       </div>
       <div className="p-3 flex-1 flex flex-col gap-1">
         <p className="text-xs text-foreground font-medium line-clamp-2 leading-tight">{product.name}</p>

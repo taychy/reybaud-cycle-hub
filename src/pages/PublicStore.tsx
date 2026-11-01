@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/currency";
 import { promoMap, urgencyText, type PromoRow } from "@/lib/campaigns";
 import { effectiveStock } from "@/lib/stock";
 import { buildWhatsAppUrl } from "@/lib/contactInfo";
+import ShareProductButton from "@/components/store/ShareProductButton";
 
 interface PubProduct {
   id: string;
@@ -106,7 +107,8 @@ const PublicStore = () => {
               const hasPromo = !!promo && !promo.solo_variantes && promo.precio_efectivo < promo.precio_lista;
               const hasVariantPromo = !!promo?.solo_variantes;
               return (
-                <Link key={p.id} to={`/tienda/producto/${p.id}`} className="group flex flex-col rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors">
+                <div key={p.id} className="relative flex flex-col">
+                <Link to={`/tienda/producto/${p.id}`} className="group flex-1 flex flex-col rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 transition-colors">
                   <div className="relative aspect-square bg-secondary overflow-hidden">
                     {p.image_url ? (
                       <img src={p.image_url} alt={`${p.name} - Tienda Reybaud`} loading="lazy" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
@@ -126,6 +128,8 @@ const PublicStore = () => {
                     </div>
                   </div>
                 </Link>
+                <ShareProductButton variant="icon" productId={p.id} productName={p.name} className="absolute bottom-2 right-2" />
+                </div>
               );
             })}
           </div>
