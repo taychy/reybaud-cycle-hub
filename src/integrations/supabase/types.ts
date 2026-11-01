@@ -18885,6 +18885,10 @@ export type Database = {
         Args: { p_event_id: string; p_source_reservation_id: string }
         Returns: Json
       }
+      admin_purge_test_reservation: {
+        Args: { p_confirm: string; p_reason: string; p_reservation_id: string }
+        Returns: Json
+      }
       admin_renew_reservation_terms_link: {
         Args: { p_reservation_id: string }
         Returns: Json
