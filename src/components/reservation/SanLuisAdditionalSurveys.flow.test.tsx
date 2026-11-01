@@ -48,7 +48,7 @@ describe("encuestas en Mi Reserva", () => {
         return { data: { ok: true, actual: null }, error: null } as any;
       }
       return { data: { answer: null }, error: null } as any;
-    });
+    }) as any);
   });
 
   it("guarda la noche extra como solicitud y sigue mostrando la reserva completa", async () => {
@@ -94,7 +94,7 @@ describe("encuestas en Mi Reserva", () => {
         }, error: null } as any;
       }
       return { data: { answer: null }, error: null } as any;
-    });
+    }) as any);
 
     render(<SanLuisAdditionalSurveys {...sharedProps} />);
     expect(await screen.findByText(/Ya tenés noche extra registrada/)).toBeTruthy();
