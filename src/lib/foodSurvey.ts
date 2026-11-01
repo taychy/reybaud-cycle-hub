@@ -190,6 +190,7 @@ export const dedupeMeals = (list: MealSlot[]): MealSlot[] => {
 };
 
 export const parseMealProgram = (meta: any): MealProgram | null => {
+  if (meta?.food_survey?.meals_enabled === false) return null;
   const p = meta?.food_survey?.meal_program;
   if (!p || !Array.isArray(p.meals) || p.meals.length === 0) return null;
   const meals = (p.meals as any[])

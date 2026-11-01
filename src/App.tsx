@@ -91,6 +91,7 @@ import PrivacyPolicy from "./pages/PrivacyPolicy";
 import EventTerms from "./pages/EventTerms";
 import ExternalTripView from "./pages/ExternalTripView";
 import FoodSurveyQa from "./pages/FoodSurveyQa";
+import TripFoodSurvey from "./pages/TripFoodSurvey";
 import AdditionalDayQa from "./pages/AdditionalDayQa";
 import FoodSurveyQaAccess from "./components/FoodSurveyQaAccess";
 import ChoiceSurveyPage from "./pages/ChoiceSurveyPage";
@@ -226,6 +227,7 @@ const App = () => (
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/pruebas/encuesta-gastronomica" element={<FoodSurveyQaAccess><FoodSurveyQa /></FoodSurveyQaAccess>} />
           <Route path="/pruebas/dia-adicional" element={<FoodSurveyQaAccess><AdditionalDayQa /></FoodSurveyQaAccess>} />
+          <Route path="/viaje/encuesta-gastronomica" element={<TripFoodSurvey />} />
           <Route path="/admin" element={<ProtectedRoute allowedRoles={["admin", "deposito"]} loginPath="/admin/login"><AdminLayout /></ProtectedRoute>}>
             <Route index element={<Navigate to="/admin/resumen" replace />} />
             <Route path="resumen" element={<AdminResumen />} />
