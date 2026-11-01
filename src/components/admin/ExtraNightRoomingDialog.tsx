@@ -106,8 +106,8 @@ const ExtraNightRoomingDialog = ({ open, onOpenChange, eventId, eventTitle }: Pr
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Noches extra</DialogTitle>
-          <DialogDescription>Rooming separado del alojamiento principal. No incluye las noches base del viaje.</DialogDescription>
+          <DialogTitle>Noches extra de alojamiento</DialogTitle>
+          <DialogDescription>Solo alojamiento antes/después del paquete, separado del rooming principal. No incluye noches base ni amplía la participación en el Training Camp.</DialogDescription>
         </DialogHeader>
         {loading ? (
           <div className="flex justify-center py-6"><Loader2 className="w-5 h-5 animate-spin" /></div>
@@ -115,6 +115,7 @@ const ExtraNightRoomingDialog = ({ open, onOpenChange, eventId, eventTitle }: Pr
           <p className="text-sm text-muted-foreground">No hay noches extra cargadas.</p>
         ) : (
           <div className="space-y-2">
+            <p className="text-xs text-muted-foreground">{rooms.length} registros de alojamiento o coordinación; no son respuestas ni compras de extensión del programa.</p>
             <div className="flex justify-end">
               <Button size="sm" variant="outline" onClick={exportCsv}><Download className="w-3.5 h-3.5 mr-1" /> Exportar para proveedor</Button>
             </div>
