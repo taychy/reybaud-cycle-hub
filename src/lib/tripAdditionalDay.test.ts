@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { additionalDaySelectedStay, isAdditionalDayExtension, needsAdditionalDayReview, showProgramExtensionReview } from "./tripAdditionalDay";
+import { additionalDayReference, additionalDaySelectedStay, isAdditionalDayExtension, needsAdditionalDayReview, showProgramExtensionReview } from "./tripAdditionalDay";
 
 describe("día adicional", () => {
+  it.each([280000, 315000, 220000])("preserva referencia provisional ARS %s sin aprobación comercial", (amount) => {
+    expect(additionalDayReference(amount, "ARS")).toEqual({ amount, currency: "ARS" });
+  });
+  it("sin referencia válida no inventa valor", () => {
+    expect(additionalDayReference(null, "ARS")).toBeNull();
+    expect(additionalDayReference(0, "ARS")).toBeNull();
+  });
   it("5–9 conserva las fechas elegidas y cuatro noches, sin ofrecer 5–10 o 4–9", () => {
     expect(additionalDaySelectedStay({ start: "2026-11-05", end: "2026-11-09", original_nights: 3, selected_nights: 4 })).toEqual({ start: "2026-11-05", end: "2026-11-09", selectedNights: 4, originalNights: 3 });
   });

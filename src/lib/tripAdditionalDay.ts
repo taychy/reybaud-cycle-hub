@@ -7,10 +7,14 @@ export interface AdditionalDayContext {
   existing_night: boolean; updated_at: string | null;
 }
 export const ADDITIONAL_DAY_OPTIONS: { value: AdditionalDayAnswer; label: string }[] = [
-  { value: "interesado", label: "Sí, me interesa sumarlo" },
-  { value: "no", label: "No, prefiero mantener los servicios de mi paquete original" },
-  { value: "consulta", label: "Quiero consultar antes de decidir" },
+  { value: "interesado", label: "Sí, quiero contratarla" },
+  { value: "no", label: "No, gracias" },
 ];
+export type AdditionalDayReference = { amount: number; currency: string };
+/** QA/report estimates never establish approval or activate a commercial price. */
+export const additionalDayReference = (amount: unknown, currency: unknown): AdditionalDayReference | null =>
+  typeof amount === "number" && Number.isFinite(amount) && amount > 0 && typeof currency === "string" && ["ARS", "EUR", "USD"].includes(currency)
+    ? { amount, currency } : null;
 export const ADDITIONAL_DAY_STATUS_LABELS: Record<AdditionalDayStatus, string> = {
   sin_respuesta: "Sin respuesta", interesado: "Interesado", no: "No · revisar", consulta: "Consulta", resuelto: "Resuelto",
 };

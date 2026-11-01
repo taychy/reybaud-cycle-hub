@@ -1,3 +1,7 @@
+## Jornada extra · Tarjeta simple (01/11)
+- [x] Tarjeta simple y dos opciones con mismos valores backend; consultas previas preservadas. QA admin lee tres referencias reales a confirmar; participante muestra valor pendiente. 38 pruebas, navegador móvil/admin sin guardar, compilación OK.
+- [ ] Aprobar tarifa/jornada y resolver matiz de Valeria antes de venta; publicación posterior requiere autorización. Extras inactivos y base intacta.
+
 ## Encuesta · Apertura y actualización PWA (01/11)
 - [x] Actualizador global comprueba rutas al entrar/relanzar y no monta encuesta antes; chequeo no-store con timeout, URLs/sesión intactas y limpieza solo app.
 - [x] Autoapertura por encuesta=gastronomia/step=gastronomia con token validado, confirmada y encuesta activa; 32 Vitest, Chromium móvil/Firefox escritorio simulados: launch, login, dos recargas máximo, offline y sesión/query. Cuenta propia abre encuesta real sin guardar; compilación OK.
