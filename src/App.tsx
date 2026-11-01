@@ -158,10 +158,10 @@ const App = () => (
     <TooltipProvider>
       <Toaster />
       <Sonner />
-      <UpdatePrompt />
       <VersionBadge />
       <BrowserRouter>
         <MetaEventTracking />
+        <UpdatePrompt>
         <Routes>
           <Route path="/" element={<Login />} />
           <Route path="/auth/callback" element={<AuthCallback />} />
@@ -338,6 +338,7 @@ const App = () => (
           <Route path="/cuenta/:token" element={<PublicCuentaCorriente />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </UpdatePrompt>
       </BrowserRouter>
     </TooltipProvider>
     </ImpersonationProvider>

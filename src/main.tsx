@@ -3,6 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import { initFontScale } from "./components/FontSizeToggle";
+import { getAppLaunchDestination, SURVEY_LAUNCH_EVENT } from "./lib/appUpdate";
 
 initFontScale();
 
@@ -21,19 +22,13 @@ const launchQueue = (window as any).launchQueue;
 if (launchQueue?.setConsumer) {
   launchQueue.setConsumer((launchParams: any) => {
     try {
-      const target = launchParams?.targetURL ? new URL(launchParams.targetURL) : null;
-      if (!target || target.origin !== window.location.origin) return;
-
-      const isPublicDeepLink =
-        target.pathname === "/formacion-inicial" ||
-        target.pathname.startsWith("/preinscripcion/");
-
-      if (!isPublicDeepLink) return;
-
-      const requested = target.pathname + target.search + target.hash;
+      const requested = getAppLaunchDestination(launchParams?.targetURL ?? "", window.location.origin);
+      if (!requested) return;
       const current = window.location.pathname + window.location.search + window.location.hash;
       if (requested !== current) {
         window.location.replace(requested);
+      } else {
+        window.dispatchEvent(new Event(SURVEY_LAUNCH_EVENT));
       }
     } catch {
       // Ignore malformed launch payloads and continue normal startup.
@@ -41,4 +36,5 @@ if (launchQueue?.setConsumer) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(<App />);
+const root = document.getElementById("root");
+if (root) createRoot(root).render(<App />);

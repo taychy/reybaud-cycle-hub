@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useLocation } from "react-router-dom";
 import { RefreshCw, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +13,8 @@ import {
   recordAttempt,
   stripCacheBustParam,
   unregisterServiceWorkers,
+  requiresSurveyUpdateCheck,
+  SURVEY_LAUNCH_EVENT,
 } from "@/lib/appUpdate";
 
 /**
@@ -31,10 +34,15 @@ const SW_UPDATE_INTERVAL_MS = 30 * 60 * 1000;
 
 type Mode = "idle" | "updating" | "blocking";
 
-const UpdatePrompt = () => {
+const UpdatePrompt = ({ children }: { children?: ReactNode }) => {
+  const location = useLocation();
+  const destination = location.pathname + location.search + location.hash;
+  const surveyCheck = requiresSurveyUpdateCheck(location.pathname, location.search);
+  const [checkedDestination, setCheckedDestination] = useState<string | null>(null);
   const [mode, setMode] = useState<Mode>("idle");
   const busyRef = useRef(false);
   const lastCheckRef = useRef(0);
+  const pendingRef = useRef<Promise<string | null> | null>(null);
 
   const runUpdate = useCallback(async (target: string) => {
     if (busyRef.current) return;
@@ -61,11 +69,18 @@ const UpdatePrompt = () => {
       if (!force && now - lastCheckRef.current < FOREGROUND_DEBOUNCE_MS) return;
       lastCheckRef.current = now;
 
-      const serverId = await fetchDeployedBuildId();
-      if (!serverId) return;
+      const checkedUrl = window.location.pathname + window.location.search + window.location.hash;
+      if (!pendingRef.current) pendingRef.current = fetchDeployedBuildId();
+      const pending = pendingRef.current;
+      const serverId = await pending;
+      if (pendingRef.current === pending) pendingRef.current = null;
+      if (checkedUrl !== window.location.pathname + window.location.search + window.location.hash) return;
+      if (!serverId) { setCheckedDestination(checkedUrl); return; }
       const action = decideUpdateAction(CLIENT_BUILD_ID, serverId, readAttempt());
       if (action === "none") {
         if (serverId === CLIENT_BUILD_ID) clearAttempts();
+        setCheckedDestination(checkedUrl);
+        setMode("idle");
         return;
       }
       if (action === "blocking") {
@@ -76,6 +91,20 @@ const UpdatePrompt = () => {
     },
     [runUpdate],
   );
+
+  useEffect(() => {
+    if (surveyCheck) check(true);
+  }, [destination, surveyCheck, check]);
+
+  useEffect(() => {
+    const onLaunch = () => {
+      if (!requiresSurveyUpdateCheck(window.location.pathname, window.location.search)) return;
+      setCheckedDestination(null);
+      check(true);
+    };
+    window.addEventListener(SURVEY_LAUNCH_EVENT, onLaunch);
+    return () => window.removeEventListener(SURVEY_LAUNCH_EVENT, onLaunch);
+  }, [check]);
 
   // Service worker: registrar solo en producción real; en preview/dev limpiarlo.
   useEffect(() => {
@@ -137,7 +166,8 @@ const UpdatePrompt = () => {
     };
   }, [check]);
 
-  if (mode === "idle") return null;
+  const checkingSurvey = surveyCheck && checkedDestination !== destination;
+  if (mode === "idle" && !checkingSurvey) return <>{children}</>;
 
   const manualUpdate = () => {
     busyRef.current = true;
@@ -153,18 +183,18 @@ const UpdatePrompt = () => {
       className="fixed inset-0 z-[200] flex items-center justify-center bg-background/95 backdrop-blur-sm"
       role="alertdialog"
       aria-modal="true"
-      aria-label={mode === "blocking" ? "Actualización requerida" : "Actualizando aplicación"}
+      aria-label={mode === "blocking" ? "Actualización requerida" : mode === "idle" ? "Comprobando actualización" : "Actualizando aplicación"}
       onClickCapture={(e) => {
         if (!(e.target as HTMLElement).closest("[data-update-action]")) e.stopPropagation();
       }}
       onKeyDownCapture={(e) => e.stopPropagation()}
     >
       <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-[90%] flex flex-col items-center gap-4 text-center">
-        {mode === "updating" ? (
+        {mode !== "blocking" ? (
           <>
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
-            <p className="text-base font-semibold text-foreground">Actualizando aplicación</p>
-            <p className="text-sm text-muted-foreground">Estamos cargando la última versión. No cierres esta ventana.</p>
+            <p className="text-base font-semibold text-foreground">{mode === "idle" ? "Comprobando actualización" : "Actualizando aplicación"}</p>
+            <p className="text-sm text-muted-foreground">{mode === "idle" ? "Enseguida abrimos tu encuesta." : "Estamos cargando la última versión. No cierres esta ventana."}</p>
           </>
         ) : (
           <>
