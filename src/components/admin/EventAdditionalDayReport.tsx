@@ -34,12 +34,12 @@ export default function EventAdditionalDayReport({ eventId }: { eventId: string 
   if (rows.length === 0) return null;
   return (
     <section className="rounded-lg border border-border p-3 space-y-3">
-      <div><h3 className="font-medium text-sm">Extensión del programa · consulta personalizada</h3><p className="text-xs text-muted-foreground">{rows.length} elegible(s) para consultar por servicios dentro de la estadía ya elegida, sin ampliar sus fechas. Jornada concreta, servicios y condiciones comerciales pendientes de confirmación. Importes provisionales solo para el equipo; responder no compra ni genera cargos.</p><p className="text-xs text-muted-foreground mt-1">Alojamiento independiente: {rows.filter((r) => r.existing_night).length} de estos participantes tienen noche extra registrada; no son extensiones compradas ni conflictos demostrados.</p></div>
+      <div><h3 className="font-medium text-sm">Jornada extra de Training Camp</h3><p className="text-xs text-muted-foreground">{rows.length} elegible(s) · solicitudes dentro de las fechas elegidas, pendientes de confirmación. Valores de referencia a confirmar; no son compras.</p><p className="text-xs text-muted-foreground mt-1">{rows.filter((r) => r.existing_night).length} con alojamiento extra independiente.</p></div>
       <div className="space-y-2">{rows.map((r) => (
         <div key={r.reservation_id} className="rounded-md bg-muted/30 p-2 text-xs flex flex-wrap items-center gap-2">
           <span className="font-medium min-w-40">{r.name}</span><span>{r.package}</span>
           <Badge variant="outline">{ADDITIONAL_DAY_STATUS_LABELS[r.status]}</Badge>
-          <span>Estimado {formatPrice(r.estimated_amount, r.currency)}</span>
+          <span>Referencia {formatPrice(r.estimated_amount, r.currency)} · a confirmar</span>
           <span>Estadía elegida: {r.start.split("-").reverse().join("/")} → {r.end.split("-").reverse().join("/")} · paquete original {r.original_nights} noches</span>
           {r.existing_night && <Badge variant="outline">Alojamiento extra independiente</Badge>}
           {r.stale && <Badge variant="outline">Respuesta anterior desactualizada</Badge>}

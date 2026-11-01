@@ -1,3 +1,6 @@
+## Jornada extra · Tarjeta simple (01/11)
+- [ ] Simplificar pregunta/opciones y reporte; referencia provisional por paquete en QA, valor pendiente sin tarifa aprobada. Probar ventanas/precios sin guardar ni publicar.
+
 ## Encuesta · Apertura y actualización PWA (01/11)
 - [x] Actualizador global comprueba rutas al entrar/relanzar y no monta encuesta antes; chequeo no-store con timeout, URLs/sesión intactas y limpieza solo app.
 - [x] Autoapertura por encuesta=gastronomia/step=gastronomia con token validado, confirmada y encuesta activa; 32 Vitest, Chromium móvil/Firefox escritorio simulados: launch, login, dos recargas máximo, offline y sesión/query. Cuenta propia abre encuesta real sin guardar; compilación OK.
