@@ -996,21 +996,28 @@ const AdminEventReservations = ({
   };
 
 
+  // Eliminación SOLO para registros de prueba: el servidor rechaza si hay pagos,
+  // créditos, devoluciones u otra trazabilidad real (en ese caso, cancelar).
   const deleteReservation = async (resId: string, participantName: string) => {
-    const ok = window.confirm(
-      `¿Eliminar la reserva de ${participantName}?\n\nSe eliminarán también pagos, cuotas, notificaciones e historial asociados. Esta acción no se puede deshacer.`
+    const confirmText = window.prompt(
+      `Eliminar DEFINITIVAMENTE la reserva de prueba de ${participantName}.\n\n` +
+      `Solo para registros ficticios sin pagos ni créditos. Para reservas reales usá "Cancelar" (conserva estado e historial).\n\n` +
+      `Escribí ELIMINAR PRUEBA para confirmar:`
     );
-    if (!ok) return;
+    if (confirmText === null) return;
+    const reason = window.prompt("Motivo (queda en auditoría):", "Registro de prueba");
+    if (reason === null) return;
     setUpdatingId(resId);
-    const { error } = await supabase
-      .from("event_reservations" as any)
-      .delete()
-      .eq("id", resId);
+    const { error } = await supabase.rpc("admin_purge_test_reservation" as any, {
+      p_reservation_id: resId,
+      p_confirm: confirmText.trim(),
+      p_reason: reason,
+    });
     setUpdatingId(null);
     if (error) {
-      toast({ title: "Error al eliminar", description: error.message, variant: "destructive" });
+      toast({ title: "No se eliminó", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "Reserva eliminada", description: `Se eliminó la reserva de ${participantName}.` });
+      toast({ title: "Reserva de prueba eliminada", description: `Se limpió la reserva de ${participantName} y sus datos de prueba.` });
       setReservations(prev => prev.filter(r => r.id !== resId));
     }
   };
