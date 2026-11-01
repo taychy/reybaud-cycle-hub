@@ -699,7 +699,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
                 </TableCell>
               </TableRow>
             ) : (
-              (showAll ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
+              ((showAll || tipoFilter !== "all") ? filtered : filtered.slice(0, PREVIEW_LIMIT)).map((m) => {
                 const tipoInfo = TIPO_LABEL[m.tipo] || { label: m.tipo, className: "" };
                 const isAjuste = m.fuente_tabla === "cuenta_ajustes";
                 const rx = m.referencia_extra || {};
@@ -972,7 +972,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
             )}
           </TableBody>
         </Table>
-        {filtered.length > PREVIEW_LIMIT && (
+        {tipoFilter === "all" && filtered.length > PREVIEW_LIMIT && (
           <div className="border-t border-border bg-secondary/20">
             <Button
               variant="ghost"
