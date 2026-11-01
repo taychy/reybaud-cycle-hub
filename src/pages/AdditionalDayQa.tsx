@@ -25,6 +25,6 @@ export default function AdditionalDayQa() {
     <p className="text-xs uppercase tracking-widest text-primary">Prueba privada · respuestas simuladas</p>
     {error && <p role="alert" className="text-xs text-destructive">{error}</p>}
     {rows.map((r) => <div key={r.case_key} className="space-y-1"><h2 className="text-sm font-semibold">{r.case_key === "con_noche_previa" ? "Caso con noche extra previa" : "Caso sin noche extra previa"}</h2>
-      <AdditionalDayQuestionCard context={{ answer: r.answer, existing_night: r.case_key === "con_noche_previa", status: r.answer ?? "sin_respuesta", start: "2026-11-05", end: "2026-11-09", original_nights: 3, original_days: 4 }} saving={saving === r.case_key} onAnswer={(a) => save(r.case_key, a)} /></div>)}
+      <AdditionalDayQuestionCard context={{ answer: r.answer, existing_night: r.case_key === "con_noche_previa", status: r.answer ?? "sin_respuesta", start: "2026-11-05", end: "2026-11-09", original_nights: 3, original_days: 4, selected_nights: 4 }} saving={saving === r.case_key} onAnswer={(a) => save(r.case_key, a)} /></div>)}
   </div></main>;
 }

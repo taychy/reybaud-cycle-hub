@@ -34,7 +34,7 @@ export default function EventAdditionalDayReport({ eventId }: { eventId: string 
   if (rows.length === 0) return null;
   return (
     <section className="rounded-lg border border-border p-3 space-y-3">
-      <div><h3 className="font-medium text-sm">Extensión del programa · consulta personalizada</h3><p className="text-xs text-muted-foreground">{rows.length} elegible(s) para extender su participación en el Training Camp. Importes provisionales solo para el equipo; responder no compra ni genera cargos.</p><p className="text-xs text-muted-foreground mt-1">Alojamiento independiente: {rows.filter((r) => r.existing_night).length} de estos participantes tienen noche extra registrada; no son extensiones compradas ni conflictos demostrados.</p></div>
+      <div><h3 className="font-medium text-sm">Extensión del programa · consulta personalizada</h3><p className="text-xs text-muted-foreground">{rows.length} elegible(s) para consultar por servicios dentro de la estadía ya elegida, sin ampliar sus fechas. Jornada concreta, servicios y condiciones comerciales pendientes de confirmación. Importes provisionales solo para el equipo; responder no compra ni genera cargos.</p><p className="text-xs text-muted-foreground mt-1">Alojamiento independiente: {rows.filter((r) => r.existing_night).length} de estos participantes tienen noche extra registrada; no son extensiones compradas ni conflictos demostrados.</p></div>
       <div className="space-y-2">{rows.map((r) => (
         <div key={r.reservation_id} className="rounded-md bg-muted/30 p-2 text-xs flex flex-wrap items-center gap-2">
           <span className="font-medium min-w-40">{r.name}</span><span>{r.package}</span>
