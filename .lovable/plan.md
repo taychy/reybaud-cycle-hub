@@ -1,4 +1,40 @@
-# Auditoría y plan App Store iOS — Reybaud (octubre 2026)
+# Encuesta gastronómica: participar sin cuenta
+
+## Resultado
+El mismo enlace permitirá elegir **Tengo cuenta** o **No tengo cuenta**. El segundo camino tendrá dos pasos pequeños: identificación y encuesta, sin contraseña ni alta de usuario.
+
+## Acceso y privacidad
+1. Pedir nombre, apellido y DNI con validación; responder siempre de forma neutral, sin revelar coincidencias ni el contacto completo.
+2. Cuando haya una única reserva confirmada que coincida inequívocamente, enviar un código al email ya guardado. Verificarlo antes de mostrar paquete o respuestas anteriores.
+3. Tras verificar, abrir la encuesta existente con permiso temporal exclusivo de gastronomía; nunca entregar el enlace general de reserva ni acceso a pagos. Permitir editar mientras la verificación siga vigente.
+4. Si no llega el código, falta contacto o hay ambigüedad, permitir completar una encuesta nueva sin mostrar paquete ni respuestas previas. Guardarla en una bandeja administrativa privada como **pendiente de verificar**, sin tocar ninguna reserva.
+5. Administradores autorizados revisarán los pendientes, confirmarán identidad y reserva explícitamente y conciliarán con auditoría. Si ya hay respuesta, mostrar conflicto y exigir decisión; nunca sobrescribir silenciosamente.
+
+## Comidas y compatibilidad
+- Desayuno incluido; pensión informada únicamente después de verificar y desde el paquete.
+- Sin pensión verificada: interés todas/individual/ninguna a ARS 35.000 por comida, sin total ni compra porque el programa está pendiente.
+- En la recepción no verificada, recoger preferencias e interés opcional sin afirmar qué incluye el paquete; la revisión resolverá su pertinencia.
+- Mantener el acceso de alumnos autenticados y no alterar reservas, fechas, precios, pagos, comidas ni Extras.
+
+## Seguridad y pruebas
+- Códigos con caducidad, límite de intentos, consumo único y permisos revocables; tokens solo en memoria, nunca en URL.
+- Proteger datos sanitarios con acceso público de lectura denegado; validar todas las operaciones en servidor y registrar auditoría sin DNI en logs.
+- Probar OTP con envíos simulados, alternativa pendiente, edición, duplicados, DNI erróneo, coincidencias ambiguas, canceladas, permisos y vistas móvil/escritorio. No enviar pruebas a participantes reales.
+- Verificar que reservas y pagos permanezcan intactos; dejar la interfaz lista para que la usuaria publique después de revisar.
+
+## Decisión necesaria: límites de abuso
+Lovable Cloud no tiene una protección estándar de límites por IP para este flujo. Se propone una protección específica con contadores privados y operaciones atómicas: **5 solicitudes por identidad/evento y 20 por IP cada 15 minutos; 5 intentos por código; código de 10 minutos y sesión de encuesta de 30 minutos**. Los valores son propuestos, no reglas comerciales existentes. Requiere aceptar esta alternativa antes de implementarla.
+
+## Detalle técnico
+- Reutilizar `TripFoodSurveyDrawer` con adaptador exclusivo de encuesta verificada, sin reutilizar tokens amplios de reserva.
+- Resolver candidatos en servidor por documento normalizado y nombre/apellido, incluyendo alumnos y externos, deduplicando por reserva; no inferir por nombre ni crear fichas.
+- Servicio de correo existente verificado en `notify.reybaud-app.com`; un único mensaje de verificación por solicitud, sin campañas ni nuevas colas de correo.
+- Incorporar almacenamiento privado de desafíos/sesiones, límites y recepción pendiente, con permisos explícitos y validación administrativa server-side.
+- Integrar bandeja pendiente en Viaje → Reportes → Gastronomía.
+
+---
+
+# Auditoría anterior: App Store iOS — Reybaud (octubre 2026)
 
 Solo auditoría: no se cambió código, configuración ni se desplegó. Se contrastó la checklist de julio 2026 con lo que hay hoy en el proyecto.
 
