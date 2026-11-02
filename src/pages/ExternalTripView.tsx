@@ -21,7 +21,7 @@ import TripFormDrawer from "@/components/reservation/TripFormDrawer";
 import TripFoodSurveyDrawer from "@/components/reservation/TripFoodSurveyDrawer";
 import SanLuisAdditionalSurveys from "@/components/reservation/SanLuisAdditionalSurveys";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
-import { wantsFoodSurvey } from "@/lib/appUpdate";
+import { wantsFoodSurvey, wantsAdditionalDaySurvey } from "@/lib/appUpdate";
 import TripChoiceSurveyDrawer from "@/components/reservation/TripChoiceSurveyDrawer";
 import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
 import { Shirt } from "lucide-react";
@@ -130,6 +130,7 @@ const ExternalTripView = () => {
   const [searchParams] = useSearchParams();
   const token = searchParams.get("token");
   const surveyRequested = wantsFoodSurvey(searchParams.toString());
+  const additionalSurveyRequested = wantsAdditionalDaySurvey(searchParams.toString());
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -287,6 +288,9 @@ const ExternalTripView = () => {
       <div className="px-5 py-6 space-y-5 max-w-lg mx-auto">
         <ReschedulingEntry key={token} eventId={event.id} reservationId={reservation.id} token={reservation.access_token} onContext={setRescheduling} />
 
+        {/* Enlace privado del correo: la encuesta aparece primero, sin navegar por toda la reserva. */}
+        {additionalSurveyRequested && <SanLuisAdditionalSurveys eventId={event.id} reservationId={reservation.id} token={token ?? ""} packageName={pkg?.nombre} lodgingName={lodging?.nombre} stayLabel={rescheduled?.participantDateLabel} />}
+
         {/* Status banner */}
         <div className={`rounded-xl border-2 p-4 ${tone.border} ${tone.bg}`}>
           <div className="flex items-start gap-3">
@@ -422,7 +426,7 @@ const ExternalTripView = () => {
           </div>
         )}
 
-        <SanLuisAdditionalSurveys eventId={event.id} reservationId={reservation.id} token={token ?? ""} packageName={pkg?.nombre} lodgingName={lodging?.nombre} stayLabel={rescheduled?.participantDateLabel} />
+        {!additionalSurveyRequested && <SanLuisAdditionalSurveys eventId={event.id} reservationId={reservation.id} token={token ?? ""} packageName={pkg?.nombre} lodgingName={lodging?.nombre} stayLabel={rescheduled?.participantDateLabel} />}
         {/* Checklist */}
         {checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="rounded-xl border border-border p-4 space-y-4">

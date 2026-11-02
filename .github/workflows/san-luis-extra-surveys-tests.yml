@@ -6,6 +6,9 @@ on:
       - 'src/components/reservation/SanLuisAdditionalSurveys*'
       - 'src/components/reservation/TripAdditionalDayQuestion.tsx'
       - 'src/lib/tripAdditionalDay*'
+      - 'src/lib/appUpdate*'
+      - 'src/pages/ExternalTripView.tsx'
+      - 'src/components/admin/EventAdditionalDayReport.tsx'
       - '.github/workflows/san-luis-extra-surveys-tests.yml'
 jobs:
   test:
@@ -18,4 +21,4 @@ jobs:
           cache: npm
       - run: npm install --legacy-peer-deps --no-audit --no-fund
       - name: Probar las encuestas de jornada y alojamiento
-        run: npm run test -- src/components/reservation/SanLuisAdditionalSurveys.test.ts src/lib/tripAdditionalDay.test.ts
+        run: npm run test -- src/components/reservation/SanLuisAdditionalSurveys.test.ts src/components/reservation/SanLuisAdditionalSurveys.flow.test.tsx src/lib/tripAdditionalDay.test.ts src/lib/appUpdate.additionalDay.test.ts

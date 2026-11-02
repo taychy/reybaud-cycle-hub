@@ -22,7 +22,11 @@ export default function EventAdditionalDayReport({ eventId }: { eventId: string 
   const copyLink = async (id: string) => {
     const { data, error } = await (supabase as any).rpc("admin_trip_additional_day_link", { p_reservation_id: id });
     if (error || !data) return toast({ title: "No hay enlace personal válido", variant: "destructive" });
-    await navigator.clipboard.writeText(`https://reybaud-app.com${data}`);
+    // El enlace lo autoriza el servidor para esta reserva; nunca incluir un token inventado.
+    // Agregar la sección de la encuesta sin cambiar el token personal.
+    const url = new URL(String(data), "https://reybaud-app.com");
+    url.searchParams.set("encuesta", "jornada_extra");
+    await navigator.clipboard.writeText(url.toString());
     toast({ title: "Enlace personal copiado", description: "No se envió ningún mensaje." });
   };
   const resolve = async (id: string) => {

@@ -5,8 +5,14 @@ export const wantsFoodSurvey = (search: string) => {
   const params = new URLSearchParams(search);
   return params.get("encuesta") === "gastronomia" || params.get("step") === "gastronomia";
 };
+/** Solo la jornada adicional; no confundir con la encuesta gastronómica o una noche independiente. */
+export const wantsAdditionalDaySurvey = (search: string) => {
+  const params = new URLSearchParams(search);
+  return params.get("encuesta") === "jornada_extra" || params.get("step") === "jornada_extra";
+};
+
 export const requiresSurveyUpdateCheck = (pathname: string, search: string) =>
-  pathname === "/viaje/encuesta-gastronomica" || (pathname === "/viaje/mi-reserva" && wantsFoodSurvey(search));
+  pathname === "/viaje/encuesta-gastronomica" || (pathname === "/viaje/mi-reserva" && (wantsFoodSurvey(search) || wantsAdditionalDaySurvey(search)));
 
 /** Whitelist launch destinations; never log a target containing a private token. */
 export const getAppLaunchDestination = (targetURL: string, origin: string): string | null => {
