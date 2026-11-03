@@ -249,6 +249,20 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
           .select("cuenta_mp_id,unidad").eq("activa", true),
       ]);
       if (normal.error || excepciones.error) throw normal.error ?? excepciones.error;
+      // Recupera también pagos manuales antiguos de Tienda cuya referencia
+      // quedó únicamente en notes ("Ref: 177..."), sin mp_payment_id estructurado.
+      const { data: manualStore, error: storeError } = await supabase
+        .from("store_orders")
+        .select("mp_payment_id,notes,cuenta_mp_id")
+        .not("pagado_at", "is", null)
+        .order("pagado_at", { ascending: false })
+        .limit(2000);
+      if (storeError) throw storeError;
+      const idsEnPantalla = new Set(ids);
+      for (const o of manualStore ?? []) {
+        const ref = String(o.mp_payment_id || "") || String(o.notes || "").match(/\\bRef(?:erencia)?:\\s*(\\d{8,})\\b/i)?.[1];
+        if (ref && idsEnPantalla.has(ref)) tienda.add(ref);
+      }
       for (const r of ((normal.data as any[]) ?? [])) {
         if (!r.cuenta_mp_id) continue;
         if (!rutas.has(r.cuenta_mp_id)) rutas.set(r.cuenta_mp_id, new Set());
