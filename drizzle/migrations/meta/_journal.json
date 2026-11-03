@@ -757,6 +757,13 @@
       "when": 1793567265687,
       "tag": "0107_cc_reservation_payments_owner_fallback",
       "breakpoints": true
+    },
+    {
+      "idx": 108,
+      "version": "7",
+      "when": 1793742066961,
+      "tag": "0108_extra_meal_survey",
+      "breakpoints": true
     }
   ]
 }
