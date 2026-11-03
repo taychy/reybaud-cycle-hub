@@ -13,7 +13,7 @@ import { RefreshCw, Search, UserPlus, ExternalLink, Link2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
-import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS, classifyMpUnidad, MP_UNIDAD_LABEL, canOfferGenericImputation, imputadoDestinoLabel } from "@/lib/mpConciliacion";
+import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS, classifyMpUnidad, MP_UNIDAD_LABEL, canOfferGenericImputation, imputadoDestinoLabel, evaluarImputacionMp } from "@/lib/mpConciliacion";
 
 
 type Movement = {
@@ -44,6 +44,8 @@ type Movement = {
   tienda_existente?: boolean | null;
   credito_representado?: number | null;
   monto_disponible?: number | null;
+  cuenta_unidades?: string[];
+  ruteo_verificado?: boolean;
   alumnos?: {
     id: string;
     nombre: string;
@@ -238,7 +240,40 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
     const tienda = new Set<string>();
     const creditos = new Map<string, number>();
     const disponibles = new Map<string, number>();
+    const rutas = new Map<string, Set<string>>();
     try {
+      const [normal, excepciones] = await Promise.all([
+        supabase.from("cuenta_mp_routing" as any)
+          .select("cuenta_mp_id,unidad_negocio").eq("activa", true),
+        supabase.from("unidad_routing" as any)
+          .select("cuenta_mp_id,unidad").eq("activa", true),
+      ]);
+      if (normal.error || excepciones.error) throw normal.error ?? excepciones.error;
+      // Recupera también pagos manuales antiguos de Tienda cuya referencia
+      // quedó únicamente en notes ("Ref: 177..."), sin mp_payment_id estructurado.
+      const { data: manualStore, error: storeError } = await supabase
+        .from("store_orders")
+        .select("mp_payment_id,notes,cuenta_mp_id")
+        .not("pagado_at", "is", null)
+        .order("pagado_at", { ascending: false })
+        .limit(2000);
+      if (storeError) throw storeError;
+      const idsEnPantalla = new Set(ids);
+      for (const o of manualStore ?? []) {
+        const ref = String(o.mp_payment_id || "") || String(o.notes || "").match(/\bRef(?:erencia)?:\s*(\d{8,})\b/i)?.[1];
+        if (ref && idsEnPantalla.has(ref)) tienda.add(ref);
+      }
+      for (const r of ((normal.data as any[]) ?? [])) {
+        if (!r.cuenta_mp_id) continue;
+        if (!rutas.has(r.cuenta_mp_id)) rutas.set(r.cuenta_mp_id, new Set());
+        rutas.get(r.cuenta_mp_id)!.add(String(r.unidad_negocio));
+      }
+      for (const r of ((excepciones.data as any[]) ?? [])) {
+        if (!r.cuenta_mp_id) continue;
+        if (!rutas.has(r.cuenta_mp_id)) rutas.set(r.cuenta_mp_id, new Set());
+        rutas.get(r.cuenta_mp_id)!.add(String(r.unidad));
+      }
+
       for (const c of chunk(ids)) {
         const list = c.join(",");
         const [rpRes, soRes, spRes, caRes, dispRes] = await Promise.all([
@@ -284,7 +319,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       const rp_existente = r.reservation_payment_id
         ? { id: r.reservation_payment_id, evento: rpById.get(r.reservation_payment_id) ?? found?.evento ?? null }
         : found;
-      return { ...r, rp_existente, tienda_existente: tienda.has(String(r.mp_payment_id)),
+      return { ...r, rp_existente, cuenta_unidades: [...(rutas.get(r.cuenta_mp_id) ?? [])], ruteo_verificado: true, tienda_existente: tienda.has(String(r.mp_payment_id)),
         credito_representado: creditos.get(`${r.mp_payment_id}:${r.cuenta_mp_id}:${r.currency}`) ?? 0,
         monto_disponible: disponibles.get(r.id) ?? null };
     });
@@ -379,6 +414,11 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   async function handleAssign() {
     if (!assignDialog || !selectedAlumno) return;
+    const motivo = evaluarImputacionMp(assignDialog, target.type);
+    if (motivo) {
+      toast({ title: "Imputación bloqueada", description: motivo, variant: "destructive" });
+      return;
+    }
     setAssigning(true);
 
     if (target.type === "nueva_suscripcion") {
@@ -458,6 +498,11 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
   async function handleSplit() {
     if (!assignDialog || splitRows.length === 0) return;
+    const motivo = evaluarImputacionMp(assignDialog, "suscripcion");
+    if (motivo) {
+      toast({ title: "Reparto bloqueado", description: motivo, variant: "destructive" });
+      return;
+    }
     if (splitRows.some((r) => !Number(r.monto) || Number(r.monto) <= 0)) {
       toast({ title: "Faltan montos", description: "Poné un importe mayor a cero para cada alumno.", variant: "destructive" });
       return;
@@ -1124,14 +1169,19 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
           </div>
 
 
+          {assignDialog && evaluarImputacionMp(assignDialog, splitMode ? "suscripcion" : target.type) && (
+            <p role="alert" className="text-sm text-destructive mb-2">
+              {evaluarImputacionMp(assignDialog, splitMode ? "suscripcion" : target.type)}
+            </p>
+          )}
           <DialogFooter>
             <Button variant="ghost" onClick={() => setAssignDialog(null)}>Cancelar</Button>
             {splitMode ? (
-              <Button onClick={handleSplit} disabled={assigning || splitRows.length === 0}>
+              <Button onClick={handleSplit} disabled={assigning || splitRows.length === 0 || !!(assignDialog && evaluarImputacionMp(assignDialog, "suscripcion"))}>
                 {assigning ? "Dividiendo..." : `Dividir entre ${splitRows.length || 0} alumnos`}
               </Button>
             ) : (
-              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || (target.type === "nueva_suscripcion" ? (!newSubPlan || !newSubMonth) : target.type !== "saldo" && !target.id)}>
+              <Button onClick={handleAssign} disabled={!selectedAlumno || assigning || !!(assignDialog && evaluarImputacionMp(assignDialog, target.type)) || (target.type === "nueva_suscripcion" ? (!newSubPlan || !newSubMonth) : target.type !== "saldo" && !target.id)}>
                 {assigning ? "Asignando..." : target.type === "reservation" ? "Aplicar al evento" : target.type === "suscripcion" ? "Aplicar al plan" : target.type === "cargo" ? "Aplicar a la deuda" : target.type === "nueva_suscripcion" ? "Generar mensualidad y aplicar" : "Dejar como saldo a favor"}
               </Button>
             )}

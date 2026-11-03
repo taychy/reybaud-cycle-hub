@@ -94,3 +94,65 @@ export const MP_ESTADO_CLASS: Record<MpConciliacionEstado, string> = {
   identificado_sin_imputar: "bg-yellow-500/10 text-yellow-400 border-yellow-500/30",
   imputado: "bg-green-500/10 text-green-400 border-green-500/30",
 };
+
+/** Compatibilidad entre la cuenta que recibió el dinero y su destino contable.
+ * La cuenta física es la fuente de verdad, no el nombre del alumno ni el texto libre.
+ * Las rutas son las registradas en cuenta_mp_routing/unidad_routing.
+ */
+export type MpDestino = "reservation" | "suscripcion" | "nueva_suscripcion" | "cargo" | "saldo";
+
+export function unidadDeRuta(unidad: string): MpUnidadNegocio | null {
+  switch (unidad) {
+    case "tienda":
+    case "preventa": return "tienda";
+    case "viaje_camp":
+    case "evento":
+    case "viajes": return "viajes";
+    case "suscripcion_escuela":
+    case "personalizado":
+    case "turnera":
+    case "escuela": return "escuela";
+    default: return null;
+  }
+}
+
+export function evaluarImputacionMp(
+  movimiento: MpMovementLike & { cuenta_unidades?: string[]; ruteo_verificado?: boolean },
+  destino: MpDestino,
+): string | null {
+  if (movimiento.ruteo_verificado !== true) {
+    return "No se pudo verificar la cuenta receptora. Actualizá los movimientos antes de imputar.";
+  }
+  const unidades = new Set((movimiento.cuenta_unidades ?? []).map(unidadDeRuta).filter((u): u is MpUnidadNegocio => u !== null));
+  if (unidades.size === 0) {
+    return "La cuenta receptora no tiene una ruta comercial configurada. Revisá el ruteo antes de imputar.";
+  }
+  if (movimiento.tienda_existente || isTiendaMovement(movimiento)) {
+    return "Este cobro corresponde a Tienda. No lo vuelvas a imputar: revisá el pedido original.";
+  }
+  if (movimiento.rp_existente || movimiento.reservation_payment_id) {
+    return "Este cobro ya está registrado en una reserva. No generes otra cobranza.";
+  }
+  if (movimiento.suscripcion_id || movimiento.credito_aplicado) {
+    return "Este cobro ya se utilizó para cancelar una deuda.";
+  }
+  if (Number(movimiento.credito_representado ?? 0) > 0) {
+    return "Ya hay un saldo a favor por esta operación. Aplicá ese crédito existente desde la cuenta corriente.";
+  }
+  if (movimiento.monto_disponible != null && movimiento.monto_disponible <= 0) {
+    return "Este cobro no tiene saldo disponible para volver a imputar.";
+  }
+  const requerida: MpUnidadNegocio = destino === "reservation" ? "viajes" : "escuela";
+  if (destino === "saldo") {
+    // El crédito genérico puede terminar pagando una deuda de cualquier unidad.
+    // Para fondos de Tienda/Viajes debe crearse un crédito restringido a su origen.
+    if (!unidades.has("escuela")) {
+      return "No se puede crear un crédito general con fondos de Tienda o Viajes. Imputá a una obligación de la misma unidad.";
+    }
+    return null;
+  }
+  if (!unidades.has(requerida)) {
+    return `La transferencia ingresó en una cuenta de ${[...unidades].map((u) => MP_UNIDAD_LABEL[u]).join("/")} y no corresponde a ${MP_UNIDAD_LABEL[requerida]}. Revisá la cuenta receptora.`;
+  }
+  return null;
+}
