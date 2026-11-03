@@ -260,7 +260,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
       if (storeError) throw storeError;
       const idsEnPantalla = new Set(ids);
       for (const o of manualStore ?? []) {
-        const ref = String(o.mp_payment_id || "") || String(o.notes || "").match(/\\bRef(?:erencia)?:\\s*(\\d{8,})\\b/i)?.[1];
+        const ref = String(o.mp_payment_id || "") || String(o.notes || "").match(/\bRef(?:erencia)?:\s*(\d{8,})\b/i)?.[1];
         if (ref && idsEnPantalla.has(ref)) tienda.add(ref);
       }
       for (const r of ((normal.data as any[]) ?? [])) {
