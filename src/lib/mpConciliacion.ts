@@ -123,7 +123,7 @@ export function evaluarImputacionMp(
   if (movimiento.ruteo_verificado !== true) {
     return "No se pudo verificar la cuenta receptora. Actualizá los movimientos antes de imputar.";
   }
-  const unidades = new Set((movimiento.cuenta_unidades ?? []).map(unidadDeRuta).filter(Boolean));
+  const unidades = new Set((movimiento.cuenta_unidades ?? []).map(unidadDeRuta).filter((u): u is MpUnidadNegocio => u !== null));
   if (unidades.size === 0) {
     return "La cuenta receptora no tiene una ruta comercial configurada. Revisá el ruteo antes de imputar.";
   }
