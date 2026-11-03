@@ -26,6 +26,7 @@ import TripDocumentDrawer from "./TripDocumentDrawer";
 import TripExtrasDrawer from "./TripExtrasDrawer";
 import TripFoodSurveyDrawer from "./TripFoodSurveyDrawer";
 import TripAdditionalDayQuestion from "./TripAdditionalDayQuestion";
+import ExtraMealsSurveyCard from "./ExtraMealsSurveyCard";
 import { isFoodSurveyEnabled } from "@/lib/foodSurvey";
 import TripChoiceSurveyDrawer from "./TripChoiceSurveyDrawer";
 import { getChoiceSurveys, choiceSurveyStepKey, type ChoiceSurveyConfig } from "@/lib/choiceSurvey";
@@ -1142,6 +1143,7 @@ const ReservationStatusCard = ({
         {afterPackageSlot}
 
         {isTripLike && <TripAdditionalDayQuestion reservationId={reservation.id} />}
+        {isTripLike && <ExtraMealsSurveyCard reservationId={reservation.id} />}
         {/* ═══ 6. TRIP PREPARATION CHECKLIST ═══ */}
         {isTripLike && checklist.length > 0 && !["cancelada", "rechazada"].includes(reservation.reservation_status) && (
           <div className="glass-card rounded-xl p-5 space-y-4">

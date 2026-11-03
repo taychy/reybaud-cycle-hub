@@ -21,6 +21,7 @@ import EventChoiceSurveyReport, { useChoiceSurveys } from "./EventChoiceSurveyRe
 import { Shirt } from "lucide-react";
 import EventFoodProgramEditor from "./EventFoodProgramEditor";
 import EventAdditionalDayReport from "./EventAdditionalDayReport";
+import EventExtraMealSurveyReport from "./EventExtraMealSurveyReport";
 
 
 
@@ -524,6 +525,7 @@ const EventTripReports = ({ open, onOpenChange, eventId, eventTitle }: Props) =>
 
             <TabsContent value="gastronomia" className="space-y-3 mt-4">
               <EventFoodProgramEditor eventId={eventId} />
+              <EventExtraMealSurveyReport eventId={eventId} />
               <div className="flex items-center justify-between gap-2 flex-wrap">
                 <div>
                   <p className="text-xs text-muted-foreground">{gastronomyRows.length} participante(s)</p>

@@ -398,3 +398,9 @@
 - [x] Pantalla admin (Reportes → Gastronomía): calendario 5–9/11 en borrador, Extras regulares ARS 35.000 sin tocar cenas especiales, activación con validación servidor, aviso de fechas del evento.
 - [ ] Decidir con el organizador cada almuerzo/cena (bloqueado: decisión humana).
 - [ ] Activar encuesta y publicar (bloqueado: autorización explícita).
+
+## San Luis · Comidas adicionales (03/11)
+- [x] Reglas de servidor (cenas de noche extra, almuerzo llegada/salida, ya contratadas/incluidas, revisión) + guardado validado.
+- [x] Tarjeta participante (enlace personal y Mi Viaje), reporte admin con CSV.
+- [x] 15 casos ficticios en servidor, 6 rechazos de permisos/datos, 7 pruebas de la tarjeta; 0 respuestas guardadas.
+- [ ] Publicación y envío de enlaces: requieren autorización de la usuaria.

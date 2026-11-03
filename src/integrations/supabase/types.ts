@@ -18456,6 +18456,8 @@ export type Database = {
         Returns: string
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _extra_meal_compute: { Args: { p: Json }; Returns: Json }
+      _extra_meal_slots: { Args: { p_reservation_id: string }; Returns: Json }
       _extra_night_apply: {
         Args: { p_addon: string; p_res: string; p_timing: string }
         Returns: undefined
@@ -18846,6 +18848,10 @@ export type Database = {
         }[]
       }
       admin_enable_food_meals: { Args: { p_event: string }; Returns: Json }
+      admin_extra_meal_survey_report: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
       admin_extra_night_preview: {
         Args: {
           p_addon_id: string
@@ -20115,6 +20121,10 @@ export type Database = {
         }[]
       }
       get_event_waitlist_meta: { Args: { p_event_id: string }; Returns: Json }
+      get_extra_meal_survey: {
+        Args: { p_reservation_id: string; p_token?: string }
+        Returns: Json
+      }
       get_facturacion_metrics: {
         Args: { _desde?: string }
         Returns: {
@@ -21520,6 +21530,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      save_extra_meal_survey: {
+        Args: { p_requested: Json; p_reservation_id: string; p_token: string }
+        Returns: Json
       }
       save_trip_additional_day: {
         Args: { p_answer: string; p_reservation_id: string; p_token?: string }
