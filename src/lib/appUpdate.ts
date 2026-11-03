@@ -5,8 +5,11 @@ export const wantsFoodSurvey = (search: string) => {
   const params = new URLSearchParams(search);
   return params.get("encuesta") === "gastronomia" || params.get("step") === "gastronomia";
 };
+export const wantsExtraMealSurvey = (search: string) =>
+  new URLSearchParams(search).get("encuesta") === "comidas-adicionales";
 export const requiresSurveyUpdateCheck = (pathname: string, search: string) =>
-  pathname === "/viaje/encuesta-gastronomica" || (pathname === "/viaje/mi-reserva" && wantsFoodSurvey(search));
+  pathname === "/viaje/encuesta-gastronomica" ||
+  (pathname === "/viaje/mi-reserva" && (wantsFoodSurvey(search) || wantsExtraMealSurvey(search)));
 
 /** Whitelist launch destinations; never log a target containing a private token. */
 export const getAppLaunchDestination = (targetURL: string, origin: string): string | null => {

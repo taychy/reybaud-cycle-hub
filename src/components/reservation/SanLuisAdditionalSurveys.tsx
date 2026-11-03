@@ -6,6 +6,7 @@ import { formatPrice } from "@/lib/currency";
 import { tripTokenGet, tripTokenSaveStep } from "@/lib/tripTokenApi";
 import TripAdditionalDayQuestion from "@/components/reservation/TripAdditionalDayQuestion";
 import { isNocheExtra } from "@/lib/nocheExtra";
+import ExtraMealsSurveyCard from "@/components/reservation/ExtraMealsSurveyCard";
 
 export const SAN_LUIS_EVENT_ID = "67b4e85d-b00b-4b74-9644-99458d948c65";
 export const SAN_LUIS_NIGHT_SURVEY_KEY = "encuesta_noches_extra_san_luis";
@@ -212,6 +213,8 @@ export default function SanLuisAdditionalSurveys({
         token={token}
         onChanged={() => { setSaved(true); void load(); }}
       />
+
+      <ExtraMealsSurveyCard reservationId={reservationId} token={token} />
 
       <div className="rounded-xl border border-border p-4 space-y-3">
         <h3 className="text-sm font-semibold flex items-center gap-2">
