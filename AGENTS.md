@@ -35,4 +35,4 @@
 - Trip food preferences activation is separate from meal-offer activation: admin_set_food_survey_enabled never activates Extras; admin_enable_food_meals requires decided calendar and authorized regular Extras. Meal interest lives in checklist data; general links resolve only own confirmed reservations. Why: no invented meals.
 - Seat release approval (admin_rescheduling_seat_action) cancels the reservation and frees its room atomically, never money; no revoke. Why: withdrawn people leave lodging.
 - Ledger: reservation payments fall back to reservation owner; origin filters group charges with payments. Why: no hidden payments.
-- Extra meals: slots from SQL _extra_meal_compute, saved only via save_extra_meal_survey. Why: interest is not purchase.
+- Extra meals: slots from SQL _extra_meal_compute, saved only via save_extra_meal_survey. Why: not a purchase.
