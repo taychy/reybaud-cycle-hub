@@ -400,6 +400,7 @@
 - [ ] Activar encuesta y publicar (bloqueado: autorización explícita).
 
 ## San Luis · Comidas adicionales (03/11)
-- [ ] Reglas de servidor (cenas de noche extra, almuerzo llegada/salida, ya contratadas/incluidas, revisión) + guardado validado.
-- [ ] Tarjeta participante (enlace personal y Mi Viaje), reporte admin con CSV.
-- [ ] Pruebas con datos ficticios; sin publicar ni enviar.
+- [x] Reglas de servidor (cenas de noche extra, almuerzo llegada/salida, ya contratadas/incluidas, revisión) + guardado validado.
+- [x] Tarjeta participante (enlace personal y Mi Viaje), reporte admin con CSV.
+- [x] 15 casos ficticios en servidor, 6 rechazos de permisos/datos, 7 pruebas de la tarjeta; 0 respuestas guardadas.
+- [ ] Publicación y envío de enlaces: requieren autorización de la usuaria.
