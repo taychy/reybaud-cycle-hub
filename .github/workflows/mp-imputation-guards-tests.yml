@@ -1,0 +1,22 @@
+name: Validar imputaciones Mercado Pago
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/lib/mpConciliacion*'
+      - 'src/components/admin/MpMovementsTab.tsx'
+      - 'drizzle/migrations/0109_mp_cross_business_account_guards.sql'
+      - '.github/workflows/mp-imputation-guards-tests.yml'
+jobs:
+  pruebas-mp:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm install --no-package-lock --legacy-peer-deps --no-audit --no-fund
+      - name: Probar conciliación y bloqueo de imputaciones
+        run: npm run test -- src/lib/mpConciliacion.test.ts src/lib/mpConciliacion.cases.test.ts
