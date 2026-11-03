@@ -222,6 +222,16 @@ BEGIN
      AND NOT public.mp_account_accepts_unit(v_mp.cuenta_mp_id,'viajes') THEN
     RAISE EXCEPTION 'mp_credit_wrong_business: un crédito de otra cuenta no puede pagar Viajes';
   END IF;
+  IF NEW.aplicado_a_fuente_tabla IN ('store_orders','store_preorders')
+     AND NEW.aplicado_a_fuente_id IS NOT NULL
+     AND NOT public.mp_account_accepts_unit(v_mp.cuenta_mp_id,'tienda') THEN
+    RAISE EXCEPTION 'mp_credit_wrong_business: un crédito de otra cuenta no puede pagar Tienda';
+  END IF;
+  IF NEW.aplicado_a_fuente_tabla IN ('suscripciones','suscripcion')
+     AND NEW.aplicado_a_fuente_id IS NOT NULL
+     AND NOT public.mp_account_accepts_unit(v_mp.cuenta_mp_id,'escuela') THEN
+    RAISE EXCEPTION 'mp_credit_wrong_business: un crédito de otra cuenta no puede pagar Escuela';
+  END IF;
   RETURN NEW;
 END $$;
 REVOKE ALL ON FUNCTION public.guard_credit_business_account() FROM PUBLIC,anon,authenticated;
