@@ -84,7 +84,7 @@ BEGIN
       AND upper(ca.moneda)=upper(NEW.currency)
       AND NOT (
         (ca.aplicado_a_fuente_tabla IN ('event_reservations','reservation')
-         AND ca.aplicado_a_fuente_id=v_res)
+         AND ca.aplicado_a_fuente_id=v_res::text)
         OR position(ca.id::text in coalesce(v_notes,''))>0
       )
   ) THEN
@@ -215,7 +215,7 @@ BEGIN
         OR (v_mp.mp_payment_id ~ '^[0-9]{8,}$'
           AND coalesce(so.notes,'') ~ ('(^|[^0-9])'||v_mp.mp_payment_id||'([^0-9]|$)'))
       )
-      AND NOT (NEW.aplicado_a_fuente_tabla='store_orders' AND NEW.aplicado_a_fuente_id=so.id)
+      AND NOT (NEW.aplicado_a_fuente_tabla='store_orders' AND NEW.aplicado_a_fuente_id=so.id::text)
   ) THEN RAISE EXCEPTION 'mp_already_used_in_store: operación de Tienda no disponible como crédito general'; END IF;
   IF NEW.aplicado_a_fuente_tabla IN ('event_reservations','reservation')
      AND NEW.aplicado_a_fuente_id IS NOT NULL
