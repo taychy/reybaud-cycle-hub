@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload, Copy, Map, ChevronDown } from "lucide-react";
+import { Loader2, MapPin, Calendar, CheckCircle, AlertCircle, Upload, Copy, Map, ChevronDown, Wallet, ReceiptText } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
 import { toast } from "@/hooks/use-toast";
@@ -59,6 +59,16 @@ interface GuestData {
       estado: string;
     }>;
   }>;
+}
+
+interface PaymentMovement {
+  id: string;
+  reservation_id: string;
+  payment_date: string | null;
+  amount: number | null;
+  currency: string;
+  method: string | null;
+  status: "validado" | "anulado";
 }
 
 const fmtMoney = (n: number, cur: string) => {
@@ -128,6 +138,8 @@ export default function GuestReservationView() {
   const [searchParams] = useSearchParams();
   const paymentStatus = searchParams.get("status");
   const [data, setData] = useState<GuestData | null>(null);
+  const [payments, setPayments] = useState<PaymentMovement[]>([]);
+  const [paymentsError, setPaymentsError] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploadingId, setUploadingId] = useState<string | null>(null);
@@ -145,6 +157,13 @@ export default function GuestReservationView() {
     if (err) { setError("No pudimos cargar tu reserva."); setLoading(false); return; }
     if (!res) { setError("El enlace no es válido o expiró."); setLoading(false); return; }
     setData(res as unknown as GuestData);
+    // La misma credencial privada del participante permite consultar únicamente sus pagos.
+    // No se obtienen pagos por email ni por IDs enviados desde el cliente.
+    const { data: history, error: historyError } = await supabase.rpc(
+      "get_guest_payment_history_by_token" as any, { _token: token } as any,
+    );
+    setPaymentsError(Boolean(historyError) || !Array.isArray(history));
+    setPayments(Array.isArray(history) ? (history as PaymentMovement[]) : []);
     setLoading(false);
   };
 
@@ -224,7 +243,7 @@ export default function GuestReservationView() {
         <div className="text-center py-4">
           <p className="text-xs uppercase tracking-widest text-muted-foreground">Reybaud Ciclismo</p>
           <h1 className="text-2xl font-heading font-bold mt-1">Hola, {participant.nombre}</h1>
-          <p className="text-sm text-muted-foreground mt-1">Tu espacio para gestionar tus reservas.</p>
+          <p className="text-sm text-muted-foreground mt-1">Tus viajes, pagos y saldos en un solo lugar.</p>
         </div>
 
         {paymentStatus === "approved" && (
@@ -241,6 +260,32 @@ export default function GuestReservationView() {
               <AlertCircle className="w-5 h-5 text-amber-500 flex-shrink-0" />
               <p className="text-sm">Tu pago está pendiente. Te avisamos cuando se acredite.</p>
             </CardContent>
+          </Card>
+        )}
+
+        {reservations.length > 0 && (
+          <Card className="p-4 space-y-3">
+            <div className="flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-primary" />
+              <h2 className="font-semibold">Mi cuenta corriente</h2>
+            </div>
+            <p className="text-xs text-muted-foreground">Resumen de todas tus reservas. Los importes de diferentes monedas se muestran por separado.</p>
+            {Array.from(new Set(reservations.map((r) => r.currency_snapshot || "ARS"))).map((currency) => {
+              const related = reservations.filter((r) => (r.currency_snapshot || "ARS") === currency);
+              const total = related.reduce((sum, r) => sum + Number(r.amount_total || 0), 0);
+              const paid = related.reduce((sum, r) => sum + Number(r.amount_paid || 0), 0);
+              const due = related.reduce((sum, r) => sum + Number(r.balance_due || 0), 0);
+              return (
+                <div key={currency} className="rounded-md border p-3">
+                  <div className="text-xs font-medium text-muted-foreground mb-2">{currency}</div>
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    <div><p className="text-xs text-muted-foreground">Total</p><p className="font-semibold">{fmtMoney(total, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Pagado</p><p className="font-semibold text-emerald-500">{fmtMoney(paid, currency)}</p></div>
+                    <div><p className="text-xs text-muted-foreground">Pendiente</p><p className="font-semibold">{fmtMoney(due, currency)}</p></div>
+                  </div>
+                </div>
+              );
+            })}
           </Card>
         )}
 
@@ -290,6 +335,37 @@ export default function GuestReservationView() {
                   <div className="font-semibold text-primary">{fmtMoney(r.balance_due, r.currency_snapshot)}</div>
                 </div>
               </div>
+
+              <Collapsible className="pt-3 border-t">
+                <CollapsibleTrigger asChild>
+                  <Button type="button" variant="outline" className="w-full justify-between">
+                    <span className="flex items-center gap-2"><ReceiptText className="w-4 h-4" /> Ver movimientos de este viaje</span>
+                    <ChevronDown className="w-4 h-4" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-3 space-y-2">
+                  {paymentsError ? (
+                    <p className="text-sm text-muted-foreground">No pudimos mostrar el historial de pagos. Los importes de tu reserva siguen disponibles arriba.</p>
+                  ) : payments.filter((p) => p.reservation_id === r.id).length === 0 ? (
+                    <p className="text-sm text-muted-foreground">Todavía no hay pagos validados para este viaje.</p>
+                  ) : (
+                    payments.filter((p) => p.reservation_id === r.id).map((p) => (
+                      <div key={p.id} className="flex items-center justify-between gap-3 rounded-md bg-muted/30 px-3 py-2 text-sm">
+                        <div>
+                          <p className="font-medium">{p.status === "anulado" ? "Movimiento anulado" : "Pago recibido"}</p>
+                          <p className="text-xs text-muted-foreground">{fmtDate(p.payment_date)} · {p.method || "Medio no informado"}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={p.status === "anulado" ? "line-through text-muted-foreground" : "font-semibold text-emerald-500"}>
+                            {p.amount == null ? "Importe pendiente de verificar" : fmtMoney(p.amount, p.currency)}
+                          </p>
+                          {p.status === "anulado" && <p className="text-[11px] text-muted-foreground">No suma al pagado</p>}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
 
               {r.installments.length > 0 && (
                 <div className="pt-3 border-t space-y-2">
