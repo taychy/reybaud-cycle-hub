@@ -30,6 +30,8 @@ export interface SendManagedEmailArgs {
   replyTo?: string
   /** Optional service-role client; one is created from env when omitted. */
   supabase?: any
+  /** Secrets (e.g. access tokens) replaced by [oculto] in the stored log snapshot. */
+  redact?: string[]
 }
 
 function htmlToText(html: string, fallback: string): string {
@@ -41,6 +43,12 @@ function htmlToText(html: string, fallback: string): string {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
   return text || fallback
+}
+
+function redactAll(value: string, secrets?: string[]): string {
+  let out = value
+  for (const s of secrets || []) if (s) out = out.split(s).join('[oculto]')
+  return out
 }
 
 function getClient(supabase?: any) {
@@ -126,8 +134,8 @@ export async function sendManagedEmail(args: SendManagedEmailArgs): Promise<Send
     metadata: {
       snapshot: {
         subject: args.subject,
-        html: args.html ? args.html.slice(0, 200000) : null,
-        text: text ? text.slice(0, 50000) : null,
+        html: args.html ? redactAll(args.html, args.redact).slice(0, 200000) : null,
+        text: text ? redactAll(text, args.redact).slice(0, 50000) : null,
       },
     },
   })
