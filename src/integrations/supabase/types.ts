@@ -12996,6 +12996,57 @@ export type Database = {
           },
         ]
       }
+      reservation_terms_reminders: {
+        Row: {
+          attempts: number
+          created_at: string
+          id: string
+          kind: string
+          last_error: string | null
+          recipient: string | null
+          reservation_id: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          kind: string
+          last_error?: string | null
+          recipient?: string | null
+          reservation_id: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          id?: string
+          kind?: string
+          last_error?: string | null
+          recipient?: string | null
+          reservation_id?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reservation_terms_reminders_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reservation_terms_reminders_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       reservation_transfer_direct_payments: {
         Row: {
           amount: number
@@ -21746,6 +21797,32 @@ export type Database = {
           p_source?: string
         }
         Returns: Json
+      }
+      terms_reminder_candidates: {
+        Args: never
+        Returns: {
+          amount_paid: number
+          apellido: string
+          balance_due: number
+          created_at: string
+          days_since: number
+          event_id: string
+          event_title: string
+          kind: string
+          moneda: string
+          nombre: string
+          package_nombre: string
+          recipient: string
+          reservation_id: string
+        }[]
+      }
+      terms_reminder_claim: {
+        Args: { p_kind: string; p_recipient: string; p_reservation_id: string }
+        Returns: Json
+      }
+      terms_reminder_finish: {
+        Args: { p_error?: string; p_id: string; p_status: string }
+        Returns: undefined
       }
       transition_cambio_estado: {
         Args: {
