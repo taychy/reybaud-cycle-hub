@@ -1,0 +1,1 @@
+- Terms reminders: SQL claim, one per reservation+kind, cutoff in app_config. Why: no retro/duplicate sends.

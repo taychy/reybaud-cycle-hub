@@ -156,3 +156,6 @@ verify_jwt = false
 
 [functions.send-rescheduling-email]
 verify_jwt = false
+
+[functions.process-terms-reminders]
+verify_jwt = false
