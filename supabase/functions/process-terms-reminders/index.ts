@@ -12,6 +12,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { sendManagedEmail } from '../_shared/send-managed-email.ts'
 import { adminEmail, participantEmail } from './content.ts'
 
+const PUBLIC_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRncWZha2Zsb29uYnVud2tkb3VnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5NDcwNjcsImV4cCI6MjA4NzUyMzA2N30.wESViBAO2oP0aTSIrgXVkIS8qJXgW4f0GtKWShHuf_o'
 const SITE = 'https://reybaud-app.com'
 const cors = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type' }
 const json = (b: unknown, status = 200) => new Response(JSON.stringify(b), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
@@ -26,10 +27,11 @@ async function alertEmails(sb: any, eventId: string): Promise<string[]> {
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  const anon = Deno.env.get('SUPABASE_ANON_KEY')
+  // Clave pública del proyecto (la misma que usa el cron); el proceso es idempotente.
+  const anons = [Deno.env.get('SUPABASE_ANON_KEY'), Deno.env.get('SUPABASE_PUBLISHABLE_KEY'), PUBLIC_ANON].filter(Boolean)
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
   const key = req.headers.get('apikey') || (req.headers.get('authorization') || '').replace(/^Bearer\s+/i, '')
-  if (!key || (key !== anon && key !== service)) return json({ error: 'unauthorized' }, 401)
+  if (!key || (!anons.includes(key) && key !== service)) return json({ error: 'unauthorized' }, 401)
 
   let dry = false
   try { dry = (await req.json())?.dry_run === true } catch { /* sin body */ }
