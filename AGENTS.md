@@ -36,4 +36,4 @@
 - Seat release approval (admin_rescheduling_seat_action) cancels the reservation and frees its room atomically, never money; no revoke. Why: withdrawn people leave lodging.
 - Ledger: reservation payments fall back to reservation owner; origin filters group charges with payments. Why: no hidden payments.
 - Extra meals: slots from SQL _extra_meal_compute, saved only via save_extra_meal_survey. Why: not a purchase.
-- Terms-acceptance reminders: eligibility/claim in SQL (terms_reminder_candidates/_claim, unique per reservation+kind in reservation_terms_reminders), daily process-terms-reminders function, cutoff app_config.terms_reminders_config.since; tokens redacted from email logs. Why: no retroactive or duplicate sends, no token leaks.
+- Terms reminders: SQL claim, one per reservation+kind, cutoff in app_config. Why: no retro/duplicate sends.
