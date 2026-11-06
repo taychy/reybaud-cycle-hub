@@ -13,6 +13,10 @@ import { isNocheExtra, unidadesPorTiming, nocheTimingShortLabel, NOCHE_TIMING_OP
 import ExtraNightEditDialog from "@/components/admin/ExtraNightEditDialog";
 
 
+// Jornada 5-9/11: los tres extras permanecen inactivos para venta pública.
+// Administración puede cargarlos manualmente SOLO con la asistencia validada.
+const SAN_LUIS_EVENT_ID = "67b4e85d-b00b-4b74-9644-99458d948c65";
+
 interface Addon {
   id: string;
   nombre: string;
@@ -55,16 +59,35 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
   const [notas, setNotas] = useState("");
   const [timing, setTiming] = useState<NocheTiming | "">("");
   const [nightOpen, setNightOpen] = useState(false);
+  const [additionalDayAddonId, setAdditionalDayAddonId] = useState<string | null>(null);
+  const [additionalDayEligible, setAdditionalDayEligible] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
-    const [{ data: addons }, { data: contractedRows }, { data: reservation }] = await Promise.all([
-      supabase.from("event_addons" as any).select("*").eq("event_id", eventId).eq("activo", true).order("sort_order"),
+    const [{ data: addons }, { data: contractedRows }, { data: reservation }, { data: dayConfigs }, { data: rescheduling }] = await Promise.all([
+      supabase.from("event_addons" as any).select("*").eq("event_id", eventId).order("sort_order"),
       supabase.from("reservation_addons" as any).select("*, addon:event_addons(*)").eq("reservation_id", reservationId).order("created_at"),
-      supabase.from("event_reservations").select("package_id").eq("id", reservationId).maybeSingle(),
+      supabase.from("event_reservations").select("package_id, reservation_status").eq("id", reservationId).maybeSingle(),
+      supabase.from("trip_additional_day_config" as any).select("package_id,addon_id,required_choice").eq("event_id", eventId),
+      supabase.from("reservation_rescheduling_requests" as any).select("choice,review_status,snapshot").eq("reservation_id", reservationId).maybeSingle(),
     ]);
     const packageId = (reservation as any)?.package_id as string | null | undefined;
+    const dayConfig = eventId === SAN_LUIS_EVENT_ID
+      ? ((dayConfigs as any[]) || []).find((c) => c.package_id === packageId)
+      : null;
+    const dayAddonId = (dayConfig?.addon_id as string | undefined) ?? null;
+    const request = rescheduling as any;
+    const dayEligible = !!dayAddonId
+      && (reservation as any)?.reservation_status === "reserva_confirmada"
+      && request?.choice === dayConfig?.required_choice
+      && request?.review_status === "validada"
+      && request?.snapshot?.option?.start === "2026-11-05"
+      && request?.snapshot?.option?.end === "2026-11-09";
+    setAdditionalDayAddonId(dayAddonId);
+    setAdditionalDayEligible(dayEligible);
     const filtered = (((addons as unknown as Addon[]) || [])
+      // La jornada adicional se ofrece solo en Administración; no se activa el extra públicamente.
+      .filter((a) => a.activo || (!!dayAddonId && a.id === dayAddonId))
       .map((a) => ({ ...a, aplica_a_paquetes: a.aplica_a_paquetes || [] }))
       .filter((a) => !a.aplica_a_paquetes.length || (!!packageId && a.aplica_a_paquetes.includes(packageId))));
     setAvailable(filtered);
@@ -76,13 +99,33 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
 
   const selectedAddon = available.find((a) => a.id === selectedAddonId);
   const selectedEsNoche = isNocheExtra(selectedAddon?.nombre);
+  const selectedEsJornada = !!additionalDayAddonId && selectedAddonId === additionalDayAddonId;
+  const jornadaYaContratada = !!additionalDayAddonId && contracted.some((c) => c.addon_id === additionalDayAddonId);
 
   const addContracted = async () => {
     const addon = selectedAddon;
     if (!addon) { toast.error("Seleccioná un extra"); return; }
     const esNoche = isNocheExtra(addon.nombre);
+    const esJornada = addon.id === additionalDayAddonId;
+    if (esJornada) {
+      if (!additionalDayEligible) {
+        toast.error("Primero validá la asistencia del 5 al 9 de noviembre.");
+        return;
+      }
+      if (contracted.some((c) => c.addon_id === addon.id)) {
+        toast.error("La jornada adicional ya está registrada en esta reserva.");
+        return;
+      }
+      const { data: current } = await supabase.from("reservation_addons" as any)
+        .select("id").eq("reservation_id", reservationId).eq("addon_id", addon.id).limit(1);
+      if ((current as any[])?.length) {
+        toast.error("La jornada adicional ya está cargada. Actualizá la reserva.");
+        return;
+      }
+      if (!window.confirm(`¿Agregar la jornada adicional de ${formatPrice(addon.precio, addon.currency as any)} a esta reserva? Se sumará al total pendiente; no registra ningún pago.`)) return;
+    }
     if (esNoche && !timing) { toast.error("Elegí si la noche es antes, después o ambas"); return; }
-    const q = esNoche ? unidadesPorTiming(timing || null) : parseInt(qty || "1");
+    const q = esJornada ? 1 : esNoche ? unidadesPorTiming(timing || null) : parseInt(qty || "1");
     if (isNaN(q) || q <= 0) { toast.error("Cantidad inválida"); return; }
     setAdding(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -201,7 +244,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
               <SelectTrigger className="h-8"><SelectValue placeholder="Elegí un extra" /></SelectTrigger>
               <SelectContent>
                 {available.map((a) => (
-                  <SelectItem key={a.id} value={a.id}>
+                  <SelectItem key={a.id} value={a.id} disabled={a.id === additionalDayAddonId && (!additionalDayEligible || jornadaYaContratada)}>
                     {a.nombre} — {formatPrice(a.precio, a.currency as any)}
                   </SelectItem>
                 ))}
@@ -211,8 +254,8 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
               className="h-8"
               type="number"
               min={1}
-              value={selectedEsNoche ? String(unidadesPorTiming(timing || null) || 1) : qty}
-              disabled={selectedEsNoche}
+              value={selectedEsJornada ? "1" : selectedEsNoche ? String(unidadesPorTiming(timing || null) || 1) : qty}
+              disabled={selectedEsNoche || selectedEsJornada}
               onChange={(e) => setQty(e.target.value)}
             />
           </div>
@@ -225,6 +268,15 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
                 ))}
               </SelectContent>
             </Select>
+          )}
+          {additionalDayAddonId && !additionalDayEligible && !jornadaYaContratada && (
+            <p className="text-xs text-amber-400">La jornada adicional está disponible solo para reservas con asistencia 5–9/11 validada. No es una noche extra independiente.</p>
+          )}
+          {jornadaYaContratada && (
+            <p className="text-xs text-muted-foreground">La jornada adicional ya está incluida en los extras de esta reserva.</p>
+          )}
+          {selectedEsJornada && (
+            <p className="text-xs text-muted-foreground">Carga administrativa de 1 jornada adicional. Se actualizará el total de la reserva; no se cobra ni se confirma un pago automáticamente.</p>
           )}
           <Input className="h-8" placeholder="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
 
