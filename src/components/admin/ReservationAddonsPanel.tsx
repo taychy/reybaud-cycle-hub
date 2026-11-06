@@ -142,7 +142,10 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
         return;
       }
       const inCamp = mealDate >= stay.start && mealDate < stay.end;
-      if (packageHasFullBoard && inCamp) {
+      const coveredByFullBoard = mealType === "almuerzo"
+        ? mealDate > stay.start && mealDate < stay.end
+        : mealDate >= stay.start && mealDate < stay.end;
+      if (packageHasFullBoard && coveredByFullBoard) {
         toast.error("Esta comida ya está cubierta por la pensión completa del paquete.");
         return;
       }
