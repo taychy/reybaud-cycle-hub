@@ -58,6 +58,9 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
   const [qty, setQty] = useState("1");
   const [notas, setNotas] = useState("");
   const [timing, setTiming] = useState<NocheTiming | "">("");
+  const [mealDate, setMealDate] = useState("");
+  const [stay, setStay] = useState<{ start: string; end: string } | null>(null);
+  const [packageHasFullBoard, setPackageHasFullBoard] = useState(false);
   const [nightOpen, setNightOpen] = useState(false);
   const [additionalDayAddonId, setAdditionalDayAddonId] = useState<string | null>(null);
   const [additionalDayEligible, setAdditionalDayEligible] = useState(false);
@@ -83,11 +86,16 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
       && request?.review_status === "validada"
       && request?.snapshot?.option?.start === "2026-11-05"
       && request?.snapshot?.option?.end === "2026-11-09";
+    const start = request?.snapshot?.option?.start;
+    const end = request?.snapshot?.option?.end;
+    setStay(request?.review_status === "validada" && /^2026-11-\d{2}$/.test(start || "") && /^2026-11-\d{2}$/.test(end || "") ? { start, end } : null);
+    const { data: packageRow } = packageId ? await supabase.from("event_packages").select("incluye_gastronomia").eq("id", packageId).maybeSingle() : { data: null };
+    setPackageHasFullBoard(Boolean(packageRow?.incluye_gastronomia));
     setAdditionalDayAddonId(dayAddonId);
     setAdditionalDayEligible(dayEligible);
     const filtered = (((addons as unknown as Addon[]) || [])
       // La jornada adicional se ofrece solo en Administración; no se activa el extra públicamente.
-      .filter((a) => a.activo || (!!dayAddonId && a.id === dayAddonId))
+      .filter((a) => a.activo || (eventId === SAN_LUIS_EVENT_ID && (a.id === dayAddonId || a.categoria === "comida_regular" && Number(a.precio) === 35000)))
       .map((a) => ({ ...a, aplica_a_paquetes: a.aplica_a_paquetes || [] }))
       .filter((a) => !a.aplica_a_paquetes.length || (!!packageId && a.aplica_a_paquetes.includes(packageId))));
     setAvailable(filtered);
@@ -100,6 +108,8 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
   const selectedAddon = available.find((a) => a.id === selectedAddonId);
   const selectedEsNoche = isNocheExtra(selectedAddon?.nombre);
   const selectedEsJornada = !!additionalDayAddonId && selectedAddonId === additionalDayAddonId;
+  const selectedEsComida = eventId === SAN_LUIS_EVENT_ID && selectedAddon?.categoria === "comida_regular";
+  const mealType = selectedAddon?.nombre.toLowerCase().includes("almuerzo") ? "almuerzo" : "cena";
   const jornadaYaContratada = !!additionalDayAddonId && contracted.some((c) => c.addon_id === additionalDayAddonId);
 
   const addContracted = async () => {
@@ -125,7 +135,30 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
       if (!window.confirm(`¿Agregar la jornada adicional de ${formatPrice(addon.precio, addon.currency as any)} a esta reserva? Se sumará al total pendiente; no registra ningún pago.`)) return;
     }
     if (esNoche && !timing) { toast.error("Elegí si la noche es antes, después o ambas"); return; }
-    const q = esJornada ? 1 : esNoche ? unidadesPorTiming(timing || null) : parseInt(qty || "1");
+    const esComida = eventId === SAN_LUIS_EVENT_ID && addon.categoria === "comida_regular";
+    if (esComida) {
+      if (!stay || !/^2026-11-(0[4-9]|10)$/.test(mealDate)) {
+        toast.error("Primero confirmá las fechas de estadía y elegí la fecha exacta de la comida (4 al 10/11).");
+        return;
+      }
+      const inCamp = mealDate >= stay.start && mealDate < stay.end;
+      if (packageHasFullBoard && inCamp) {
+        toast.error("Esta comida ya está cubierta por la pensión completa del paquete.");
+        return;
+      }
+      const existingSameKind = contracted.some((c) => {
+        const name = c.addon?.nombre?.toLowerCase() || "";
+        if (c.addon?.categoria === "comida_regular" && name.includes(mealType) && (c.notas || "").includes(mealDate.split("-").reverse().join("/"))) return true;
+        if (mealType === "cena" && inCamp && ((mealDate === stay.start && name.includes("cena de bienvenida")) || (mealDate === new Date(new Date(stay.end + "T12:00:00Z").getTime() - 86400000).toISOString().slice(0,10) && name.includes("cena de cierre")))) return true;
+        return false;
+      });
+      if (existingSameKind) { toast.error("Ya hay una comida de este tipo para esa fecha en la reserva."); return; }
+      if (contracted.some(c => c.addon?.categoria === "comida_regular" && (c.addon?.nombre?.toLowerCase() || "").includes(mealType) && !c.notas?.match(/\d{2}\/\d{2}\/\d{4}/))) {
+        toast.error("Hay comidas de ese tipo sin fecha precisa: revisá la reserva antes de agregar otra."); return;
+      }
+      if (!window.confirm(`¿Agregar ${mealType} del ${mealDate.split("-").reverse().join("/")} por $35.000? Se sumará a la reserva sin registrar un pago.`)) return;
+    }
+    const q = esJornada || esComida ? 1 : esNoche ? unidadesPorTiming(timing || null) : parseInt(qty || "1");
     if (isNaN(q) || q <= 0) { toast.error("Cantidad inválida"); return; }
     setAdding(true);
     const { data: { user } } = await supabase.auth.getUser();
@@ -135,7 +168,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
       cantidad: q,
       precio_unitario: addon.precio,
       currency: addon.currency,
-      notas: notas.trim() || null,
+      notas: esComida ? `Comida adicional administrativa: ${mealDate.split("-").reverse().join("/")} · ${notas.trim()}` : notas.trim() || null,
       added_by: user?.id,
       ...(esNoche ? { noche_timing: timing } : {}),
     });
@@ -146,6 +179,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
     setQty("1");
     setNotas("");
     setTiming("");
+    setMealDate("");
     load();
     onChanged?.();
   };
@@ -255,7 +289,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
               type="number"
               min={1}
               value={selectedEsJornada ? "1" : selectedEsNoche ? String(unidadesPorTiming(timing || null) || 1) : qty}
-              disabled={selectedEsNoche || selectedEsJornada}
+              disabled={selectedEsNoche || selectedEsJornada || selectedEsComida}
               onChange={(e) => setQty(e.target.value)}
             />
           </div>
@@ -269,6 +303,13 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
               </SelectContent>
             </Select>
           )}
+          {selectedEsComida && (
+            <div className="space-y-1">
+              <Label className="text-xs">Fecha de la comida (obligatoria)</Label>
+              <Input className="h-8" type="date" min="2026-11-04" max="2026-11-10" value={mealDate} onChange={(e) => setMealDate(e.target.value)} />
+              <p className="text-xs text-muted-foreground">Almuerzo o cena individual: $35.000. Carga solo administrativa; no se cobra automáticamente.</p>
+            </div>
+          )}
           {additionalDayAddonId && !additionalDayEligible && !jornadaYaContratada && (
             <p className="text-xs text-amber-400">La jornada adicional está disponible solo para reservas con asistencia 5–9/11 validada. No es una noche extra independiente.</p>
           )}
@@ -280,7 +321,7 @@ export const ReservationAddonsPanel = ({ reservationId, eventId, onChanged }: Pr
           )}
           <Input className="h-8" placeholder="Notas (opcional)" value={notas} onChange={(e) => setNotas(e.target.value)} />
 
-          <Button size="sm" onClick={addContracted} disabled={adding || !selectedAddonId} className="w-full gap-1 h-8">
+          <Button size="sm" onClick={addContracted} disabled={adding || !selectedAddonId || (selectedEsComida && !mealDate)} className="w-full gap-1 h-8">
             {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
             Agregar
           </Button>
