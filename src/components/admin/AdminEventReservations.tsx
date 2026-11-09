@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import CancelRefundDialog from "@/components/admin/CancelRefundDialog";
 import ReservationRefundObligationCard from "@/components/admin/ReservationRefundObligationCard";
 import TransferAgreementPanel, { OriginalDirectReceived } from "@/components/admin/TransferAgreementPanel";
+import TransferReplacementLinker from "@/components/admin/TransferReplacementLinker";
 import { transferModeLabel } from "@/lib/transferAgreement";
 import type { RefundSuggestion } from "@/lib/cancellationRefund";
 import { fetchPriceStages, resolveActivePrice, formatCountdown, type PriceStage } from "@/lib/priceStages";
@@ -2469,6 +2470,34 @@ const AdminEventReservations = ({
                           <p>Reemplazada por <button type="button" className="underline text-primary" onClick={() => { const x = other(o.replacement_reservation_id); if (x) openDetail(x); }}>{name(other(o.replacement_reservation_id))}</button></p>
                         ) : <p className="text-muted-foreground">Esperando un nuevo comprador. El cupo está disponible en la venta normal.</p>}
                         <p className="text-xs text-muted-foreground">Pagado por el titular original: {formatPrice(Number(o.original_paid_amount || 0), curr(selectedRes))}. Los pagos originales no se modifican.</p>
+                        {o.status === "listed" && !o.replacement_reservation_id && (
+                          <TransferReplacementLinker
+                            key={o.id}
+                            transferId={o.id}
+                            originalPackageId={o.package_id ?? null}
+                            originalHolderName={name(selectedRes)}
+                            currency={curr(selectedRes)}
+                            candidates={reservations
+                              .filter((r) =>
+                                r.id !== selectedRes.id &&
+                                r.event_id === eventId &&
+                                r.cancelled_at == null &&
+                                !["cancelada", "rechazada", "expirada"].includes(r.reservation_status) &&
+                                !transfers.some((t) => t.status !== "cancelled" && (
+                                  t.replacement_reservation_id === r.id || t.original_reservation_id === r.id
+                                ))
+                              )
+                              .map((r) => ({
+                                id: r.id,
+                                fullName: name(r),
+                                packageId: r.package_id ?? null,
+                                packageName: eventPackages.find((p) => p.id === r.package_id)?.nombre || "Paquete no identificado",
+                                amountTotal: Number(r.amount_total || 0),
+                                amountPaid: Number(r.amount_paid || 0),
+                              }))}
+                            onLinked={() => { void loadTransfers(); void loadReservations(); }}
+                          />
+                        )}
                         {o.agreement_defined_at && (
                           <p className="text-xs">Reintegro: <strong>{transferModeLabel(o.payment_mode)}</strong>
                             {Number(o.direct_payment_amount) > 0 && <> · directo por reemplazante {formatPrice(Number(o.direct_payment_amount), curr(selectedRes))} (impacto caja Reybaud $0)</>}
