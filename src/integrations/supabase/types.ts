@@ -19443,6 +19443,10 @@ export type Database = {
         Args: { p_new_reservation_id: string }
         Returns: string
       }
+      claim_reservation_transfer_explicit: {
+        Args: { p_new_reservation_id: string; p_transfer_id: string }
+        Returns: Json
+      }
       clasificar_documento_fiscal: {
         Args: { p_doc: string; p_tipo_documento?: string }
         Returns: Json
