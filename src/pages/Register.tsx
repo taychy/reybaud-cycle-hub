@@ -47,6 +47,7 @@ const Register = () => {
   const submitInFlight = useRef(false);
   const [existingEmail, setExistingEmail] = useState<string | null>(null);
   const [dupWarning, setDupWarning] = useState<string | null>(null);
+  const [linkableByDocument, setLinkableByDocument] = useState(false);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
   const [checkingIdentity, setCheckingIdentity] = useState(true);
@@ -179,19 +180,21 @@ const Register = () => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
     setError(null);
     setDupWarning(null);
+    setLinkableByDocument(false);
     setLinkSent(null);
     setExistingEmail(null);
   };
 
   const handleLinkEmail = async () => {
-    if (!dupWarning || linking) return;
+    if (!dupWarning || !linkableByDocument || linking) return;
     setLinking(true);
     setError(null);
     try {
       const { data, error: fnError } = await supabase.functions.invoke("request-email-link", {
         body: {
           email: form.email.toLowerCase().trim(),
-          telefono: form.telefono.trim() || null,
+          // Un teléfono compartido no alcanza para elegir ficha a vincular.
+          telefono: null,
           documento: checkDocumento(form.documento, tipoDocumento).value,
         },
       });
@@ -271,8 +274,9 @@ const Register = () => {
         ["documento", "telefono", "email", "email_secundario"].includes(d.motivo)
       );
       if (hit) {
-        // No divulgar datos de terceros por coincidencia de DNI/teléfono.
-        setDupWarning("Encontramos una posible ficha anterior asociada a esos datos. Para conservar tus pagos, reservas e historial, es necesario verificar tu identidad y vincular el email.");
+        setLinkableByDocument(hit.motivo === "documento");
+        // No divulgar nombres ni correos de terceros por coincidencia.
+        setDupWarning("Encontramos una posible ficha anterior asociada a esos datos. Para conservar tus pagos, reservas e historial, es necesario verificar tu identidad.");
         return;
       }
 
@@ -295,7 +299,8 @@ const Register = () => {
 
       const result = createdData as { status?: string; alumno_id?: string } | null;
       if (result?.status === "possible_duplicate") {
-        setDupWarning("Encontramos una posible ficha anterior. Verificá la vinculación para conservar tus pagos, reservas e historial.");
+        setLinkableByDocument(result.reason === "documento");
+        setDupWarning("Encontramos una posible ficha anterior. Para conservar tus pagos y reservas, necesitamos verificar que sos el titular.");
         return;
       }
       if (result?.status === "existing") {
@@ -516,14 +521,22 @@ const Register = () => {
                   </p>
                 ) : (
                   <>
-                    <Button type="button" variant="gold" className="w-full" disabled={linking}
-                      onClick={handleLinkEmail}>
-                      {linking ? "Enviando..." : "Vincular mi email a la ficha existente"}
-                    </Button>
-                    <p className="text-xs text-muted-foreground">
-                      Te vamos a pedir que confirmes desde el correo principal de tu ficha anterior.
-                      El DNI por sí solo no autoriza la vinculación.
-                    </p>
+                    {linkableByDocument ? (
+                      <>
+                        <Button type="button" variant="gold" className="w-full" disabled={linking}
+                          onClick={handleLinkEmail}>
+                          {linking ? "Enviando..." : "Vincular mi email a la ficha existente"}
+                        </Button>
+                        <p className="text-xs text-muted-foreground">
+                          Para vincularlo vas a confirmar desde el correo principal de tu ficha anterior.
+                          El DNI por sí solo no autoriza ningún cambio.
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Para evitar asociar personas que comparten teléfono, verificá tu identidad con administración.
+                      </p>
+                    )}
                     <a href="mailto:scarlett@ciclismoreybaud.com?subject=Ayuda%20para%20vincular%20mi%20cuenta%20Reybaud"
                       className="block text-center text-sm text-primary hover:underline">
                       No tengo acceso al correo anterior
