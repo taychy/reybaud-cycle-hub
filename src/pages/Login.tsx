@@ -60,8 +60,10 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     return;
   }
 
-  // No role found
-  navigate("/", { replace: true });
+  // Google/OTP puede haber autenticado a alguien que aún no tiene ficha.
+  // Guiarlo a completar el registro, sin crear ficha antes de verificar correo.
+  const { data: { user } } = await supabase.auth.getUser();
+  navigate(user?.email_confirmed_at ? "/registro" : "/", { replace: true });
 }
 
 const Login = () => {
