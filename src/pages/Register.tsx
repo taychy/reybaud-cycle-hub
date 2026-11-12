@@ -1,112 +1,193 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { checkDocumento, type TipoDocumento } from "@/lib/documentoAlumno";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ChevronRight, ArrowLeft } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import logo from "@/assets/logo.png";
+
+const DRAFT_KEY = "reybaud_registro_borrador_v1";
+const DRAFT_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+const emptyForm = { nombre: "", apellido: "", email: "", telefono: "", documento: "" };
+
+// Sólo conservamos datos generales durante esta pestaña. Nunca guardamos el documento.
+function loadDraft() {
+  let draft = { ...emptyForm };
+  try {
+    const raw = sessionStorage.getItem(DRAFT_KEY);
+    if (raw) {
+      const saved = JSON.parse(raw);
+      if (typeof saved.savedAt === "number" && Date.now() - saved.savedAt < DRAFT_MAX_AGE_MS) {
+        for (const key of ["nombre", "apellido", "email", "telefono"] as const) {
+          if (typeof saved[key] === "string") draft[key] = saved[key].slice(0, 255);
+        }
+      } else {
+        sessionStorage.removeItem(DRAFT_KEY);
+      }
+    }
+  } catch {
+    // Storage deshabilitado: el registro sigue funcionando.
+  }
+  const emailFromLogin = new URLSearchParams(window.location.search).get("email");
+  if (emailFromLogin) draft.email = emailFromLogin.toLowerCase().trim().slice(0, 255);
+  return draft;
+}
 
 const Register = () => {
   const navigate = useNavigate();
-  const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
+  const [form, setForm] = useState(loadDraft);
+  const [tipoDocumento, setTipoDocumento] = useState<TipoDocumento>("dni");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-    setError(null);
-  };
-
+  const submitInFlight = useRef(false);
+  const [existingEmail, setExistingEmail] = useState<string | null>(null);
   const [dupWarning, setDupWarning] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
 
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
+        nombre: form.nombre,
+        apellido: form.apellido,
+        email: form.email,
+        telefono: form.telefono,
+        savedAt: Date.now(),
+      }));
+    } catch {
+      // El usuario puede continuar aunque el navegador bloquee storage.
+    }
+  }, [form.nombre, form.apellido, form.email, form.telefono]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    setError(null);
+    setDupWarning(null);
+    setLinkSent(null);
+    setExistingEmail(null);
+  };
+
   const handleLinkEmail = async () => {
+    if (!dupWarning || linking) return;
     setLinking(true);
     setError(null);
-    const { data, error: fnError } = await supabase.functions.invoke("request-email-link", {
-      body: {
-        email: form.email.toLowerCase().trim(),
-        telefono: form.telefono.trim() || null,
-        documento: form.documento.trim() || null,
-      },
-    });
-    if (fnError || (data as any)?.error) {
-      setError("No pudimos enviar el email de confirmación. Escribinos a administración.");
-    } else {
-      setLinkSent((data as any)?.destino_enmascarado || null);
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke("request-email-link", {
+        body: {
+          email: form.email.toLowerCase().trim(),
+          telefono: form.telefono.trim() || null,
+          documento: checkDocumento(form.documento, tipoDocumento).value,
+        },
+      });
+      if (fnError || (data as any)?.error) {
+        setError("No pudimos solicitar la vinculación. Contactá a administración si necesitás ayuda.");
+      } else {
+        setLinkSent((data as any)?.destino_enmascarado || "tu email registrado");
+      }
+    } catch {
+      setError("No pudimos contactar al servidor. Intentá nuevamente.");
+    } finally {
+      setLinking(false);
     }
-    setLinking(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitInFlight.current || linking) return;
+    submitInFlight.current = true;
     setLoading(true);
     setError(null);
+    setExistingEmail(null);
+    setLinkSent(null);
 
-    const email = form.email.toLowerCase().trim();
-
-    // Check if email already exists
-    const { data: existing } = await supabase
-      .rpc("lookup_alumno_by_email", { p_email: email })
-      .maybeSingle();
-
-    if (existing) {
-      if (existing.estado === "activo") {
-        setError("Ya existe una cuenta con ese email. Podés iniciar sesión.");
-      } else {
-        // Existing inactive user — send to plan selection
-        localStorage.setItem("registro_alumno_id", existing.id);
-        navigate("/planes");
-      }
-      setLoading(false);
-      return;
-    }
-
-    // Anti-duplicado: misma persona con otro email (teléfono o documento ya cargados)
-    if (!dupWarning) {
-      const { data: dups } = await supabase.rpc("lookup_alumno_duplicate", {
-        p_email: email,
-        p_telefono: form.telefono.trim() || null,
-        p_documento: form.documento.trim() || null,
-      });
-      const hit = (dups as any[] | null)?.find(
-        (d) => d.motivo === "documento" || d.motivo === "telefono"
-      );
-      if (hit) {
-        setDupWarning(
-          `Encontramos una ficha existente asociada a estos datos (${hit.nombre_parcial} · ${hit.email_enmascarado}, coincide el ${hit.motivo === "documento" ? "documento" : "teléfono"}). Podés vincular este nuevo email a tu ficha actual en lugar de crear una cuenta duplicada.`
-        );
-        setLoading(false);
+    try {
+      const email = form.email.toLowerCase().trim();
+      if (!form.nombre.trim() || !form.apellido.trim() || !email) {
+        setError("Completá nombre, apellido y email.");
         return;
       }
-    }
+      if (email.length > 255 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+        setError("Ingresá un email válido.");
+        return;
+      }
 
+      const docCheck = checkDocumento(form.documento, tipoDocumento);
+      if (docCheck.error) {
+        setError(docCheck.error);
+        return;
+      }
 
+      const { data: existing, error: existingError } = await supabase
+        .rpc("lookup_alumno_by_email", { p_email: email })
+        .maybeSingle();
 
-    // Create new student (inactive, sin grupo)
-    const newId = crypto.randomUUID();
-    const { error: insertError } = await supabase
-      .from("alumnos")
-      .insert({
-        id: newId,
-        nombre: form.nombre.trim(),
-        apellido: form.apellido.trim(),
-        email,
-        telefono: form.telefono.trim() || null,
-        documento: form.documento.trim() || null,
-        estado: "inactivo",
-        grupo: "Sin grupo",
-      } as any);
+      // Una falla de consulta nunca se interpreta como email disponible.
+      if (existingError) {
+        setError("No pudimos verificar tus datos. Intentá nuevamente.");
+        return;
+      }
 
-    if (insertError) {
-      setError("Error al crear la cuenta. Intentá nuevamente.");
+      if (existing) {
+        setDupWarning(null);
+        setExistingEmail(email);
+        return;
+      }
+
+      // Siempre consultar DNI/teléfono, incluso en reintentos. Un segundo clic
+      // jamás debe saltear el control y generar una ficha duplicada.
+      const { data: dups, error: duplicateError } = await supabase.rpc("lookup_alumno_duplicate", {
+        p_email: email,
+        p_telefono: form.telefono.trim() || null,
+        p_documento: docCheck.value,
+      });
+
+      if (duplicateError) {
+        setError("No pudimos verificar si ya tenés una ficha. Intentá nuevamente.");
+        return;
+      }
+
+      const hit = (dups as any[] | null)?.find((d) =>
+        ["documento", "telefono", "email", "email_secundario"].includes(d.motivo)
+      );
+      if (hit) {
+        // No divulgar datos de terceros por coincidencia de DNI/teléfono.
+        setDupWarning("Encontramos una posible ficha anterior asociada a esos datos. Para conservar tus pagos, reservas e historial, es necesario verificar tu identidad y vincular el email.");
+        return;
+      }
+
+      setDupWarning(null);
+      const newId = crypto.randomUUID();
+      const { error: insertError } = await supabase
+        .from("alumnos")
+        .insert({
+          id: newId,
+          nombre: form.nombre.trim(),
+          apellido: form.apellido.trim(),
+          email,
+          telefono: form.telefono.trim() || null,
+          documento: docCheck.value,
+          tipo_documento: tipoDocumento,
+          estado: "inactivo",
+          grupo: "Sin grupo",
+        } as any);
+
+      if (insertError) {
+        setError("No pudimos crear tu ficha. Intentá nuevamente o contactá a administración.");
+        return;
+      }
+
+      try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+      localStorage.setItem("registro_alumno_id", newId);
+      navigate("/planes");
+    } catch {
+      setError("Hubo un inconveniente. Revisá tu conexión e intentá nuevamente.");
+    } finally {
+      submitInFlight.current = false;
       setLoading(false);
-      return;
     }
-
-    localStorage.setItem("registro_alumno_id", newId);
-    navigate("/planes");
   };
 
   return (
@@ -119,7 +200,7 @@ const Register = () => {
             Registrate
           </h1>
           <p className="text-muted-foreground text-sm">
-            Creá tu cuenta y elegí tu plan de entrenamiento
+            Completá tus datos para empezar en Reybaud
           </p>
         </div>
 
@@ -160,7 +241,7 @@ const Register = () => {
 
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium text-foreground">
-                Email
+                Email *
               </label>
               <Input
                 id="email"
@@ -190,57 +271,89 @@ const Register = () => {
             </div>
 
             <div className="space-y-2">
+              <label htmlFor="tipo-documento" className="text-sm font-medium text-foreground">
+                Tipo de documento <span className="text-muted-foreground">(opcional)</span>
+              </label>
+              <Select value={tipoDocumento} onValueChange={(value) => {
+                setTipoDocumento(value as TipoDocumento);
+                setError(null);
+                setDupWarning(null);
+                setLinkSent(null);
+              }}>
+                <SelectTrigger id="tipo-documento" className="bg-secondary border-border text-foreground">
+                  <SelectValue placeholder="Elegí un tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="dni">DNI</SelectItem>
+                  <SelectItem value="cuit">CUIT / CUIL</SelectItem>
+                </SelectContent>
+              </Select>
               <label htmlFor="documento" className="text-sm font-medium text-foreground">
-                DNI / CUIT / CUIL <span className="text-muted-foreground">(para facturación)</span>
+                Número de documento <span className="text-muted-foreground">(si ya participaste, nos ayuda a encontrar tu ficha)</span>
               </label>
               <Input
                 id="documento"
                 name="documento"
                 type="text"
-                placeholder="Ej: 30123456 o 20-30123456-9"
+                inputMode="numeric"
+                autoComplete="off"
+                placeholder={tipoDocumento === "dni" ? "Ej: 30123456" : "Ej: 20-30123456-9"}
                 value={form.documento}
                 onChange={handleChange}
+                maxLength={20}
                 className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
 
             {error && (
-              <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3">
+              <div className="text-sm text-destructive bg-destructive/10 rounded-md p-3" role="alert">
                 {error}
               </div>
             )}
 
+            {existingEmail && (
+              <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3" role="status">
+                <p className="font-semibold text-foreground">Este email ya está registrado</p>
+                <p className="text-sm text-muted-foreground">No necesitás crear otra ficha. Ingresá con tu email para conservar tus datos y pagos.</p>
+                <Button type="button" variant="gold" className="w-full"
+                  onClick={() => navigate(`/?email=${encodeURIComponent(existingEmail)}`)}>
+                  Iniciar sesión
+                </Button>
+              </div>
+            )}
+
             {dupWarning && (
-              <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3 space-y-3">
-                <p>{dupWarning}</p>
+              <div className="text-sm bg-primary/5 border border-primary/30 text-foreground rounded-lg p-4 space-y-3" role="status">
+                <p className="font-semibold">Parece que ya tenés una ficha en Reybaud</p>
+                <p className="text-muted-foreground">{dupWarning}</p>
                 {linkSent ? (
-                  <p className="text-emerald-400">
-                    Te enviamos un email a {linkSent} para confirmar la vinculación. Abrilo y confirmá:
-                    tu ficha, suscripciones y pagos se mantienen.
+                  <p className="text-foreground">
+                    Enviamos una solicitud de confirmación al correo registrado ({linkSent}).
+                    Seguí las instrucciones recibidas para vincular el email, sin perder tus datos.
                   </p>
                 ) : (
                   <>
-                    <Button
-                      type="button"
-                      variant="gold"
-                      className="w-full"
-                      disabled={linking}
-                      onClick={handleLinkEmail}
-                    >
-                      {linking ? "Enviando..." : "Vincular este email a mi ficha"}
+                    <Button type="button" variant="gold" className="w-full" disabled={linking}
+                      onClick={handleLinkEmail}>
+                      {linking ? "Enviando..." : "Vincular mi email a la ficha existente"}
                     </Button>
-                    <p className="text-xs text-amber-400/80">
-                      Enviaremos un email de confirmación a la casilla principal de esa ficha.
-                      Si no sos vos, presioná "Continuar" de nuevo para crear una cuenta nueva.
+                    <p className="text-xs text-muted-foreground">
+                      Te vamos a pedir que confirmes desde el correo principal de tu ficha anterior.
+                      El DNI por sí solo no autoriza la vinculación.
                     </p>
+                    <a href="mailto:scarlett@ciclismoreybaud.com?subject=Ayuda%20para%20vincular%20mi%20cuenta%20Reybaud"
+                      className="block text-center text-sm text-primary hover:underline">
+                      No tengo acceso al correo anterior
+                    </a>
                   </>
                 )}
               </div>
             )}
 
 
-            <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
-              {loading ? "Creando cuenta..." : "Continuar"}
+            <Button type="submit" variant="gold" className="w-full" size="lg"
+              disabled={loading || linking || !!dupWarning || !!existingEmail}>
+              {loading ? "Verificando..." : "Continuar"}
               <ChevronRight className="w-4 h-4" />
             </Button>
           </div>
