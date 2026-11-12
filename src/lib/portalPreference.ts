@@ -41,7 +41,9 @@ export async function getAvailablePortals(userId: string): Promise<Portal[]> {
     supabase.rpc("has_role", { _user_id: userId, _role: "admin" as any }),
     supabase.rpc("has_role", { _user_id: userId, _role: "coach" as any }),
     supabase.rpc("has_role", { _user_id: userId, _role: "deposito" as any }),
-    supabase.from("alumnos").select("id").eq("user_id", userId).maybeSingle(),
+    // Resuelve ficha canónica también con emails secundarios confirmados,
+    // aliases Auth y fusiones; no exige que user_id sea el único vinculado.
+    supabase.rpc("current_alumno_id" as any),
   ]);
   const portals: Portal[] = [];
   if (isAdmin) portals.push("admin");
