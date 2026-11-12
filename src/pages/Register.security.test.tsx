@@ -47,10 +47,15 @@ describe("Alta segura", () => {
       data: { user: { email: "persona@example.test", email_confirmed_at: "2026-01-01T00:00:00Z" } },
       error: null,
     });
-    mock.rpc.mockImplementation(async (name: string) => ({
-      data: name === "lookup_alumno_duplicate" ? [{ motivo: "documento" }] : null,
-      error: null,
-    }));
+    mock.rpc.mockImplementation((name: string) => {
+      if (name === "lookup_alumno_by_email") {
+        return { maybeSingle: async () => ({ data: null, error: null }) };
+      }
+      return Promise.resolve({
+        data: name === "lookup_alumno_duplicate" ? [{ motivo: "documento" }] : null,
+        error: null,
+      });
+    });
     render(<Register />);
     await screen.findByLabelText("Nombre *");
     fireEvent.change(screen.getByLabelText("Nombre *"), { target: { value: "Ana" } });
