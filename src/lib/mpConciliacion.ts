@@ -62,9 +62,20 @@ export function deriveMpConciliacionEstado(m: MpMovementLike): MpConciliacionEst
 
 /** Si el destino ya es conocido (tienda o pago de reserva existente) no se ofrece imputación genérica. */
 export function canOfferGenericImputation(m: MpMovementLike): boolean {
-  return deriveMpConciliacionEstado(m) !== "imputado" && !isTiendaMovement(m) && !m.rp_existente
+  const hasRemainder = m.monto_disponible == null || m.monto_disponible > 0;
+  if (isTiendaMovement(m) || m.rp_existente || Number(m.credito_representado ?? 0) > 0 || !hasRemainder) return false;
+  // Una suscripción vinculada puede haber consumido solo una parte del ingreso.
+  if (m.suscripcion_id) return Number(m.monto_disponible ?? 0) > 0;
+  return deriveMpConciliacionEstado(m) !== "imputado";
+}
+
+/** La distribución usa exclusivamente el remanente calculado en servidor. */
+export function canOfferDebtDistribution(m: MpMovementLike): boolean {
+  return !!m.alumno_id
+    && Number(m.monto_disponible ?? 0) > 0
     && !(Number(m.credito_representado ?? 0) > 0)
-    && (m.monto_disponible == null || m.monto_disponible > 0);
+    && !isTiendaMovement(m)
+    && !m.rp_existente;
 }
 
 /** Texto de destino para movimientos imputados ("Imputado a Training Camp …", "Imputado a Tienda"). */

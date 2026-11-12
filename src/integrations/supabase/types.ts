@@ -20616,6 +20616,15 @@ export type Database = {
         }
         Returns: string
       }
+      imputar_pago_en_deudas: {
+        Args: {
+          _deudas: Json
+          _lote_id?: string
+          _pago_origen_id: string
+          _pago_origen_tipo: string
+        }
+        Returns: Json
+      }
       impute_validated_payments_to_installments: {
         Args: { p_reservation_id: string }
         Returns: Json
@@ -21533,6 +21542,15 @@ export type Database = {
         }[]
       }
       run_imputaciones_regression_tests: {
+        Args: never
+        Returns: {
+          detalle: string
+          estado: string
+          nombre: string
+          test: number
+        }[]
+      }
+      run_mp_multi_debt_regression_tests: {
         Args: never
         Returns: {
           detalle: string

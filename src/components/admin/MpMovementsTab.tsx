@@ -13,7 +13,8 @@ import { RefreshCw, Search, UserPlus, ExternalLink, Link2 } from "lucide-react";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { PeriodBadge } from "@/components/admin/PeriodBadge";
-import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS, classifyMpUnidad, MP_UNIDAD_LABEL, canOfferGenericImputation, imputadoDestinoLabel } from "@/lib/mpConciliacion";
+import { deriveMpConciliacionEstado, MP_ESTADO_LABEL, MP_ESTADO_CLASS, classifyMpUnidad, MP_UNIDAD_LABEL, canOfferGenericImputation, canOfferDebtDistribution, imputadoDestinoLabel } from "@/lib/mpConciliacion";
+import MultiDebtImputationDialog from "@/components/admin/MultiDebtImputationDialog";
 
 
 type Movement = {
@@ -122,6 +123,7 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
   const [search, setSearch] = useState("");
 
   const [assignDialog, setAssignDialog] = useState<Movement | null>(null);
+  const [distributionDialog, setDistributionDialog] = useState<Movement | null>(null);
   const [alumnos, setAlumnos] = useState<Alumno[]>([]);
   const [suggested, setSuggested] = useState<Alumno[]>([]);
 
@@ -840,20 +842,23 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
                       <TableCell className="text-xs">{m.payment_type || m.payment_method || "—"}</TableCell>
                       <TableCell className="text-xs font-mono">{m.mp_payment_id}</TableCell>
                       <TableCell className={`text-right whitespace-nowrap sticky right-0 shadow-[-8px_0_12px_-8px_rgba(0,0,0,0.5)] ${!assigned ? "bg-[hsl(var(--card))]" : "bg-card"}`}>
-                        {estado === "imputado" && (m.reservation_payment_id || m.suscripcion_id) ? (
-                          <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
-                        ) : !canOfferGenericImputation(m) ? (
-                          <span className="text-xs text-muted-foreground">—</span>
-                        ) : (
-                          <div className="flex flex-col items-end gap-1">
-                            <Button size="sm" variant={estado === "identificado_sin_imputar" ? "default" : "outline"} onClick={() => { setAssignDialog(m); setSelectedAlumno(m.alumno_id ?? null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
-                              <UserPlus className="h-3 w-3 mr-1" /> {estado === "identificado_sin_imputar" ? "Imputar a deuda" : "Identificar alumno"}
-                            </Button>
-                            {estado === "identificado_sin_imputar" && (
-                              <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleUnassign(m)}>Quitar alumno</Button>
-                            )}
-                          </div>
-                        )}
+                        <div className="flex flex-col items-end gap-1">
+                          {estado === "imputado" && (m.reservation_payment_id || m.suscripcion_id) ? (
+                            <Button size="sm" variant="ghost" onClick={() => handleUnassign(m)}>Desasignar</Button>
+                          ) : canOfferGenericImputation(m) ? (
+                            <>
+                              <Button size="sm" variant={estado === "identificado_sin_imputar" ? "default" : "outline"} onClick={() => { setAssignDialog(m); setSelectedAlumno(m.alumno_id ?? null); setAssignNotes(""); setAlumnos([]); void suggestByPayerEmail(m.payer_email); }}>
+                                <UserPlus className="h-3 w-3 mr-1" /> {estado === "identificado_sin_imputar" ? "Imputar a deuda" : "Identificar alumno"}
+                              </Button>
+                              {estado === "identificado_sin_imputar" && (
+                                <Button size="sm" variant="ghost" className="text-xs" onClick={() => handleUnassign(m)}>Quitar alumno</Button>
+                              )}
+                            </>
+                          ) : !canOfferDebtDistribution(m) ? <span className="text-xs text-muted-foreground">—</span> : null}
+                          {canOfferDebtDistribution(m) && (
+                            <Button size="sm" variant="outline" onClick={() => setDistributionDialog(m)}>Varias deudas</Button>
+                          )}
+                        </div>
                       </TableCell>
                     </TableRow>
                   );
@@ -1140,6 +1145,21 @@ export default function MpMovementsTab({ periodo = "all" }: { periodo?: string }
 
         </DialogContent>
       </Dialog>
+
+      <MultiDebtImputationDialog
+        open={!!distributionDialog}
+        onOpenChange={(open) => !open && setDistributionDialog(null)}
+        alumnoId={distributionDialog?.alumno_id ?? null}
+        payment={distributionDialog ? {
+          sourceType: "mp_movement",
+          sourceId: distributionDialog.id,
+          label: `MP ${distributionDialog.mp_payment_id}`,
+          currency: distributionDialog.currency,
+          gross: Number(distributionDialog.amount),
+          available: Number(distributionDialog.monto_disponible ?? 0),
+        } : null}
+        onChanged={load}
+      />
     </div>
   );
 }

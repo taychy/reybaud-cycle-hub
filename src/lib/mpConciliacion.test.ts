@@ -32,4 +32,10 @@ describe("deriveMpConciliacionEstado", () => {
   it("un cobro sin representación y con remanente puede imputarse", () => {
     expect(canOfferGenericImputation({ alumno_id: "a1", credito_representado: 0, monto_disponible: 400 })).toBe(true);
   });
+  it("una suscripción parcialmente vinculada conserva el remanente distribuible", () => {
+    expect(canOfferGenericImputation({ alumno_id: "a1", suscripcion_id: "octubre", monto_disponible: 78750 })).toBe(true);
+  });
+  it("una suscripción que consumió todo el ingreso no ofrece otra imputación", () => {
+    expect(canOfferGenericImputation({ alumno_id: "a1", suscripcion_id: "octubre", monto_disponible: 0 })).toBe(false);
+  });
 });

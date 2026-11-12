@@ -404,3 +404,11 @@
 - [x] Tarjeta participante (enlace personal y Mi Viaje), reporte admin con CSV.
 - [x] 15 casos ficticios en servidor, 6 rechazos de permisos/datos, 7 pruebas de la tarjeta; 0 respuestas guardadas.
 - [ ] Publicación y envío de enlaces: requieren autorización de la usuaria.
+
+## Conciliación MP · distribución múltiple y correcciones autorizadas (12/11)
+- [ ] UI y RPC atómico/idempotente para distribuir un pago entre varias deudas, incluido remanente ya vinculado.
+- [ ] Pruebas de reparto, exceso, idempotencia, concurrencia, titularidad/moneda/canceladas y ledger sin duplicados.
+- [ ] Mateo: revalidar y aplicar solo ARS 78.750 del remanente a la segunda deuda de octubre, conservando el primer destino.
+- [ ] Completar cuenta MP y aplicar crédito de Miguel; completar cuentas de Francisco, Andrés y un crédito Martinero con backup/auditoría.
+- [ ] Reconstruir Daniel Mroz y María Agustina Fanelli Evans sin escrituras monetarias; no tocar Natalia Basilico.
+- [ ] Verificación integral, commit y entrega; no publicar ni enviar comunicaciones.
