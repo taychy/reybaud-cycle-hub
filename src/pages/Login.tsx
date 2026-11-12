@@ -60,12 +60,17 @@ async function redirectByRole(userId: string, navigate: ReturnType<typeof useNav
     return;
   }
 
-  // No role found
-  navigate("/", { replace: true });
+  // Google/OTP puede haber autenticado a alguien que aún no tiene ficha.
+  // Guiarlo a completar el registro, sin crear ficha antes de verificar correo.
+  const { data: { user } } = await supabase.auth.getUser();
+  navigate(user?.email_confirmed_at ? "/registro" : "/", { replace: true });
 }
 
 const Login = () => {
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(() =>
+    (new URLSearchParams(window.location.search).get("email") || "").trim().toLowerCase()
+  );
+  const [unregisteredEmail, setUnregisteredEmail] = useState<string | null>(null);
   const [loginError, setLoginError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -222,6 +227,7 @@ const Login = () => {
     e.preventDefault();
     if (!startOtpRequest()) return;
     setLoginError(null);
+    setUnregisteredEmail(null);
     setLoading(true);
     try {
       const trimmedEmail = email.toLowerCase().trim();
@@ -233,14 +239,24 @@ const Login = () => {
       }
 
     // Check if email exists anywhere (alumno, admin, or coach)
-    const { data: alumnoData } = await supabase
+    const { data: alumnoData, error: alumnoLookupError } = await supabase
       .rpc("lookup_alumno_by_email", { p_email: trimmedEmail })
       .maybeSingle();
 
-    const { data: isAdminOrCoach } = await supabase.rpc("check_admin_or_coach_email" as any, { _email: trimmedEmail });
+    const { data: isAdminOrCoach, error: staffLookupError } = await supabase.rpc(
+      "check_admin_or_coach_email" as any,
+      { _email: trimmedEmail }
+    );
+
+    // Si el servidor falla, no asumir que el correo es nuevo.
+    if (alumnoLookupError || staffLookupError) {
+      setLoginError("No pudimos verificar el email en este momento. Intentá nuevamente.");
+      setLoading(false);
+      return;
+    }
 
     if (!alumnoData && !isAdminOrCoach) {
-      setLoginError("No se encontró una cuenta con ese email. Si sos nuevo, creá tu cuenta primero.");
+      setUnregisteredEmail(trimmedEmail);
       setLoading(false);
       return;
     }
@@ -462,7 +478,7 @@ const Login = () => {
               autoComplete="username"
               placeholder="nombre@email.com"
               value={email}
-              onChange={(e) => { setEmail(e.target.value); setLoginError(null); }}
+              onChange={(e) => { setEmail(e.target.value); setLoginError(null); setUnregisteredEmail(null); }}
               required
               className="h-12 rounded-xl bg-secondary border-border text-foreground placeholder:text-muted-foreground text-base"
             />
@@ -471,6 +487,33 @@ const Login = () => {
           {loginError && (
             <div className="text-sm text-destructive bg-destructive/10 rounded-xl p-3">
               {loginError}
+            </div>
+          )}
+
+          {unregisteredEmail && (
+            <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3" role="status">
+              <div className="space-y-1">
+                <p className="font-semibold text-foreground">¿Todavía no tenés una cuenta?</p>
+                <p className="text-sm text-muted-foreground">
+                  No encontramos una cuenta asociada a <strong className="text-foreground break-all">{unregisteredEmail}</strong>.
+                  Podés registrarte en Reybaud.
+                </p>
+              </div>
+              <Button
+                type="button"
+                variant="gold"
+                className="w-full h-11"
+                onClick={() => navigate(`/registro?email=${encodeURIComponent(unregisteredEmail)}`)}
+              >
+                Crear mi cuenta <ChevronRight className="w-4 h-4" />
+              </Button>
+              <button
+                type="button"
+                className="w-full text-center text-sm text-muted-foreground hover:text-foreground"
+                onClick={() => { setUnregisteredEmail(null); setLoginError(null); }}
+              >
+                Corregir email
+              </button>
             </div>
           )}
 

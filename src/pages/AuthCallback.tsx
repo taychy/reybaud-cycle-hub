@@ -132,9 +132,10 @@ const AuthCallback = () => {
         return;
       }
 
-      // Fallback: user exists but no role matched — send to home
+      // Email validado, todavía sin ficha: continuar registro.
+      // Esto incluye el primer acceso por Google o enlace de confirmación.
       if (!cancelled) {
-        navigate("/", { replace: true });
+        navigate(session.user.email_confirmed_at ? "/registro" : "/", { replace: true });
       }
     };
 
