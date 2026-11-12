@@ -5,6 +5,7 @@ import Register from "./Register";
 const mock = vi.hoisted(() => ({
   navigate: vi.fn(),
   getUser: vi.fn(),
+  requestOtp: vi.fn(),
   rpc: vi.fn(),
   from: vi.fn(),
   invoke: vi.fn(),
@@ -15,7 +16,7 @@ vi.mock("@/integrations/supabase/client", () => ({
     auth: {
       getUser: mock.getUser,
       onAuthStateChange: () => ({ data: { subscription: { unsubscribe: vi.fn() } } }),
-      signInWithOtp: vi.fn(),
+      signInWithOtp: mock.requestOtp,
       verifyOtp: vi.fn(),
       signOut: vi.fn(),
     },
@@ -30,6 +31,7 @@ beforeEach(() => {
   window.history.replaceState({}, "", "/registro");
   window.sessionStorage.clear();
   mock.getUser.mockResolvedValue({ data: { user: null }, error: null });
+  mock.requestOtp.mockResolvedValue({ error: null });
   mock.rpc.mockResolvedValue({ data: null, error: null });
 });
 afterEach(() => cleanup());
@@ -39,6 +41,19 @@ describe("Alta segura", () => {
     render(<Register />);
     await screen.findByRole("button", { name: "Verificar mi email" });
     expect(screen.queryByLabelText("Nombre *")).toBeNull();
+    expect(mock.from).not.toHaveBeenCalled();
+  });
+
+  it("pide un correo de verificación sin registrar la ficha antes", async () => {
+    render(<Register />);
+    const input = await screen.findByLabelText("Tu email *");
+    fireEvent.change(input, { target: { value: "persona@example.test" } });
+    fireEvent.click(screen.getByRole("button", { name: "Verificar mi email" }));
+    await waitFor(() => expect(mock.requestOtp).toHaveBeenCalledWith({
+      email: "persona@example.test",
+      options: expect.objectContaining({ shouldCreateUser: true }),
+    }));
+    expect(mock.rpc).not.toHaveBeenCalledWith("register_verified_alumno", expect.anything());
     expect(mock.from).not.toHaveBeenCalled();
   });
 
