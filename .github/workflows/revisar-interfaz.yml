@@ -16,6 +16,6 @@ jobs:
       - name: Instalar dependencias
         run: npm install --no-package-lock --legacy-peer-deps --no-audit --no-fund
       - name: Probar registro y verificación por email
-        run: npm run test -- src/pages/Register.security.test.tsx src/lib/pendingOtp.registration.test.ts
+        run: npm run test -- src/pages/Register.security.test.tsx src/lib/pendingOtp.registration.test.ts src/lib/portalPreference.registration.test.ts
       - name: Compilar
         run: npm run build
