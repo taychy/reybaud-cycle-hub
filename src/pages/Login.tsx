@@ -513,7 +513,7 @@ const Login = () => {
                 Corregir email
               </button>
             </div>
-          )
+          )}
 
           <Button type="submit" variant="gold" className="w-full h-12 rounded-xl text-base" disabled={loading}>
             {loading ? "Enviando…" : "Pedir código de acceso"}
