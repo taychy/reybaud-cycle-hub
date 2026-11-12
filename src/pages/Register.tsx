@@ -87,7 +87,7 @@ const Register = () => {
     e.preventDefault();
     if (otpInFlight.current) return;
     const email = form.email.trim().toLowerCase();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 255) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 255) {
       setVerificationError("Ingresá un email válido.");
       return;
     }
