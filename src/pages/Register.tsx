@@ -109,7 +109,7 @@ const Register = () => {
         setError("Completá nombre, apellido y email.");
         return;
       }
-      if (email.length > 255 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      if (email.length > 255 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         setError("Ingresá un email válido.");
         return;
       }
