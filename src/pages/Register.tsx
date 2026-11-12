@@ -4,7 +4,9 @@ import { checkDocumento, type TipoDocumento } from "@/lib/documentoAlumno";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronRight, ArrowLeft, MailCheck, Loader2 } from "lucide-react";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { canRequestOtpAgain, clearPendingOtpState, getOtpErrorMessage, normalizeOtpCode, OTP_LENGTH, savePendingOtpState } from "@/lib/pendingOtp";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import logo from "@/assets/logo.png";
 
@@ -47,6 +49,117 @@ const Register = () => {
   const [dupWarning, setDupWarning] = useState<string | null>(null);
   const [linkSent, setLinkSent] = useState<string | null>(null);
   const [linking, setLinking] = useState(false);
+  const [checkingIdentity, setCheckingIdentity] = useState(true);
+  const [verifiedEmail, setVerifiedEmail] = useState<string | null>(null);
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
+  const [otpBusy, setOtpBusy] = useState(false);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const otpInFlight = useRef(false);
+
+  // La identidad se confirma CONTRA Auth, no por un email escrito en el formulario.
+  useEffect(() => {
+    let active = true;
+    const syncIdentity = async () => {
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      if (!active) return;
+      const authEmail = !authError && user?.email && user.email_confirmed_at
+        ? user.email.trim().toLowerCase()
+        : null;
+      setVerifiedEmail(authEmail);
+      if (authEmail) setForm((prev) => ({ ...prev, email: authEmail }));
+      setCheckingIdentity(false);
+    };
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") {
+        setVerifiedEmail(null);
+        setCheckingIdentity(false);
+      } else if (event === "SIGNED_IN") {
+        // Evitar await al cliente Auth dentro del callback sincrónico.
+        window.setTimeout(() => { if (active) void syncIdentity(); }, 0);
+      }
+    });
+    void syncIdentity();
+    return () => { active = false; subscription.unsubscribe(); };
+  }, []);
+
+  const handleRequestOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (otpInFlight.current) return;
+    const email = form.email.trim().toLowerCase();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) || email.length > 255) {
+      setVerificationError("Ingresá un email válido.");
+      return;
+    }
+    if (!canRequestOtpAgain("registration", email)) {
+      setVerificationError("Esperá unos segundos antes de pedir otro código.");
+      return;
+    }
+    otpInFlight.current = true;
+    setOtpBusy(true);
+    setVerificationError(null);
+    try {
+      const { error: otpError } = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          // Una cuenta Auth puede crearse, pero NUNCA la ficha alumno sin email verificado.
+          shouldCreateUser: true,
+          emailRedirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (otpError) {
+        setVerificationError("No pudimos enviar el email de verificación. Intentá nuevamente.");
+        return;
+      }
+      savePendingOtpState({ email, returnTo: "/registro", context: "registration" });
+      setOtpRequested(true);
+    } catch {
+      setVerificationError("No pudimos contactar al servidor. Intentá nuevamente.");
+    } finally {
+      setOtpBusy(false);
+      otpInFlight.current = false;
+    }
+  };
+
+  const handleVerifyOtp = async () => {
+    if (otpInFlight.current || normalizeOtpCode(otpCode).length !== OTP_LENGTH) return;
+    otpInFlight.current = true;
+    setOtpBusy(true);
+    setVerificationError(null);
+    try {
+      const email = form.email.trim().toLowerCase();
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email, token: normalizeOtpCode(otpCode), type: "email",
+      });
+      if (verifyError) {
+        setVerificationError(getOtpErrorMessage(verifyError));
+        setOtpCode("");
+        return;
+      }
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      if (userError || !user?.email_confirmed_at || user.email?.trim().toLowerCase() !== email) {
+        setVerificationError("No pudimos confirmar tu email. Intentá ingresar nuevamente.");
+        return;
+      }
+      clearPendingOtpState();
+      setVerifiedEmail(email);
+    } catch {
+      setVerificationError("No pudimos verificar el código. Intentá nuevamente.");
+    } finally {
+      otpInFlight.current = false;
+      setOtpBusy(false);
+    }
+  };
+
+  const handleChangeAccount = async () => {
+    await supabase.auth.signOut();
+    clearPendingOtpState();
+    setVerifiedEmail(null);
+    setOtpRequested(false);
+    setOtpCode("");
+    setVerificationError(null);
+    setForm((prev) => ({ ...prev, email: "" }));
+  };
 
   useEffect(() => {
     try {
@@ -96,7 +209,7 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (submitInFlight.current || linking) return;
+    if (submitInFlight.current || linking || !verifiedEmail) return;
     submitInFlight.current = true;
     setLoading(true);
     setError(null);
@@ -104,7 +217,12 @@ const Register = () => {
     setLinkSent(null);
 
     try {
-      const email = form.email.toLowerCase().trim();
+      const { data: { user }, error: identityError } = await supabase.auth.getUser();
+      const email = user?.email?.trim().toLowerCase() || "";
+      if (identityError || !user?.email_confirmed_at || email !== verifiedEmail) {
+        setError("Verificá tu email antes de completar el registro.");
+        return;
+      }
       if (!form.nombre.trim() || !form.apellido.trim() || !email) {
         setError("Completá nombre, apellido y email.");
         return;
@@ -158,29 +276,40 @@ const Register = () => {
         return;
       }
 
-      setDupWarning(null);
-      const newId = crypto.randomUUID();
-      const { error: insertError } = await supabase
-        .from("alumnos")
-        .insert({
-          id: newId,
-          nombre: form.nombre.trim(),
-          apellido: form.apellido.trim(),
-          email,
-          telefono: form.telefono.trim() || null,
-          documento: docCheck.value,
-          tipo_documento: tipoDocumento,
-          estado: "inactivo",
-          grupo: "Sin grupo",
-        } as any);
+      // El servidor verifica email_confirmed_at, detecta duplicados y registra
+      // de manera transaccional; el navegador NO inserta alumnos directamente.
+      const { data: createdData, error: registrationError } = await supabase.rpc(
+        "register_verified_alumno" as any,
+        {
+          p_nombre: form.nombre.trim(),
+          p_apellido: form.apellido.trim(),
+          p_telefono: form.telefono.trim() || null,
+          p_documento: docCheck.value,
+          p_tipo_documento: tipoDocumento,
+        }
+      );
+      if (registrationError) {
+        setError("No pudimos completar tu registro. Intentá nuevamente o contactá a administración.");
+        return;
+      }
 
-      if (insertError) {
-        setError("No pudimos crear tu ficha. Intentá nuevamente o contactá a administración.");
+      const result = createdData as { status?: string; alumno_id?: string } | null;
+      if (result?.status === "possible_duplicate") {
+        setDupWarning("Encontramos una posible ficha anterior. Verificá la vinculación para conservar tus pagos, reservas e historial.");
+        return;
+      }
+      if (result?.status === "existing") {
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+        navigate("/", { replace: true });
+        return;
+      }
+      if (result?.status !== "created" || !result.alumno_id) {
+        setError("No pudimos confirmar la creación de tu ficha. Contactá a administración.");
         return;
       }
 
       try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
-      localStorage.setItem("registro_alumno_id", newId);
+      localStorage.setItem("registro_alumno_id", result.alumno_id);
       navigate("/planes");
     } catch {
       setError("Hubo un inconveniente. Revisá tu conexión e intentá nuevamente.");
@@ -189,6 +318,56 @@ const Register = () => {
       setLoading(false);
     }
   };
+
+  if (checkingIdentity) {
+    return <div className="min-h-screen flex items-center justify-center bg-background"><Loader2 className="h-8 w-8 animate-spin text-primary" /></div>;
+  }
+
+  if (!verifiedEmail) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md space-y-6">
+          <img src={logo} alt="Ciclismo Reybaud" className="w-16 h-16 mx-auto" />
+          <h1 className="text-2xl font-heading font-bold text-center uppercase">Creá tu cuenta</h1>
+          <p className="text-sm text-muted-foreground text-center">
+            Primero verificamos tu email para proteger tu perfil, reservas y pagos.
+          </p>
+          <form className="glass-card rounded-xl p-5 space-y-4" onSubmit={handleRequestOtp}>
+            <label htmlFor="email-verificacion" className="block text-sm font-medium">Tu email *</label>
+            <Input id="email-verificacion" name="email" type="email" autoComplete="email"
+              placeholder="tu@email.com" value={form.email} onChange={(event) => {
+                handleChange(event);
+                setOtpRequested(false);
+                setOtpCode("");
+                setVerificationError(null);
+              }} required className="h-12 bg-secondary border-border text-foreground" />
+            <Button type="submit" variant="gold" className="w-full" disabled={otpBusy}>
+              {otpBusy ? "Enviando..." : otpRequested ? "Reenviar verificación" : "Verificar mi email"}
+            </Button>
+            {otpRequested && (
+              <div className="space-y-3 border-t border-border pt-4">
+                <div className="flex items-center gap-2"><MailCheck className="h-5 w-5 text-primary" />
+                  <p className="text-sm">Revisá tu casilla. Seguí el enlace recibido o ingresá el código si aparece.</p>
+                </div>
+                <InputOTP maxLength={OTP_LENGTH} value={otpCode} onChange={v => setOtpCode(normalizeOtpCode(v))}>
+                  <InputOTPGroup>
+                    {Array.from({ length: OTP_LENGTH }, (_, i) => <InputOTPSlot key={i} index={i} className="w-8 h-10 sm:w-10" />)}
+                  </InputOTPGroup>
+                </InputOTP>
+                <Button type="button" variant="outline" className="w-full"
+                  disabled={otpBusy || otpCode.length !== OTP_LENGTH} onClick={handleVerifyOtp}>
+                  {otpBusy ? "Verificando..." : "Confirmar código"}
+                </Button>
+              </div>
+            )}
+            {verificationError && <p role="alert" className="text-sm text-destructive">{verificationError}</p>}
+          </form>
+          <button type="button" className="block mx-auto text-sm text-muted-foreground hover:text-foreground"
+            onClick={() => navigate("/")}>Ya tengo una cuenta, ingresar</button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background px-4">
@@ -200,7 +379,7 @@ const Register = () => {
             Registrate
           </h1>
           <p className="text-muted-foreground text-sm">
-            Completá tus datos para empezar en Reybaud
+            Tu email está verificado. Ahora completá tus datos para empezar en Reybaud.
           </p>
         </div>
 
@@ -248,11 +427,15 @@ const Register = () => {
                 name="email"
                 type="email"
                 placeholder="tu@email.com"
-                value={form.email}
-                onChange={handleChange}
-                required
-                className="bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                value={verifiedEmail}
+                readOnly
+                aria-readonly="true"
+                className="bg-muted border-border text-muted-foreground"
               />
+              <button type="button" onClick={handleChangeAccount}
+                className="text-xs text-primary hover:underline">
+                Usar otro email
+              </button>
             </div>
 
             <div className="space-y-2">
