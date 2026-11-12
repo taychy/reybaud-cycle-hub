@@ -1,7 +1,7 @@
 export const OTP_LENGTH = 8;
 export const OTP_REQUEST_COOLDOWN_MS = 8_000;
 
-export type PendingOtpContext = "main" | "staff";
+export type PendingOtpContext = "main" | "staff" | "registration";
 
 export interface PendingOtpState {
   status: "pending_otp";
@@ -25,7 +25,7 @@ const isPendingOtpState = (value: unknown): value is PendingOtpState => {
     state.status === "pending_otp" &&
     typeof state.email === "string" &&
     typeof state.requestedAt === "number" &&
-    (state.context === "main" || state.context === "staff")
+    (state.context === "main" || state.context === "staff" || state.context === "registration")
   );
 };
 
