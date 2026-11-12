@@ -43,11 +43,9 @@ const ProtectedRoute = ({
         if (data) foundRoles.push(role);
       }
 
-      const { data: alumnoData } = await supabase
-        .from("alumnos")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
+      // El alumno puede tener múltiples identidades Auth verificadas.
+      // El RPC determina qué ficha canónica le corresponde de forma segura.
+      const { data: alumnoData } = await supabase.rpc("current_alumno_id" as any);
       if (alumnoData) foundRoles.push("alumno");
 
       if (cancelled) return;
