@@ -107,17 +107,22 @@ BEGIN
     RETURN jsonb_build_object('status', 'existing', 'alumno_id', v_existing);
   END IF;
 
-  -- DNI, CUIL y teléfono detectan coincidencias; NO prueban titularidad.
-  IF EXISTS (
+  -- DNI/CUIL y teléfono detectan coincidencias; NO prueban titularidad.
+  -- Un teléfono compartido no habilita vinculación automática ni email de confirmación.
+  IF v_doc IS NOT NULL AND EXISTS (
     SELECT 1 FROM public.alumnos a
-    WHERE a.fusionada_en IS NULL
-      AND (
-        (v_doc IS NOT NULL AND regexp_replace(coalesce(a.documento, ''), '[^0-9]', '', 'g') = v_doc)
-        OR (length(v_phone_digits) = 10
-          AND right(regexp_replace(coalesce(a.telefono, ''), '[^0-9]', '', 'g'), 10) = v_phone_digits)
-      )
+     WHERE a.fusionada_en IS NULL
+       AND regexp_replace(coalesce(a.documento, ''), '[^0-9]', '', 'g') = v_doc
   ) THEN
-    RETURN jsonb_build_object('status', 'possible_duplicate');
+    RETURN jsonb_build_object('status', 'possible_duplicate', 'reason', 'documento');
+  END IF;
+
+  IF length(v_phone_digits) = 10 AND EXISTS (
+    SELECT 1 FROM public.alumnos a
+     WHERE a.fusionada_en IS NULL
+       AND right(regexp_replace(coalesce(a.telefono, ''), '[^0-9]', '', 'g'), 10) = v_phone_digits
+  ) THEN
+    RETURN jsonb_build_object('status', 'possible_duplicate', 'reason', 'telefono');
   END IF;
 
   INSERT INTO public.alumnos (
