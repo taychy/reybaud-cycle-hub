@@ -1,3 +1,9 @@
+-- ⚠️ BLOQUEADA / NO APLICAR (alerta documental 2026-11-13).
+-- La reducción de ARS 882.528 en 12 cuentas es una proyección matemática y NO prueba crédito ficticio:
+-- hay operaciones MP distintas de meses distintos (Braier, Ambrosini, Ferroni), cargos manuales que
+-- podrían duplicar suscripciones (Braier, Marcenaro) y créditos manuales sin comprobante (Celuch Eguren).
+-- No aplicar hasta conciliar cronológicamente esas operaciones y cargos con Administración (Natalia).
+-- Ver .lovable/archivo/alerta-contable-0111-validacion-documental-2026-11-13.md
 -- PENDING MIGRATION 0111: isolated candidate only, not registered or applied.
 -- Apply later through the database migration tool after approval in a safe environment.
 -- Recognize a manually marked subscription only for the part not already imputed.

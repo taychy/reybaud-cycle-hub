@@ -425,3 +425,6 @@
 - [x] Ejecutar regresiones aisladas, conciliación before/after y rollback sin escribir en Lovable Cloud.
 - [x] Documentar resultados, límites y condiciones de activación; commit solo de cambios verificados.
 - [ ] Cuotas de reservas pagadas por MP: 0112 lista y probada (31+1 PASS), pendiente de autorización para aplicar (ver sql/pending/0112_ACTIVACION.md).
+
+## Bloqueo 0111 (13/11)
+- [ ] 0111 BLOQUEADA / NO APLICAR: los ARS 882.528 son una proyección, no crédito ficticio confirmado (ver .lovable/archivo/alerta-contable-0111-validacion-documental-2026-11-13.md). Espera la conciliación de Natalia de Pablo Braier, Silvina Ambrosini, Pedro Ferroni, Sergio Celuch Eguren y Augusto Marcenaro (posible doble cargo de septiembre).
