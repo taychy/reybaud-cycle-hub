@@ -891,6 +891,84 @@ Deno.serve(async (req) => {
         });
       }
 
+      // Ruta canónica (0112): registro + recálculo de reserva y cuotas en una sola
+      // transacción SQL, idempotente y serializada por operación MP. Si la función
+      // todavía no existe en la base, se usa la ruta legacy de abajo sin cambios.
+      const { data: sync, error: syncErr } = await supabaseAdmin.rpc("register_event_mp_payment" as any, {
+        p_reservation_id: reservationId,
+        p_mp_payment_id: String(payment.id),
+        p_mp_status: String(payment.status ?? ""),
+        p_amount: paidAmount,
+        p_installment_number: eventInstallmentNumber,
+        p_payment_date: null,
+      });
+      const syncMissing = !!syncErr && (syncErr.code === "PGRST202" || syncErr.code === "42883");
+      if (syncErr && !syncMissing) {
+        console.error("[mp-webhook] register_event_mp_payment failed:", syncErr);
+        // 500 → MP reintenta; la función es idempotente.
+        return new Response(JSON.stringify({ ok: false, error: "event_sync_failed" }), {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!syncErr) {
+        const r = (sync ?? {}) as Record<string, any>;
+        console.log("[mp-webhook] event sync:", { reservationId, action: r.action, status: r.status });
+        try {
+          const newStatus =
+            payment.status === "approved" ? "aprobada" :
+            payment.status === "rejected" ? "fallida" :
+            payment.status === "cancelled" ? "cancelada" : null;
+          if (newStatus && payment.preference_id) {
+            await supabaseAdmin.from("reservation_payment_intents")
+              .update({ status: newStatus, resolved_at: new Date().toISOString() })
+              .eq("preference_id", String(payment.preference_id))
+              .eq("status", "pendiente");
+          }
+          if (r.became_validated) {
+            await supabaseAdmin.from("audit_log").insert({
+              action: "reserva.mp.pago.aprobado",
+              entity_type: "event_reservation", entity_id: reservationId,
+              user_role: "edge_function",
+              details: { payment_id: payment.id, preference_id: payment.preference_id, amount: paidAmount, sync_action: r.action },
+            });
+          }
+        } catch (e) {
+          console.error("[mp-webhook] intent close failed:", e);
+        }
+        // Emails sólo cuando este evento validó el pago por primera vez (no en reintentos).
+        if (r.became_validated) {
+          const fnHeaders = {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
+          };
+          try {
+            await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-payment-recorded`, {
+              method: "POST", headers: fnHeaders,
+              body: JSON.stringify({
+                reservation_id: reservationId, amount: paidAmount, payment_method: "mercadopago",
+                payment_reference: String(payment.id), installment_number: eventInstallmentNumber ?? null,
+              }),
+            });
+          } catch (e) {
+            console.error("[mp-webhook] payment-recorded email failed:", e);
+          }
+          if (!r.was_confirmed && r.fully_paid_now) {
+            try {
+              await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-reservation-confirmed-with-payment`, {
+                method: "POST", headers: fnHeaders, body: JSON.stringify({ reservation_id: reservationId }),
+              });
+            } catch (e) {
+              console.error("[mp-webhook] confirmed-with-payment email failed:", e);
+            }
+          }
+        }
+        return new Response(JSON.stringify({ ok: true, kind: "event", status: payment.status, action: r.action }), {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
       // Idempotencia: si ya registramos este pago, salir
       const { data: existing } = await supabaseAdmin
         .from("reservation_payments")
