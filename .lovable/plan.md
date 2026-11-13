@@ -1,57 +1,62 @@
-# Auditoría San Luis: compras de cupo de Fernando Strada y Tomás Muller
+# Auditoría: saldo a favor sobre deudas ya pagadas e imputadas (solo lectura)
 
-Solo lectura. No se cambió nada. Al aprobar, se harían **únicamente** las dos correcciones de abajo.
+No se modificó nada. Consultas SELECT acotadas sobre la base actual.
 
-## 1. Fernando Strada (compró la reserva de Ingrid Epp)
+## Hallazgo confirmado (bug principal)
+En la cuenta corriente, una cuota mensual puede recibir **dos haberes por el mismo dinero**:
+1. el haber de la **imputación** del pago MP (rama `pago_imputacion`), y
+2. el haber propio de la **suscripción marcada pagada manualmente** (rama "pago_suscripcion" desde `suscripciones`, con `metodo_pago` = transferencia / efectivo / mp_externo_*), que solo se suprime si existe un movimiento MP con `suscripcion_id` vinculado; **no se suprime cuando la cuota ya tiene una imputación activa**.
 
-**Datos confirmados en la base**
-- Reserva de Fernando `30c0259f` (confirmada, 06/10). Paquete: Hab. individual con PC $1.196.690.
-- Extras: noche extra individual «antes» $80.000 (30/10) y masaje 60 min $40.000 (02/11). **Total $1.316.690.**
-- Reserva de Ingrid `d7b9ca7f`, cancelada. Pagó a la escuela $840.925: $350.000 (17/07), $246.975 (30/07), $243.950 (31/08). Hay un intento de $246.975 rechazado que no cuenta.
-- Transferencia de cupo `e939fd47`, modalidad «pago directo a la titular»: a Ingrid $840.925, a la escuela $355.765.
-- Pagos de Fernando a la escuela: $355.765 (MP 181483222127, 13/10) y $120.000 (MP 186388331903, 03/11, cubre los dos Extras). Total $475.765.
-- Pago directo Fernando → Ingrid registrado: **$840.000** (14/10, confirmado). Antes se cargaron tres pagos mal escritos ($840,925, $840,08 y $839.243,99) y luego se anularon. Se reemplazaron por un solo pago de $840.000, «verificado».
+El saldo disponible del pago (`pago_saldo_disponible`) queda bien en 0; el error está en la vista de cuenta corriente, que por eso muestra saldo a favor igual al importe imputado.
 
-**Cuenta**
-- $1.316.690 − $475.765 − $840.000 = **$925 de saldo**. El sistema muestra $925, no $975.
-- Causa: el pago directo quedó en $840.000 y el acuerdo dice $840.925. Faltan exactamente $925.
-- Para Reybaud no se duplica ingreso: los $840.925 de Ingrid se transfirieron a Fernando. La escuela cobró de verdad solo los $475.765 de Fernando.
+Secuencia observada en los 13 casos: primero se imputó el pago (guardado bien porque la cuota estaba pendiente) y después, en la misma fecha o más tarde, la cuota quedó con método de pago manual (actualización manual o cierre/renovación). Ninguna función de imputación toca `suscripciones`; quién marcó el método queda como **hipótesis a confirmar con audit_log**.
 
-**No confirmado:** si el comprobante 1120 dice $840.000 o $840.925. La nota de rectificación del 14/10 dice «pago real verificado ARS 840.000».
+### Alcance: 13 alumnos, 13 cuotas, hasta ARS 953.768 de haber duplicado (sin otras monedas)
+| Alumno | Imputación | Cuota (método) | Precio | Imputado |
+|---|---|---|---|---|
+| Constanza Peñoñori | 51132f8b | d4f4ffda (mp_externo_claudio) | 71.240 | 68.476 |
+| Daniel Mroz | bd45fa2c | 53eb77be (transferencia) | 83.500 | 76.472 |
+| Florencia Bunge | 3e630b39 | 1b3272ca (mp_externo_josi) | 65.500 | 65.500 |
+| Gustavo Rosa | 709e869a | 94636818 (transferencia) | 71.240 | 71.240 |
+| María Lorena Tempone | cb7cdffb | e50da639 (mp_externo_claudio) | 83.500 | 83.500 |
+| Martin Cortes | 5fe2ea02 | eb7412ae (mp_externo_claudio) | 71.240 | 71.240 |
+| Mateo Melloni | d934dfc8 | 0b7719ed (mp_externo_claudio) | 71.240 | 64.600 |
+| Mercedes Carlés | 5dfbac6c | 05cf0ba8 (mp_externo_josi) | 83.500 | 83.500 |
+| Pablo Braier | 361b4e87 | ad872a57 (mp_externo_claudio) | 83.500 | 83.500 |
+| Paula Edith Blasco | 4a7bdaff | c2b9900e (mp_externo_josi) | 65.500 | 65.500 |
+| Pedro Ferroni | 287a6c62 | b7e82c19 (mp_externo_josi) | 83.500 | 83.500 |
+| Sergio Celuch Eguren | 8506da7d | ddc87215 (efectivo) | 65.500 | 65.500 |
+| Silvina Ambrosini | dfb82982 | e312644f (mp_externo_claudio) | 71.240 | 71.240 |
 
-**Corrección propuesta (solo si el comprobante dice $840.925)**
-- Anular el pago directo `bafa6be2` ($840.000) con motivo y cargar uno nuevo de $840.925 con el mismo comprobante, por el flujo de pagos entre participantes. Resultado: saldo $0.
-- No tocar los pagos a la escuela, los Extras ni la reserva de Ingrid.
-- Si el comprobante dice $840.000, el saldo de $925 es real y la corrección no corresponde: Fernando le debe $925 a Ingrid, o se decide condonarlo.
+En cada caso, saldo correcto de esa cuota es 0 y el saldo a favor mostrado está inflado por hasta el importe imputado. El tope de ARS 953.768 vale solo si ninguno tiene además cobro real por el método manual; ese cobro real (efectivo/transferencia/MP externo) puede existir y debe confirmarlo la administradora con el comprobante (no se puede inferir de la base).
 
-## 2. Tomás Muller (compró la reserva de Jorge Monczor)
+Mateo Melloni: su caso de 64.600 (cargo 27/08) corresponde a este patrón. Daniel Mroz: explica su remanente de 3.738 anterior y el desvío de 7.028.
 
-**Datos confirmados en la base**
-- Reserva de Jorge `686f7545`, cancelada. Paquete Hab. doble con PC, total $859.000, pagado $859.000.
-- Transferencia de cupo `d715c077`: está en «publicada». **No tiene reserva compradora vinculada**, no hay acuerdo ni pago directo cargado.
-- Tomás tiene una reserva propia `162efadd` (confirmada, 12/10). Se creó como reserva nueva a nombre de tmullerk@hotmail.com, **sin vínculo a su ficha de alumno**. Paquete Hab. individual con PC: **$1.196.690**. Sin Extras ni cuotas.
-- Pagos a la escuela: $100.000 (MP 182731268357, 12/10) y $237.690 (MP 183995496666, 13/10) = **$337.690**. Ambos ingresos de MP sí están vinculados a su ficha. Sin duplicados.
-- Saldo en el sistema: **$859.000** = exactamente lo que le pagó a Jorge.
+## Hallazgo secundario (créditos libres con la misma referencia MP)
+5 créditos manuales no aplicados (ARS 536.093,60) con la misma referencia que un MP ya vinculado o imputado: Constanza (68.476), Augusto Marcenaro (71.240), Mateo (241.637,60), Pedro Ferroni (83.500), Silvina (71.240).
+- **Confirmado duplicado en cuenta corriente:** Augusto (MP vinculado a la cuota con haber completo + crédito libre).
+- **Probable / a verificar:** los otros 4. La lógica actual descuenta el crédito del haber de la imputación, así que no se duplica por esa vía, pero se superpone con el hallazgo principal (mismo pago, tres representaciones).
 
-**Causa:** la compra no se procesó como transferencia de cupo. Los $859.000 que recibió Jorge no figuran en ningún lado.
+## No duplicados / descartado
+- Imputación a reserva + pago de reserva validado con el mismo MP: 0 casos.
+- Natalia Basilico: sin imputaciones activas en este patrón; julio/agosto siguen sin tocarse.
+- Saldo a favor y deuda simultáneos por hechos distintos: no se cuentan como bug.
 
-**No confirmado:**
-- No hay comprobante de los $859.000 cargado en la base.
-- Cambio de paquete: Jorge tenía doble ($859.000) y Tomás tiene individual ($1.196.690). Las cuentas cierran: $859.000 + $337.690 = $1.196.690. Falta confirmar que la diferencia de modalidad fue acordada.
-- Rooming y fechas de Tomás no se revisaron.
+## Bloqueos de acceso
+- Con acceso de solo lectura no se pueden ejecutar `pago_monto_reconocido_cc` ni la vista completa de cuenta corriente (permiso de función): los importes se calcularon con las tablas y la definición SQL, no con el saldo final de la pantalla.
+- No se revisó audit_log para saber quién marcó cada cuota como pagada.
 
-**Corrección propuesta**
-1. Vincular la transferencia `d715c077` a la reserva `162efadd` con modalidad «pago directo»: a Jorge $859.000, a la escuela $337.690.
-2. Cargar el pago directo Tomás → Jorge por $859.000 con comprobante. Resultado: saldo $0, sin ingreso de caja nuevo.
-3. Vincular la reserva `162efadd` a la ficha de Tomás (`0ba067cd`) para que aparezca en su cuenta corriente.
-4. Limitación: el flujo actual de transferencias se basa en reservas creadas desde la reventa. Antes de vincular una reserva ya existente, hay que verificar que la función lo permita. Si no lo permite, se haría con un paso administrativo auditado, sin borrar ni recrear la reserva.
+## Responsables
+- Vista `vw_cuenta_corriente_movimientos`, rama "Pago plan" desde `suscripciones`: solo excluye si hay `mp_account_movements.suscripcion_id`; ignora `pagos_imputaciones` y créditos aplicados.
+- `obligacion_saldo_pendiente` sí bloquea imputar sobre una cuota ya marcada pagada, pero nada impide marcarla pagada **después** de imputar.
+- Pantalla: `StudentCuentaCorrienteSection.tsx` y `SaldoDisponibleSection.tsx` solo muestran lo que da la vista (sin lógica propia duplicada).
 
-## Fuera de alcance, para revisar aparte
-- Tomás tiene **dos créditos de $90.400** por la orden de tienda #117 (28/10 y 03/11). Puede ser otra doble representación del mismo cobro.
-- Sin jornada adicional ni gastronomía cargadas en ninguna de las dos reservas.
+## Arreglo mínimo propuesto (requiere autorización; sin reescribir historia)
+1. **Vista (migración):** en la rama "Pago plan" desde `suscripciones`, emitir haber = `max(0, precio − imputaciones activas a esa cuota − créditos aplicados)` en lugar del precio completo. No cambia filas, ni pagos, ni facturación; corrige los 13 casos de una vez.
+2. **Prevención:** guard en base que impida pasar una cuota con imputación activa a método manual distinto de su origen (o lo registre como "imputado"), con mensaje claro.
+3. **Casos de cobro real adicional:** si la administradora confirma que también hubo efectivo/transferencia, ese dinero queda como saldo a favor legítimo; nada se borra.
+4. Créditos libres de la sección secundaria: tratarlos uno por uno con los flujos auditados existentes, después del paso 1.
 
-## Anexo: enlace privado para pagar la jornada adicional (informe anterior)
-- Se puede reutilizar el enlace privado por reserva de la jornada adicional y el cobro de Mercado Pago de reservas.
-- Falta un cobro «solo este Extra», con monto calculado en el servidor (hoy el navegador puede enviar un monto) y ligado a la línea del Extra.
-- También falta un bloqueo contra doble cobro: un solo intento abierto por línea, no cobrar si ya está pagado o si hay un ingreso pendiente de imputar, y bloquear casos con pagos mal imputados.
-- Se puede preparar con el cobro apagado: listado borrador de destinatarios y correo en borrador. Los Extras siguen inactivos hasta que se aprueben los valores.
+## Verificación posterior
+- Consulta de reconciliación: por alumno, sumar haberes de la vista vs (pagos MP + créditos + cobros manuales reales) antes/después; los 13 deben bajar exactamente lo imputado.
+- Pruebas aisladas: imputación + cuota luego marcada manual → un solo haber; cuota pagada manual sin imputación → haber completo; imputación parcial → haber del resto; casos de Rodrigo/Teresa/Mateo intactos.
