@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo, type ReactNode } from "react";
+import { deudaExigibleReserva, isReservaSinDeuda } from "@/lib/reservationRefunds";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -304,9 +305,13 @@ const ReservationStatusCard = ({
         setEffBalance(d && Number(d.direct_external_confirmed) > 0 ? Number(d.effective_balance) : null);
       });
   }, [rawReservation.id, rawReservation.amount_paid, rawReservation.balance_due]);
-  const reservation = useMemo(() => effBalance == null ? rawReservation : {
-    ...rawReservation,
-    balance_due: Math.min(Number(rawReservation.balance_due ?? rawReservation.amount_total ?? 0), effBalance),
+  const reservation = useMemo(() => {
+    // Canceladas/rechazadas: deuda exigible 0 (el importe original no cobrado no se exige).
+    if (isReservaSinDeuda(rawReservation.reservation_status)) return { ...rawReservation, balance_due: 0 };
+    return effBalance == null ? rawReservation : {
+      ...rawReservation,
+      balance_due: Math.min(Number(rawReservation.balance_due ?? rawReservation.amount_total ?? 0), effBalance),
+    };
   }, [rawReservation, effBalance]);
   // Trip-like events show full onboarding (checklist + stepper + payment plan).
   // School events (record_hora, carrera, otro) show only the confirmation banner.
@@ -1008,8 +1013,8 @@ const ReservationStatusCard = ({
               </div>
             )}
 
-            {/* Real installments plan (Module 4) */}
-            <StudentInstallmentsPlan
+            {/* Real installments plan (Module 4) — nunca en canceladas/rechazadas */}
+            {!isReservaSinDeuda(reservation.reservation_status) && <StudentInstallmentsPlan
               ref={planRef}
               reservationId={reservation.id}
               currency={currency}
@@ -1058,7 +1063,7 @@ const ReservationStatusCard = ({
                   setMpLoading(false);
                 }
               }}
-            />
+            />}
 
 
             {/* Legacy metadata installments fallback (old events without materialized installments) */}

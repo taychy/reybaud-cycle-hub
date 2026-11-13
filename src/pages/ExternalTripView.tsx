@@ -1,4 +1,5 @@
 // Rooming UI sync v3
+import { deudaExigibleReserva, isReservaSinDeuda } from "@/lib/reservationRefunds";
 import { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { tripTokenGet, type TripTokenPackage, type TripTokenLodging } from "@/lib/tripTokenApi";
@@ -378,14 +379,14 @@ const ExternalTripView = () => {
                 <p className="text-[10px] text-emerald-400 uppercase mb-0.5">Abonado</p>
                 <p className="text-sm font-bold text-emerald-400">{formatPrice(paid, currency)}</p>
               </div>
-              <div className={`rounded-lg p-2.5 ${(reservation.balance_due ?? 0) > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
-                <p className={`text-[10px] uppercase mb-0.5 ${(reservation.balance_due ?? 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>Saldo</p>
-                <p className={`text-sm font-bold ${(reservation.balance_due ?? 0) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+              <div className={`rounded-lg p-2.5 ${deudaExigibleReserva(reservation) > 0 ? "bg-amber-500/10" : "bg-emerald-500/10"}`}>
+                <p className={`text-[10px] uppercase mb-0.5 ${deudaExigibleReserva(reservation) > 0 ? "text-amber-400" : "text-emerald-400"}`}>Saldo</p>
+                <p className={`text-sm font-bold ${deudaExigibleReserva(reservation) > 0 ? "text-amber-400" : "text-emerald-400"}`}>
                   {formatPrice(reservation.balance_due ?? 0, currency)}
                 </p>
               </div>
             </div>
-            {(reservation.balance_due ?? 0) > 0 && reservation.reservation_status !== "cancelada" && (
+            {deudaExigibleReserva(reservation) > 0 && reservation.reservation_status !== "cancelada" && (
               reservation.alumno_id ? (
                 <Button
                   variant="gold"

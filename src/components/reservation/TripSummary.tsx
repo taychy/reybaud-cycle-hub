@@ -7,6 +7,7 @@
  * Reemplaza la necesidad de saltar entre múltiples pestañas para tener
  * la foto completa de la reserva.
  */
+import { deudaExigibleReserva, isReservaSinDeuda } from "@/lib/reservationRefunds";
 import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
@@ -188,7 +189,7 @@ export function TripSummary({ reservationId, alumnoId, eventCurrency = "ARS", mo
   const currency = reservation?.currency_snapshot || reservation?.moneda || eventCurrency;
   const total = reservation?.amount_total ?? 0;
   const paid = reservation?.amount_paid ?? 0;
-  const balance = reservation?.balance_due ?? Math.max(0, total - paid);
+  const balance = reservation ? deudaExigibleReserva(reservation) : 0;
 
   const checklistByKey = useMemo(() => {
     const map: Record<string, ChecklistRow> = {};

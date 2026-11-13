@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { deudaExigibleReserva, isReservaSinDeuda } from "@/lib/reservationRefunds";
 import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -287,7 +288,7 @@ export default function GuestReservationView() {
                 </div>
                 <div>
                   <div className="text-xs text-muted-foreground">Saldo</div>
-                  <div className="font-semibold text-primary">{fmtMoney(r.balance_due, r.currency_snapshot)}</div>
+                  <div className="font-semibold text-primary">{fmtMoney(deudaExigibleReserva(r), r.currency_snapshot)}</div>
                 </div>
               </div>
 
@@ -309,7 +310,7 @@ export default function GuestReservationView() {
                 </div>
               )}
 
-              {r.payment_status !== "pagado" && r.reservation_status !== "cancelada" && (
+              {r.payment_status !== "pagado" && !isReservaSinDeuda(r.reservation_status) && (
                 <div className="pt-3 border-t space-y-2">
                   <div className="text-xs text-muted-foreground uppercase tracking-wider">
                     Datos para transferir

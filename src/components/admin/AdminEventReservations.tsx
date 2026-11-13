@@ -2001,7 +2001,6 @@ const AdminEventReservations = ({
           <div className="divide-y divide-border">
             {(showAllClientes ? filtered : filtered.slice(0, CLIENT_PREVIEW_COUNT)).map((r) => {
               const bal = deudaExigibleReserva(r);
-              const histBal = isReservaSinDeuda(r.reservation_status) ? Math.max(0, r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0))) : 0;
               const c = curr(r);
               const p = getParticipant(r);
               const waUrl = getWhatsAppUrl(p.telefono, p.nombre);
@@ -2043,7 +2042,6 @@ const AdminEventReservations = ({
                         <p className="text-sm text-emerald-500 font-medium">{fmtMoney(r.amount_paid, c)}</p>
                         <div className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
                           {fmtMoney(bal, c)}
-                          {histBal > 0 && <span className="block text-[10px] font-normal" title="Saldo técnico histórico, no exigible">Histórico {fmtMoney(histBal, c)}</span>}
                         </div>
                       </>
                     )}
@@ -2286,7 +2284,7 @@ const AdminEventReservations = ({
                           </div>
                         </div>
                         {cancelada && rawBal > 0 && (
-                          <p className="text-[11px] text-muted-foreground">Reserva cancelada: el saldo histórico ({fmtMoney(rawBal, c)}) no se exige.</p>
+                          <p className="text-[11px] text-muted-foreground">Importe original no cobrado, no exigible: {fmtMoney(rawBal, c)}.</p>
                         )}
                         <p className="text-xs text-muted-foreground">
                           Método: <span className="capitalize">{selectedRes.metodo_pago?.replace(/_/g, " ")}</span>
