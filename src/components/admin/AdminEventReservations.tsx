@@ -60,7 +60,7 @@ import ExtraNightRoomingDialog from "@/components/admin/ExtraNightRoomingDialog"
 import ReservationDevolucionesCard from "@/components/admin/ReservationDevolucionesCard";
 import ReservationBasePriceEditor from "@/components/admin/ReservationBasePriceEditor";
 import EditPaymentDrawer from "@/components/admin/EditPaymentDrawer";
-import { reservationNet, isReservaCancelada, paymentRefundState, refundByPayment, type RefundRow } from "@/lib/reservationRefunds";
+import { reservationNet, isReservaCancelada, deudaExigibleReserva, isReservaSinDeuda, paymentRefundState, refundByPayment, type RefundRow } from "@/lib/reservationRefunds";
 import { AdminTermsBadge } from "@/components/reservation/ReservationTermsPending";
 
 /* ─── Types ─── */
@@ -455,7 +455,7 @@ const AdminEventReservations = ({
 
 
   /* ─── Cuotas vencidas por reserva ─── */
-  const [overdueByRes, setOverdueByRes] = useState<Record<string, OverdueInfo>>({});
+  const [overdueRaw, setOverdueByRes] = useState<Record<string, OverdueInfo>>({});
 
   const loadOverdueInstallments = async (resIds: string[]) => {
     if (!resIds.length) { setOverdueByRes({}); return; }
@@ -612,7 +612,7 @@ const AdminEventReservations = ({
 
   const getNotifContext = (res: EventReservation, extra: Record<string, any> = {}) => {
     const c = res.currency_snapshot || res.moneda || eventCurrency;
-    const bal = res.balance_due ?? ((res.amount_total || 0) - (res.amount_paid || 0));
+    const bal = deudaExigibleReserva(res);
     const p = getParticipant(res);
     return {
       nombre: `${p.nombre} ${p.apellido || ""}`.trim(),
@@ -820,6 +820,13 @@ const AdminEventReservations = ({
 
 
 
+  // Canceladas/rechazadas nunca tienen cuotas vencidas exigibles.
+  const overdueByRes = useMemo(() => {
+    const out: Record<string, OverdueInfo> = {};
+    for (const r of reservations) if (overdueRaw[r.id] && !isReservaSinDeuda(r.reservation_status)) out[r.id] = overdueRaw[r.id];
+    return out;
+  }, [overdueRaw, reservations]);
+
   const stats = useMemo(() => {
     const active = reservations.filter(r => r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada");
     return {
@@ -827,7 +834,7 @@ const AdminEventReservations = ({
       confirmed: reservations.filter(r => r.reservation_status === "reserva_confirmada").length,
       pending: reservations.filter(r => ["solicitud_enviada", "reserva_pendiente", "lista_espera"].includes(r.reservation_status)).length,
       totalCobrado: active.reduce((s, r) => s + (r.amount_paid || 0), 0),
-      saldoPendiente: active.reduce((s, r) => s + Math.max(0, (r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0)))), 0),
+      saldoPendiente: active.reduce((s, r) => s + deudaExigibleReserva(r), 0),
       pagosARevisar: reservations.filter(r => r.payment_status === "pago_informado").length,
     };
   }, [reservations]);
@@ -851,8 +858,7 @@ const AdminEventReservations = ({
       }
       // Quick filters
       if (quickFilter === "con_deuda") {
-        const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
-        if (bal <= 0) return false;
+        if (deudaExigibleReserva(r) <= 0) return false;
       }
       if (quickFilter === "vencidas" && !overdueByRes[r.id]) return false;
 
@@ -874,8 +880,8 @@ const AdminEventReservations = ({
           cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
           break;
         case "balance": {
-          const balA = a.balance_due ?? ((a.amount_total || 0) - (a.amount_paid || 0));
-          const balB = b.balance_due ?? ((b.amount_total || 0) - (b.amount_paid || 0));
+          const balA = deudaExigibleReserva(a);
+          const balB = deudaExigibleReserva(b);
           cmp = balA - balB;
           break;
         }
@@ -1478,7 +1484,7 @@ const AdminEventReservations = ({
     setAdminPayOverrideReason("");
     setAdminPayInstallmentId(null);
     setAdminPayGeneralReason("");
-    setAdminPayAmount(r.balance_due?.toString() || "");
+    setAdminPayAmount(deudaExigibleReserva(r) > 0 ? deudaExigibleReserva(r).toString() : "");
     setAdminPayFxLabel("Misma moneda · sin conversión");
     loadMatInstallments(r.id);
     setShowAdminPayment(true);
@@ -1522,7 +1528,7 @@ const AdminEventReservations = ({
     if (overdueByRes[r.id] && r.reservation_status !== "cancelada" && r.reservation_status !== "rechazada")
       return "border-l-4 border-l-destructive bg-destructive/5";
     if (r.payment_status === "pago_informado") return "border-l-4 border-l-orange-500";
-    const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
+    const bal = deudaExigibleReserva(r);
     if (bal > 0 && r.reservation_status === "reserva_confirmada") return "border-l-4 border-l-amber-500";
     if (r.reservation_status === "cancelada" || r.reservation_status === "rechazada") return "opacity-60";
     return "";
@@ -1787,7 +1793,7 @@ const AdminEventReservations = ({
             {f.key !== "all" && (
               <span className="ml-1.5 opacity-70">
                 {f.key === "vencidas" ? Object.keys(overdueByRes).length
-                  : f.key === "con_deuda" ? reservations.filter(r => { const b = r.balance_due ?? ((r.amount_total||0)-(r.amount_paid||0)); return b > 0; }).length
+                  : f.key === "con_deuda" ? reservations.filter(r => deudaExigibleReserva(r) > 0).length
                   : f.key === "pago_informado" ? stats.pagosARevisar
                   : f.key === "pendientes" ? stats.pending
                   : f.key === "confirmados" ? stats.confirmed
@@ -1994,7 +2000,8 @@ const AdminEventReservations = ({
           {/* Rows */}
           <div className="divide-y divide-border">
             {(showAllClientes ? filtered : filtered.slice(0, CLIENT_PREVIEW_COUNT)).map((r) => {
-              const bal = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
+              const bal = deudaExigibleReserva(r);
+              const histBal = isReservaSinDeuda(r.reservation_status) ? Math.max(0, r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0))) : 0;
               const c = curr(r);
               const p = getParticipant(r);
               const waUrl = getWhatsAppUrl(p.telefono, p.nombre);
@@ -2034,9 +2041,10 @@ const AdminEventReservations = ({
                     {!isPaymentFree && (
                       <>
                         <p className="text-sm text-emerald-500 font-medium">{fmtMoney(r.amount_paid, c)}</p>
-                        <p className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
+                        <div className={`text-sm font-medium ${bal > 0 ? "text-amber-500" : "text-muted-foreground"}`}>
                           {fmtMoney(bal, c)}
-                        </p>
+                          {histBal > 0 && <span className="block text-[10px] font-normal" title="Saldo técnico histórico, no exigible">Histórico {fmtMoney(histBal, c)}</span>}
+                        </div>
                       </>
                     )}
                     {/* Fecha */}
@@ -2055,7 +2063,7 @@ const AdminEventReservations = ({
                           <DropdownMenuItem onClick={() => openDetail(r)}>
                             <Eye className="w-3.5 h-3.5 mr-2" /> Ver detalle
                           </DropdownMenuItem>
-                          {!isPaymentFree && (
+                          {!isPaymentFree && !isReservaSinDeuda(r.reservation_status) && (
                             <DropdownMenuItem onClick={() => openDetail(r, { payment: true })}>
                               <Banknote className="w-3.5 h-3.5 mr-2" /> Registrar pago
                             </DropdownMenuItem>

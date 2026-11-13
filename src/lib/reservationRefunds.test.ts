@@ -22,3 +22,20 @@ describe("reservationRefunds", () => {
     expect(paymentRefundState(pays[0], 0)).toBeNull();
   });
 });
+
+import { deudaExigibleReserva, isReservaSinDeuda } from "./reservationRefunds";
+describe("deudaExigibleReserva", () => {
+  it("cancelada con saldo bruto 60.000 no es exigible", () => {
+    expect(deudaExigibleReserva({ reservation_status: "cancelada", balance_due: 60000 })).toBe(0);
+  });
+  it("rechazada no es exigible", () => {
+    expect(deudaExigibleReserva({ reservation_status: "rechazada", balance_due: 1000 })).toBe(0);
+    expect(isReservaSinDeuda("rechazada")).toBe(true);
+  });
+  it("confirmada mantiene su saldo", () => {
+    expect(deudaExigibleReserva({ reservation_status: "reserva_confirmada", balance_due: 60000 })).toBe(60000);
+  });
+  it("sin balance_due usa total menos pagado", () => {
+    expect(deudaExigibleReserva({ reservation_status: "reserva_pendiente", amount_total: 602000, amount_paid: 542000 })).toBe(60000);
+  });
+});

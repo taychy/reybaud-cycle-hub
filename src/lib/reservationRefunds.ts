@@ -8,6 +8,18 @@ export function isReservaCancelada(status?: string | null) {
   return ["cancelada", "cancelado", "cancelled"].includes(String(status ?? "").toLowerCase());
 }
 
+/** Reservas sin deuda exigible: canceladas o rechazadas (el saldo bruto queda solo como histórico). */
+export function isReservaSinDeuda(status?: string | null) {
+  return isReservaCancelada(status) || ["rechazada", "rechazado", "rejected"].includes(String(status ?? "").toLowerCase());
+}
+
+/** Deuda exigible de una reserva para listados, filtros, orden y comunicaciones. */
+export function deudaExigibleReserva(r: { reservation_status?: string | null; balance_due?: number | null; amount_total?: number | null; amount_paid?: number | null }) {
+  if (isReservaSinDeuda(r.reservation_status)) return 0;
+  const raw = r.balance_due ?? ((r.amount_total || 0) - (r.amount_paid || 0));
+  return Math.max(0, Number(raw) || 0);
+}
+
 export function refundByPayment(refunds: RefundRow[]) {
   const map: Record<string, number> = {};
   for (const r of refunds) {
