@@ -412,3 +412,10 @@
 - [ ] Completar cuenta MP y aplicar crédito de Miguel; completar cuentas de Francisco, Andrés y un crédito Martinero con backup/auditoría.
 - [ ] Reconstruir Daniel Mroz y María Agustina Fanelli Evans sin escrituras monetarias; no tocar Natalia Basilico.
 - [ ] Verificación integral, commit y entrega; no publicar ni enviar comunicaciones.
+
+## Cuenta corriente · haberes duplicados por imputación y pago manual (13/11)
+- [x] Respaldar íntegros el plan San Luis anterior y la auditoría vigente, sin reemplazar esta última.
+- [x] Reproducir primero el doble haber con fixtures PostgreSQL aislados: antes 9 PASS/5 FAIL; después 14/14, con imputación total/parcial, dos deudas, créditos y no regresiones.
+- [x] Preparar migración SQL 0111 pendiente y rollback, sin aplicar a Lovable Cloud ni modificar registros históricos.
+- [x] Ejecutar 20 unitarias, regresiones anteriores y dos carreras; revisar diff/rollback y documentar 12 casos activos más Martin Cortes ya fuera del patrón.
+- [x] Commit verificable; no publicar, desplegar, migrar producción ni enviar comunicaciones.
