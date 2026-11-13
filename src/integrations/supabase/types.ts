@@ -12455,6 +12455,7 @@ export type Database = {
           installment_id: string | null
           installment_number: number | null
           manual_override: boolean
+          mp_explicit_installment: boolean
           mp_payment_id: string | null
           neto_recibido: number | null
           notes: string | null
@@ -12497,6 +12498,7 @@ export type Database = {
           installment_id?: string | null
           installment_number?: number | null
           manual_override?: boolean
+          mp_explicit_installment?: boolean
           mp_payment_id?: string | null
           neto_recibido?: number | null
           notes?: string | null
@@ -12539,6 +12541,7 @@ export type Database = {
           installment_id?: string | null
           installment_number?: number | null
           manual_override?: boolean
+          mp_explicit_installment?: boolean
           mp_payment_id?: string | null
           neto_recibido?: number | null
           notes?: string | null
@@ -21102,6 +21105,18 @@ export type Database = {
         Returns: undefined
       }
       register_current_auth_alias: { Args: never; Returns: string }
+      register_event_mp_payment: {
+        Args: {
+          p_amount: number
+          p_currency: string
+          p_installment_number?: number
+          p_mp_payment_id: string
+          p_mp_status: string
+          p_payment_date?: string
+          p_reservation_id: string
+        }
+        Returns: Json
+      }
       register_gasto_deuda_cargo: {
         Args: {
           p_concepto?: string
