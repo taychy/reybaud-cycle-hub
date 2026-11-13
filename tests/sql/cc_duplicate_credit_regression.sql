@@ -237,6 +237,68 @@ BEGIN
     v_out:=v_out||jsonb_build_object('t',14,'ok',true,'d','dos deudas; retry idempotente; haber único');
   EXCEPTION WHEN OTHERS THEN v_out:=v_out||jsonb_build_object('t',14,'ok',false,'d',SQLERRM); END;
 
+  -- 15. Daniel-shaped independent operations: the complement must survive on both debts.
+  DECLARE a uuid:=gen_random_uuid(); p uuid:=gen_random_uuid(); s1 uuid:=gen_random_uuid(); s2 uuid:=gen_random_uuid();
+    m1 uuid:=gen_random_uuid(); m2 uuid:=gen_random_uuid(); cta uuid:=gen_random_uuid();
+  BEGIN
+    INSERT INTO public.planes(id,nombre,precio,moneda) VALUES(p,'QA operaciones independientes',83500,'ARS');
+    INSERT INTO public.suscripciones(id,alumno_id,plan_id,precio_final,estado,metodo_pago,origen_registro)
+      VALUES(s1,a,p,83500,'pendiente','pendiente','cargado_admin'),
+            (s2,a,p,87238,'finalizada','mercadopago','cargado_admin');
+    INSERT INTO public.mp_account_movements(id,cuenta_mp_id,mp_payment_id,alumno_id,suscripcion_id,amount,currency,direccion,status) VALUES
+      (m1,cta,'QA-DANIEL-PRINCIPAL',a,NULL,76472,'ARS','ingreso','approved'),
+      (m2,cta,'QA-DANIEL-INDEPENDIENTE',a,s2,87238,'ARS','ingreso','approved');
+    PERFORM public.imputar_pago('mp_movement',m1,'suscripcion',s1,a,76472,'ARS');
+    UPDATE public.suscripciones SET estado='finalizada',metodo_pago='transferencia' WHERE id=s1;
+    ALTER TABLE public.cuenta_ajustes DISABLE TRIGGER trg_guard_credit_mp_budget;
+    INSERT INTO public.cuenta_ajustes(id,alumno_id,tipo,monto,moneda,referencia_externa,cuenta_mp_id,concepto,aplicado_a_fuente_tabla,aplicado_a_fuente_id)
+      VALUES(gen_random_uuid(),a,'credito',7028,'ARS','QA-DANIEL-INDEPENDIENTE',cta,'Complemento independiente','suscripciones',s1);
+    ALTER TABLE public.cuenta_ajustes ENABLE TRIGGER trg_guard_credit_mp_budget;
+    SELECT sum(haber) INTO v_haber FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id=a;
+    SELECT saldo INTO v_saldo FROM public.get_saldo_alumno(a) WHERE moneda='ARS';
+    IF v_haber IS DISTINCT FROM 170738 OR v_saldo IS DISTINCT FROM 0 THEN
+      RAISE EXCEPTION 'haber=% saldo=%; esperado 170738/0',v_haber,v_saldo;
+    END IF;
+    v_out:=v_out||jsonb_build_object('t',15,'ok',true,'d','76472 + 7028 + 87238; operaciones separadas conservadas');
+  EXCEPTION WHEN OTHERS THEN
+    ALTER TABLE public.cuenta_ajustes ENABLE TRIGGER trg_guard_credit_mp_budget;
+    v_out:=v_out||jsonb_build_object('t',15,'ok',false,'d',SQLERRM); END;
+
+  -- 16. Applied credit without independent evidence: preserve one income, flag for human review.
+  DECLARE a uuid:=gen_random_uuid(); p uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); m uuid:=gen_random_uuid();
+  BEGIN
+    INSERT INTO public.planes(id,nombre,precio,moneda) VALUES(p,'QA revisión manual',83500,'ARS');
+    INSERT INTO public.suscripciones(id,alumno_id,plan_id,precio_final,estado,metodo_pago,origen_registro)
+      VALUES(s,a,p,83500,'pendiente','pendiente','cargado_admin');
+    INSERT INTO public.mp_account_movements(id,cuenta_mp_id,mp_payment_id,alumno_id,amount,currency,direccion,status)
+      VALUES(m,gen_random_uuid(),'QA-REVIEW-NO-REF',a,83500,'ARS','ingreso','approved');
+    PERFORM public.imputar_pago('mp_movement',m,'suscripcion',s,a,83500,'ARS');
+    UPDATE public.suscripciones SET estado='finalizada',metodo_pago='efectivo' WHERE id=s;
+    INSERT INTO public.cuenta_ajustes(id,alumno_id,tipo,monto,moneda,concepto,aplicado_a_fuente_tabla,aplicado_a_fuente_id)
+      VALUES(gen_random_uuid(),a,'credito',83500,'ARS','Sin referencia independiente: revisar','suscripciones',s);
+    SELECT sum(haber) INTO v_haber FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id=a;
+    IF v_haber IS DISTINCT FROM 83500 THEN RAISE EXCEPTION 'haber=%; esperado un ingreso 83500',v_haber; END IF;
+    v_out:=v_out||jsonb_build_object('t',16,'ok',true,'d','un ingreso; marca sin respaldo queda para revisión humana');
+  EXCEPTION WHEN OTHERS THEN v_out:=v_out||jsonb_build_object('t',16,'ok',false,'d',SQLERRM); END;
+
+  -- 17. Subscription in EUR: same deduplication rule, without cross-currency effects.
+  DECLARE a uuid:=gen_random_uuid(); p uuid:=gen_random_uuid(); s uuid:=gen_random_uuid(); m uuid:=gen_random_uuid();
+  BEGIN
+    INSERT INTO public.planes(id,nombre,precio,moneda) VALUES(p,'QA suscripción EUR',500,'EUR');
+    INSERT INTO public.suscripciones(id,alumno_id,plan_id,precio_final,estado,metodo_pago,origen_registro)
+      VALUES(s,a,p,500,'pendiente','pendiente','cargado_admin');
+    INSERT INTO public.mp_account_movements(id,cuenta_mp_id,mp_payment_id,alumno_id,amount,currency,direccion,status)
+      VALUES(m,gen_random_uuid(),'QA-EUR-SUB',a,500,'EUR','ingreso','approved');
+    PERFORM public.imputar_pago('mp_movement',m,'suscripcion',s,a,500,'EUR');
+    UPDATE public.suscripciones SET estado='finalizada',metodo_pago='transferencia' WHERE id=s;
+    SELECT sum(haber) INTO v_haber FROM public.vw_cuenta_corriente_movimientos WHERE alumno_id=a AND moneda='EUR';
+    SELECT saldo INTO v_saldo FROM public.get_saldo_alumno(a) WHERE moneda='EUR';
+    IF v_haber IS DISTINCT FROM 500 OR v_saldo IS DISTINCT FROM 0 THEN
+      RAISE EXCEPTION 'haber EUR=% saldo=%; esperado 500/0',v_haber,v_saldo;
+    END IF;
+    v_out:=v_out||jsonb_build_object('t',17,'ok',true,'d','EUR 500 una sola vez; saldo 0');
+  EXCEPTION WHEN OTHERS THEN v_out:=v_out||jsonb_build_object('t',17,'ok',false,'d',SQLERRM); END;
+
   RAISE EXCEPTION 'ROLLBACK_TESTS';
 EXCEPTION WHEN OTHERS THEN
   IF SQLERRM<>'ROLLBACK_TESTS' THEN v_out:=v_out||jsonb_build_object('t',0,'ok',false,'d','ERROR FATAL: '||SQLERRM); END IF;
@@ -256,6 +318,9 @@ EXCEPTION WHEN OTHERS THEN
       WHEN 12 THEN 'Suscripción cancelada'
       WHEN 13 THEN 'Crédito verdadero'
       WHEN 14 THEN 'RPC multi-deuda e idempotencia'
+      WHEN 15 THEN 'Dos operaciones independientes tipo Daniel'
+      WHEN 16 THEN 'Marca sin respaldo: revisión manual'
+      WHEN 17 THEN 'Suscripción EUR sin efecto cruzado'
       ELSE 'Infraestructura' END,e->>'d'
   FROM jsonb_array_elements(v_out) e ORDER BY (e->>'t')::int;
 END $$;

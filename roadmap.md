@@ -419,3 +419,8 @@
 - [x] Preparar migración SQL 0111 pendiente y rollback, sin aplicar a Lovable Cloud ni modificar registros históricos.
 - [x] Ejecutar 20 unitarias, regresiones anteriores y dos carreras; revisar diff/rollback y documentar 12 casos activos más Martin Cortes ya fuera del patrón.
 - [x] Commit verificable; no publicar, desplegar, migrar producción ni enviar comunicaciones.
+
+## Validación final aislada 0111 (13/11)
+- [x] Verificar precondiciones reales por SELECT, dependencias y casos activos/independientes.
+- [x] Ejecutar regresiones aisladas, conciliación before/after y rollback sin escribir en Lovable Cloud.
+- [x] Documentar resultados, límites y condiciones de activación; commit solo de cambios verificados.
