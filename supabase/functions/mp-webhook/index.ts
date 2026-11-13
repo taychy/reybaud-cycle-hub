@@ -899,6 +899,8 @@ Deno.serve(async (req) => {
         p_mp_payment_id: String(payment.id),
         p_mp_status: String(payment.status ?? ""),
         p_amount: paidAmount,
+        // Moneda real de MP: si difiere de la del viaje la RPC no registra nada (revisión FX manual).
+        p_currency: payment.currency_id ? String(payment.currency_id) : null,
         p_installment_number: eventInstallmentNumber,
         p_payment_date: null,
       });
@@ -914,6 +916,23 @@ Deno.serve(async (req) => {
       if (!syncErr) {
         const r = (sync ?? {}) as Record<string, any>;
         console.log("[mp-webhook] event sync:", { reservationId, action: r.action, status: r.status });
+        if (r.action === "currency_mismatch") {
+          // Sin mutación de pagos: queda trazado para conciliación administrativa (flujo FX existente).
+          try {
+            await supabaseAdmin.from("audit_log").insert({
+              action: "reserva.mp.pago.moneda_distinta",
+              entity_type: "event_reservation", entity_id: reservationId,
+              user_role: "edge_function",
+              details: { payment_id: payment.id, mp_status: payment.status, amount: paidAmount, mp_currency: r.mp_currency, reservation_currency: r.reservation_currency ?? r.payment_currency },
+            });
+          } catch (e) {
+            console.error("[mp-webhook] currency mismatch audit failed:", e);
+          }
+          return new Response(JSON.stringify({ ok: true, kind: "event", action: r.action, review: true }), {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
         try {
           const newStatus =
             payment.status === "approved" ? "aprobada" :

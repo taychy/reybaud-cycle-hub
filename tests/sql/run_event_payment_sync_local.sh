@@ -19,5 +19,7 @@ case "${1:-}" in
   candidate) "${PSQL[@]}" -q -f sql/pending/0112_event_mp_payment_sync.sql >/dev/null ;;
   rollback) "${PSQL[@]}" -q -f sql/pending/0112_event_mp_payment_sync.sql >/dev/null; "${PSQL[@]}" -q -f sql/pending/0112_event_mp_payment_sync_rollback.sql >/dev/null ;;
 esac
+# Copia renombrada de la línea base para la prueba diferencial candidato vs. base.
+sed 's/public.recalculate_reservation_payment_totals(/public.baseline_recalc_copy(/' tests/sql/event_payment_sync_baseline_recalc.sql | "${PSQL[@]}" -q >/dev/null
 "${PSQL[@]}" -q -f tests/sql/event_payment_sync_regression.sql
 if [[ "${1:-}" == candidate ]]; then python3 tests/sql/event_payment_sync_concurrency.py "$DB"; fi

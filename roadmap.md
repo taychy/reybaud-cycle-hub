@@ -424,4 +424,4 @@
 - [x] Verificar precondiciones reales por SELECT, dependencias y casos activos/independientes.
 - [x] Ejecutar regresiones aisladas, conciliación before/after y rollback sin escribir en Lovable Cloud.
 - [x] Documentar resultados, límites y condiciones de activación; commit solo de cambios verificados.
-- [ ] Cuotas de reservas pagadas por MP: 0112 pendiente (`sql/pending/0112_event_mp_payment_sync.sql`) validado en aislado; aplicar en Lovable Cloud requiere autorización. Fermoselle/Benítez los revisa Scarlett.
+- [ ] Cuotas de reservas pagadas por MP: 0112 lista y probada (31+1 PASS), pendiente de autorización para aplicar (ver sql/pending/0112_ACTIVACION.md).

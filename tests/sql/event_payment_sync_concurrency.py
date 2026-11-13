@@ -5,7 +5,7 @@ base = ["psql","-X","-qAt","-h","/tmp/evpay-pg","-p","55442","-U","lovable","-d"
 subprocess.run(base+["SELECT t_res('00000000-0000-0000-0000-0000000000c1', 500, ARRAY[250,250])"], check=True, capture_output=True)
 out=[]
 def go():
-    r=subprocess.run(base+["BEGIN; SELECT register_event_mp_payment('00000000-0000-0000-0000-0000000000c1','MP-RACE','approved',500,NULL)->>'action'; SELECT pg_sleep(0.5); COMMIT;"],capture_output=True,text=True)
+    r=subprocess.run(base+["BEGIN; SELECT register_event_mp_payment('00000000-0000-0000-0000-0000000000c1','MP-RACE','approved',500,'ARS',NULL)->>'action'; SELECT pg_sleep(0.5); COMMIT;"],capture_output=True,text=True)
     out.append((r.returncode, r.stdout.strip(), r.stderr.strip()))
 ts=[threading.Thread(target=go) for _ in range(4)]
 [t.start() for t in ts]; [t.join() for t in ts]
