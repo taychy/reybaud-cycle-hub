@@ -1,0 +1,1 @@
+- Event MP payments: webhook calls SQL register_event_mp_payment (locks, idempotent per MP id, status transitions, canonical recalc honoring explicit installment then FIFO, excludes annulled); legacy path only while the RPC is absent. Pending SQL lives in sql/pending until authorized. Why: no stale installments or double increments.
