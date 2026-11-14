@@ -224,6 +224,29 @@ export default function RegistrarDevolucionDialog({
       toast.error("En una devolución manual indicá la referencia o comprobante");
       return;
     }
+    if (initialReservationId && origen !== initialReservationId) {
+      toast.error("La reserva no pudo quedar seleccionada. Revisá los pagos originales antes de registrar.");
+      return;
+    }
+
+    // Una misma operación no puede registrarse dos veces por el mismo importe.
+    // El servidor también protege los vínculos a movimientos MP con mp_movement_id único.
+    const { data: existing, error: checkError } = await supabase
+      .from("devoluciones")
+      .select("id")
+      .eq("alumno_id", alumno.id)
+      .eq("referencia", referencia.trim())
+      .eq("monto", montoNum)
+      .eq("moneda", moneda)
+      .limit(1);
+    if (checkError) {
+      toast.error(`No se pudo comprobar si el reintegro ya existe: ${checkError.message}`);
+      return;
+    }
+    if (existing?.length) {
+      toast.error("Esta operación ya está registrada como devolución. No se duplicó.");
+      return;
+    }
 
     setLoading(true);
     const { error } = await supabase.rpc("registrar_devolucion", {
@@ -349,7 +372,7 @@ export default function RegistrarDevolucionDialog({
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando reservas con pagos…
                 </div>
               ) : (
-                <Select value={origen} onValueChange={(v) => { setOrigen(v); setPagoId("ninguno"); }}>
+                <Select value={origen} disabled={!!initialReservationId} onValueChange={(v) => { setOrigen(v); setPagoId("ninguno"); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ninguno">Sin origen específico</SelectItem>
