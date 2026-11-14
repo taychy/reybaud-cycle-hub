@@ -111,7 +111,8 @@ const buildCoachWaMessage = (opts: {
   const cuando = whenLabelAR(opts.fecha);
   const sede = opts.sedeNombre || "la sede";
   const esParqueSarmiento = sede.toLowerCase().includes("sarmiento");
-  const maps = opts.mapsLink ? `\n\n📍 *Ubicación de ${sede}:*\n${opts.mapsLink}` : "";
+  const esKdt = sede.toLowerCase().includes("kdt");
+  const maps = opts.mapsLink ? `\n\n📍 *${esKdt ? "Ubicación del KDT" : `Ubicación de ${sede}`}:*\n${opts.mapsLink}` : "";
   const accesoYEncuentro = esParqueSarmiento
     ? `
 
@@ -120,8 +121,16 @@ En la entrada te van a cobrar el acceso para utilizar las instalaciones. Podés 
 
 *¿Dónde nos encontramos?*
 Te espero en la entrada de la pista de ciclismo, que está después del estacionamiento. Vas a ver a otros ciclistas dirigiéndose hacia esa puerta, así que es fácil de identificar.`
-    : maps;
-  const equipo = esParqueSarmiento
+    : esKdt
+      ? `
+
+💳 *Ingreso al parque:*
+En la entrada te van a cobrar el acceso para utilizar las instalaciones. Podés abonar con tarjeta física de débito o crédito, o con *Mercado Pago Contactless (NFC)* desde el celular.${maps}
+
+*¿Dónde nos encontramos?*
+Te espero en la entrada de la pista de ciclismo, dentro del KDT. No es la entrada principal del parque, sino la que está después del estacionamiento.`
+      : maps;
+  const equipo = esParqueSarmiento || esKdt
     ? `
 
 🚴 *Qué necesitás llevar:*
@@ -132,7 +141,7 @@ Te espero en la entrada de la pista de ciclismo, que está después del estacion
   return (
 `Hola, ${opts.alumnoNombre}! Cómo estás? Soy ${opts.coachNombre}, tu profe de Ciclismo Reybaud. Un gusto saludarte!
 
-Te escribo para recordarte que *${cuando} tenés clase a las ${opts.hora} h en ${sede}.*${equipo}${accesoYEncuentro}
+Te escribo para recordarte que *${cuando} tenés clase a las ${opts.hora} h en ${esKdt ? "el KDT" : sede}.*${equipo}${accesoYEncuentro}
 
 Cualquier duda que tengas, escribime!
 
