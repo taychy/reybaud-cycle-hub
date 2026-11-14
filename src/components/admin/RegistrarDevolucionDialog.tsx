@@ -69,6 +69,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialAlumnoId?: string;
+  initialReservationId?: string;
   bajaSolicitudId?: string;
   mpMovement?: DevolucionMpMovement | null;
   storeOrder?: DevolucionStoreOrder | null;
@@ -86,7 +87,7 @@ const METODOS = [
 const ESTADOS_CANCELADOS = ["cancelada", "cancelado", "desistida", "desistido", "baja"];
 
 export default function RegistrarDevolucionDialog({
-  open, onOpenChange, initialAlumnoId, bajaSolicitudId, mpMovement, storeOrder, onDone,
+  open, onOpenChange, initialAlumnoId, initialReservationId, bajaSolicitudId, mpMovement, storeOrder, onDone,
 }: Props) {
   const today = new Date().toISOString().substring(0, 10);
   const [query, setQuery] = useState("");
@@ -200,13 +201,16 @@ export default function RegistrarDevolucionDialog({
       return b.pagado - a.pagado;
     });
 
-    setOrigenes(rows.filter((r) => r.pagos.length > 0));
+    const available = rows.filter((r) => r.pagos.length > 0);
+    setOrigenes(available);
+    setOrigen(initialReservationId && available.some((r) => r.id === initialReservationId) ? initialReservationId : "ninguno");
+    setPagoId("ninguno");
     setLoadingOrigenes(false);
-  }, []);
+  }, [initialReservationId]);
 
   useEffect(() => {
     if (open && alumno) loadOrigenes(alumno.id);
-    setOrigen("ninguno"); setPagoId("ninguno");
+    if (!open || !alumno) { setOrigen("ninguno"); setPagoId("ninguno"); }
   }, [open, alumno, loadOrigenes]);
 
   const reservaSel = origenes.find((r) => r.id === origen) || null;
