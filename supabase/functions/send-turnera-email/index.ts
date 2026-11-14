@@ -110,22 +110,35 @@ const buildCoachWaMessage = (opts: {
 }): string => {
   const cuando = whenLabelAR(opts.fecha);
   const sede = opts.sedeNombre || "la sede";
-  const maps = opts.mapsLink ? `\n\nUbicación de ${sede}: ${opts.mapsLink}` : "";
+  const esParqueSarmiento = sede.toLowerCase().includes("sarmiento");
+  const maps = opts.mapsLink ? `\n\n📍 *Ubicación de ${sede}:*\n${opts.mapsLink}` : "";
+  const accesoYEncuentro = esParqueSarmiento
+    ? `
+
+💳 *Ingreso al parque:*
+En la entrada te van a cobrar el acceso para utilizar las instalaciones. Podés abonar con tarjeta física de débito o crédito, o con *Mercado Pago Contactless (NFC)* desde el celular.${maps}
+
+*¿Dónde nos encontramos?*
+Te espero en la entrada de la pista de ciclismo, que está después del estacionamiento. Vas a ver a otros ciclistas dirigiéndose hacia esa puerta, así que es fácil de identificar.`
+    : maps;
+  const equipo = esParqueSarmiento
+    ? `
+
+🚴 *Qué necesitás llevar:*
+• Casco y lentes.
+• Zapatillas para pedalear.
+• Bicicleta con las ruedas bien infladas y la cadena lubricada.`
+    : "";
   return (
-`Hola ${opts.alumnoNombre}, soy ${opts.coachNombre} tu profe de Ciclismo. ¡Un gusto!
+`Hola, ${opts.alumnoNombre}! Cómo estás? Soy ${opts.coachNombre}, tu profe de Ciclismo Reybaud. Un gusto saludarte!
 
-Te escribo para recordarte que ${cuando} tenés clase a las ${opts.hora} en ${sede}.
+Te escribo para recordarte que *${cuando} tenés clase a las ${opts.hora} h en ${sede}.*${equipo}${accesoYEncuentro}
 
-También quiero recordarte los elementos que vas a necesitar: casco, lentes, zapas, bici con ruedas infladas y cadena lubricada.
+Cualquier duda que tengas, escribime!
 
-En la entrada de ${sede} te cobran para usar las instalaciones del parque, llevate efectivo.${maps}
-
-Te espero en la entrada de la pista, está después del estacionamiento. Vas a ver a los ciclistas yendo hacia esa puerta.
-
-Cualquier duda estoy a tu disposición.
-
-¡Muchas gracias!
-${opts.coachNombre}`
+Nos vemos ${cuando === "mañana" ? "mañana" : "en la clase"}!
+${opts.coachNombre}
+Ciclismo Reybaud`
   );
 };
 
