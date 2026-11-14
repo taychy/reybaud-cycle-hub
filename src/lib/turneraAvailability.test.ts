@@ -5,6 +5,9 @@ import {
   isSlotBooked,
   validateFormResponses,
   pickUniqueAlumnoMatch,
+  availabilityAppliesOnDate,
+  availabilitySkipsMinimumNotice,
+  availabilitySlotPassesTiming,
   type OccupiedReservation,
 } from "./turneraAvailability";
 
@@ -79,5 +82,39 @@ describe("timeToMinutes", () => {
   it("parsea HH:MM y HH:MM:SS", () => {
     expect(timeToMinutes("10:30")).toBe(630);
     expect(timeToMinutes("10:30:00")).toBe(630);
+  });
+});
+
+describe("bloques excepcionales de Turnera", () => {
+  const semanal = { dia_semana: 6, fecha_excepcional: null, omitir_anticipacion_minima: false };
+  const excepcional = {
+    dia_semana: 6,
+    fecha_excepcional: "2026-11-14",
+    omitir_anticipacion_minima: true,
+  };
+
+  it("el bloque semanal mantiene su comportamiento actual", () => {
+    expect(availabilityAppliesOnDate(semanal, "2026-11-14", 6)).toBe(true);
+    expect(availabilityAppliesOnDate(semanal, "2026-11-15", 0)).toBe(false);
+    expect(availabilitySkipsMinimumNotice(semanal)).toBe(false);
+  });
+
+  it("el excepcional aplica únicamente al sábado 14/11/2026", () => {
+    expect(availabilityAppliesOnDate(excepcional, "2026-11-14", 6)).toBe(true);
+    expect(availabilityAppliesOnDate(excepcional, "2026-11-21", 6)).toBe(false);
+    expect(availabilityAppliesOnDate(excepcional, "2026-11-13", 5)).toBe(false);
+  });
+
+  it("sólo el bloque excepcional marcado omite la anticipación", () => {
+    expect(availabilitySkipsMinimumNotice(excepcional)).toBe(true);
+    expect(availabilitySkipsMinimumNotice({ ...excepcional, omitir_anticipacion_minima: false })).toBe(false);
+    expect(availabilitySkipsMinimumNotice({ ...excepcional, fecha_excepcional: null })).toBe(false);
+  });
+
+  it("omite la anticipación pero nunca habilita un horario pasado", () => {
+    const now = new Date(2026, 10, 14, 10, 0);
+    expect(availabilitySlotPassesTiming(excepcional, new Date(2026, 10, 14, 13, 30), now, 48)).toBe(true);
+    expect(availabilitySlotPassesTiming(semanal, new Date(2026, 10, 14, 13, 30), now, 48)).toBe(false);
+    expect(availabilitySlotPassesTiming(excepcional, new Date(2026, 10, 14, 9, 30), now, 48)).toBe(false);
   });
 });

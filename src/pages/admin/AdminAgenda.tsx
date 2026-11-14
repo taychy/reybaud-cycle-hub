@@ -481,7 +481,9 @@ const AdminAgenda = () => {
             (d.sede_id ?? null) === sede_id &&
             d.dia_semana === dia &&
             hhmm(d.hora_inicio) === form.hora_inicio &&
-            hhmm(d.hora_fin) === form.hora_fin,
+            hhmm(d.hora_fin) === form.hora_fin &&
+            (d.fecha_excepcional || null) === (editBloque?.fecha_excepcional || null) &&
+            Boolean(d.fecha_excepcional && d.omitir_anticipacion_minima) === Boolean(editBloque?.fecha_excepcional && editBloque?.omitir_anticipacion_minima),
         );
         if (dup) continue;
         await supabase.from("disponibilidad_coaches").insert({
@@ -491,6 +493,8 @@ const AdminAgenda = () => {
           dia_semana: dia,
           hora_inicio: form.hora_inicio,
           hora_fin: form.hora_fin,
+          fecha_excepcional: editBloque?.fecha_excepcional || null,
+          omitir_anticipacion_minima: Boolean(editBloque?.fecha_excepcional && editBloque?.omitir_anticipacion_minima),
         } as any);
       }
       setSaving(false);

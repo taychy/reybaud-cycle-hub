@@ -3598,9 +3598,11 @@ export type Database = {
           coach_id: string
           created_at: string
           dia_semana: number
+          fecha_excepcional: string | null
           hora_fin: string
           hora_inicio: string
           id: string
+          omitir_anticipacion_minima: boolean
           sede_id: string | null
           servicio_id: string
           updated_at: string
@@ -3610,9 +3612,11 @@ export type Database = {
           coach_id: string
           created_at?: string
           dia_semana: number
+          fecha_excepcional?: string | null
           hora_fin: string
           hora_inicio: string
           id?: string
+          omitir_anticipacion_minima?: boolean
           sede_id?: string | null
           servicio_id: string
           updated_at?: string
@@ -3622,9 +3626,11 @@ export type Database = {
           coach_id?: string
           created_at?: string
           dia_semana?: number
+          fecha_excepcional?: string | null
           hora_fin?: string
           hora_inicio?: string
           id?: string
+          omitir_anticipacion_minima?: boolean
           sede_id?: string | null
           servicio_id?: string
           updated_at?: string

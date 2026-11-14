@@ -7,6 +7,8 @@ import {
   isSlotBooked,
   validateFormResponses,
   pickUniqueAlumnoMatch,
+  availabilityAppliesOnDate,
+  availabilitySlotPassesTiming,
   type FormFieldDef,
 } from "@/lib/turneraAvailability";
 
@@ -38,6 +40,8 @@ type Servicio = {
 type Disponibilidad = {
   id: string; coach_id: string; dia_semana: number;
   hora_inicio: string; hora_fin: string; sede_id: string | null;
+  fecha_excepcional?: string | null;
+  omitir_anticipacion_minima?: boolean | null;
 };
 
 type Ausencia = {
@@ -340,7 +344,7 @@ const BookingFlow = () => {
 
   // Construye los rangos efectivos [iniMin, finMin] de un coach para una fecha
   // a partir de la disponibilidad semanal + ajustes (bloquear/reemplazar/agregar)
-  const rangosEfectivos = (coachId: string, sedeId: string | null, baseRanges: Disponibilidad[], dateStr: string): Array<{ ini: number; fin: number; sede_id: string | null; dispId: string }> => {
+  const rangosEfectivos = (coachId: string, sedeId: string | null, baseRanges: Disponibilidad[], dateStr: string): Array<{ ini: number; fin: number; sede_id: string | null; dispId: string; block: Disponibilidad | null }> => {
     const aj = ajustesFor(coachId, dateStr);
     if (aj.some(a => a.tipo === "bloquear")) return [];
 
@@ -352,15 +356,19 @@ const BookingFlow = () => {
     };
 
     const baseSinDispId = baseRanges.map(d => ({
-      ini: toMin(d.hora_inicio), fin: toMin(d.hora_fin), sede_id: d.sede_id, dispId: d.id,
+      ini: toMin(d.hora_inicio),
+      fin: toMin(d.hora_fin),
+      sede_id: d.sede_id,
+      dispId: d.id,
+      block: d,
     }));
 
     // Si hay reemplazos, esos sustituyen el horario base de ese día
     const principales = reemplazos.length > 0
-      ? reemplazos.map(a => ({ ini: toMin(a.hora_inicio!), fin: toMin(a.hora_fin!), sede_id: sedeId, dispId: `ajuste-${a.id}` }))
+      ? reemplazos.map(a => ({ ini: toMin(a.hora_inicio!), fin: toMin(a.hora_fin!), sede_id: sedeId, dispId: `ajuste-${a.id}`, block: null }))
       : baseSinDispId;
 
-    const extrasMap = extras.map(a => ({ ini: toMin(a.hora_inicio!), fin: toMin(a.hora_fin!), sede_id: sedeId, dispId: `ajuste-${a.id}` }));
+    const extrasMap = extras.map(a => ({ ini: toMin(a.hora_inicio!), fin: toMin(a.hora_fin!), sede_id: sedeId, dispId: `ajuste-${a.id}`, block: null }));
     return [...principales, ...extrasMap];
   };
 
@@ -369,10 +377,10 @@ const BookingFlow = () => {
     if (!servicio) return [];
     const dayOfWeek = date.getDay();
     const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    const dayDisps = filteredDisps.filter(d => d.dia_semana === dayOfWeek);
+    const dayDisps = filteredDisps.filter(d => availabilityAppliesOnDate(d, dateStr, dayOfWeek));
     const duration = servicio.duracion_minutos;
     const anticipHoras = Number((servicio as any).anticipacion_horas_minima ?? 24);
-    const cutoff = new Date(Date.now() + anticipHoras * 3600 * 1000);
+    const now = new Date();
     const map = new Map<string, Slot>();
 
     // Agrupar por coach para aplicar bien los ajustes
@@ -405,8 +413,8 @@ const BookingFlow = () => {
           const ausente = isCoachAusente(coachId, dateStr, slotStart, slotEnd);
           const [yy, mm2, dd] = dateStr.split("-").map(Number);
           const slotDate = new Date(yy, mm2 - 1, dd, Math.floor(cur / 60), cur % 60, 0);
-          const tooSoon = slotDate < cutoff;
-          if (!isBooked && !ausente && !tooSoon) {
+          const timingOk = availabilitySlotPassesTiming(r.block, slotDate, now, anticipHoras);
+          if (!isBooked && !ausente && timingOk) {
             const key = `${coachId}|${r.sede_id ?? "nosede"}|${h}:${m}`;
             if (!map.has(key)) {
               map.set(key, { time: `${h}:${m}`, coach_id: coachId, disponibilidad_id: r.dispId, sede_id: r.sede_id });
@@ -876,7 +884,7 @@ const BookingFlow = () => {
     // After date: if modo=fecha and no coach picked, show coach chips (with "cualquiera")
     if (modo === "fecha" && !selectedCoach) {
       const dow = selectedDate.getDay();
-      const dispsDelDia = disponibilidades.filter(d => d.dia_semana === dow);
+      const dispsDelDia = disponibilidades.filter(d => availabilityAppliesOnDate(d, toLocalISODate(selectedDate), dow));
       const coachIdsDelDia = Array.from(new Set(dispsDelDia.map(d => d.coach_id)));
       return (
         <SectionPick title={`Coach para ${selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}`}>

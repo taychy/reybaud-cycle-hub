@@ -69,6 +69,8 @@ export type DisponibilidadRow = {
   hora_inicio: string;
   hora_fin: string;
   activo?: boolean | null;
+  fecha_excepcional?: string | null;
+  omitir_anticipacion_minima?: boolean | null;
 };
 
 export type BloqueDisponibilidad = {
@@ -80,6 +82,8 @@ export type BloqueDisponibilidad = {
   hora_fin: string;
   servicio_ids: string[];
   row_ids: string[];
+  fecha_excepcional?: string | null;
+  omitir_anticipacion_minima?: boolean | null;
 };
 
 /**
@@ -90,7 +94,14 @@ export type BloqueDisponibilidad = {
 export function agruparDisponibilidad(rows: DisponibilidadRow[]): BloqueDisponibilidad[] {
   const map = new Map<string, BloqueDisponibilidad>();
   for (const r of rows || []) {
-    const key = [r.coach_id, r.sede_id ?? "none", r.dia_semana, hhmm(r.hora_inicio), hhmm(r.hora_fin)].join("|");
+    const key = [
+      r.coach_id,
+      r.sede_id ?? "none",
+      r.fecha_excepcional ?? `semanal-${r.dia_semana}`,
+      hhmm(r.hora_inicio),
+      hhmm(r.hora_fin),
+      r.omitir_anticipacion_minima ? "sin-anticipacion" : "normal",
+    ].join("|");
     let b = map.get(key);
     if (!b) {
       b = {
@@ -102,6 +113,8 @@ export function agruparDisponibilidad(rows: DisponibilidadRow[]): BloqueDisponib
         hora_fin: hhmm(r.hora_fin),
         servicio_ids: [],
         row_ids: [],
+        fecha_excepcional: r.fecha_excepcional ?? null,
+        omitir_anticipacion_minima: Boolean(r.fecha_excepcional && r.omitir_anticipacion_minima),
       };
       map.set(key, b);
     }
@@ -302,7 +315,10 @@ export function buildAgendaEventos({
   }
 
   for (const b of agruparDisponibilidad(disponibilidad.filter((d) => d.activo !== false))) {
-    for (const fecha of ocurrenciasEnSemana(dias, b.dia_semana)) {
+    const fechas = b.fecha_excepcional
+      ? dias.filter((iso) => iso === String(b.fecha_excepcional).slice(0, 10))
+      : ocurrenciasEnSemana(dias, b.dia_semana);
+    for (const fecha of fechas) {
       out.push({
         id: `d-${b.key}-${fecha}`,
         tipo: "disponibilidad",
@@ -313,8 +329,11 @@ export function buildAgendaEventos({
         coach_nombre: coachNombre(b.coach_id),
         sede_id: b.sede_id,
         sede_nombre: sedeNombre(b.sede_id),
-        titulo: "Disponible para turnera",
-        chips: b.servicio_ids.map((s) => servicioNombre(s)),
+        titulo: b.fecha_excepcional ? "Disponibilidad excepcional" : "Disponible para turnera",
+        chips: [
+          ...b.servicio_ids.map((s) => servicioNombre(s)),
+          ...(b.fecha_excepcional && b.omitir_anticipacion_minima ? ["Sin anticipación mínima"] : []),
+        ],
         raw: b,
       });
     }

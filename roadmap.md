@@ -1,3 +1,10 @@
+## Turnera · Bloques excepcionales y anticipación (14/11)
+- [x] Revisada arquitectura vigente de formulario, disponibilidad pública y validación servidor.
+- [x] Bloque semanal/excepcional y exención acotada implementados; 20 bloques existentes intactos, sin excepciones ni exenciones.
+- [x] 59 pruebas Vitest y 18 controles SQL; alta/edición/eliminación y enlace público 14/11 13:30 verificados en Chromium con escrituras simuladas, sin reservas reales.
+- [x] Estructura y validación servidor activas en Lovable Cloud; RLS/permisos existentes intactos.
+- [ ] Publicación del frontend pendiente de autorización expresa de la usuaria; no se publicó la aplicación.
+
 ## San Luis · Fechas visibles en Mi Reserva (01/11)
 - [x] Presentación San Luis 5–9 noviembre/Reprogramado; reutiliza contexto seguro existente para alternativa propia validada. 31 tests, reserva propia móvil y tres alternativas ficticias Chromium/Firefox OK; compilación OK, sin guardar ni cambiar datos.
 - [ ] Publicación y comprobación productiva a cargo de la usuaria antes del correo; no se publicó ni envió.

@@ -16,6 +16,38 @@ export type OccupiedReservation = {
   coach_id: string;
 };
 
+export type TurneraAvailabilityBlock = {
+  dia_semana: number;
+  fecha_excepcional?: string | null;
+  omitir_anticipacion_minima?: boolean | null;
+};
+
+/** Un bloque excepcional sólo existe en su fecha literal; el resto sigue siendo semanal. */
+export const availabilityAppliesOnDate = (
+  block: TurneraAvailabilityBlock,
+  dateStr: string,
+  dayOfWeek: number,
+): boolean =>
+  block.fecha_excepcional
+    ? String(block.fecha_excepcional).slice(0, 10) === dateStr
+    : block.dia_semana === dayOfWeek;
+
+/** Defensa además de la restricción SQL: un bloque semanal nunca salta la anticipación. */
+export const availabilitySkipsMinimumNotice = (block: TurneraAvailabilityBlock): boolean =>
+  Boolean(block.fecha_excepcional && block.omitir_anticipacion_minima);
+
+/** Saltar la anticipación no habilita horarios pasados. */
+export const availabilitySlotPassesTiming = (
+  block: TurneraAvailabilityBlock | null,
+  slotDate: Date,
+  now: Date,
+  minimumNoticeHours: number,
+): boolean => {
+  if (slotDate.getTime() < now.getTime()) return false;
+  return (block ? availabilitySkipsMinimumNotice(block) : false)
+    || slotDate.getTime() >= now.getTime() + minimumNoticeHours * 3600 * 1000;
+};
+
 /** "HH:MM" o "HH:MM:SS" → minutos desde 00:00. */
 export const timeToMinutes = (t: string): number => {
   const [h, m] = String(t || "0:0").split(":").map(Number);

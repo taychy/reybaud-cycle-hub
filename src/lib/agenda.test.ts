@@ -102,6 +102,23 @@ describe("agruparDisponibilidad", () => {
     const bloques = agruparDisponibilidad(rows);
     expect(bloques.map((b) => b.dia_semana)).toEqual([2, 4]);
   });
+
+  it("no mezcla un excepcional con el semanal ni con otro criterio de anticipación", () => {
+    const excepcional = {
+      ...rows[0],
+      id: "ex1",
+      dia_semana: 6,
+      fecha_excepcional: "2026-11-14",
+      omitir_anticipacion_minima: true,
+    };
+    const bloques = agruparDisponibilidad([
+      { ...rows[0], dia_semana: 6 },
+      excepcional,
+      { ...excepcional, id: "ex2", omitir_anticipacion_minima: false },
+    ]);
+    expect(bloques).toHaveLength(3);
+    expect(bloques.find((b) => b.fecha_excepcional === "2026-11-14" && b.omitir_anticipacion_minima)?.row_ids).toEqual(["ex1"]);
+  });
 });
 
 describe("diffServicios", () => {
@@ -267,6 +284,23 @@ describe("buildAgendaEventos (normalización compartida)", () => {
     });
     expect(ev.map((e) => e.fecha)).toEqual(["2026-03-02", "2026-03-04"]);
     expect(ev[0].tipo).toBe("grupal");
+  });
+
+  it("una disponibilidad excepcional aparece sólo en su fecha exacta", () => {
+    const disponibilidad: DisponibilidadRow[] = [{
+      id: "ex1",
+      coach_id: "c1",
+      servicio_id: "sv1",
+      sede_id: "s1",
+      dia_semana: 6,
+      hora_inicio: "13:30",
+      hora_fin: "14:30",
+      fecha_excepcional: "2026-11-14",
+      omitir_anticipacion_minima: true,
+    }];
+    const semana = weekDays(new Date(2026, 10, 9));
+    expect(buildAgendaEventos({ dias: semana, disponibilidad, ...names }).map((e) => e.fecha)).toEqual(["2026-11-14"]);
+    expect(buildAgendaEventos({ dias: weekDays(new Date(2026, 10, 16)), disponibilidad, ...names })).toEqual([]);
   });
 
   it("excluye reservas canceladas de turnera", () => {

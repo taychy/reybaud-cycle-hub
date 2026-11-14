@@ -10,7 +10,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
-import { Plus, X, CopyPlus, Ban, Pencil } from "lucide-react";
+import { Plus, X, CopyPlus, Ban, Pencil, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { es } from "date-fns/locale";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -20,7 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
-import { DIAS_SEMANA, agruparDisponibilidad, diffServicios, type BloqueDisponibilidad } from "@/lib/agenda";
+import { DIAS_SEMANA, agruparDisponibilidad, diffServicios, parseIso, toLocalIso, type BloqueDisponibilidad } from "@/lib/agenda";
 
 const DIAS = DIAS_SEMANA;
 
@@ -65,7 +68,7 @@ export function DisponibilidadEditor({ coaches, servicios, sedes, disponibilidad
   }, [coaches, serviciosActivos, servicioId]);
 
   const bloquesDelContexto = disponibilidades.filter(
-    d => d.coach_id === coachId && d.servicio_id === servicioId && (sedeId === "none" ? !d.sede_id : d.sede_id === sedeId)
+    d => !d.fecha_excepcional && d.coach_id === coachId && d.servicio_id === servicioId && (sedeId === "none" ? !d.sede_id : d.sede_id === sedeId)
   );
 
   const porDia: Record<number, any[]> = {};
@@ -224,8 +227,11 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
   const [openForm, setOpenForm] = useState(false);
   const [editKey, setEditKey] = useState<string | null>(null);
   const [form, setForm] = useState({
+    tipo: "semanal",
     sede_id: "none",
     dia_semana: "1",
+    fecha_excepcional: "",
+    omitir_anticipacion_minima: false,
     hora_inicio: "09:00",
     hora_fin: "12:00",
     servicio_ids: [] as string[],
@@ -233,6 +239,7 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
 
   const serviciosActivos = servicios.filter(s => s.activo !== false && !s.archivado);
   const servicioNombre = (id: string) => servicios.find(s => s.id === id)?.nombre || "Servicio";
+  const esExcepcional = form.tipo === "excepcional";
 
   useEffect(() => {
     if (lockedCoachId) { if (coachId !== lockedCoachId) setCoachId(lockedCoachId); }
@@ -245,15 +252,18 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
 
   const openCreate = () => {
     setEditKey(null);
-    setForm({ sede_id: "none", dia_semana: "1", hora_inicio: "09:00", hora_fin: "12:00", servicio_ids: [] });
+    setForm({ tipo: "semanal", sede_id: "none", dia_semana: "1", fecha_excepcional: "", omitir_anticipacion_minima: false, hora_inicio: "09:00", hora_fin: "12:00", servicio_ids: [] });
     setOpenForm(true);
   };
 
   const openEdit = (b: BloqueDisponibilidad) => {
     setEditKey(b.key);
     setForm({
+      tipo: b.fecha_excepcional ? "excepcional" : "semanal",
       sede_id: b.sede_id || "none",
       dia_semana: String(b.dia_semana),
+      fecha_excepcional: b.fecha_excepcional ? String(b.fecha_excepcional).slice(0, 10) : "",
+      omitir_anticipacion_minima: Boolean(b.fecha_excepcional && b.omitir_anticipacion_minima),
       hora_inicio: b.hora_inicio,
       hora_fin: b.hora_fin,
       servicio_ids: [...b.servicio_ids],
@@ -285,8 +295,17 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
       toast({ title: "Elegí al menos un servicio", variant: "destructive" });
       return;
     }
+    if (esExcepcional && !form.fecha_excepcional) {
+      toast({ title: "Elegí la fecha exacta del bloque excepcional", variant: "destructive" });
+      return;
+    }
     const sede_id = form.sede_id === "none" ? null : form.sede_id;
-    const dia = Number(form.dia_semana);
+    const fechaExcepcional = esExcepcional ? form.fecha_excepcional : null;
+    const dia = fechaExcepcional ? parseIso(fechaExcepcional).getDay() : Number(form.dia_semana);
+    const reglasExcepcion = {
+      fecha_excepcional: fechaExcepcional,
+      omitir_anticipacion_minima: esExcepcional && form.omitir_anticipacion_minima,
+    };
     const actual = editKey ? bloques.find(b => b.key === editKey) : null;
     setSaving(true);
 
@@ -294,7 +313,7 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
       const { toAdd, toRemove } = diffServicios(actual.servicio_ids, form.servicio_ids);
       await supabase
         .from("disponibilidad_coaches")
-        .update({ sede_id, dia_semana: dia, hora_inicio: form.hora_inicio, hora_fin: form.hora_fin } as any)
+        .update({ sede_id, dia_semana: dia, hora_inicio: form.hora_inicio, hora_fin: form.hora_fin, ...reglasExcepcion } as any)
         .in("id", actual.row_ids);
       for (const sv of toRemove) {
         const row = (disponibilidades || []).find(
@@ -305,7 +324,7 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
       for (const sv of toAdd) {
         await supabase.from("disponibilidad_coaches").insert({
           coach_id: coachId, servicio_id: sv, sede_id, dia_semana: dia,
-          hora_inicio: form.hora_inicio, hora_fin: form.hora_fin,
+          hora_inicio: form.hora_inicio, hora_fin: form.hora_fin, ...reglasExcepcion,
         } as any);
       }
     } else {
@@ -314,12 +333,14 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
           (d: any) =>
             d.coach_id === coachId && d.servicio_id === sv && (d.sede_id ?? null) === sede_id &&
             d.dia_semana === dia && (d.hora_inicio || "").slice(0, 5) === form.hora_inicio &&
-            (d.hora_fin || "").slice(0, 5) === form.hora_fin,
+            (d.hora_fin || "").slice(0, 5) === form.hora_fin &&
+            (d.fecha_excepcional || null) === fechaExcepcional &&
+            Boolean(d.fecha_excepcional && d.omitir_anticipacion_minima) === reglasExcepcion.omitir_anticipacion_minima,
         );
         if (dup) continue;
         await supabase.from("disponibilidad_coaches").insert({
           coach_id: coachId, servicio_id: sv, sede_id, dia_semana: dia,
-          hora_inicio: form.hora_inicio, hora_fin: form.hora_fin,
+          hora_inicio: form.hora_inicio, hora_fin: form.hora_fin, ...reglasExcepcion,
         } as any);
       }
     }
@@ -373,6 +394,16 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
                          <p className="text-[11px] text-muted-foreground">
                            {sedes.find(s => s.id === b.sede_id)?.nombre || "Sin sede"}
                          </p>
+                         {b.fecha_excepcional && (
+                           <div className="flex flex-wrap gap-1">
+                             <Badge variant="outline" className="text-[10px]">
+                               Excepcional · {parseIso(String(b.fecha_excepcional).slice(0, 10)).toLocaleDateString("es-AR")}
+                             </Badge>
+                             {b.omitir_anticipacion_minima && (
+                               <Badge variant="secondary" className="text-[10px]">Sin anticipación mínima</Badge>
+                             )}
+                           </div>
+                         )}
                          <div className="flex flex-wrap gap-1">
                            {b.servicio_ids.map(sv => (
                              <Badge key={sv} variant="secondary" className="text-[10px]">{servicioNombre(sv)}</Badge>
@@ -416,6 +447,49 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
+              <Label>Tipo de bloque</Label>
+              <Select
+                value={form.tipo}
+                onValueChange={v => setForm({
+                  ...form,
+                  tipo: v,
+                  fecha_excepcional: v === "excepcional" ? form.fecha_excepcional : "",
+                  omitir_anticipacion_minima: v === "excepcional" ? form.omitir_anticipacion_minima : false,
+                })}
+              >
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="semanal">Fijo semanal</SelectItem>
+                  <SelectItem value="excepcional">Excepcional · una sola fecha</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {esExcepcional && (
+              <div className="space-y-1.5">
+                <Label>Fecha exacta</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" className="w-full justify-start text-left font-normal">
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {form.fecha_excepcional
+                        ? parseIso(form.fecha_excepcional).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", year: "numeric" })
+                        : "Elegí una fecha"}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={form.fecha_excepcional ? parseIso(form.fecha_excepcional) : undefined}
+                      onSelect={date => setForm({ ...form, fecha_excepcional: date ? toLocalIso(date) : "" })}
+                      locale={es}
+                      initialFocus
+                      className="p-3 pointer-events-auto"
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+            )}
+            <div className="space-y-1.5">
               <Label>Sede</Label>
               <Select value={form.sede_id} onValueChange={v => setForm({ ...form, sede_id: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
@@ -426,15 +500,17 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
               </Select>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="space-y-1.5 col-span-3 sm:col-span-1">
-                <Label>Día</Label>
-                <Select value={form.dia_semana} onValueChange={v => setForm({ ...form, dia_semana: v })}>
-                  <SelectTrigger><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 0].map(i => <SelectItem key={i} value={String(i)}>{DIAS[i]}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!esExcepcional && (
+                <div className="space-y-1.5 col-span-3 sm:col-span-1">
+                  <Label>Día</Label>
+                  <Select value={form.dia_semana} onValueChange={v => setForm({ ...form, dia_semana: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {[1, 2, 3, 4, 5, 6, 0].map(i => <SelectItem key={i} value={String(i)}>{DIAS[i]}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="space-y-1.5">
                 <Label>Inicio</Label>
                 <Input type="time" value={form.hora_inicio} onChange={e => setForm({ ...form, hora_inicio: e.target.value })} />
@@ -444,6 +520,20 @@ export function DisponibilidadBloques({ coaches, servicios, sedes, disponibilida
                 <Input type="time" value={form.hora_fin} onChange={e => setForm({ ...form, hora_fin: e.target.value })} />
               </div>
             </div>
+            {esExcepcional && (
+              <label className="flex items-start gap-2 rounded-md border border-border p-3 cursor-pointer">
+                <Checkbox
+                  checked={form.omitir_anticipacion_minima}
+                  onCheckedChange={checked => setForm({ ...form, omitir_anticipacion_minima: checked === true })}
+                />
+                <span className="space-y-1">
+                  <span className="block text-sm font-medium text-foreground">Permitir reservas sin respetar la anticipación mínima</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Sólo para esta fecha y los servicios elegidos. La duración, disponibilidad real, ausencias y solapamientos se siguen validando.
+                  </span>
+                </span>
+              </label>
+            )}
             <div className="space-y-1.5">
               <Label>Servicios habilitados</Label>
               <div className="rounded-md border border-border divide-y divide-border max-h-56 overflow-y-auto">
