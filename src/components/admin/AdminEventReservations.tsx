@@ -2512,7 +2512,7 @@ const AdminEventReservations = ({
               )}
 
               {/* Devoluciones reales (proyección de gastos vinculados) */}
-              <ReservationDevolucionesCard reservationId={selectedRes.id} />
+              <ReservationDevolucionesCard reservationId={selectedRes.id} alumnoId={selectedRes.alumno_id} />
 
               {/* Installments — solo en modo cuotas y con pago requerido (colapsable) */}
               {!isPaymentFree && !isSimplePayment && (

@@ -792,6 +792,13 @@
       "when": 1794627766719,
       "tag": "0112_turnera_bloques_excepcionales",
       "breakpoints": true
+    },
+    {
+      "idx": 113,
+      "version": "7",
+      "when": 1794636000000,
+      "tag": "0113_mp_beneficiary_verifications",
+      "breakpoints": true
     }
   ]
 }

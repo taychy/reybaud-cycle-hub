@@ -69,6 +69,7 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   initialAlumnoId?: string;
+  initialReservationId?: string;
   bajaSolicitudId?: string;
   mpMovement?: DevolucionMpMovement | null;
   storeOrder?: DevolucionStoreOrder | null;
@@ -86,7 +87,7 @@ const METODOS = [
 const ESTADOS_CANCELADOS = ["cancelada", "cancelado", "desistida", "desistido", "baja"];
 
 export default function RegistrarDevolucionDialog({
-  open, onOpenChange, initialAlumnoId, bajaSolicitudId, mpMovement, storeOrder, onDone,
+  open, onOpenChange, initialAlumnoId, initialReservationId, bajaSolicitudId, mpMovement, storeOrder, onDone,
 }: Props) {
   const today = new Date().toISOString().substring(0, 10);
   const [query, setQuery] = useState("");
@@ -163,23 +164,28 @@ export default function RegistrarDevolucionDialog({
 
   const loadOrigenes = useCallback(async (alumnoId: string) => {
     setLoadingOrigenes(true);
-    const [resRes, payRes] = await Promise.all([
-      supabase
-        .from("event_reservations")
-        .select("id, estado, event_id, amount_total, currency_snapshot, events(title)")
-        .eq("alumno_id", alumnoId)
-        .order("created_at", { ascending: false })
-        .limit(30),
-      supabase
-        .from("reservation_payments")
-        .select("id, reservation_id, amount, currency, payment_date, payment_method, payment_reference, status, anulado_at")
-        .eq("alumno_id", alumnoId)
-        .is("anulado_at", null)
-        .order("payment_date", { ascending: false })
-        .limit(100),
-    ]);
+    const resRes = await supabase
+      .from("event_reservations")
+      .select("id, estado, event_id, amount_total, currency_snapshot, events(title)")
+      .eq("alumno_id", alumnoId)
+      .order("created_at", { ascending: false })
+      .limit(30);
 
-    const pagos = ((payRes.data as any[]) ?? []).filter((p) => p.status !== "rechazado");
+    // Buscar por reserva, no por reservation_payments.alumno_id:
+    // pagos históricos pueden pertenecer a la reserva aunque tengan alumno_id NULL.
+    const reservationIds = (resRes.data || []).map((r) => r.id);
+    const payRes = reservationIds.length
+      ? await supabase
+          .from("reservation_payments")
+          .select("id, reservation_id, amount, currency, payment_date, payment_method, payment_reference, status, anulado_at")
+          .in("reservation_id", reservationIds)
+          .eq("status", "validado")
+          .is("anulado_at", null)
+          .order("payment_date", { ascending: false })
+          .limit(200)
+      : { data: [] };
+
+    const pagos = (payRes.data as PagoOrigen[]) ?? [];
     const rows: ReservaOrigen[] = ((resRes.data as any[]) ?? []).map((r) => {
       const ps: PagoOrigen[] = pagos.filter((p) => p.reservation_id === r.id);
       return {
@@ -200,13 +206,16 @@ export default function RegistrarDevolucionDialog({
       return b.pagado - a.pagado;
     });
 
-    setOrigenes(rows.filter((r) => r.pagos.length > 0));
+    const available = rows.filter((r) => r.pagos.length > 0);
+    setOrigenes(available);
+    setOrigen(initialReservationId && available.some((r) => r.id === initialReservationId) ? initialReservationId : "ninguno");
+    setPagoId("ninguno");
     setLoadingOrigenes(false);
-  }, []);
+  }, [initialReservationId]);
 
   useEffect(() => {
     if (open && alumno) loadOrigenes(alumno.id);
-    setOrigen("ninguno"); setPagoId("ninguno");
+    if (!open || !alumno) { setOrigen("ninguno"); setPagoId("ninguno"); }
   }, [open, alumno, loadOrigenes]);
 
   const reservaSel = origenes.find((r) => r.id === origen) || null;
@@ -218,6 +227,29 @@ export default function RegistrarDevolucionDialog({
     if (!motivo.trim()) { toast.error("Indicá el motivo"); return; }
     if (!mpMovement && !referencia.trim()) {
       toast.error("En una devolución manual indicá la referencia o comprobante");
+      return;
+    }
+    if (initialReservationId && origen !== initialReservationId) {
+      toast.error("La reserva no pudo quedar seleccionada. Revisá los pagos originales antes de registrar.");
+      return;
+    }
+
+    // Una misma operación no puede registrarse dos veces por el mismo importe.
+    // El servidor también protege los vínculos a movimientos MP con mp_movement_id único.
+    const { data: existing, error: checkError } = await supabase
+      .from("devoluciones")
+      .select("id")
+      .eq("alumno_id", alumno.id)
+      .eq("referencia", referencia.trim())
+      .eq("monto", montoNum)
+      .eq("moneda", moneda)
+      .limit(1);
+    if (checkError) {
+      toast.error(`No se pudo comprobar si el reintegro ya existe: ${checkError.message}`);
+      return;
+    }
+    if (existing?.length) {
+      toast.error("Esta operación ya está registrada como devolución. No se duplicó.");
       return;
     }
 
@@ -345,7 +377,7 @@ export default function RegistrarDevolucionDialog({
                   <Loader2 className="w-3.5 h-3.5 animate-spin" /> Buscando reservas con pagos…
                 </div>
               ) : (
-                <Select value={origen} onValueChange={(v) => { setOrigen(v); setPagoId("ninguno"); }}>
+                <Select value={origen} disabled={!!initialReservationId} onValueChange={(v) => { setOrigen(v); setPagoId("ninguno"); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="ninguno">Sin origen específico</SelectItem>

@@ -14,6 +14,7 @@ import { getMpMovementDetail, suggestGastoDescripcion } from "@/lib/mpMovementDe
 import { collectorIdDeMovimiento, matchCoachPorContraparte, type ContraparteCoach } from "@/lib/gastoReglas";
 import RegistrarDevolucionDialog, { type DevolucionMpMovement } from "@/components/admin/RegistrarDevolucionDialog";
 import VincularDevolucionMpDialog from "@/components/admin/VincularDevolucionMpDialog";
+import IdentificarBeneficiarioMpDialog from "@/components/admin/IdentificarBeneficiarioMpDialog";
 
 
 type AiSugerencia = {
@@ -124,6 +125,8 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
   const [devolucionMov, setDevolucionMov] = useState<DevolucionMpMovement | null>(null);
   const [busqueda, setBusqueda] = useState("");
   const [vincularRefundId, setVincularRefundId] = useState<string | null>(null);
+  const [beneficiarios, setBeneficiarios] = useState<Record<string, { recipient_name: string; evidence_note: string }>>({});
+  const [beneficiaryMov, setBeneficiaryMov] = useState<MpEgreso | null>(null);
 
 
 
@@ -146,7 +149,7 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
     if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
     else setItems((data as any) ?? []);
 
-    const [co, cp, dev] = await Promise.all([
+    const [co, cp, dev, verified] = await Promise.all([
       supabase.from("coaches").select("id, nombre").eq("estado", "activo").order("nombre"),
       supabase.from("coach_mp_contrapartes" as any).select("coach_id, mp_collector_id, nombre_contraparte"),
       supabase
@@ -154,7 +157,13 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
         .select("id, mp_movement_id, monto, moneda, motivo, alumnos(nombre, apellido)")
         .not("mp_movement_id", "is", null)
         .limit(500),
+      supabase.from("mp_beneficiary_verifications" as any).select("movement_id, recipient_name, evidence_note").limit(5000),
     ]);
+    const verifiedMap: Record<string, { recipient_name: string; evidence_note: string }> = {};
+    for (const row of ((verified.data as any[]) || [])) {
+      verifiedMap[row.movement_id] = { recipient_name: row.recipient_name, evidence_note: row.evidence_note };
+    }
+    setBeneficiarios(verifiedMap);
     setCoaches(((co.data as any[]) ?? []) as { id: string; nombre: string }[]);
     setContrapartes(((cp.data as any[]) ?? []) as ContraparteCoach[]);
     const dmap: Record<string, DevolucionMov> = {};
@@ -376,6 +385,7 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
     const fechaStr = new Date(m.fecha_movimiento).toLocaleString("es-AR");
     const hay = [
       det.beneficiario, det.beneficiario_doc, det.beneficiario_cuenta,
+      beneficiarios[m.id]?.recipient_name, beneficiarios[m.id]?.evidence_note,
       det.contraparte, det.concepto, det.operacion, det.medio, det.referencia,
       m.description, m.cuentas_mp?.nombre, m.mp_payment_id,
       m.gastos?.categoria, m.gastos?.subcategoria, m.gastos?.descripcion, m.gastos?.proveedor,
@@ -560,6 +570,8 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
         <div className="space-y-2">
           {listaVisible.map(m => {
             const det = getMpMovementDetail(m);
+            const linkedRefundName = [devoluciones[m.id]?.alumnos?.nombre, devoluciones[m.id]?.alumnos?.apellido].filter(Boolean).join(" ");
+            const beneficiaryName = det.beneficiario || linkedRefundName || beneficiarios[m.id]?.recipient_name || m.gastos?.proveedor || null;
             const sug = aiSug[m.id];
             const sugEjec = sug?.ejecucion_id ? ejecuciones.find(e => e.id === sug.ejecucion_id) : null;
             return (
@@ -591,15 +603,16 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
                   </div>
                   <div className="text-xs mt-1 flex flex-wrap items-center gap-x-1.5">
                     <span className="text-muted-foreground">Beneficiario:</span>
-                    {det.beneficiario ? (
+                    {beneficiaryName ? (
                       <span className="font-medium">
-                        {det.beneficiario}
+                        {beneficiaryName}
                         {det.beneficiario_doc && (
                           <span className="text-muted-foreground font-normal"> · {det.beneficiario_doc}</span>
                         )}
+                        {!det.beneficiario && beneficiarios[m.id] && <span className="ml-1 text-muted-foreground font-normal">(identificado por administración)</span>}
                       </span>
                     ) : (
-                      <span className="italic text-muted-foreground">no identificado</span>
+                      <span className="italic text-muted-foreground">MP no informa destinatario · verificar comprobante</span>
                     )}
                     {!det.beneficiario && det.beneficiario_cuenta && (
                       <span className="text-muted-foreground font-mono">· {det.beneficiario_cuenta}</span>
@@ -634,6 +647,11 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
                   <div className="text-lg font-bold text-orange-400">- $ {Number(m.amount).toLocaleString("es-AR")}</div>
                   <div className="text-[10px] text-muted-foreground">{m.currency}</div>
                 </div>
+                {m.direccion === "egreso" && !det.beneficiario && !devoluciones[m.id] && (
+                  <Button size="sm" variant="outline" onClick={() => setBeneficiaryMov(m)}>
+                    {beneficiarios[m.id] ? "Editar beneficiario" : "Identificar"}
+                  </Button>
+                )}
                 {m.tipo === "refund" && !devoluciones[m.id] ? (
                   <Button size="sm" variant="outline" onClick={() => setVincularRefundId(m.id)}>Vincular devolución</Button>
                 ) : m.direccion === "egreso" && !m.gasto_id && !devoluciones[m.id] && (
@@ -856,6 +874,17 @@ export default function MpEgresosTab({ mes }: { mes?: string }) {
         onOpenChange={(o) => { if (!o) setDevolucionMov(null); }}
         mpMovement={devolucionMov}
         onDone={() => { setDevolucionMov(null); load(); }}
+      />
+      <IdentificarBeneficiarioMpDialog
+        movement={beneficiaryMov && {
+          id: beneficiaryMov.id,
+          mpPaymentId: beneficiaryMov.mp_payment_id,
+          amount: Number(beneficiaryMov.amount),
+        }}
+        currentName={beneficiaryMov ? beneficiarios[beneficiaryMov.id]?.recipient_name || "" : ""}
+        currentEvidence={beneficiaryMov ? beneficiarios[beneficiaryMov.id]?.evidence_note || "" : ""}
+        onClose={() => setBeneficiaryMov(null)}
+        onDone={() => { setBeneficiaryMov(null); load(); }}
       />
       <VincularDevolucionMpDialog
         movementId={vincularRefundId}
