@@ -164,23 +164,28 @@ export default function RegistrarDevolucionDialog({
 
   const loadOrigenes = useCallback(async (alumnoId: string) => {
     setLoadingOrigenes(true);
-    const [resRes, payRes] = await Promise.all([
-      supabase
-        .from("event_reservations")
-        .select("id, estado, event_id, amount_total, currency_snapshot, events(title)")
-        .eq("alumno_id", alumnoId)
-        .order("created_at", { ascending: false })
-        .limit(30),
-      supabase
-        .from("reservation_payments")
-        .select("id, reservation_id, amount, currency, payment_date, payment_method, payment_reference, status, anulado_at")
-        .eq("alumno_id", alumnoId)
-        .is("anulado_at", null)
-        .order("payment_date", { ascending: false })
-        .limit(100),
-    ]);
+    const resRes = await supabase
+      .from("event_reservations")
+      .select("id, estado, event_id, amount_total, currency_snapshot, events(title)")
+      .eq("alumno_id", alumnoId)
+      .order("created_at", { ascending: false })
+      .limit(30);
 
-    const pagos = ((payRes.data as any[]) ?? []).filter((p) => p.status !== "rechazado");
+    // Buscar por reserva, no por reservation_payments.alumno_id:
+    // pagos históricos pueden pertenecer a la reserva aunque tengan alumno_id NULL.
+    const reservationIds = (resRes.data || []).map((r) => r.id);
+    const payRes = reservationIds.length
+      ? await supabase
+          .from("reservation_payments")
+          .select("id, reservation_id, amount, currency, payment_date, payment_method, payment_reference, status, anulado_at")
+          .in("reservation_id", reservationIds)
+          .eq("status", "validado")
+          .is("anulado_at", null)
+          .order("payment_date", { ascending: false })
+          .limit(200)
+      : { data: [] };
+
+    const pagos = (payRes.data as PagoOrigen[]) ?? [];
     const rows: ReservaOrigen[] = ((resRes.data as any[]) ?? []).map((r) => {
       const ps: PagoOrigen[] = pagos.filter((p) => p.reservation_id === r.id);
       return {
