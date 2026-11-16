@@ -30,5 +30,4 @@ COMMENT ON TABLE public.event_rsvp_invites IS 'Confirmación preliminar de asist
 -- No cambia el precio, estado de publicación ni activa medios de pago.
 UPDATE public.events
 SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{rsvp_enabled}', 'true'::jsonb, true)
-WHERE id = '08fc7e07-10df-4ace-b3ed-a0d581b6f7c9'
-  AND title ILIKE '%fondazo%';
+WHERE id = '08fc7e07-10df-4ace-b3ed-a0d581b6f7c9';
