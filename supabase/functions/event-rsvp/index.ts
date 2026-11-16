@@ -1,5 +1,5 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
-import { sendLegacyEmailPayload } from "../_shared/send-managed-email.ts";
+import { sendManagedEmail } from "../_shared/send-managed-email.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -53,17 +53,6 @@ async function upsertInvite(recipient: { email: string; name: string; alumno_id?
   return data;
 }
 
-async function getUnsubToken(email: string) {
-  const { data: existing } = await db.from("email_unsubscribe_tokens")
-    .select("token").eq("email", email).maybeSingle();
-  if (existing?.token) return existing.token;
-  const candidate = crypto.randomUUID();
-  const { data, error } = await db.from("email_unsubscribe_tokens")
-    .insert({ email, token: candidate }).select("token").single();
-  if (error) throw error;
-  return data.token;
-}
-
 function invitationHtml(name: string, token: string) {
   const join = appUrl + "/confirmar-asistencia/" + token + "?opcion=voy";
   const decline = appUrl + "/confirmar-asistencia/" + token + "?opcion=no_voy";
@@ -84,24 +73,20 @@ function invitationHtml(name: string, token: string) {
 async function sendOne(recipient: { email: string; name: string; alumno_id?: string | null }, isTest: boolean) {
   const invite = await upsertInvite(recipient, isTest);
   if (invite.last_sent_at && !isTest) return "already_sent";
-  const unsub = await getUnsubToken(invite.recipient_email);
-  const delivery = await sendLegacyEmailPayload({
-    message_id: crypto.randomUUID(),
+  const delivery = await sendManagedEmail({
     to: invite.recipient_email,
-    from: "Ciclismo Reybaud <notificaciones@notify.reybaud-app.com>",
-    sender_domain: "notify.reybaud-app.com",
+    fromName: "Ciclismo Reybaud",
     subject: "🚴 Fondazo de fin de año Reybaud | Confirmá si venís",
     html: invitationHtml(recipient.name, invite.token),
     text: "Fondazo de Fin de Año, domingo 29/11, Capilla del Señor. Voy: " +
       appUrl + "/confirmar-asistencia/" + invite.token + "?opcion=voy" +
       " | No voy: " + appUrl + "/confirmar-asistencia/" + invite.token + "?opcion=no_voy",
-    purpose: "marketing",
     label: isTest ? "event_rsvp_test" : "event_rsvp",
-    idempotency_key: "fondazo-rsvp-" + EVENT_ID + "-" + invite.recipient_email + (isTest ? "-test-" + crypto.randomUUID() : ""),
-    unsubscribe_token: unsub,
-    queued_at: new Date().toISOString(),
-  }, db);
-  if (delivery.error) throw new Error(delivery.error.message);
+    idempotencyKey: "fondazo-rsvp-" + EVENT_ID + "-" + invite.recipient_email + (isTest ? "-test-" + crypto.randomUUID() : ""),
+    supabase: db,
+    redact: [invite.token],
+  });
+  if (!delivery.sent && delivery.reason !== "recipient_suppressed") throw new Error(delivery.error || "Falló el correo");
   if (!delivery.sent) return "suppressed";
   await db.from("event_rsvp_invites").update({ last_sent_at: new Date().toISOString() })
     .eq("id", invite.id);
