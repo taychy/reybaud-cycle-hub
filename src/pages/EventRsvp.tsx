@@ -74,7 +74,7 @@ export default function EventRsvp() {
               <div className="space-y-3 text-center py-6">
                 <CheckCircle2 className="mx-auto w-14 h-14 text-emerald-400" />
                 <h2 className="text-xl font-bold">¡Respuesta registrada!</h2>
-                <p className="text-white/70">Gracias por avisarnos. Si cambiás de planes, podés volver a abrir los botones del correo y actualizarla.</p>
+                <p className="text-white/70">Gracias por avisarnos. Esta confirmación es preliminar y no implica pago. Si elegiste almuerzo, más adelante te enviaremos el alias del evento para confirmar tu reserva. Podés modificar tu respuesta desde el mail.</p>
               </div>
             ) : data ? (
               <div className="space-y-4">
@@ -103,7 +103,7 @@ export default function EventRsvp() {
                           className="w-16 border rounded-md bg-[#1b2e3d] px-2 py-2 text-white" />
                       </label>
                     )}
-                    <p className="text-xs text-white/60">Horarios y valor del almuerzo a confirmar. Esta respuesta no es una reserva paga.</p>
+                    <p className="text-xs text-white/60">Esta es una respuesta preliminar, no una reserva pagada. Más adelante recibirás otro mail con el alias del evento para pagar directamente y confirmar tu lugar en el almuerzo. Horarios y valores: a confirmar.</p>
                   </>
                 )}
                 {error && <p role="alert" className="text-red-400 text-sm">{error}</p>}
