@@ -120,7 +120,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     invited: rows.filter((r) => r.last_sent_at).length,
     yes: rows.filter((r) => r.response === "voy").length,
     no: rows.filter((r) => r.response === "no_voy").length,
-    pending: rows.filter((r) => !r.response).length,
+    pending: rows.filter((r) => r.last_sent_at && !r.response).length,
     fondo: rows.filter((r) => r.response === "voy" && r.participation_mode !== "solo_almuerzo").length,
     lunch: lunchRows.reduce((sum, row) => sum + diners(row), 0),
     paid: lunchRows.filter((r) => r.lunch_status === "pago_verificado").reduce((sum, row) => sum + diners(row), 0),

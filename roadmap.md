@@ -1,9 +1,9 @@
 ## Fondazo · Asistencia y almuerzo directo al restaurante (16/11)
 - [x] Auditar evento, PR #47 y canal Brevo existente; conservar evento en borrador y reutilizar su diseño sin integrar la rama.
-- [ ] Implementar encuesta segura editable, acompañantes, tablero y dos correos preparados sin enviar.
-- [ ] Implementar aceptación versionada, comensales/tarifas confirmadas y estados de comprobante/pago administrativo auditados, sin checkout ni cuenta corriente.
-- [ ] Ejecutar pruebas unitarias, SQL aisladas, compilación y navegador sin escrituras reales; revisar diff y commit.
-- [ ] Migración aditiva y despliegues pendientes de autorización; no publicar app/evento ni enviar correos.
+- [x] Encuesta segura editable, acompañantes, tablero y dos correos preparados sin enviar; prefetch no registra votos.
+- [x] Aceptación versionada, comensales/tarifas confirmadas y estados de comprobante/pago administrativo auditados, sin checkout ni cuenta corriente.
+- [x] 8 pruebas nuevas + 59 regresiones, 19 controles SQL aislados, Deno/build y navegador admin/público con escrituras simuladas; sin escrituras reales ni envíos.
+- [ ] Activación pendiente de autorización: aplicar sólo 0113, desplegar event-rsvp/send-broadcast y publicar frontend; confirmar tarifas y luego prueba/envío manual. Evento y app publicada sin cambios.
 
 ## Turnera · Bloques excepcionales y anticipación (14/11)
 - [x] Revisada arquitectura vigente de formulario, disponibilidad pública y validación servidor.
