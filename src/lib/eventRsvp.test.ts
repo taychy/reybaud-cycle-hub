@@ -49,6 +49,9 @@ describe("Fondazo · precios verificados", () => {
     const mail = rsvpLunchEmail();
     expect(mail.content_html).toContain(RESTAURANT_ALIAS);
     expect(mail.content_html).toContain(RESTAURANT_WHATSAPP_URL);
+    expect(mail.content_html).toContain("organización de Ciclismo Reybaud");
+    expect(mail.content_html).toContain("Nosotros lo compartiremos con el restaurante");
+    expect(mail.content_html).not.toContain("Comprobantes del restaurante");
     expect(mail.content_html).toContain("{rsvp_adult_price}");
     expect(mail.content_html).toContain("{rsvp_child_price}");
     expect(mail.content_html).not.toContain("40.000");

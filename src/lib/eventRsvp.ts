@@ -87,7 +87,7 @@ export const rsvpInvitationEmail = () => ({
 
 export const rsvpLunchEmail = () => ({
   subject: "Fondazo Reybaud | Cómo confirmar tu almuerzo en La Carreta del Gato",
-  preheader: "Tarifas confirmadas, transferencia directa al restaurante y comprobante por WhatsApp.",
+  preheader: "Tarifas confirmadas, transferencia directa al restaurante y comprobante a la organización por WhatsApp.",
   content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.55">
     <div style="color:#ff7d16;font-size:14px;font-weight:800;letter-spacing:2px">CICLISMO REYBAUD</div>
     <h1 style="font-size:27px;margin:14px 0">TU ALMUERZO EN EL FONDAZO</h1>
@@ -97,7 +97,7 @@ export const rsvpLunchEmail = () => ({
     <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
       <strong>Transferencia directa a La Carreta del Gato</strong><br>
       Alias: <strong>${RESTAURANT_ALIAS}</strong><br>
-      Comprobantes por WhatsApp: <a style="color:#00c5f7" href="${RESTAURANT_WHATSAPP_URL}">+54 9 11 7171 1122</a><br>
+      Enviá tu comprobante a la organización de Ciclismo Reybaud por WhatsApp al <a style="color:#00c5f7" href="${RESTAURANT_WHATSAPP_URL}">+54 9 11 7171-1122</a>. Nosotros lo compartiremos con el restaurante para verificar tu reserva.<br>
       Incluí tu nombre y la cantidad de comensales. La transferencia cubre el total del precio del restaurante para cada comensal, no un porcentaje.
     </div>
     <p><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. El pago queda confirmado únicamente cuando administración lo verifica con el restaurante.</p>

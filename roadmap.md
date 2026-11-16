@@ -5,6 +5,7 @@
 - [x] 8 pruebas nuevas + 59 regresiones, 19 controles SQL aislados, Deno/build y navegador admin/público con escrituras simuladas; sin escrituras reales ni envíos.
 - [x] Activación autorizada 16/11: precondiciones verificadas; sólo 0113 aplicada; event-rsvp/send-broadcast desplegadas y comprobadas sin escrituras; 8 pruebas y build OK; 0 invitaciones/tarifas/correos. Evento en borrador y no visible; reservas 177, pagos 229 y pedidos 89 intactos.
 - [x] Frontend publicado y verificado en reybaud-app.com (v20261116.1414): /confirmar-asistencia/:token carga y un token inexistente recibe 404 sin votar ni escribir. Seis hallazgos críticos preexistentes ajenos al Fondazo quedan para revisión en Seguridad.
+- [x] Corrección textual 16/11: el comprobante se envía al WhatsApp de Scarlett, organización de Ciclismo Reybaud, y ella lo reenvía al restaurante; alias, reglas y verificación manual intactos. 8 pruebas OK; publicación pendiente, sin despliegue ni correos.
 
 ## Turnera · Bloques excepcionales y anticipación (14/11)
 - [x] Revisada arquitectura vigente de formulario, disponibilidad pública y validación servidor.

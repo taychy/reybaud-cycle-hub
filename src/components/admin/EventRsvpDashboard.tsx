@@ -191,7 +191,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       <div>
         <h4 className="font-semibold">{isLunch ? "Segundo correo · instrucciones del almuerzo" : "Primer correo · VOY / NO VOY"}</h4>
         <p className="text-sm text-muted-foreground">
-          {isLunch ? `Sólo interesados en almuerzo (${eligible.almuerzo}). Incluye alias ${RESTAURANT_ALIAS}, WhatsApp y tarifas confirmadas.` : `Alumnos activos elegibles: ${eligible.invitacion}. Los botones abren la pantalla; no votan por prefetch.`}
+          {isLunch ? `Sólo interesados en almuerzo (${eligible.almuerzo}). Incluye alias ${RESTAURANT_ALIAS}, WhatsApp de la organización y tarifas confirmadas.` : `Alumnos activos elegibles: ${eligible.invitacion}. Los botones abren la pantalla; no votan por prefetch.`}
         </p>
       </div>
       {blocked && <p className="text-sm text-primary">Bloqueado hasta ingresar y confirmar las tres tarifas actuales.</p>}
@@ -275,7 +275,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           <div className="rounded-lg bg-muted/30 p-3 text-sm"><Mail className="inline mr-2" />Los envíos usan el canal Brevo existente, con bajas, supresiones y trazabilidad. Ningún correo se envía al abrir este tablero.</div>
           {campaignBlock("invitacion")}
           {campaignBlock("almuerzo")}
-          <p className="text-xs text-muted-foreground">Comprobantes del restaurante: <a className="text-accent" href={RESTAURANT_WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp +54 9 11 7171 1122</a>. La reserva del almuerzo sólo se confirma con pago verificado.</p>
+          <p className="text-xs text-muted-foreground">Comprobantes a la organización de Ciclismo Reybaud: <a className="text-accent" href={RESTAURANT_WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp de Scarlett +54 9 11 7171-1122</a>. Scarlett los reenvía al restaurante; la reserva del almuerzo sólo se confirma con pago verificado.</p>
         </TabsContent>
       </Tabs>
 

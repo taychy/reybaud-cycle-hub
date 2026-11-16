@@ -224,8 +224,8 @@ export default function EventRsvp() {
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                   <h3 className="font-semibold">Pago directo al restaurante</h3>
                   <p className="text-sm"><strong>Alias: {RESTAURANT_ALIAS}</strong></p>
-                  <p className="text-sm">Transferí el total confirmado y enviá el comprobante por WhatsApp, indicando tu nombre y la cantidad de comensales.</p>
-                  <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante por WhatsApp</a></Button>
+                  <p className="text-sm">Transferí el total confirmado al restaurante. Después, enviá tu comprobante a la organización de Ciclismo Reybaud por WhatsApp al <strong>+54 9 11 7171-1122</strong>, indicando tu nombre y la cantidad de comensales. Nosotros lo compartiremos con el restaurante para verificar tu reserva.</p>
+                  <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante a la organización</a></Button>
                   <p className="text-xs text-muted-foreground"><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. Avisar que transferiste no confirma la reserva: administración debe verificarla con el restaurante.</p>
                 </div>
               </>}
