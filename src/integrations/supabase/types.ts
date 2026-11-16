@@ -6116,6 +6116,217 @@ export type Database = {
           },
         ]
       }
+      event_rsvp_invites: {
+        Row: {
+          adults_count: number
+          alumno_id: string | null
+          children_4_9_count: number
+          created_at: string
+          event_id: string
+          guests_count: number
+          id: string
+          is_test: boolean
+          last_sent_at: string | null
+          lunch_admin_comment: string | null
+          lunch_confirmed_at: string | null
+          lunch_status: string
+          lunch_status_changed_at: string | null
+          lunch_status_changed_by: string | null
+          participation_mode: string | null
+          receipt_reference: string | null
+          recipient_email: string
+          recipient_name: string | null
+          responded_at: string | null
+          response: string | null
+          terms_accepted_at: string | null
+          terms_text_snapshot: string | null
+          terms_version: string | null
+          token: string
+          under_4_count: number
+          updated_at: string
+        }
+        Insert: {
+          adults_count?: number
+          alumno_id?: string | null
+          children_4_9_count?: number
+          created_at?: string
+          event_id: string
+          guests_count?: number
+          id?: string
+          is_test?: boolean
+          last_sent_at?: string | null
+          lunch_admin_comment?: string | null
+          lunch_confirmed_at?: string | null
+          lunch_status?: string
+          lunch_status_changed_at?: string | null
+          lunch_status_changed_by?: string | null
+          participation_mode?: string | null
+          receipt_reference?: string | null
+          recipient_email: string
+          recipient_name?: string | null
+          responded_at?: string | null
+          response?: string | null
+          terms_accepted_at?: string | null
+          terms_text_snapshot?: string | null
+          terms_version?: string | null
+          token?: string
+          under_4_count?: number
+          updated_at?: string
+        }
+        Update: {
+          adults_count?: number
+          alumno_id?: string | null
+          children_4_9_count?: number
+          created_at?: string
+          event_id?: string
+          guests_count?: number
+          id?: string
+          is_test?: boolean
+          last_sent_at?: string | null
+          lunch_admin_comment?: string | null
+          lunch_confirmed_at?: string | null
+          lunch_status?: string
+          lunch_status_changed_at?: string | null
+          lunch_status_changed_by?: string | null
+          participation_mode?: string | null
+          receipt_reference?: string | null
+          recipient_email?: string
+          recipient_name?: string | null
+          responded_at?: string | null
+          response?: string | null
+          terms_accepted_at?: string | null
+          terms_text_snapshot?: string | null
+          terms_version?: string | null
+          token?: string
+          under_4_count?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_invites_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_invites_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_invites_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_invites_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_rsvp_lunch_audit: {
+        Row: {
+          actor_user_id: string | null
+          comment: string
+          created_at: string
+          event_id: string
+          from_status: string | null
+          id: string
+          invite_id: string
+          receipt_reference: string | null
+          to_status: string
+        }
+        Insert: {
+          actor_user_id?: string | null
+          comment: string
+          created_at?: string
+          event_id: string
+          from_status?: string | null
+          id?: string
+          invite_id: string
+          receipt_reference?: string | null
+          to_status: string
+        }
+        Update: {
+          actor_user_id?: string | null
+          comment?: string
+          created_at?: string
+          event_id?: string
+          from_status?: string | null
+          id?: string
+          invite_id?: string
+          receipt_reference?: string | null
+          to_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_lunch_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_lunch_audit_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "event_rsvp_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_rsvp_settings: {
+        Row: {
+          adult_price: number | null
+          child_4_9_price: number | null
+          created_at: string
+          event_id: string
+          prices_confirmed_at: string | null
+          prices_confirmed_by: string | null
+          prices_note: string | null
+          under_4_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          adult_price?: number | null
+          child_4_9_price?: number | null
+          created_at?: string
+          event_id: string
+          prices_confirmed_at?: string | null
+          prices_confirmed_by?: string | null
+          prices_note?: string | null
+          under_4_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          adult_price?: number | null
+          child_4_9_price?: number | null
+          created_at?: string
+          event_id?: string
+          prices_confirmed_at?: string | null
+          prices_confirmed_by?: string | null
+          prices_note?: string | null
+          under_4_price?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_settings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_survey_responses: {
         Row: {
           alumno_id: string | null
@@ -19053,6 +19264,25 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_set_event_rsvp_lunch_status: {
+        Args: {
+          p_comment: string
+          p_invite_id: string
+          p_receipt_reference?: string
+          p_status: string
+        }
+        Returns: undefined
+      }
+      admin_set_event_rsvp_prices: {
+        Args: {
+          p_adult: number
+          p_child_4_9: number
+          p_event_id: string
+          p_note?: string
+          p_under_4: number
+        }
+        Returns: undefined
+      }
       admin_set_extra_night: {
         Args: {
           p_addon_id: string
@@ -19520,6 +19750,15 @@ export type Database = {
       confirm_cancelled_store_order_return: {
         Args: { _order_id: string }
         Returns: Json
+      }
+      confirm_event_rsvp_lunch: {
+        Args: {
+          p_adults: number
+          p_children_4_9: number
+          p_token: string
+          p_under_4: number
+        }
+        Returns: undefined
       }
       confirm_mp_preapproval_mapping: {
         Args: {
@@ -20184,6 +20423,7 @@ export type Database = {
           resultado: number
         }[]
       }
+      get_event_rsvp_by_token: { Args: { p_token: string }; Returns: Json }
       get_event_waitlist_meta: { Args: { p_event_id: string }; Returns: Json }
       get_extra_meal_survey: {
         Args: { p_reservation_id: string; p_token?: string }
@@ -21507,6 +21747,15 @@ export type Database = {
           p_aprobar: boolean
           p_respuesta?: string
           p_solicitud_id: string
+        }
+        Returns: undefined
+      }
+      respond_event_rsvp: {
+        Args: {
+          p_guests_count?: number
+          p_participation_mode?: string
+          p_response: string
+          p_token: string
         }
         Returns: undefined
       }
