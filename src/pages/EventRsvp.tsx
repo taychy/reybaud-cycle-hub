@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Bike, CalendarDays, CheckCircle2, MapPin, MessageCircle, XCircle } from "lucide-react";
+import { Bike, CalendarDays, CheckCircle2, MapPin, MessageCircle, XCircle, Copy } from "lucide-react";
 import {
+  FONDAZO_NOTICE, ADULT_LUNCH_PRICE_ANNOUNCED, COMPANIONS_TECH_MAX,
   LUNCH_POLICY_PENDING,
   LUNCH_POLICY_TEXT,
   LUNCH_POLICY_VERSION,
@@ -117,6 +118,11 @@ export default function EventRsvp() {
     return `${RESTAURANT_WHATSAPP_URL}?text=${encodeURIComponent(text)}`;
   }, [counts, data, total]);
 
+  const copyAlias = async () => {
+    try { await navigator.clipboard.writeText(RESTAURANT_ALIAS); setNotice("Alias copiado."); }
+    catch { setError(`No pudimos copiar. El alias es ${RESTAURANT_ALIAS}.`); }
+  };
+
   const submitLunch = () => {
     const validation = validateLunchCounts(counts, guests);
     if (validation) { setError(validation); return; }
@@ -138,6 +144,7 @@ export default function EventRsvp() {
           </div>
 
           {loading ? <p className="text-muted-foreground">Abriendo tu invitación…</p> : data ? <>
+            <div role="note" className="rounded-lg border-2 border-primary bg-primary/10 p-4 text-sm font-medium">{FONDAZO_NOTICE}</div>
             <p>Hola{data.name ? `, ${data.name}` : ""}! Elegí una opción y después tocá <strong>Confirmar mi respuesta</strong>.</p>
             <div className="grid grid-cols-2 gap-3">
               <Button type="button" variant={choice === "voy" ? "gold" : "outline"} onClick={() => setChoice("voy")}>
@@ -159,10 +166,11 @@ export default function EventRsvp() {
                 ))}
               </div>
               {mode !== "solo_fondo" && <div className="space-y-2">
-                <Label htmlFor="guests">¿Cuántos acompañantes vienen al almuerzo?</Label>
-                <Input id="guests" type="number" min={0} max={30} value={guests}
-                  onChange={(e) => setGuests(Math.max(0, Math.min(30, Math.trunc(Number(e.target.value) || 0))))} />
-                <p className="text-xs text-muted-foreground">Total preliminar para el almuerzo: {guests + 1}, incluyéndote.</p>
+                <Label htmlFor="guests">¿Cuántos acompañantes que no pedalean vienen al almuerzo?</Label>
+                <Input id="guests" type="number" min={0} max={COMPANIONS_TECH_MAX} value={guests}
+                  onChange={(e) => setGuests(Math.max(0, Math.min(COMPANIONS_TECH_MAX, Math.trunc(Number(e.target.value) || 0))))} />
+                <p className="text-xs text-muted-foreground">Total preliminar para el almuerzo: {guests + 1}, incluyéndote. Sin límite de cupos.</p>
+                <p className="text-xs text-muted-foreground"><strong>No sumes acá a amigos ciclistas.</strong> Para traer un amigo al fondo, consultalo antes con Claudio: su participación no queda registrada ni aprobada con este formulario.</p>
               </div>}
             </div>}
 
@@ -182,9 +190,21 @@ export default function EventRsvp() {
                 <Badge variant="outline" className="text-xs">{LUNCH_STATUS_LABELS[data.lunch.status]}</Badge>
               </div>
 
-              {!data.prices.prices_confirmed_at ? <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 text-sm">
-                <strong>Tarifas pendientes de confirmación.</strong> Todavía no transfieras. Vas a recibir las instrucciones cuando el restaurante confirme los valores actuales.
-              </div> : <>
+              {!data.prices.prices_confirmed_at ? <>
+                <div className="grid grid-cols-3 gap-2 text-center text-sm">
+                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Adultos</div><strong>{formatPrice(ADULT_LUNCH_PRICE_ANNOUNCED, "ARS")}</strong></div>
+                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">De 4 a 9 años</div><strong>A confirmar</strong></div>
+                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Menores de 4</div><strong>A confirmar</strong></div>
+                </div>
+                <p className="text-xs text-muted-foreground">Bebidas aparte.</p>
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+                  <h3 className="font-semibold">Pago directo al restaurante (solo parrilla)</h3>
+                  <div className="flex items-center justify-between gap-2"><strong>Alias: {RESTAURANT_ALIAS}</strong>
+                    <Button type="button" size="sm" variant="outline" onClick={copyAlias}><Copy /> Copiar</Button></div>
+                  <p className="text-sm"><strong>No transfieras todavía.</strong> Falta confirmar las tarifas de menores para calcular tu total exacto; te avisamos cuando puedas transferir. El aporte de $30.000 de amigos ciclistas no se paga a este alias.</p>
+                  <Button type="button" variant="outline" className="w-full" disabled><MessageCircle /> Enviar comprobante a Scarlett (disponible al confirmar el total)</Button>
+                </div>
+              </> : <>
                 <div className="grid grid-cols-3 gap-2 text-center text-sm">
                   <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Adultos</div><strong>{formatLunchPrice(data.prices.adult_price)}</strong></div>
                   <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">De 4 a 9 años</div><strong>{formatLunchPrice(data.prices.child_4_9_price)}</strong></div>
@@ -198,8 +218,8 @@ export default function EventRsvp() {
                     ["under_4_count", "Menores de 4"],
                   ] as const).map(([key, label]) => <div key={key} className="space-y-1">
                     <Label htmlFor={key} className="text-xs">{label}</Label>
-                    <Input id={key} type="number" min={key === "adults_count" ? 1 : 0} max={30} value={counts[key]}
-                      onChange={(e) => setCounts({ ...counts, [key]: Math.max(0, Math.min(30, Math.trunc(Number(e.target.value) || 0))) })} />
+                    <Input id={key} type="number" min={key === "adults_count" ? 1 : 0} max={COMPANIONS_TECH_MAX + 1} value={counts[key]}
+                      onChange={(e) => setCounts({ ...counts, [key]: Math.max(0, Math.min(COMPANIONS_TECH_MAX + 1, Math.trunc(Number(e.target.value) || 0))) })} />
                   </div>)}
                 </div>
                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
@@ -223,9 +243,11 @@ export default function EventRsvp() {
 
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
                   <h3 className="font-semibold">Pago directo al restaurante</h3>
-                  <p className="text-sm"><strong>Alias: {RESTAURANT_ALIAS}</strong></p>
+                  <div className="flex items-center justify-between gap-2"><strong className="text-sm">Alias: {RESTAURANT_ALIAS}</strong>
+                    <Button type="button" size="sm" variant="outline" onClick={copyAlias}><Copy /> Copiar</Button></div>
+                  <p className="text-xs text-muted-foreground">Este alias es solo para la parrilla. No incluyas acá el aporte de $30.000 de amigos ciclistas.</p>
                   <p className="text-sm">Transferí el total confirmado al restaurante. Después, enviá tu comprobante a la organización de Ciclismo Reybaud por WhatsApp al <strong>+54 9 11 7171-1122</strong>, indicando tu nombre y la cantidad de comensales. Nosotros lo compartiremos con el restaurante para verificar tu reserva.</p>
-                  <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante a la organización</a></Button>
+                  <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante a Scarlett por WhatsApp</a></Button>
                   <p className="text-xs text-muted-foreground"><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. Avisar que transferiste no confirma la reserva: administración debe verificarla con el restaurante.</p>
                 </div>
               </>}

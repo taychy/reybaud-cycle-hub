@@ -77,3 +77,14 @@ describe("Fondazo · correo y condiciones", () => {
     expect(LUNCH_POLICY_VERSION).toBe("fondazo-almuerzo-v1-2026-11-16");
   });
 });
+
+import { validateLunchCounts as vlc, GUEST_CYCLIST_MAX, GUEST_CYCLIST_FEE, ADULT_LUNCH_PRICE_ANNOUNCED } from "./eventRsvp";
+describe("Fondazo reglas nuevas", () => {
+  it("acepta más de 30 acompañantes no ciclistas", () => {
+    expect(vlc({ adults_count: 41, children_4_9_count: 0, under_4_count: 0 }, 40)).toBeNull();
+  });
+  it("cupo y precios anunciados", () => {
+    expect(GUEST_CYCLIST_MAX).toBe(10);
+    expect(GUEST_CYCLIST_FEE + ADULT_LUNCH_PRICE_ANNOUNCED).toBe(70000);
+  });
+});

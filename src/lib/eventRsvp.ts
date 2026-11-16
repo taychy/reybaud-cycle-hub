@@ -10,6 +10,13 @@ export const LUNCH_POLICY_TEXT =
 export const LUNCH_POLICY_PENDING =
   "Las cancelaciones avisadas entre el 25 y el 28/11/2026 o el mismo día están pendientes de definición administrativa; no se consideran automáticamente una ausencia sin aviso. El crédito lo administra La Carreta del Gato, no Ciclismo Reybaud.";
 
+export const ADULT_LUNCH_PRICE_ANNOUNCED = 40000;
+export const GUEST_CYCLIST_FEE = 30000;
+export const GUEST_CYCLIST_MAX = 10;
+export const COMPANIONS_TECH_MAX = 500;
+export const FONDAZO_NOTICE =
+  "El fondo es gratis para alumnos activos. ¿Querés traer un amigo ciclista? Consultalo antes con Claudio: deberá evaluar su nivel técnico y de rendimiento. Solo 10 cupos para amigos ciclistas aprobados. Invitados al fondo: $30.000. Parrilla: $40.000 por adulto. Acompañantes que solo vienen al almuerzo: sin límite de cupos.";
+
 export const PARTICIPATION_LABELS = {
   fondo_y_almuerzo: "Fondo + almuerzo",
   solo_fondo: "Solo fondo",
@@ -59,7 +66,7 @@ export const lunchAmount = (counts: LunchCounts, prices: LunchPrices): number | 
 
 export const validateLunchCounts = (counts: LunchCounts, guestsCount: number): string | null => {
   const values = Object.values(counts);
-  if (values.some((n) => !Number.isInteger(n) || n < 0 || n > 30)) return "Revisá las cantidades de comensales.";
+  if (values.some((n) => !Number.isInteger(n) || n < 0 || n > COMPANIONS_TECH_MAX + 1)) return "Revisá las cantidades de comensales.";
   if (counts.adults_count < 1) return "Incluí al menos un adulto.";
   if (lunchDinerTotal(counts) !== guestsCount + 1) {
     return `La suma tiene que ser ${guestsCount + 1}: vos más ${guestsCount} acompañante${guestsCount === 1 ? "" : "s"}.`;
@@ -78,6 +85,7 @@ export const rsvpInvitationEmail = () => ({
     <h1 style="font-size:30px;margin:14px 0 4px">FONDAZO DE FIN DE AÑO</h1>
     <p style="font-size:18px;color:#00c5f7;margin:0 0 20px">Domingo 29/11 · La Carreta del Gato, Capilla del Señor</p>
     <p>Hola {nombre}! Queremos despedir este 2026 juntos: fondo en ruta y parrilla después.</p>
+    <div style="border:2px solid #ff7d16;border-radius:10px;padding:14px 16px;margin:18px 0;background:#141d26;font-size:14px">${FONDAZO_NOTICE}</div>
     <p><strong>¿Contamos con vos?</strong></p>
     <div style="text-align:center;margin:22px 0">${button("{rsvp_voy_url}", "VOY", "#ff7d16", "#101010")}${button("{rsvp_no_voy_url}", "NO VOY", "#182b38", "#ffffff")}</div>
     <p style="font-size:13px;color:#b7c0c7">Cada botón abre una confirmación segura, sin iniciar sesión. El voto se registra recién cuando confirmás en la pantalla. Si venís, podés elegir fondo, almuerzo o ambos y editar tu respuesta.</p>
