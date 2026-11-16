@@ -24,4 +24,11 @@ CREATE INDEX IF NOT EXISTS idx_event_rsvp_invites_event ON public.event_rsvp_inv
 CREATE INDEX IF NOT EXISTS idx_event_rsvp_invites_alumno ON public.event_rsvp_invites(alumno_id);
 ALTER TABLE public.event_rsvp_invites ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON public.event_rsvp_invites FROM anon, authenticated;
-COMMENT ON TABLE public.event_rsvp_invites IS 'Respuestas de asistencia a eventos informativos. Acceso únicamente por Edge Function validada, sin exposición de tokens en clientes administrativos.';
+COMMENT ON TABLE public.event_rsvp_invites IS 'Confirmación preliminar de asistencia, no reserva pagada. Acceso únicamente por Edge Function validada.';
+
+-- Habilitar la encuesta SOLO en el evento existente de despedida de año.
+-- No cambia el precio, estado de publicación ni activa medios de pago.
+UPDATE public.events
+SET metadata = jsonb_set(COALESCE(metadata, '{}'::jsonb), '{rsvp_enabled}', 'true'::jsonb, true)
+WHERE id = '08fc7e07-10df-4ace-b3ed-a0d581b6f7c9'
+  AND title ILIKE '%fondazo%';
