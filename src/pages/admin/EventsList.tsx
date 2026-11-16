@@ -71,6 +71,7 @@ import EventForm, {
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
 import EventSurveyManager from "@/components/admin/EventSurveyManager";
+import EventRsvpDashboard from "@/components/admin/EventRsvpDashboard";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
@@ -704,7 +705,7 @@ const EventsList = () => {
         <SheetContent side="bottom" className="h-[95vh] overflow-y-auto rounded-t-2xl">
           <SheetHeader className="pb-2">
             <SheetTitle className="font-heading uppercase tracking-wider text-xl">
-              Reservas — {reservationsEvent?.title}
+              {reservationsEvent?.metadata?.rsvp_enabled === true ? "Asistencia" : "Reservas"} — {reservationsEvent?.title}
             </SheetTitle>
             <SheetDescription className="sr-only">Panel de gestión de reservas del evento</SheetDescription>
           </SheetHeader>
@@ -733,6 +734,9 @@ const EventsList = () => {
               )}
               <TabsContent value="gestion" className="pt-4">
                 <div className="space-y-6">
+                  {reservationsEvent.metadata?.rsvp_enabled === true ? (
+                    <EventRsvpDashboard eventId={reservationsEvent.id} />
+                  ) : (
                   <AdminEventReservations
                     eventId={reservationsEvent.id}
                     eventTitle={reservationsEvent.title}
@@ -747,6 +751,7 @@ const EventsList = () => {
                     eventStatus={reservationsEvent.status}
                     eventPaymentMode={(reservationsEvent as any).payment_mode || "cuotas"}
                   />
+                  )}
                   <div className="border-t border-border pt-6">
                     <EventRoadbookEditor eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
                   </div>

@@ -2,6 +2,7 @@
 // Modes: "test" (single recipient) or "send" (all targeted recipients).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
+import { decorateRsvpRecipients, filterRsvpRecipients, markRsvpSent } from "./event-rsvp.ts";
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/brevo";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -36,6 +37,9 @@ interface SegmentFilters {
   marketing_include_opt_out?: boolean;
   // "plain": correo blanco simple (el contenido trae su propio HTML y botón); solo se agrega la baja.
   layout?: "plain";
+  // Enlaces individuales de eventos informativos; se materializan sólo al probar/enviar.
+  rsvp_event_id?: string;
+  rsvp_kind?: "invitacion" | "almuerzo";
 }
 
 interface SendBody {
@@ -195,7 +199,13 @@ function personalize(value: string | undefined, recipient: any) {
     .replaceAll("{nombre_url}", encodeUrlValue(nombre))
     .replaceAll("{email_url}", encodeUrlValue(email))
     .replaceAll("{nombre}", nombre)
-    .replaceAll("{email}", email);
+    .replaceAll("{email}", email)
+    .replaceAll("{rsvp_voy_url}", recipient?.rsvp_voy_url || "")
+    .replaceAll("{rsvp_no_voy_url}", recipient?.rsvp_no_voy_url || "")
+    .replaceAll("{rsvp_lunch_url}", recipient?.rsvp_lunch_url || "")
+    .replaceAll("{rsvp_adult_price}", recipient?.rsvp_adult_price || "")
+    .replaceAll("{rsvp_child_price}", recipient?.rsvp_child_price || "")
+    .replaceAll("{rsvp_under_4_price}", recipient?.rsvp_under_4_price || "");
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
@@ -458,7 +468,7 @@ Deno.serve(async (req) => {
     const excludedSet = new Set((body.excluded_emails || []).map((e) => e.toLowerCase()));
 
     if (body.mode === "preview_count") {
-      const rows = await loadRecipients(admin, filters);
+      const rows = await filterRsvpRecipients(admin, await loadRecipients(admin, filters), filters);
       const filtered = rows.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
       const mapped = filtered.map((r: any) => ({
         email: r.email,
@@ -479,6 +489,8 @@ Deno.serve(async (req) => {
         });
       }
       const testRecipient = { email: body.test_email, display_name: "Test Reybaud" };
+      const [rsvpTestRecipient] = await decorateRsvpRecipients(admin, [testRecipient], filters, true);
+      const resolvedTestRecipient = rsvpTestRecipient || testRecipient;
       const promoHtml = buildPromoBlock(await loadPromoProducts(admin, body.promo_product_ids));
       const testUnsubUrl = await issueUnsubscribeUrl(admin, body.test_email);
       if (!testUnsubUrl) {
@@ -487,9 +499,9 @@ Deno.serve(async (req) => {
         });
       }
       const html = htmlWrap(
-        personalize(body.content_html, testRecipient) || "",
+        personalize(body.content_html, resolvedTestRecipient) || "",
         body.preheader,
-        { url: personalize(body.cta_url, testRecipient), label: body.cta_label },
+        { url: personalize(body.cta_url, resolvedTestRecipient), label: body.cta_label },
         promoHtml,
         testUnsubUrl,
         filters.layout,
@@ -524,8 +536,9 @@ Deno.serve(async (req) => {
           status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-      const allRecipients = await loadRecipients(admin, filters);
-      const recipients = allRecipients.filter((r: any) => !excludedSet.has(r.email.toLowerCase()));
+      const allRecipients = await filterRsvpRecipients(admin, await loadRecipients(admin, filters), filters);
+      const recipients = await decorateRsvpRecipients(admin,
+        allRecipients.filter((r: any) => !excludedSet.has(r.email.toLowerCase())), filters);
       if (!recipients.length) {
         return new Response(JSON.stringify({ error: "Sin destinatarios" }), {
           status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -595,6 +608,7 @@ Deno.serve(async (req) => {
             });
             if (r1.ok) {
               sent++;
+              await markRsvpSent(admin, r, filters);
               if (r.contact_type === "marketing") marketingSentEmails.push(r.email.toLowerCase());
               await admin.from("broadcast_recipients").update({
                 status: "sent",
@@ -670,7 +684,8 @@ Deno.serve(async (req) => {
       const { data: failedRows } = await admin
         .from("broadcast_recipients").select("*")
         .eq("broadcast_id", bc.id).eq("status", "failed");
-      const rows = (failedRows as any[]) || [];
+      const failedRsvpRows = await filterRsvpRecipients(admin, (failedRows as any[]) || [], (bc.segment_filters as any) || {});
+      const rows = await decorateRsvpRecipients(admin, failedRsvpRows, (bc.segment_filters as any) || {});
       if (!rows.length) {
         return new Response(JSON.stringify({ ok: true, retried: 0, message: "No hay destinatarios fallidos" }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -718,6 +733,7 @@ Deno.serve(async (req) => {
             });
             if (r1.ok) {
               sent++;
+              await markRsvpSent(admin, r, (bc.segment_filters as any) || {});
               await admin.from("broadcast_recipients").update({
                 status: "sent",
                 brevo_message_id: r1.body?.messageId ?? null,
