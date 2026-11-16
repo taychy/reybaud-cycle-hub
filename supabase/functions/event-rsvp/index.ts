@@ -154,6 +154,7 @@ Deno.serve(async (req) => {
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
         return json({ error: "Email de prueba inválido" }, 400);
       const outcome = await sendOne({ email, name: "Prueba" }, true);
+      if (outcome !== "queued") return json({ error: "El proveedor suprimió el correo de prueba" }, 409);
       return json({ ok: true, email, outcome });
     }
     if (action === "preview_count" || action === "send") {
@@ -172,6 +173,10 @@ Deno.serve(async (req) => {
       const recipients = Array.from(unique.values());
       if (action === "preview_count") return json({ eligible: recipients.length });
       if (body?.confirm_send !== true) return json({ error: "Falta confirmación expresa para envío general" }, 400);
+      const { count: testCount } = await db.from("event_rsvp_invites")
+        .select("id", { count: "exact", head: true }).eq("event_id", EVENT_ID)
+        .eq("is_test", true).not("last_sent_at", "is", null);
+      if (!testCount) return json({ error: "Primero enviá y verificá un correo de prueba" }, 400);
       let queued = 0, skipped = 0, failed = 0;
       for (let i = 0; i < recipients.length; i += 10) {
         const batch = await Promise.allSettled(recipients.slice(i, i + 10).map((r) => sendOne(r, false)));
