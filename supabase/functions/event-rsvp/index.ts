@@ -25,9 +25,15 @@ async function requireAdmin(req: Request) {
   if (!jwt) throw new Error("Sesión requerida");
   const { data: { user }, error } = await db.auth.getUser(jwt);
   if (error || !user) throw new Error("Sesión inválida");
-  const { data: role } = await db.from("user_roles").select("user_id")
-    .eq("user_id", user.id).eq("role", "admin").maybeSingle();
-  if (!role) throw new Error("Permisos de administración requeridos");
+  const [{ data: userRoles }, { data: adminProfile }] = await Promise.all([
+    db.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "super_admin", "superadmin"]),
+    db.from("admin_profiles").select("role").eq("user_id", user.id).maybeSingle(),
+  ]);
+  const validRoles = ["admin", "super_admin", "superadmin"];
+  if (!(userRoles || []).some((r) => validRoles.includes(r.role)) &&
+      !validRoles.includes(adminProfile?.role)) {
+    throw new Error("Permisos de administración requeridos");
+  }
   return user;
 }
 
@@ -67,6 +73,7 @@ function invitationHtml(name: string, token: string) {
     '<p>Para organizarnos, ¿contamos con vos?</p><div style="text-align:center;margin:24px 0">' +
     btn(join, "VOY", "#ff7d16", "#101010") + btn(decline, "NO VOY", "#182b38", "#fff") +
     '</div><p style="font-size:12px;color:#a9b5bc">Cada botón abre una confirmación segura sin iniciar sesión. Si venís, podrás elegir fondo, almuerzo o ambos.</p>' +
+    '<p style="font-size:13px;color:#a9b5bc">Esta respuesta es preliminar y no constituye una reserva paga. Más adelante enviaremos otro mail con el alias del evento para abonar directamente y confirmar el almuerzo.</p>' +
     '<p style="font-size:13px;color:#a9b5bc">Horarios, recorridos y valores del almuerzo: información completa próximamente.</p></div>';
 }
 
@@ -141,7 +148,7 @@ Deno.serve(async (req) => {
         invited: rows.filter((r) => r.last_sent_at).length,
         yes: rows.filter((r) => r.response === "voy").length,
         no: rows.filter((r) => r.response === "no_voy").length,
-        pending: rows.filter((r) => !r.response).length,
+        pending: rows.filter((r) => r.last_sent_at && !r.response).length,
         fondo: rows.filter((r) => r.response === "voy" && r.participation_mode !== "solo_almuerzo").length,
         almuerzo: rows.filter((r) => r.response === "voy" && r.participation_mode !== "solo_fondo").length +
           rows.filter((r) => r.response === "voy" && r.participation_mode !== "solo_fondo")
