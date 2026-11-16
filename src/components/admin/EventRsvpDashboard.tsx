@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -38,6 +39,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [testSent, setTestSent] = useState(false);
+  const [testVerified, setTestVerified] = useState(false);
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("event-rsvp", {
       body: { action, ...extra },
@@ -68,6 +70,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     try {
       const r = await call("test_send", { test_email: testEmail });
       setTestSent(true);
+      setTestVerified(false);
       toast({ title: "Prueba encolada", description: "Revisá el correo y probá ambas respuestas antes del envío general." });
       await refresh();
     } catch (err) {
@@ -119,9 +122,15 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
             <Input type="email" value={testEmail} onChange={(e) => setTestEmail(e.target.value)} aria-label="Correo de prueba" placeholder="Tu correo de prueba" />
             <Button variant="outline" onClick={test} disabled={busy || !testEmail}>Enviar prueba</Button>
           </div>
+          {testSent && (
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={testVerified} onCheckedChange={(checked) => setTestVerified(checked === true)} />
+              Revisé el correo de prueba y confirmé que los dos botones funcionan correctamente.
+            </label>
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button disabled={busy || !testSent || !eligible} className="w-full sm:w-auto">
+              <Button disabled={busy || !testSent || !testVerified || !eligible} className="w-full sm:w-auto">
                 <Send className="w-4 h-4 mr-2" /> Enviar invitaciones
               </Button>
             </AlertDialogTrigger>
@@ -138,7 +147,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
-          {!testSent && <p className="text-xs text-muted-foreground">El envío general se habilita después de enviar la prueba en esta sesión.</p>}
+          {!testVerified && <p className="text-xs text-muted-foreground">El envío general se habilita después de enviar y verificar una prueba en esta sesión.</p>}
         </div>
         <div>
           <h4 className="font-semibold mb-2">Respuestas individuales</h4>
