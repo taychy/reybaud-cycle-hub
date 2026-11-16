@@ -71,6 +71,7 @@ import EventForm, {
 import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
 import EventSurveyManager from "@/components/admin/EventSurveyManager";
+import EventRsvpDashboard from "@/components/admin/EventRsvpDashboard";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
@@ -753,6 +754,11 @@ const EventsList = () => {
                   <div className="border-t border-border pt-6">
                     <EventAnnouncementsManager eventId={reservationsEvent.id} />
                   </div>
+                  {reservationsEvent.metadata?.rsvp_enabled === true && (
+                    <div className="border-t border-border pt-6">
+                      <EventRsvpDashboard eventId={reservationsEvent.id} />
+                    </div>
+                  )}
                   <div className="border-t border-border pt-6">
                     <EventSurveyManager eventId={reservationsEvent.id} eventTitle={reservationsEvent.title} />
                   </div>
