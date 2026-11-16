@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.event_rsvp_invites (
   last_sent_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT event_rsvp_invites_unique_email UNIQUE (event_id, recipient_email),
+  CONSTRAINT event_rsvp_invites_unique_email_kind UNIQUE (event_id, recipient_email, is_test),
   CONSTRAINT event_rsvp_mode_requires_yes CHECK (response = 'voy' OR participation_mode IS NULL),
   CONSTRAINT event_rsvp_guests_require_yes CHECK (response = 'voy' OR guests_count = 0)
 );
