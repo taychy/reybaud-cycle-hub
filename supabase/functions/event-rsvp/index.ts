@@ -85,7 +85,7 @@ async function sendOne(recipient: { email: string; name: string; alumno_id?: str
   const invite = await upsertInvite(recipient, isTest);
   if (invite.last_sent_at && !isTest) return "already_sent";
   const unsub = await getUnsubToken(invite.recipient_email);
-  const { error } = await sendLegacyEmailPayload({
+  const delivery = await sendLegacyEmailPayload({
     message_id: crypto.randomUUID(),
     to: invite.recipient_email,
     from: "Ciclismo Reybaud <notificaciones@notify.reybaud-app.com>",
@@ -97,11 +97,12 @@ async function sendOne(recipient: { email: string; name: string; alumno_id?: str
       " | No voy: " + appUrl + "/confirmar-asistencia/" + invite.token + "?opcion=no_voy",
     purpose: "marketing",
     label: isTest ? "event_rsvp_test" : "event_rsvp",
-    idempotency_key: "fondazo-rsvp-" + (isTest ? "test-" : "") + EVENT_ID + "-" + invite.recipient_email,
+    idempotency_key: "fondazo-rsvp-" + EVENT_ID + "-" + invite.recipient_email + (isTest ? "-test-" + crypto.randomUUID() : ""),
     unsubscribe_token: unsub,
     queued_at: new Date().toISOString(),
   }, db);
-  if (error) throw error;
+  if (delivery.error) throw new Error(delivery.error.message);
+  if (!delivery.sent) return "suppressed";
   await db.from("event_rsvp_invites").update({ last_sent_at: new Date().toISOString() })
     .eq("id", invite.id);
   return "queued";
@@ -191,7 +192,7 @@ Deno.serve(async (req) => {
         const batch = await Promise.allSettled(recipients.slice(i, i + 10).map((r) => sendOne(r, false)));
         for (const b of batch) {
           if (b.status === "rejected") failed++;
-          else if (b.value === "already_sent") skipped++;
+          else if (b.value === "already_sent" || b.value === "suppressed") skipped++;
           else queued++;
         }
       }
