@@ -169,7 +169,7 @@ export default function EventRsvp() {
                 <Label htmlFor="guests">¿Cuántos acompañantes que no pedalean vienen al almuerzo?</Label>
                 <Input id="guests" type="number" min={0} max={COMPANIONS_TECH_MAX} value={guests}
                   onChange={(e) => setGuests(Math.max(0, Math.min(COMPANIONS_TECH_MAX, Math.trunc(Number(e.target.value) || 0))))} />
-                <p className="text-xs text-muted-foreground">Total preliminar para el almuerzo: {guests + 1}, incluyéndote. Sin límite de cupos.</p>
+                <p className="text-xs text-muted-foreground">Total preliminar para el almuerzo: {guests + 1}, incluyéndote. Sin límite comercial de cupos (solo un control interno técnico). Cuenta únicamente personas que no pedalean.</p>
                 <p className="text-xs text-muted-foreground"><strong>No sumes acá a amigos ciclistas.</strong> Para traer un amigo al fondo, consultalo antes con Claudio: su participación no queda registrada ni aprobada con este formulario.</p>
               </div>}
             </div>}
