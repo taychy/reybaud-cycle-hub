@@ -26,7 +26,7 @@ async function requireAdmin(req: Request) {
   const { data: { user }, error } = await db.auth.getUser(jwt);
   if (error || !user) throw new Error("Sesión inválida");
   const [{ data: userRoles }, { data: adminProfile }] = await Promise.all([
-    db.from("user_roles").select("role").eq("user_id", user.id).in("role", ["admin", "super_admin", "superadmin"]),
+    db.from("user_roles").select("role").eq("user_id", user.id),
     db.from("admin_profiles").select("role").eq("user_id", user.id).maybeSingle(),
   ]);
   const validRoles = ["admin", "super_admin", "superadmin"];
