@@ -91,7 +91,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         <div className="flex items-center justify-between gap-3">
           <div>
             <h3 className="text-lg font-heading font-bold">Confirmación de asistencia · Fondazo 29/11</h3>
-            <p className="text-xs text-muted-foreground">Dos botones por mail, enlace individual y conteos automáticos. Sin inscripción paga.</p>
+            <p className="text-xs text-muted-foreground">Encuesta preliminar: Voy / No voy. Estos números no son reservas pagadas. Más adelante se enviará el alias del evento para confirmar el almuerzo, sin checkout en la app.</p>
           </div>
           <Button variant="outline" size="sm" onClick={refresh} disabled={loading}>
             <RefreshCw className="h-4 w-4 mr-1" /> Actualizar
@@ -100,7 +100,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {[
             ["Invitados", summary?.invited ?? 0],
-            ["Voy", summary?.yes ?? 0],
+            ["Voy (sin pago)", summary?.yes ?? 0],
             ["No voy", summary?.no ?? 0],
             ["Sin responder", summary?.pending ?? 0],
             ["Al fondo", summary?.fondo ?? 0],
@@ -153,7 +153,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                   </div>
                   <span className="shrink-0 flex gap-1 items-center">
                     {r.response === "voy" ? <><CheckCircle className="w-4 h-4 text-green-500" /> Voy</>
-                      : r.response === "no_voy" ? <><XCircle className="w-4 h-4" /> No voy</> : "Pendiente"}
+                      : r.response === "no_voy" ? <><XCircle className="w-4 h-4" /> No voy</> : r.last_sent_at ? "Pendiente" : "No invitado"}
                   </span>
                 </div>
               ))}
