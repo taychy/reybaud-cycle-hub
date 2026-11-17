@@ -269,7 +269,7 @@ const Register = () => {
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   El email <strong className="text-foreground break-all">{existingEmail}</strong> ya está registrado.
-                  No necesitás crear otra cuenta. Te enviamos las instrucciones para ingresar a ese correo.
+                  No necesitás crear otra cuenta. Podés recibir las instrucciones de acceso en ese mismo correo.
                 </p>
                 <Button type="button" variant="gold" className="w-full min-h-12 rounded-lg"
                   disabled={sendingAccess} onClick={handleSendExistingAccess}>
