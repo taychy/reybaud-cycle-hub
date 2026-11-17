@@ -205,7 +205,8 @@ function personalize(value: string | undefined, recipient: any) {
     .replaceAll("{rsvp_lunch_url}", recipient?.rsvp_lunch_url || "")
     .replaceAll("{rsvp_adult_price}", recipient?.rsvp_adult_price || "")
     .replaceAll("{rsvp_child_price}", recipient?.rsvp_child_price || "")
-    .replaceAll("{rsvp_under_4_price}", recipient?.rsvp_under_4_price || "");
+    .replaceAll("{rsvp_under_4_price}", recipient?.rsvp_under_4_price || "")
+    .replaceAll("<!--{rsvp_payment_summary_html}-->", recipient?.rsvp_payment_summary_html || "");
 }
 
 async function loadRecipients(supabase: any, filters: SegmentFilters) {
