@@ -166,4 +166,6 @@ BEGIN
   RETURN v_result;
 END $function$;
 REVOKE ALL ON FUNCTION public.get_event_rsvp_guest_names_admin(uuid) FROM PUBLIC;
+-- En este proyecto hay GRANT EXECUTE explícito por defecto para anon: revocarlo también.
+REVOKE ALL ON FUNCTION public.get_event_rsvp_guest_names_admin(uuid) FROM anon;
 GRANT EXECUTE ON FUNCTION public.get_event_rsvp_guest_names_admin(uuid) TO authenticated, service_role;
