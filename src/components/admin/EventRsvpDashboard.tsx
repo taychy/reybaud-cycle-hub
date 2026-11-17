@@ -34,6 +34,7 @@ type Row = {
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
   guests_count: number;
+  lunch_attendees: { name: string; category: "adult" | "child_4_9" | "under_4" }[];
   responded_at: string | null;
   last_sent_at: string | null;
   lunch_status: LunchStatus;
@@ -258,6 +259,19 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
             {lunchRows.length ? lunchRows.map((row) => <div key={row.id} className="border rounded-lg p-3 space-y-2">
               <div className="flex justify-between gap-3"><div><strong>{row.recipient_name || row.recipient_email}</strong><div className="text-xs text-muted-foreground">{diners(row)} comensales · {row.guests_count} acompañantes</div></div><Badge variant="outline">{LUNCH_STATUS_LABELS[row.lunch_status]}</Badge></div>
               <div className="text-xs text-muted-foreground">{row.terms_accepted_at ? `Condiciones ${row.terms_version} aceptadas ${new Date(row.terms_accepted_at).toLocaleString("es-AR")}` : "Condiciones todavía no aceptadas"}</div>
+              {row.terms_accepted_at && <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
+                <div className="font-semibold">Comensales de esta reserva</div>
+                <div>{row.recipient_name || row.recipient_email} · Titular adulto</div>
+                {(row.lunch_attendees || []).map((person, index) =>
+                  <div key={index}>{person.name} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
+                )}
+                {(!row.lunch_attendees?.length && row.guests_count > 0) && <div className="text-destructive">Falta registrar nombres de acompañantes</div>}
+                {summary?.prices.prices_confirmed_at && <div className="font-medium pt-1">Total parrilla: {formatPrice(
+                  row.adults_count * Number(summary.prices.adult_price) +
+                  row.children_4_9_count * Number(summary.prices.child_4_9_price) +
+                  row.under_4_count * Number(summary.prices.under_4_price), "ARS"
+                )}</div>}
+              </div>}
               {row.receipt_reference && <div className="text-xs">Comprobante: {row.receipt_reference}</div>}
               <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>
