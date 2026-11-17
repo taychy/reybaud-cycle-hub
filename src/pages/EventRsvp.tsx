@@ -52,7 +52,13 @@ export default function EventRsvp() {
   const { token } = useParams<{ token: string }>();
   const [params] = useSearchParams();
   const [data, setData] = useState<RsvpData | null>(null);
-  const [choice, setChoice] = useState<"voy" | "no_voy">(params.get("opcion") === "no_voy" ? "no_voy" : "voy");
+  const linkChoice = params.get("opcion");
+  const [choice, setChoice] = useState<"voy" | "no_voy">(linkChoice === "no_voy" ? "no_voy" : "voy");
+  // Si la PWA está abierta y se pulsa el otro botón del correo con el mismo
+  // token, React conserva el componente: actualizar la elección por la URL.
+  useEffect(() => {
+    if (linkChoice === "voy" || linkChoice === "no_voy") setChoice(linkChoice);
+  }, [linkChoice, token]);
   const [mode, setMode] = useState<ParticipationMode>("fondo_y_almuerzo");
   const [cyclists, setCyclists] = useState<CyclistGuest[]>([]);
   const [nonCyclists, setNonCyclists] = useState<DinnerGuest[]>([]);
@@ -241,10 +247,12 @@ export default function EventRsvp() {
             </div>
             <p className="text-sm sm:text-base">Hola{data.name ? `, ${data.name}` : ""}! ¿Nos acompañás? Elegí una opción para confirmar tu asistencia.</p>
             <div className="grid grid-cols-2 gap-3">
-              <Button type="button" variant={choice === "voy" ? "gold" : "outline"} onClick={() => setChoice("voy")}>
+              <Button type="button" aria-pressed={choice === "voy"} variant={choice === "voy" ? "gold" : "outline"} onClick={() => setChoice("voy")}>
                 <CheckCircle2 /> VOY
               </Button>
-              <Button type="button" variant={choice === "no_voy" ? "secondary" : "outline"} onClick={() => setChoice("no_voy")}>
+              <Button type="button" aria-pressed={choice === "no_voy"} variant={choice === "no_voy" ? "secondary" : "outline"}
+                className={choice === "no_voy" ? "border-2 border-accent bg-accent/15 text-foreground" : ""}
+                onClick={() => setChoice("no_voy")}>
                 <XCircle /> NO VOY
               </Button>
             </div>
