@@ -6122,20 +6122,25 @@ export type Database = {
           alumno_id: string | null
           children_4_9_count: number
           created_at: string
+          cyclist_guests: Json
           event_id: string
           guests_count: number
           id: string
           is_test: boolean
           last_sent_at: string | null
           lunch_admin_comment: string | null
+          lunch_attendees: Json
           lunch_confirmed_at: string | null
           lunch_status: string
           lunch_status_changed_at: string | null
           lunch_status_changed_by: string | null
+          non_cyclist_guests: Json
+          participant_whatsapp: string | null
           participation_mode: string | null
           receipt_reference: string | null
           recipient_email: string
           recipient_name: string | null
+          registration_source: string
           responded_at: string | null
           response: string | null
           terms_accepted_at: string | null
@@ -6150,20 +6155,25 @@ export type Database = {
           alumno_id?: string | null
           children_4_9_count?: number
           created_at?: string
+          cyclist_guests?: Json
           event_id: string
           guests_count?: number
           id?: string
           is_test?: boolean
           last_sent_at?: string | null
           lunch_admin_comment?: string | null
+          lunch_attendees?: Json
           lunch_confirmed_at?: string | null
           lunch_status?: string
           lunch_status_changed_at?: string | null
           lunch_status_changed_by?: string | null
+          non_cyclist_guests?: Json
+          participant_whatsapp?: string | null
           participation_mode?: string | null
           receipt_reference?: string | null
           recipient_email: string
           recipient_name?: string | null
+          registration_source?: string
           responded_at?: string | null
           response?: string | null
           terms_accepted_at?: string | null
@@ -6178,20 +6188,25 @@ export type Database = {
           alumno_id?: string | null
           children_4_9_count?: number
           created_at?: string
+          cyclist_guests?: Json
           event_id?: string
           guests_count?: number
           id?: string
           is_test?: boolean
           last_sent_at?: string | null
           lunch_admin_comment?: string | null
+          lunch_attendees?: Json
           lunch_confirmed_at?: string | null
           lunch_status?: string
           lunch_status_changed_at?: string | null
           lunch_status_changed_by?: string | null
+          non_cyclist_guests?: Json
+          participant_whatsapp?: string | null
           participation_mode?: string | null
           receipt_reference?: string | null
           recipient_email?: string
           recipient_name?: string | null
+          registration_source?: string
           responded_at?: string | null
           response?: string | null
           terms_accepted_at?: string | null
@@ -19760,6 +19775,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      confirm_event_rsvp_lunch_named: {
+        Args: { p_guests: Json; p_token: string }
+        Returns: undefined
+      }
       confirm_mp_preapproval_mapping: {
         Args: {
           _alumno_id?: string
@@ -19862,6 +19881,15 @@ export type Database = {
           p_mp_payment_id: string
           p_mp_status: string
           p_proveedor: string
+        }
+        Returns: string
+      }
+      create_or_resume_public_rsvp: {
+        Args: {
+          p_event_id: string
+          p_first_name: string
+          p_last_name: string
+          p_whatsapp: string
         }
         Returns: string
       }
@@ -20424,6 +20452,18 @@ export type Database = {
         }[]
       }
       get_event_rsvp_by_token: { Args: { p_token: string }; Returns: Json }
+      get_event_rsvp_guest_names_admin: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
+      get_event_rsvp_guest_types_admin: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
+      get_event_rsvp_test_rows_admin: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
       get_event_waitlist_meta: { Args: { p_event_id: string }; Returns: Json }
       get_extra_meal_survey: {
         Args: { p_reservation_id: string; p_token?: string }
@@ -21754,6 +21794,16 @@ export type Database = {
         Args: {
           p_guests_count?: number
           p_participation_mode?: string
+          p_response: string
+          p_token: string
+        }
+        Returns: undefined
+      }
+      respond_event_rsvp_with_guest_types: {
+        Args: {
+          p_cyclists: Json
+          p_mode: string
+          p_non_cyclists: Json
           p_response: string
           p_token: string
         }
