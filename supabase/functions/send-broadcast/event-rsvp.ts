@@ -32,10 +32,16 @@ export async function filterRsvpRecipients(admin: any, rows: any[], segment: Rsv
   const emails = rows.map((r) => emailKey(r.email)).filter(Boolean);
   if (!emails.length) return [];
   const { data, error } = await admin.from("event_rsvp_invites")
-    .select("recipient_email").eq("event_id", segment.rsvp_event_id).eq("is_test", false)
-    .eq("response", "voy").in("participation_mode", ["fondo_y_almuerzo", "solo_almuerzo"]).in("recipient_email", emails);
+    .select("recipient_email,participation_mode,cyclist_guests")
+    .eq("event_id", segment.rsvp_event_id).eq("is_test", false)
+    .eq("response", "voy").in("recipient_email", emails);
   if (error) throw error;
-  const eligible = new Set((data || []).map((r: any) => emailKey(r.recipient_email)));
+  // Segundo correo: interesados en parrilla O quienes traen amigos ciclistas,
+  // incluso si el alumno eligió "solo fondo".
+  const eligible = new Set((data || []).filter((r: any) =>
+    ["fondo_y_almuerzo", "solo_almuerzo"].includes(r.participation_mode) ||
+    (Array.isArray(r.cyclist_guests) && r.cyclist_guests.length > 0)
+  ).map((r: any) => emailKey(r.recipient_email)));
   return rows.filter((r) => eligible.has(emailKey(r.email)));
 }
 
@@ -48,10 +54,12 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
     const email = emailKey(recipient.email);
     if (!email) continue;
     if (segment.rsvp_kind === "almuerzo" && !isTest) {
-      const { data: interest } = await admin.from("event_rsvp_invites").select("id")
+      const { data: interest } = await admin.from("event_rsvp_invites")
+        .select("id,participation_mode,cyclist_guests")
         .eq("event_id", segment.rsvp_event_id).eq("recipient_email", email).eq("is_test", false)
-        .eq("response", "voy").in("participation_mode", ["fondo_y_almuerzo", "solo_almuerzo"]).maybeSingle();
-      if (!interest) continue;
+        .eq("response", "voy").maybeSingle();
+      if (!interest || !(["fondo_y_almuerzo", "solo_almuerzo"].includes(interest.participation_mode) ||
+        (Array.isArray(interest.cyclist_guests) && interest.cyclist_guests.length > 0))) continue;
     }
     const payload: Record<string, unknown> = {
       event_id: segment.rsvp_event_id,
