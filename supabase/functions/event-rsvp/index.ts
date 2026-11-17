@@ -1,15 +1,26 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
+import { sendManagedEmail } from "../_shared/send-managed-email.ts";
 
 const BodySchema = z.object({
-  action: z.enum(["status", "respond", "confirm_lunch", "summary", "update_prices", "update_lunch"]),
+  action: z.enum(["status", "respond", "respond_with_types", "confirm_lunch", "summary", "update_prices", "update_lunch"]),
   event_id: z.string().uuid().optional(),
   invite_id: z.string().uuid().optional(),
   token: z.string().uuid().optional(),
   response: z.enum(["voy", "no_voy"]).optional(),
   participation_mode: z.enum(["fondo_y_almuerzo", "solo_fondo", "solo_almuerzo"]).nullable().optional(),
   guests_count: z.number().int().min(0).max(500).optional(),
+  cyclists: z.array(z.object({
+    name: z.string().trim().min(2).max(100),
+    category: z.literal("adult"),
+    lunch: z.boolean(),
+  })).max(10).optional(),
+  non_cyclists: z.array(z.object({
+    name: z.string().trim().min(2).max(100),
+    category: z.enum(["adult", "child_4_9", "under_4"]),
+  })).max(500).optional(),
+  accept_terms: z.boolean().optional(),
   adults_count: z.number().int().min(0).max(501).optional(),
   children_4_9_count: z.number().int().min(0).max(501).optional(),
   under_4_count: z.number().int().min(0).max(501).optional(),
@@ -52,6 +63,74 @@ async function publicStatus(token: string) {
   return data;
 }
 
+const FONDAZO_ID = "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
+const CLAUDIO_EMAIL = Deno.env.get("FONDAZO_CLAUDIO_EMAIL") || "claudioreybaud@ciclismoreybaud.com";
+const htmlEscape = (value: string) => value.replace(/[&<>"']/g, (char) =>
+  ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
+
+/**
+ * Sólo después de guardar el RSVP. Cada nombre se encola una sola vez por
+ * invitación, y la RPC de claim evita dos envíos simultáneos por reintentos.
+ * Un fallo en el correo no revierte ni bloquea la respuesta del alumno.
+ */
+async function notifyClaudioAboutCyclists(token: string): Promise<void> {
+  const { data: invite, error: lookupError } = await db.from("event_rsvp_invites")
+    .select("id,event_id,recipient_name,recipient_email,response,is_test,cyclist_guests")
+    .eq("token", token).maybeSingle();
+  if (lookupError) throw lookupError;
+  if (!invite || invite.event_id !== FONDAZO_ID || invite.is_test || invite.response !== "voy") return;
+
+  const distinct = new Map<string, string>();
+  for (const guest of Array.isArray(invite.cyclist_guests) ? invite.cyclist_guests : []) {
+    const name = String(guest?.name || "").trim().replace(/\\s+/g, " ");
+    const key = name.normalize("NFKC").toLocaleLowerCase("es-AR");
+    if (name.length >= 2 && name.length <= 100 && !distinct.has(key)) distinct.set(key, name);
+  }
+  if (distinct.size) {
+    const { error } = await db.from("event_rsvp_guest_alerts").upsert(
+      [...distinct].map(([guest_key, guest_name]) => ({
+        event_id: invite.event_id, invite_id: invite.id, guest_key, guest_name,
+      })),
+      { onConflict: "invite_id,guest_key", ignoreDuplicates: true },
+    );
+    if (error) throw error;
+  }
+
+  // También reintenta notificaciones pendientes de este mismo invitante.
+  const { data: alerts, error: claimError } = await db.rpc("claim_event_rsvp_guest_alerts", {
+    p_invite_id: invite.id,
+  });
+  if (claimError) throw claimError;
+  for (const alert of alerts || []) {
+    let sendResult: { sent: boolean; error?: string; reason?: string };
+    try {
+      const guestName = htmlEscape(alert.guest_name);
+      const studentName = htmlEscape(invite.recipient_name || invite.recipient_email);
+      const participation = (invite.cyclist_guests as Array<{ name?: string; lunch?: boolean }> || [])
+        .find((item) => (item.name || "").trim().normalize("NFKC").toLocaleLowerCase("es-AR") === alert.guest_key);
+      const mode = participation?.lunch ? "Fondo y almuerzo" : "Solo fondo";
+      sendResult = await sendManagedEmail({
+        to: CLAUDIO_EMAIL,
+        subject: "Fondazo | Solicitud de ciclista invitado",
+        text: `Hola, Claudio!\n\n${invite.recipient_name || invite.recipient_email} quiere invitar a ${alert.guest_name} al Fondazo del 29/11.\nParticipación solicitada: ${mode}.\nCorreo del alumno: ${invite.recipient_email}.\n\nEl cupo está pendiente de tu aprobación. Revisalo desde la administración de Reybaud.`,
+        html: `<p>Hola, Claudio!</p><p><strong>${studentName}</strong> quiere invitar a <strong>${guestName}</strong> al Fondazo del 29/11.</p><p>Participación solicitada: ${mode}.</p><p>Correo del alumno: ${htmlEscape(invite.recipient_email)}</p><p><strong>Solicitud pendiente de tu aprobación.</strong> Revisala desde administración.</p>`,
+        label: "fondazo-guest-cyclist-request",
+        idempotencyKey: `fondazo-guest-request-${alert.id}`,
+        supabase: db,
+      });
+    } catch (error) {
+      sendResult = { sent: false, error: error instanceof Error ? error.message : String(error) };
+    }
+    const { error: updateError } = await db.from("event_rsvp_guest_alerts")
+      .update({
+        status: sendResult.sent ? "sent" : "failed",
+        sent_at: sendResult.sent ? new Date().toISOString() : null,
+        last_error: sendResult.sent ? null : (sendResult.error || sendResult.reason || "Error de envío").slice(0, 1000),
+      }).eq("id", alert.id).eq("status", "sending");
+    if (updateError) console.error("Fondazo guest alert status update failed", updateError);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: corsHeaders });
   if (req.method !== "POST") return json({ error: "Método inválido" }, 405);
@@ -59,6 +138,27 @@ Deno.serve(async (req) => {
     const parsed = BodySchema.safeParse(await req.json());
     if (!parsed.success) return json({ error: "Datos inválidos", fields: parsed.error.flatten().fieldErrors }, 400);
     const body = parsed.data;
+
+    if (body.action === "respond_with_types") {
+      if (!body.token || !body.response) return json({ error: "Enlace y respuesta requeridos" }, 400);
+      const { error } = await db.rpc("respond_event_rsvp_with_guest_types_and_terms", {
+        p_token: body.token,
+        p_response: body.response,
+        p_mode: body.response === "voy" ? body.participation_mode : null,
+        p_cyclists: body.response === "voy" ? (body.cyclists || []) : [],
+        p_non_cyclists: body.response === "voy" ? (body.non_cyclists || []) : [],
+        p_accept_terms: body.accept_terms === true,
+      });
+      if (error) return json({ error: error.message }, 400);
+      try {
+        await notifyClaudioAboutCyclists(body.token);
+      } catch (notifyError) {
+        console.error("Fondazo: respuesta guardada, aviso a Claudio pendiente", notifyError);
+      }
+      const status = await publicStatus(body.token);
+      if (!status) return json({ error: "No pudimos recuperar la respuesta guardada." }, 500);
+      return json(status);
+    }
 
     if (body.action === "status" || body.action === "respond" || body.action === "confirm_lunch") {
       if (!body.token) return json({ error: "Enlace inválido" }, 400);
