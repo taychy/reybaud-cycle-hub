@@ -108,6 +108,7 @@ export const rsvpLunchEmail = () => ({
     <h1 style="font-size:28px;margin:14px 0">FONDAZO · INFORMACIÓN PARA RESERVAR</h1>
     <p>Hola {nombre}! Gracias por confirmar tu participación para el domingo 29/11 en La Carreta del Gato, Capilla del Señor.</p>
     <p>Te compartimos los importes y los datos de transferencia. El fondo de la escuela es gratuito para alumnos activos.</p>
+    <!--{rsvp_payment_summary_html}-->
     <div style="border:1px solid #00baf2;border-radius:10px;padding:16px;margin:18px 0;background:#142630">
       <div style="font-size:16px;font-weight:bold;color:#00c5f7">1 · Parrilla del restaurante</div>
       <p style="margin:8px 0">Adultos: <strong>{rsvp_adult_price}</strong> por persona.<br>Niños de 4 a 9 años: <strong>{rsvp_child_price}</strong> por persona.<br>Menores de 4: <strong>{rsvp_under_4_price}</strong>. Bebidas aparte.</p>
