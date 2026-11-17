@@ -367,9 +367,9 @@ const AdminLogin = () => {
             Revisá tu email
           </h1>
           <p className="text-muted-foreground text-sm">
-            Te enviamos un código de acceso a <strong className="text-foreground">{email}</strong>.
+            Solicitamos un correo de acceso para <strong className="text-foreground">{email}</strong>.
             <br />
-            Ingresalo acá para entrar.
+            Ingresá el código recibido o abrí el enlace de acceso.
           </p>
 
           <div className="glass-card rounded-lg p-6 space-y-4">
