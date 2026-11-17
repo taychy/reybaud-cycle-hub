@@ -11,6 +11,7 @@ import {
   lunchDinerTotal,
   rsvpInvitationEmail,
   rsvpLunchEmail,
+  rsvpReceiptWhatsAppUrl,
   normalizeGuestWhatsApp,
   validateLunchCounts,
 } from "./eventRsvp";
@@ -51,33 +52,37 @@ describe("Fondazo · precios verificados", () => {
     const mail = rsvpLunchEmail();
     expect(mail.content_html).toContain(RESTAURANT_ALIAS);
     expect(mail.content_html).toContain(RESTAURANT_WHATSAPP_URL);
-    expect(mail.content_html).toContain("WhatsApp a Scarlett");
-    expect(mail.content_html).toContain("Nosotros se lo vamos a reenviar al restaurante");
+    expect(mail.content_html).toContain("WhatsApp de <strong>Scarlett");
+    expect(mail.content_html).toContain("Scarlett lo reenvía personalmente al restaurante");
     expect(mail.content_html).not.toContain("Comprobantes del restaurante");
     expect(mail.content_html).toContain("{rsvp_adult_price}");
     expect(mail.content_html).toContain("{rsvp_child_price}");
     expect(mail.content_html).not.toContain("40.000");
     expect(mail.content_html).not.toContain("20.000");
     expect(mail.content_html).not.toContain("No pagues en la aplicación");
-    expect(mail.content_html).toContain("ENVIAR COMPROBANTE POR WHATSAPP");
+    expect(mail.content_html).toContain("Enviar comprobante por WhatsApp");
+    expect(mail.content_html).toContain("{rsvp_receipt_whatsapp_url}");
+    expect(mail.content_html).toContain("viernes 27/11/2026");
+    expect(mail.content_html).not.toContain("24/11");
   });
 });
 
 describe("Fondazo · correo y condiciones", () => {
-  it("los botones abren una pantalla y no son endpoints de voto", () => {
+  it("saluda con el nombre real personalizado y los botones no son endpoints de voto", () => {
     const mail = rsvpInvitationEmail();
+    expect(mail.content_html).toContain("Hola {nombre}!");
+    expect(mail.content_html).not.toContain("Hola Ciclista");
     expect(mail.content_html).toContain("{rsvp_voy_url}");
     expect(mail.content_html).toContain("{rsvp_no_voy_url}");
     expect(mail.content_html).toContain("confirmar tu participación");
   });
 
-  it("conserva literalmente la política y deja pendiente el intervalo no definido", () => {
-    expect(LUNCH_POLICY_TEXT).toContain("hasta el 24/11/2026 inclusive");
-    expect(LUNCH_POLICY_TEXT).toContain("perdés el 100%");
-    expect(LUNCH_POLICY_PENDING).toContain("25 y el 28/11/2026");
-    expect(LUNCH_POLICY_PENDING).toContain("pendientes de definición administrativa");
-    expect(LUNCH_POLICY_PENDING).toContain("La Carreta del Gato");
-    expect(LUNCH_POLICY_VERSION).toBe("fondazo-almuerzo-v1-2026-11-16");
+  it("conserva la política vigente: crédito hasta el viernes 27 y sin reembolso posterior", () => {
+    expect(LUNCH_POLICY_TEXT).toContain("viernes 27/11/2026 inclusive");
+    expect(LUNCH_POLICY_TEXT).toContain("Después de esa fecha no hay reembolso");
+    expect(LUNCH_POLICY_TEXT).toContain("La Carreta del Gato");
+    expect(LUNCH_POLICY_PENDING).toContain("no hay reembolso");
+    expect(LUNCH_POLICY_VERSION).toBe("fondazo-almuerzo-v2-2026-11-17");
   });
 });
 

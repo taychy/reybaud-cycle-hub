@@ -32,6 +32,11 @@ type Row = {
   id: string;
   recipient_name: string | null;
   recipient_email: string;
+  alumno_id: string | null;
+  participant_first_name: string | null;
+  participant_last_name: string | null;
+  participant_whatsapp: string | null;
+  registration_source: string;
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
   guests_count: number;
@@ -291,6 +296,10 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           <p className="text-xs text-muted-foreground">Respuestas reales: {rows.length}. Las pruebas no ocupan cupos ni se incluyen en correos generales.</p>
           {rows.length ? <div className="border rounded-lg divide-y">{rows.map((row) => <div key={row.id} className="p-3 flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0"><div className="font-medium truncate">{row.recipient_name || row.recipient_email}</div><div className="text-xs text-muted-foreground truncate">{row.recipient_email}</div>
+              <div className="mt-1 flex flex-wrap gap-1 items-center">
+                <Badge variant={row.alumno_id ? "secondary" : "outline"}>{row.alumno_id ? "Alumno vinculado por ID" : "Visitante sin ficha vinculada"}</Badge>
+                {row.participant_whatsapp && <span className="text-xs text-muted-foreground">WhatsApp: {row.participant_whatsapp}</span>}
+              </div>
               {row.participation_mode && <div className="text-xs">{PARTICIPATION_LABELS[row.participation_mode]} · {row.cyclist_guests?.length || 0} amigos ciclistas (solicitud) · {row.non_cyclist_guests?.length || 0} acompañantes no ciclistas · {row.guests_count} acompañantes a parrilla</div>}
               {!!row.cyclist_guests?.length && <div className="text-xs text-primary">Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}. No quedan aprobados automáticamente.</div>}
               {row.response === "voy" && !!row.cyclist_guests?.length && <div className="mt-2 border border-primary/30 rounded-lg p-3 space-y-2">

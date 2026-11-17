@@ -1,3 +1,9 @@
+## Fondazo · Identidad y avisos transaccionales (17/11)
+- [ ] Saludo real en invitación, identidad por token/alumno y datos obligatorios de visitantes; nunca vincular por email.
+- [ ] CTA WhatsApp personalizado, política vigente hasta 27/11 y avisos VOY/Claudio sin cobro en NO VOY.
+- [ ] Vista admin con origen/asociación, pruebas focalizadas y compilación; sin correos, despliegue, publicación ni escrituras reales.
+- [ ] Aplicar cambios SQL y desplegar/publicar sólo con autorización posterior. El evento figura actualmente `publicado` pese al requisito de borrador; no se cambió ese dato.
+
 ## Fondazo · Asistencia y almuerzo directo al restaurante (16/11)
 - [x] Auditar evento, PR #47 y canal Brevo existente; conservar evento en borrador y reutilizar su diseño sin integrar la rama.
 - [x] Encuesta segura editable, acompañantes, tablero y dos correos preparados sin enviar; prefetch no registra votos.

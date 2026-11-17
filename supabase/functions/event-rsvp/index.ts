@@ -1,9 +1,26 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
+import { deliverRsvpNotifications } from "./notifications.ts";
+
+const CyclistSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  category: z.literal("adult"),
+  lunch: z.boolean(),
+  whatsapp: z.string().trim().max(24),
+});
+const DinnerGuestSchema = z.object({
+  name: z.string().trim().min(2).max(100),
+  category: z.enum(["adult", "child_4_9", "under_4"]),
+});
+const IdentitySchema = z.object({
+  first_name: z.string().trim().max(70),
+  last_name: z.string().trim().max(70),
+  whatsapp: z.string().trim().max(24),
+});
 
 const BodySchema = z.object({
-  action: z.enum(["status", "respond", "confirm_lunch", "summary", "update_prices", "update_lunch"]),
+  action: z.enum(["status", "respond", "respond_with_types", "confirm_lunch", "summary", "update_prices", "update_lunch"]),
   event_id: z.string().uuid().optional(),
   invite_id: z.string().uuid().optional(),
   token: z.string().uuid().optional(),
@@ -20,6 +37,9 @@ const BodySchema = z.object({
   status: z.enum(["intencion_confirmada", "instrucciones_pendientes", "instrucciones_enviadas", "comprobante_informado", "pago_verificado"]).optional(),
   comment: z.string().max(2000).optional(),
   receipt_reference: z.string().max(500).nullable().optional(),
+  cyclists: z.array(CyclistSchema).max(10).optional(),
+  non_cyclists: z.array(DinnerGuestSchema).max(500).optional(),
+  identity: IdentitySchema.optional(),
 });
 
 const url = Deno.env.get("SUPABASE_URL")!;
@@ -60,8 +80,28 @@ Deno.serve(async (req) => {
     if (!parsed.success) return json({ error: "Datos inválidos", fields: parsed.error.flatten().fieldErrors }, 400);
     const body = parsed.data;
 
-    if (body.action === "status" || body.action === "respond" || body.action === "confirm_lunch") {
+    if (body.action === "status" || body.action === "respond" || body.action === "respond_with_types" || body.action === "confirm_lunch") {
       if (!body.token) return json({ error: "Enlace inválido" }, 400);
+      if (body.action === "respond_with_types") {
+        if (!body.response) return json({ error: "Elegí una respuesta" }, 400);
+        const { error } = await db.rpc("respond_event_rsvp_with_guest_types", {
+          p_token: body.token,
+          p_response: body.response,
+          p_mode: body.response === "voy" ? body.participation_mode : null,
+          p_cyclists: body.cyclists || [],
+          p_non_cyclists: body.non_cyclists || [],
+          p_identity: body.identity || null,
+        });
+        if (error) return json({ error: error.message }, 400);
+        const { data: invite, error: inviteError } = await db.from("event_rsvp_invites")
+          .select("id,event_id,token,recipient_email,recipient_name,response,participation_mode,cyclist_guests,non_cyclist_guests,lunch_status")
+          .eq("token", body.token).single();
+        if (inviteError || !invite) return json({ error: "No pudimos comprobar la respuesta guardada" }, 500);
+        const beforeNotice = await publicStatus(body.token);
+        const notification = await deliverRsvpNotifications(db, invite, beforeNotice);
+        const status = await publicStatus(body.token);
+        return json({ ...status, notification });
+      }
       if (body.action === "respond") {
         if (!body.response) return json({ error: "Elegí una respuesta" }, 400);
         const { error } = await db.rpc("respond_event_rsvp", {
@@ -93,7 +133,8 @@ Deno.serve(async (req) => {
 
     if (body.action === "summary") {
       const [invitesResult, settingsResult, auditResult] = await Promise.all([
-        db.from("event_rsvp_invites").select(`id,recipient_name,recipient_email,response,participation_mode,guests_count,
+        db.from("event_rsvp_invites").select(`id,recipient_name,recipient_email,alumno_id,participant_first_name,participant_last_name,
+          participant_whatsapp,registration_source,response,participation_mode,guests_count,
           responded_at,last_sent_at,lunch_status,adults_count,children_4_9_count,under_4_count,lunch_confirmed_at,
           terms_version,terms_accepted_at,receipt_reference,lunch_admin_comment,lunch_status_changed_at`)
           .eq("event_id", body.event_id).eq("is_test", false).order("recipient_name"),

@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
   PARTICIPATION_LABELS,
@@ -22,6 +23,14 @@ type LunchGuest = DinnerGuest;
 type RsvpData = {
   event: { title: string; date: string; location: string };
   name: string | null;
+  identity: {
+    linked: boolean;
+    first_name: string;
+    last_name: string;
+    full_name: string;
+    email: string;
+    whatsapp: string;
+  };
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
   guests_count: number;
@@ -50,6 +59,9 @@ export default function EventRsvp() {
     if (linkChoice === "voy" || linkChoice === "no_voy") setChoice(linkChoice);
   }, [linkChoice, token]);
   const [mode, setMode] = useState<ParticipationMode>("fondo_y_almuerzo");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
   const [cyclists, setCyclists] = useState<CyclistGuest[]>([]);
   const [nonCyclists, setNonCyclists] = useState<DinnerGuest[]>([]);
   const guests = choice === "voy" && mode !== "solo_fondo"
@@ -78,6 +90,11 @@ export default function EventRsvp() {
 
   const hydrate = (response: RsvpData, isInitialLoad = false) => {
     setData(response);
+    if (response.identity) {
+      setFirstName(response.identity.first_name || "");
+      setLastName(response.identity.last_name || "");
+      setWhatsapp(response.identity.whatsapp || "");
+    }
     // Un enlace VOY/NO VOY del correo debe respetar la elección inicial incluso
     // si el participante ya respondió anteriormente. Al guardar usamos el estado del servidor.
     const requestedOption = params.get("opcion");
@@ -126,25 +143,31 @@ export default function EventRsvp() {
     setError("");
     setNotice("");
     try {
-      const namedRpc = supabase as unknown as {
-        rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-      };
-      const saved = await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
-        p_token: token,
-        p_response: extra.response,
-        p_mode: extra.participation_mode,
-        p_cyclists: extra.cyclists,
-        p_non_cyclists: extra.non_cyclists,
+      const saved = await supabase.functions.invoke("event-rsvp", {
+        body: {
+          action, token,
+          response: extra.response,
+          participation_mode: extra.participation_mode,
+          cyclists: extra.cyclists,
+          non_cyclists: extra.non_cyclists,
+          identity: { first_name: firstName, last_name: lastName, whatsapp: normalizeGuestWhatsApp(whatsapp) || "" },
+        },
       });
-      if (saved.error) throw new Error(saved.error.message);
-      const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
-      if (loaded.error || loaded.data?.error || !loaded.data) {
-        throw new Error(loaded.data?.error || loaded.error?.message || "No pudimos comprobar la respuesta guardada.");
+      if (saved.error || saved.data?.error || !saved.data) {
+        throw new Error(saved.data?.error || saved.error?.message || "No pudimos comprobar la respuesta guardada.");
       }
-      hydrate(loaded.data as RsvpData);
-      setNotice(extra.response === "no_voy"
-        ? "Gracias por responder. Registramos que no vas a asistir."
-        : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
+      hydrate(saved.data as RsvpData);
+      if (extra.response === "no_voy") {
+        setNotice("Gracias por responder. Registramos que no vas a asistir. No se generó ningún cobro.");
+      } else if (saved.data.notification?.participant !== "sent") {
+        setNotice("Tu respuesta quedó registrada y ya está visible en gestión, pero no pudimos confirmar el envío del correo.");
+      } else if (cyclists.length && saved.data.notification?.claudio !== "sent") {
+        setNotice("Tu asistencia y el correo quedaron registrados. El aviso a Claudio quedó pendiente; los ciclistas no quedaron inscriptos.");
+      } else {
+        setNotice(cyclists.length
+          ? "¡Tu asistencia quedó registrada! Enviamos tu correo y la solicitud a Claudio. Los ciclistas siguen pendientes de aprobación."
+          : "¡Tu asistencia quedó registrada! Te enviamos el correo correspondiente.");
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos confirmar tu respuesta. Intentá nuevamente.");
     } finally {
@@ -153,6 +176,12 @@ export default function EventRsvp() {
   };
 
   const submitRsvp = () => {
+    if (!data?.identity?.linked && (firstName.trim().length < 2 || lastName.trim().length < 2)) {
+      setError("Completá tu nombre y apellido para registrar la respuesta."); return;
+    }
+    if (!data?.identity?.linked && !normalizeGuestWhatsApp(whatsapp)) {
+      setError("Ingresá tu WhatsApp con código de país (por ejemplo, +54 9 11 1234-5678)."); return;
+    }
     const riders = choice === "voy" && mode !== "solo_almuerzo"
       ? cyclists.map((person) => ({
           name: person.name.trim(),
@@ -222,6 +251,23 @@ export default function EventRsvp() {
               </div>
             </div>
             <p className="text-sm sm:text-base">Hola{data.name ? `, ${data.name}` : ""}! ¿Nos acompañás? Elegí una opción para confirmar tu asistencia.</p>
+            <section className="rounded-xl border border-border bg-muted/20 p-4 space-y-3" aria-label="Tus datos">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-semibold text-sm">Tus datos</h2>
+                <span className="text-xs text-muted-foreground">{data.identity?.linked ? "Alumno vinculado a esta invitación" : "Visitante · completá tus datos"}</span>
+              </div>
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5"><Label htmlFor="rsvp-first-name">Nombre</Label><Input id="rsvp-first-name" autoComplete="given-name" maxLength={70} required readOnly={!!data.identity?.linked} value={firstName} onChange={(event) => setFirstName(event.target.value)} /></div>
+                <div className="space-y-1.5"><Label htmlFor="rsvp-last-name">Apellido</Label><Input id="rsvp-last-name" autoComplete="family-name" maxLength={70} required readOnly={!!data.identity?.linked} value={lastName} onChange={(event) => setLastName(event.target.value)} /></div>
+              </div>
+              <div className="space-y-1.5"><Label htmlFor="rsvp-email">Email de esta invitación</Label><Input id="rsvp-email" type="email" readOnly value={data.identity?.email || ""} /></div>
+              {!data.identity?.linked && <div className="space-y-1.5">
+                <Label htmlFor="rsvp-whatsapp">WhatsApp</Label>
+                <Input id="rsvp-whatsapp" type="tel" inputMode="tel" autoComplete="tel" required maxLength={24} placeholder="+54 9 11 1234-5678" value={whatsapp} onChange={(event) => setWhatsapp(event.target.value)} />
+                <p className="text-xs text-muted-foreground">Obligatorio para visitantes. Estos datos se guardan únicamente en tu invitación.</p>
+              </div>}
+              {data.identity?.linked && <p className="text-xs text-muted-foreground">Nombre, apellido y email se conservan desde la invitación vinculada; no se pueden reemplazar desde este formulario.</p>}
+            </section>
             <div className="grid grid-cols-2 gap-3">
               <Button type="button" aria-pressed={choice === "voy"} variant={choice === "voy" ? "gold" : "outline"} onClick={() => setChoice("voy")}>
                 <CheckCircle2 /> VOY

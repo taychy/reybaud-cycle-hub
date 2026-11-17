@@ -193,13 +193,14 @@ function encodeUrlValue(value: unknown) {
 
 function personalize(value: string | undefined, recipient: any) {
   if (!value) return value;
-  const nombre = recipient?.display_name || `${recipient?.nombre ?? ""} ${recipient?.apellido ?? ""}`.trim();
+  const nombre = recipient?.display_name || recipient?.name || recipient?.recipient_name || `${recipient?.nombre ?? ""} ${recipient?.apellido ?? ""}`.trim();
   const email = recipient?.email || "";
   return value
     .replaceAll("{nombre_url}", encodeUrlValue(nombre))
     .replaceAll("{email_url}", encodeUrlValue(email))
-    .replaceAll("{nombre}", nombre)
-    .replaceAll("{email}", email)
+    .replaceAll("{nombre}", escapeHtml(nombre))
+    .replaceAll("{email}", escapeHtml(email))
+    .replaceAll("{rsvp_receipt_whatsapp_url}", recipient?.rsvp_receipt_whatsapp_url || "")
     .replaceAll("{rsvp_voy_url}", recipient?.rsvp_voy_url || "")
     .replaceAll("{rsvp_no_voy_url}", recipient?.rsvp_no_voy_url || "")
     .replaceAll("{rsvp_lunch_url}", recipient?.rsvp_lunch_url || "")

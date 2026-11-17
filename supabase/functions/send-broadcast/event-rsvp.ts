@@ -1,3 +1,5 @@
+import { rsvpReceiptWhatsAppUrl } from "../_shared/event-rsvp-mail.ts";
+
 const PUBLIC_ORIGIN = "https://reybaud-app.com";
 const emailKey = (value: unknown) => String(value || "").trim().toLowerCase();
 const money = (value: unknown) => new Intl.NumberFormat("es-AR", {
@@ -53,10 +55,13 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
         .eq("response", "voy").in("participation_mode", ["fondo_y_almuerzo", "solo_almuerzo"]).maybeSingle();
       if (!interest) continue;
     }
+    const realName = String(recipient.display_name || recipient.name || `${recipient.nombre ?? ""} ${recipient.apellido ?? ""}`.trim()).trim();
+    if (!isTest && !realName) throw new Error("Falta el nombre real del perfil; la invitación no se preparó con un saludo genérico");
+    const recipientName = realName || "Test Reybaud";
     const payload: Record<string, unknown> = {
       event_id: segment.rsvp_event_id,
       recipient_email: email,
-      recipient_name: recipient.display_name || recipient.name || "Ciclista",
+      recipient_name: recipientName,
       alumno_id: recipient.contact_type === "alumno" ? recipient.id : null,
       is_test: isTest,
     };
@@ -70,9 +75,11 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
     const base = `${PUBLIC_ORIGIN}/confirmar-asistencia/${invite.token}`;
     decorated.push({
       ...recipient,
+      display_name: recipientName,
       rsvp_voy_url: `${base}?opcion=voy`,
       rsvp_no_voy_url: `${base}?opcion=no_voy`,
       rsvp_lunch_url: `${base}?seccion=almuerzo`,
+      rsvp_receipt_whatsapp_url: rsvpReceiptWhatsAppUrl(recipientName),
       rsvp_adult_price: money(prices?.adult_price),
       rsvp_child_price: money(prices?.child_4_9_price),
       rsvp_under_4_price: money(prices?.under_4_price),

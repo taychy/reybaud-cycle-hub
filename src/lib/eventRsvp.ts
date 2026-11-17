@@ -1,4 +1,14 @@
 import { formatPrice } from "@/lib/currency";
+import {
+  FONDAZO_ORGANIZATION_WHATSAPP,
+  FONDAZO_POLICY_TEXT,
+  FONDAZO_POLICY_VERSION,
+  FONDAZO_RESTAURANT_ALIAS,
+  renderRsvpLunchMail,
+  rsvpReceiptWhatsAppUrl,
+} from "../../supabase/functions/_shared/event-rsvp-mail.ts";
+
+export { rsvpReceiptWhatsAppUrl };
 
 export const FONDAZO_EVENT_ID = "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
 // Contacto internacional del amigo ciclista. Sin exigirle cuenta ni email.
@@ -7,14 +17,12 @@ export const normalizeGuestWhatsApp = (raw: string | null | undefined): string |
   return /^\+[1-9][0-9]{7,14}$/.test(compact) ? compact : null;
 };
 
-export const RESTAURANT_ALIAS = "Lacarretadelgato";
-export const RESTAURANT_WHATSAPP = "5491171711122";
+export const RESTAURANT_ALIAS = FONDAZO_RESTAURANT_ALIAS;
+export const RESTAURANT_WHATSAPP = FONDAZO_ORGANIZATION_WHATSAPP;
 export const RESTAURANT_WHATSAPP_URL = `https://wa.me/${RESTAURANT_WHATSAPP}`;
-export const LUNCH_POLICY_VERSION = "fondazo-almuerzo-v1-2026-11-16";
-export const LUNCH_POLICY_TEXT =
-  "Si cancelás avisando con al menos 5 días de anticipación (hasta el 24/11/2026 inclusive), el importe abonado queda como crédito para consumir en La Carreta del Gato en otra ocasión. Si no asistís el día del evento y no avisás, perdés el 100% del importe abonado.";
-export const LUNCH_POLICY_PENDING =
-  "Las cancelaciones avisadas entre el 25 y el 28/11/2026 o el mismo día están pendientes de definición administrativa; no se consideran automáticamente una ausencia sin aviso. El crédito lo administra La Carreta del Gato, no Ciclismo Reybaud.";
+export const LUNCH_POLICY_VERSION = FONDAZO_POLICY_VERSION;
+export const LUNCH_POLICY_TEXT = FONDAZO_POLICY_TEXT;
+export const LUNCH_POLICY_PENDING = "Después del viernes 27/11/2026 inclusive no hay reembolso.";
 
 export const ADULT_LUNCH_PRICE_ANNOUNCED = 40000;
 export const GUEST_CYCLIST_FEE = 30000;
@@ -102,28 +110,14 @@ export const rsvpInvitationEmail = () => ({
 export const GUEST_CYCLIST_PAYMENT_ALIAS = "granfondo.tc";
 export const GUEST_CYCLIST_PAYMENT_OWNER = "Scarlett Tayná";
 
-// Segundo correo, manual y posterior al VOY. Solo se envía a quienes eligieron almuerzo.
-export const rsvpLunchEmail = () => ({
-  subject: "Fondazo Reybaud | Datos para abonar la parrilla",
-  preheader: "Tu asistencia está registrada. Te compartimos los datos para transferir el almuerzo.",
-  content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.55">
-    <div style="color:#ff7d16;font-size:14px;font-weight:800;letter-spacing:2px">CICLISMO REYBAUD</div>
-    <h1 style="font-size:27px;margin:14px 0">PARRILLA DE FIN DE AÑO</h1>
-    <p>Hola {nombre}! Gracias por confirmar tu asistencia al Fondazo del domingo 29/11.</p>
-    <p>Ya podés realizar el pago correspondiente a la parrilla en La Carreta del Gato:</p>
-    <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Niños de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4: <strong>sin cargo</strong></li></ul>
-    <p>Bebidas aparte. El importe que transferís es el total del menú para todos los comensales de tu grupo.</p>
-    <p style="font-size:13px;color:#b7c0c7">Si necesitás revisar la cantidad de personas que registraste y el importe estimado, podés consultar tu respuesta:</p>
-    <div style="text-align:center;margin:12px 0">${button("{rsvp_lunch_url}", "VER MIS ACOMPAÑANTES", "#182b38", "#ffffff")}</div>
-    <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
-      <strong>Pago de la parrilla — directamente al restaurante</strong><br>
-      Alias: <strong>${RESTAURANT_ALIAS}</strong>
-    </div>
-    <p>Una vez que transfieras, enviá el comprobante por WhatsApp a Scarlett. Nosotros se lo vamos a reenviar al restaurante.</p>
-    <div style="text-align:center;margin:18px 0">${button(RESTAURANT_WHATSAPP_URL, "ENVIAR COMPROBANTE POR WHATSAPP", "#ff7d16", "#101010")}</div>
-    <p style="font-size:13px;color:#b7c0c7"><strong>Cancelaciones:</strong> si avisás hasta el 24/11 inclusive, el importe queda como crédito para consumir en el restaurante en otra ocasión. Si no asistís y no avisás, perdés lo abonado. Para avisos del 25 al 28/11 o el mismo día, consultanos antes.</p>
-    <p style="font-size:13px;color:#b7c0c7">El pago del fondo de amigos ciclistas aprobados es independiente y tiene otro alias. No lo sumes a esta transferencia.</p>
-  </div>`,
+// La campaña y el aviso transaccional usan el mismo HTML compatible con Gmail.
+export const rsvpLunchEmail = () => renderRsvpLunchMail({
+  name: "{nombre}",
+  responseUrl: "{rsvp_lunch_url}",
+  receiptUrl: "{rsvp_receipt_whatsapp_url}",
+  adultPrice: "{rsvp_adult_price}",
+  childPrice: "{rsvp_child_price}",
+  under4Price: "{rsvp_under_4_price}",
 });
 
 // Correo individual: sólo cuando Claudio aprobó el/los amigos ciclistas.
