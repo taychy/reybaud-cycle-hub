@@ -50,6 +50,7 @@ type Row = {
   lunch_admin_comment: string | null;
   lunch_status_changed_at: string | null;
 };
+type TestRow = Pick<Row, "id" | "recipient_name" | "recipient_email" | "response" | "participation_mode" | "cyclist_guests" | "non_cyclist_guests" | "responded_at">;
 type Prices = { adult_price: number | null; child_4_9_price: number | null; under_4_price: number | null; prices_confirmed_at: string | null; prices_note?: string | null };
 type Audit = { id: string; invite_id: string; from_status: LunchStatus | null; to_status: LunchStatus; comment: string; receipt_reference: string | null; created_at: string };
 type Summary = { event_title: string; rows: Row[]; prices: Prices; audit: Audit[] };
@@ -61,6 +62,7 @@ const diners = (row: Row) => row.guests_count + 1;
 export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const { toast } = useToast();
   const [summary, setSummary] = useState<Summary | null>(null);
+  const [testRows, setTestRows] = useState<TestRow[]>([]);
   const [eligible, setEligible] = useState<Record<CampaignKind, number>>({ invitacion: 0, almuerzo: 0 });
   const [testEmail, setTestEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -104,6 +106,19 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       };
       const guestTypes = await typeRpc.rpc("get_event_rsvp_guest_types_admin", { p_event_id: eventId });
       if (guestTypes.error) throw new Error(guestTypes.error.message);
+      // Consulta administrativa de pruebas, sin incorporarlas a los contadores reales.
+      const testRpc = supabase as unknown as {
+        rpc: (name: string, args: Record<string, unknown>) => Promise<{
+          data: TestRow[] | null; error: { message: string } | null;
+        }>;
+      };
+      const tests = await testRpc.rpc("get_event_rsvp_test_rows_admin", { p_event_id: eventId });
+      if (tests.error) {
+        setTestRows([]);
+        toast({ title: "No se pudieron cargar las respuestas de prueba", description: tests.error.message, variant: "destructive" });
+      } else {
+        setTestRows(Array.isArray(tests.data) ? tests.data : []);
+      }
       const baseSummary = result as Summary;
       setSummary({
         ...baseSummary,
@@ -259,7 +274,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     <CardContent className="p-4 sm:p-6 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div><h3 className="text-lg font-heading font-bold">Fondazo · asistencia y almuerzo</h3>
-          <p className="text-xs text-muted-foreground">Evento en borrador. Intención, comprobante y pago verificado son estados distintos; nada genera cobros en Reybaud.</p></div>
+          <p className="text-xs text-muted-foreground">Evento en borrador. Los contadores muestran participantes reales; las pruebas aparecen separadas en Respuestas.</p></div>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading}><RefreshCw /> Actualizar</Button>
       </div>
 
@@ -273,6 +288,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       <Tabs defaultValue="respuestas">
         <TabsList className="grid grid-cols-3 w-full"><TabsTrigger value="respuestas">Respuestas</TabsTrigger><TabsTrigger value="almuerzo">Almuerzo</TabsTrigger><TabsTrigger value="correos">Correos</TabsTrigger></TabsList>
         <TabsContent value="respuestas" className="space-y-2 pt-3">
+          <p className="text-xs text-muted-foreground">Respuestas reales: {rows.length}. Las pruebas no ocupan cupos ni se incluyen en correos generales.</p>
           {rows.length ? <div className="border rounded-lg divide-y">{rows.map((row) => <div key={row.id} className="p-3 flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0"><div className="font-medium truncate">{row.recipient_name || row.recipient_email}</div><div className="text-xs text-muted-foreground truncate">{row.recipient_email}</div>
               {row.participation_mode && <div className="text-xs">{PARTICIPATION_LABELS[row.participation_mode]} · {row.cyclist_guests?.length || 0} amigos ciclistas (solicitud) · {row.non_cyclist_guests?.length || 0} acompañantes no ciclistas · {row.guests_count} acompañantes a parrilla</div>}
@@ -297,7 +313,29 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                 <p className="text-xs text-muted-foreground">Abre un borrador para revisar y enviar: alias granfondo.tc, titular Scarlett Tayná y $30.000 por ciclista. No registra aprobación ni envía automáticamente.</p>
               </div>}</div>
             <span className="shrink-0 flex items-center gap-1 text-xs">{row.response === "voy" ? <><CheckCircle className="text-accent" /> VOY</> : row.response === "no_voy" ? <><XCircle /> NO VOY</> : row.last_sent_at ? "Pendiente" : "Preparado"}</span>
-          </div>)}</div> : <p className="text-sm text-muted-foreground">Todavía no hay invitaciones preparadas.</p>}
+          </div>)}</div> : <p className="text-sm text-muted-foreground">Todavía no hay invitaciones ni respuestas reales registradas.</p>}
+          <section className="rounded-lg border border-dashed border-accent/40 bg-muted/10 p-3 sm:p-4 space-y-3 mt-4" aria-label="Respuestas de prueba">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="font-semibold text-sm">Respuestas de prueba ({testRows.length})</h4>
+              <Badge variant="outline">No cuentan para cupos ni envíos</Badge>
+            </div>
+            {testRows.length ? testRows.map((test) => (
+              <div key={test.id} className="rounded-lg border bg-card/70 p-3 space-y-1 text-sm">
+                <div className="flex flex-wrap gap-2 items-center justify-between">
+                  <div className="font-semibold">{test.recipient_name || "Invitación de prueba"} <Badge variant="secondary">PRUEBA</Badge></div>
+                  <div className="text-xs font-semibold">{test.response === "voy" ? "VOY" : test.response === "no_voy" ? "NO VOY" : "Sin respuesta"}</div>
+                </div>
+                {test.participation_mode && <p className="text-xs">{PARTICIPATION_LABELS[test.participation_mode]}</p>}
+                <p className="text-xs text-muted-foreground">
+                  {test.cyclist_guests?.length || 0} amigo(s) ciclista(s) · {test.non_cyclist_guests?.length || 0} acompañante(s) no ciclista(s)
+                </p>
+                {(test.cyclist_guests || []).map((person, index) =>
+                  <p key={`test-c-${index}`} className="text-xs">Ciclista: {person.name} · Adulto{person.lunch ? " · también almuerza" : ""}</p>)}
+                {(test.non_cyclist_guests || []).map((person, index) =>
+                  <p key={`test-n-${index}`} className="text-xs">{person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "Niño/a 4 a 9 años" : "Menor de 4"}: {person.name}</p>)}
+              </div>
+            )) : <p className="text-xs text-muted-foreground">No hay respuestas de prueba registradas.</p>}
+          </section>
         </TabsContent>
 
         <TabsContent value="almuerzo" className="space-y-5 pt-3">
