@@ -103,3 +103,67 @@ GRANT EXECUTE ON FUNCTION public.confirm_event_rsvp_lunch_named(uuid,jsonb)
 TO anon, authenticated, service_role;
 COMMENT ON COLUMN public.event_rsvp_invites.lunch_attendees IS
   'Solo acompañantes no ciclistas que van a parrilla; nombre y grupo etario. El titular adulto se infiere de recipient_name. No confundir con los diez amigos ciclistas sujetos a aprobación de Claudio.';
+
+-- Una pantalla sin sesión recibe los nombres solamente al poseer el token secreto;
+-- el resto del estado y los controles permanecen idénticos.
+CREATE OR REPLACE FUNCTION public.get_event_rsvp_by_token(p_token uuid)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE
+  v_invite public.event_rsvp_invites%rowtype;
+  v_event public.events%rowtype;
+  v_prices public.event_rsvp_settings%rowtype;
+BEGIN
+  SELECT * INTO v_invite FROM public.event_rsvp_invites WHERE token = p_token;
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  SELECT * INTO v_event FROM public.events WHERE id = v_invite.event_id
+    AND COALESCE(metadata->>'rsvp_enabled', 'false') = 'true';
+  IF NOT FOUND THEN RETURN NULL; END IF;
+  SELECT * INTO v_prices FROM public.event_rsvp_settings WHERE event_id = v_invite.event_id;
+  RETURN jsonb_build_object(
+    'event', jsonb_build_object('title', v_event.title, 'date', v_event.date, 'location', v_event.location),
+    'name', v_invite.recipient_name,
+    'response', v_invite.response,
+    'participation_mode', v_invite.participation_mode,
+    'guests_count', v_invite.guests_count,
+    'lunch', jsonb_build_object(
+      'status', v_invite.lunch_status,
+      'attendees', v_invite.lunch_attendees,
+      'adults_count', v_invite.adults_count,
+      'children_4_9_count', v_invite.children_4_9_count,
+      'under_4_count', v_invite.under_4_count,
+      'terms_version', v_invite.terms_version,
+      'terms_accepted_at', v_invite.terms_accepted_at
+    ),
+    'prices', CASE WHEN v_prices.prices_confirmed_at IS NULL THEN jsonb_build_object('prices_confirmed_at', null)
+      ELSE jsonb_build_object(
+        'adult_price', v_prices.adult_price,
+        'child_4_9_price', v_prices.child_4_9_price,
+        'under_4_price', v_prices.under_4_price,
+        'prices_confirmed_at', v_prices.prices_confirmed_at
+      ) END
+  );
+END $function$
+;
+
+-- Resumen de nombres para el panel administrativo. Nunca expone tokens ni registros de test.
+CREATE OR REPLACE FUNCTION public.get_event_rsvp_guest_names_admin(p_event_id uuid)
+RETURNS jsonb
+LANGUAGE plpgsql
+STABLE SECURITY DEFINER
+SET search_path TO 'public', 'pg_temp'
+AS $function$
+DECLARE v_actor uuid := auth.uid(); v_result jsonb;
+BEGIN
+  IF v_actor IS NULL OR NOT public.has_role(v_actor,'admin') THEN
+    RAISE EXCEPTION 'No autorizado.';
+  END IF;
+  SELECT COALESCE(jsonb_object_agg(i.id::text, i.lunch_attendees), '{}'::jsonb)
+  INTO v_result FROM public.event_rsvp_invites i WHERE i.event_id=p_event_id AND NOT i.is_test;
+  RETURN v_result;
+END $function$;
+REVOKE ALL ON FUNCTION public.get_event_rsvp_guest_names_admin(uuid) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_event_rsvp_guest_names_admin(uuid) TO authenticated, service_role;
