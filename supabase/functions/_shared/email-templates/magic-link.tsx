@@ -41,7 +41,7 @@ export const MagicLinkEmail = ({
           </>
         )}
         <Text style={text}>
-          El código y el enlace vencerán en pocos minutos.
+          {confirmationUrl ? 'El código y el enlace vencerán en pocos minutos.' : 'El código vencerá en pocos minutos.'}
         </Text>
         <Text style={footer}>
           Si no solicitaste este acceso, podés ignorar este email.
