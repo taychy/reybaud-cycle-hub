@@ -150,13 +150,14 @@ Deno.serve(async (req) => {
         p_accept_terms: body.accept_terms === true,
       });
       if (error) return json({ error: error.message }, 400);
-      try {
-        await notifyClaudioAboutCyclists(body.token);
-      } catch (notifyError) {
-        console.error("Fondazo: respuesta guardada, aviso a Claudio pendiente", notifyError);
-      }
       const status = await publicStatus(body.token);
       if (!status) return json({ error: "No pudimos recuperar la respuesta guardada." }, 500);
+      // La entrega de correo nunca debe demorar la confirmación de asistencia.
+      EdgeRuntime.waitUntil(
+        notifyClaudioAboutCyclists(body.token).catch((notifyError) => {
+          console.error("Fondazo: respuesta guardada, aviso a Claudio pendiente", notifyError);
+        }),
+      );
       return json(status);
     }
 
