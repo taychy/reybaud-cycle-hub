@@ -7,7 +7,13 @@ export const wantsFoodSurvey = (search: string) => {
 };
 export const wantsExtraMealSurvey = (search: string) =>
   new URLSearchParams(search).get("encuesta") === "comidas-adicionales";
+// Las confirmaciones públicas por enlace (incluido el Fondazo) deben abrirse
+// con la versión más reciente, también cuando llegan a una PWA instalada.
+export const isRsvpLinkPath = (pathname: string) =>
+  /^\/confirmar-asistencia\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
+
 export const requiresSurveyUpdateCheck = (pathname: string, search: string) =>
+  isRsvpLinkPath(pathname) ||
   pathname === "/viaje/encuesta-gastronomica" ||
   (pathname === "/viaje/mi-reserva" && (wantsFoodSurvey(search) || wantsExtraMealSurvey(search)));
 
@@ -17,7 +23,8 @@ export const getAppLaunchDestination = (targetURL: string, origin: string): stri
     const target = new URL(targetURL);
     if (target.origin !== origin) return null;
     const allowed = target.pathname === "/formacion-inicial" || target.pathname.startsWith("/preinscripcion/") ||
-      target.pathname === "/viaje/encuesta-gastronomica" || target.pathname === "/viaje/mi-reserva";
+      target.pathname === "/viaje/encuesta-gastronomica" || target.pathname === "/viaje/mi-reserva" ||
+      isRsvpLinkPath(target.pathname);
     return allowed ? target.pathname + target.search + target.hash : null;
   } catch { return null; }
 };
