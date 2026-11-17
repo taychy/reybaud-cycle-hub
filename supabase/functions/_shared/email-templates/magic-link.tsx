@@ -10,16 +10,19 @@ import {
   Html,
   Preview,
   Text,
+  Button,
 } from 'npm:@react-email/components@0.0.22'
 
 interface MagicLinkEmailProps {
   siteName: string
   token: string
+  confirmationUrl?: string
 }
 
 export const MagicLinkEmail = ({
   siteName,
   token,
+  confirmationUrl,
 }: MagicLinkEmailProps) => (
   <Html lang="es" dir="ltr">
     <Head />
@@ -31,8 +34,14 @@ export const MagicLinkEmail = ({
           Ingresá este código en {siteName} para acceder a tu cuenta:
         </Text>
         <Text style={code}>{token}</Text>
+        {confirmationUrl && (
+          <>
+            <Text style={text}>También podés ingresar directamente desde este botón:</Text>
+            <Button href={confirmationUrl} style={accessButton}>Ingresar a Reybaud</Button>
+          </>
+        )}
         <Text style={text}>
-          El código vencerá en pocos minutos.
+          {confirmationUrl ? 'El código y el enlace vencerán en pocos minutos.' : 'El código vencerá en pocos minutos.'}
         </Text>
         <Text style={footer}>
           Si no solicitaste este acceso, podés ignorar este email.
@@ -66,3 +75,5 @@ const code = {
   margin: '8px 0 24px',
 }
 const footer = { fontSize: '12px', color: '#999999', margin: '30px 0 0' }
+
+const accessButton = { backgroundColor: '#b7934a', color: '#171717', padding: '12px 22px', borderRadius: '8px', fontSize: '15px', fontWeight: 'bold' as const, textDecoration: 'none' }

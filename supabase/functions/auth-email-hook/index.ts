@@ -48,6 +48,7 @@ const SAMPLE_DATA: Record<string, object> = {
   magiclink: {
     siteName: SITE_NAME,
     token: '12345678',
+    confirmationUrl: SAMPLE_PROJECT_URL,
   },
   recovery: {
     siteName: SITE_NAME,
@@ -148,11 +149,12 @@ const handler = createAuthEmailHandler({
         }),
     },
     magiclink: {
-      subject: 'Tu código de acceso - Ciclismo Reybaud',
+      subject: 'Tu acceso a Ciclismo Reybaud - código o enlace',
       render: (data) =>
         React.createElement(MagicLinkEmail, {
           siteName: SITE_NAME,
           token: data.token ?? '',
+          confirmationUrl: data.url,
         }),
     },
     recovery: {

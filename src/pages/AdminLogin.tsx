@@ -367,9 +367,9 @@ const AdminLogin = () => {
             Revisá tu email
           </h1>
           <p className="text-muted-foreground text-sm">
-            Te enviamos un código de acceso a <strong className="text-foreground">{email}</strong>.
+            Solicitamos un correo de acceso para <strong className="text-foreground">{email}</strong>.
             <br />
-            Ingresalo acá para entrar.
+            Ingresá el código recibido o abrí el enlace de acceso.
           </p>
 
           <div className="glass-card rounded-lg p-6 space-y-4">
@@ -380,6 +380,7 @@ const AdminLogin = () => {
             <div className="flex justify-center">
               <InputOTP
                 maxLength={OTP_LENGTH}
+                aria-label="Código de acceso de ocho dígitos"
                 value={otpCode}
                 onChange={(value) => {
                   setOtpCode(normalizeOtpCode(value));
@@ -388,7 +389,7 @@ const AdminLogin = () => {
               >
                 <InputOTPGroup>
                   {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
+                    <InputOTPSlot key={i} index={i} className="h-11 min-w-0 flex-1 text-lg sm:h-12" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
