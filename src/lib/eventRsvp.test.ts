@@ -111,13 +111,13 @@ describe("Fondazo · correo separado para cupo ciclista aprobado", () => {
 
 describe("Fondazo · coherencia entre frontend y backend", () => {
   it("mantiene idéntica la política aceptada en la base de datos y el correo", () => {
-    const sql = readFileSync(new URL("../../supabase/migrations/20261117051000_fondazo_policy_guest_alerts.sql", import.meta.url), "utf8");
+    const sql = readFileSync("supabase/migrations/20261117051000_fondazo_policy_guest_alerts.sql", "utf8");
     expect(sql).toContain(LUNCH_POLICY_TEXT);
     expect(sql).toContain(LUNCH_POLICY_VERSION);
     expect(sql).toContain("terms_accepted_at = now()");
   });
   it("solo notifica invitados desde el servidor y no envía avisos de invitaciones de prueba", () => {
-    const edge = readFileSync(new URL("../../supabase/functions/event-rsvp/index.ts", import.meta.url), "utf8");
+    const edge = readFileSync("supabase/functions/event-rsvp/index.ts", "utf8");
     expect(edge).toContain('action === "respond_with_types"');
     expect(edge).toContain("invite.is_test");
     expect(edge).toContain("claim_event_rsvp_guest_alerts");
