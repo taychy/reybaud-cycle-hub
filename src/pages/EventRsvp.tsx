@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
   PARTICIPATION_LABELS,
+  normalizeGuestWhatsApp,
   lunchAmount,
   lunchDinerTotal,
   type LunchCounts,
@@ -83,7 +84,7 @@ export default function EventRsvp() {
     if (response.response && (!isInitialLoad || !hasLinkChoice)) setChoice(response.response);
     if (response.participation_mode) setMode(response.participation_mode);
     setCyclists(Array.isArray(response.cyclist_guests)
-      ? response.cyclist_guests.map((person) => ({ ...person, category: "adult" as const }))
+      ? response.cyclist_guests.map((person) => ({ ...person, category: "adult" as const, whatsapp: person.whatsapp || "" }))
       : []);
     setNonCyclists(Array.isArray(response.non_cyclist_guests) ? response.non_cyclist_guests : []);
   };
@@ -137,13 +138,24 @@ export default function EventRsvp() {
 
   const submitRsvp = () => {
     const riders = choice === "voy" && mode !== "solo_almuerzo"
-      ? cyclists.map((person) => ({ name: person.name.trim(), category: "adult", lunch: mode !== "solo_fondo" && person.lunch }))
+      ? cyclists.map((person) => ({
+          name: person.name.trim(),
+          category: "adult",
+          lunch: mode !== "solo_fondo" && person.lunch,
+          whatsapp: normalizeGuestWhatsApp(person.whatsapp) || "",
+        }))
       : [];
     const diners = choice === "voy" && mode !== "solo_fondo"
       ? nonCyclists.map((person) => ({ name: person.name.trim(), category: person.category }))
       : [];
     if ([...riders, ...diners].some((person) => person.name.length < 2 || person.name.length > 100)) {
       setError("Completá nombre y apellido de cada acompañante."); return;
+    }
+    if (riders.some((person) => !/\\S+\\s+\\S+/.test(person.name))) {
+      setError("Completá el nombre y apellido de cada amigo ciclista invitado."); return;
+    }
+    if (riders.some((person) => !person.whatsapp)) {
+      setError("Ingresá el WhatsApp de cada amigo ciclista con código de país (por ejemplo, +54 9 11 1234-5678)."); return;
     }
     call("respond_with_types", {
       response: choice, participation_mode: choice === "voy" ? mode : null,
