@@ -5,6 +5,7 @@ import {
   LUNCH_POLICY_VERSION,
   RESTAURANT_ALIAS,
   RESTAURANT_WHATSAPP_URL,
+  guestCyclistPaymentEmail,
   hasLunchInterest,
   lunchAmount,
   lunchDinerTotal,
@@ -49,14 +50,15 @@ describe("Fondazo · precios verificados", () => {
     const mail = rsvpLunchEmail();
     expect(mail.content_html).toContain(RESTAURANT_ALIAS);
     expect(mail.content_html).toContain(RESTAURANT_WHATSAPP_URL);
-    expect(mail.content_html).toContain("organización de Ciclismo Reybaud");
-    expect(mail.content_html).toContain("Nosotros lo compartiremos con el restaurante");
+    expect(mail.content_html).toContain("WhatsApp a Scarlett");
+    expect(mail.content_html).toContain("Nosotros se lo vamos a reenviar al restaurante");
     expect(mail.content_html).not.toContain("Comprobantes del restaurante");
     expect(mail.content_html).toContain("{rsvp_adult_price}");
     expect(mail.content_html).toContain("{rsvp_child_price}");
     expect(mail.content_html).not.toContain("40.000");
     expect(mail.content_html).not.toContain("20.000");
-    expect(mail.content_html).toContain("No pagues en la aplicación");
+    expect(mail.content_html).not.toContain("No pagues en la aplicación");
+    expect(mail.content_html).toContain("ENVIAR COMPROBANTE POR WHATSAPP");
   });
 });
 
@@ -65,7 +67,7 @@ describe("Fondazo · correo y condiciones", () => {
     const mail = rsvpInvitationEmail();
     expect(mail.content_html).toContain("{rsvp_voy_url}");
     expect(mail.content_html).toContain("{rsvp_no_voy_url}");
-    expect(mail.content_html).toContain("recién cuando confirmás en la pantalla");
+    expect(mail.content_html).toContain("confirmar tu participación");
   });
 
   it("conserva literalmente la política y deja pendiente el intervalo no definido", () => {
@@ -86,5 +88,21 @@ describe("Fondazo reglas nuevas", () => {
   it("cupo y precios anunciados", () => {
     expect(GUEST_CYCLIST_MAX).toBe(10);
     expect(GUEST_CYCLIST_FEE + ADULT_LUNCH_PRICE_ANNOUNCED).toBe(70000);
+  });
+});
+
+describe("Fondazo · correo separado para cupo ciclista aprobado", () => {
+  it("incluye alias granfondo.tc y titular Scarlett Tayná por $30.000 cada uno", () => {
+    const mail = guestCyclistPaymentEmail(["Amigo A", "Amigo B"]);
+    expect(mail.body).toContain("Amigo A, Amigo B");
+    expect(mail.body).toContain("60.000");
+    expect(mail.body).toContain("granfondo.tc");
+    expect(mail.body).toContain("Scarlett Tayná");
+    expect(mail.body).toContain("https://wa.me/5491171711122");
+    expect(mail.body).not.toContain("Lacarretadelgato");
+  });
+
+  it("no permite preparar mensajes de pago para invitados no aprobados", () => {
+    expect(() => guestCyclistPaymentEmail([])).toThrow(/No hay ciclistas aprobados/);
   });
 });

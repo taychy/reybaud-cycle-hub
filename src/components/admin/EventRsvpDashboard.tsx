@@ -23,6 +23,7 @@ import {
   lunchDinerTotal,
   rsvpInvitationEmail,
   rsvpLunchEmail,
+  guestCyclistPaymentEmail,
   type LunchStatus,
   type ParticipationMode,
 } from "@/lib/eventRsvp";
@@ -55,9 +56,7 @@ type Summary = { event_title: string; rows: Row[]; prices: Prices; audit: Audit[
 type CampaignKind = "invitacion" | "almuerzo";
 
 const statusOptions: LunchStatus[] = ["intencion_confirmada", "instrucciones_pendientes", "instrucciones_enviadas", "comprobante_informado", "pago_verificado"];
-const diners = (row: Row) => row.terms_accepted_at
-  ? lunchDinerTotal(row)
-  : row.guests_count + 1;
+const diners = (row: Row) => row.guests_count + 1;
 
 export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const { toast } = useToast();
@@ -73,6 +72,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const [statusEdit, setStatusEdit] = useState<{ row: Row; status: LunchStatus } | null>(null);
   const [statusComment, setStatusComment] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
+  const [approvedForEmail, setApprovedForEmail] = useState<Record<string, string[]>>({});
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("event-rsvp", { body: { action, event_id: eventId, ...extra } });
@@ -213,15 +213,25 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     } finally { setBusy(false); }
   };
 
+  const prepareCyclistPaymentEmail = (row: Row) => {
+    const approved = approvedForEmail[row.id] || [];
+    if (row.response !== "voy" || !approved.length) {
+      toast({ title: "Primero indicá qué ciclistas aprobó Claudio", variant: "destructive" }); return;
+    }
+    const { subject, body } = guestCyclistPaymentEmail(approved);
+    const destination = `mailto:${encodeURIComponent(row.recipient_email)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.location.assign(destination);
+  };
+
   const campaignBlock = (kind: CampaignKind) => {
     const isLunch = kind === "almuerzo";
     const state = testState[kind];
     const blocked = isLunch && !summary?.prices?.prices_confirmed_at;
     return <div className="rounded-lg border p-4 space-y-3">
       <div>
-        <h4 className="font-semibold">{isLunch ? "Segundo correo · instrucciones del almuerzo" : "Primer correo · VOY / NO VOY"}</h4>
+        <h4 className="font-semibold">{isLunch ? "Segundo correo · pago de parrilla (después de VOY)" : "Primer correo · VOY / NO VOY"}</h4>
         <p className="text-sm text-muted-foreground">
-          {isLunch ? `Sólo interesados en almuerzo (${eligible.almuerzo}). Incluye alias ${RESTAURANT_ALIAS}, WhatsApp de la organización y tarifas confirmadas.` : `Alumnos activos elegibles: ${eligible.invitacion}. Los botones abren la pantalla; no votan por prefetch.`}
+          {isLunch ? `Solo quienes confirmaron VOY e incluyeron almuerzo (${eligible.almuerzo}). Alias del restaurante ${RESTAURANT_ALIAS}, comprobante al WhatsApp de Scarlett. El cupo aprobado se comunica por separado.` : `Alumnos activos elegibles: ${eligible.invitacion}. Los botones abren la pantalla; no votan por prefetch.`}
         </p>
       </div>
       {blocked && <p className="text-sm text-primary">Bloqueado hasta ingresar y confirmar las tres tarifas actuales.</p>}
@@ -266,7 +276,25 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           {rows.length ? <div className="border rounded-lg divide-y">{rows.map((row) => <div key={row.id} className="p-3 flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0"><div className="font-medium truncate">{row.recipient_name || row.recipient_email}</div><div className="text-xs text-muted-foreground truncate">{row.recipient_email}</div>
               {row.participation_mode && <div className="text-xs">{PARTICIPATION_LABELS[row.participation_mode]} · {row.cyclist_guests?.length || 0} amigos ciclistas (solicitud) · {row.non_cyclist_guests?.length || 0} acompañantes no ciclistas · {row.guests_count} acompañantes a parrilla</div>}
-              {!!row.cyclist_guests?.length && <div className="text-xs text-primary">Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}. No quedan aprobados automáticamente.</div>}</div>
+              {!!row.cyclist_guests?.length && <div className="text-xs text-primary">Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}. No quedan aprobados automáticamente.</div>}
+              {row.response === "voy" && !!row.cyclist_guests?.length && <div className="mt-2 border border-primary/30 rounded-lg p-3 space-y-2">
+                <p className="text-xs font-semibold">Pago del cupo ciclista · después de la aprobación de Claudio</p>
+                {row.cyclist_guests.map((person, i) => <label key={i} className="flex gap-2 items-center text-xs">
+                  <Checkbox checked={(approvedForEmail[row.id] || []).includes(person.name)}
+                    onCheckedChange={(checked) => setApprovedForEmail((current) => ({
+                      ...current,
+                      [row.id]: checked === true
+                        ? [...(current[row.id] || []).filter((name) => name !== person.name), person.name]
+                        : (current[row.id] || []).filter((name) => name !== person.name),
+                    }))} />
+                  Claudio aprobó a {person.name}
+                </label>)}
+                <Button type="button" size="sm" variant="outline" disabled={busy || !(approvedForEmail[row.id] || []).length}
+                  onClick={() => prepareCyclistPaymentEmail(row)}>
+                  <Mail className="h-4 w-4" /> Preparar correo de cupo aprobado
+                </Button>
+                <p className="text-xs text-muted-foreground">Abre un borrador para revisar y enviar: alias granfondo.tc, titular Scarlett Tayná y $30.000 por ciclista. No registra aprobación ni envía automáticamente.</p>
+              </div>}</div>
             <span className="shrink-0 flex items-center gap-1 text-xs">{row.response === "voy" ? <><CheckCircle className="text-accent" /> VOY</> : row.response === "no_voy" ? <><XCircle /> NO VOY</> : row.last_sent_at ? "Pendiente" : "Preparado"}</span>
           </div>)}</div> : <p className="text-sm text-muted-foreground">Todavía no hay invitaciones preparadas.</p>}
         </TabsContent>
@@ -293,19 +321,22 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                 {row.cyclist_guests.map((person, index) => <div key={index}>{person.name} · {person.lunch ? "Fondo + almuerzo" : "Solo fondo"}</div>)}
               </div>}
               <div className="text-xs text-muted-foreground">{row.terms_accepted_at ? `Condiciones ${row.terms_version} aceptadas ${new Date(row.terms_accepted_at).toLocaleString("es-AR")}` : "Condiciones todavía no aceptadas"}</div>
-              {row.terms_accepted_at && <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
-                <div className="font-semibold">Comensales de esta reserva</div>
+              <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
+                <div className="font-semibold">Comensales declarados en la encuesta</div>
                 <div>{row.recipient_name || row.recipient_email} · Titular adulto</div>
-                {(row.lunch_attendees || []).map((person, index) =>
-                  <div key={index}>{person.name} · {person.is_cyclist ? "Ciclista invitado" : "No ciclista"} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
+                {(row.non_cyclist_guests || []).map((person, index) =>
+                  <div key={`non-${index}`}>{person.name} · No ciclista · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
                 )}
-                {(!row.lunch_attendees?.length && row.guests_count > 0) && <div className="text-destructive">Falta registrar nombres de acompañantes</div>}
-                {summary?.prices.prices_confirmed_at && <div className="font-medium pt-1">Total parrilla: {formatPrice(
-                  row.adults_count * Number(summary.prices.adult_price) +
-                  row.children_4_9_count * Number(summary.prices.child_4_9_price) +
-                  row.under_4_count * Number(summary.prices.under_4_price), "ARS"
+                {(row.cyclist_guests || []).filter((person) => person.lunch).map((person, index) =>
+                  <div key={`cyclist-${index}`}>{person.name} · Amigo ciclista · Adulto</div>
+                )}
+                {summary?.prices.prices_confirmed_at && <div className="font-medium pt-1">Estimación parrilla: {formatPrice(
+                  (1 + row.non_cyclist_guests.filter((person) => person.category === "adult").length +
+                    row.cyclist_guests.filter((person) => person.lunch).length) * Number(summary.prices.adult_price) +
+                  row.non_cyclist_guests.filter((person) => person.category === "child_4_9").length * Number(summary.prices.child_4_9_price) +
+                  row.non_cyclist_guests.filter((person) => person.category === "under_4").length * Number(summary.prices.under_4_price), "ARS"
                 )}</div>}
-              </div>}
+              </div>
               {row.receipt_reference && <div className="text-xs">Comprobante: {row.receipt_reference}</div>}
               <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>

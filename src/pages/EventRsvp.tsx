@@ -3,25 +3,15 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Badge } from "@/components/ui/badge";
-import { Bike, CalendarDays, CheckCircle2, MapPin, MessageCircle, XCircle, Copy, UtensilsCrossed, ShieldCheck, AlertTriangle } from "lucide-react";
+import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
-  ADULT_LUNCH_PRICE_ANNOUNCED,
-  LUNCH_STATUS_LABELS,
   PARTICIPATION_LABELS,
-  RESTAURANT_ALIAS,
-  RESTAURANT_WHATSAPP_URL,
-  formatLunchPrice,
   hasLunchInterest,
   lunchAmount,
   lunchDinerTotal,
-  validateLunchCounts,
   type LunchCounts,
   type LunchPrices,
-  type LunchStatus,
   type ParticipationMode,
 } from "@/lib/eventRsvp";
 import { formatPrice } from "@/lib/currency";
@@ -37,7 +27,7 @@ type RsvpData = {
   guests_count: number;
   cyclist_guests: CyclistGuest[];
   non_cyclist_guests: DinnerGuest[];
-  lunch: LunchCounts & { status: LunchStatus; terms_version: string | null; terms_accepted_at: string | null; attendees: LunchGuest[] };
+  lunch: LunchCounts & { status: string; terms_version: string | null; terms_accepted_at: string | null; attendees: LunchGuest[] };
   prices: LunchPrices;
 };
 
@@ -80,7 +70,6 @@ export default function EventRsvp() {
     });
     return derived;
   }, [guestDetails, guests]);
-  const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -115,43 +104,32 @@ export default function EventRsvp() {
     return () => { mounted = false; };
   }, [token]);
 
-  const call = async (action: "respond_with_types" | "confirm_lunch_named", extra: Record<string, unknown>) => {
+  const call = async (action: "respond_with_types", extra: Record<string, unknown>) => {
     if (!token) return;
     setSaving(true); setError(""); setNotice("");
     // Los nombres se guardan por RPC segura con el token de invitación.
     // El resto de las respuestas mantiene el canal existente, sin desplegar nuevas Edge Functions.
     let response: RsvpData | { error?: string } | null = null;
     let failure: { message: string } | null = null;
-    if (action === "confirm_lunch_named" || action === "respond_with_types") {
-      const namedRpc = supabase as unknown as {
-        rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-      };
-      const saved = action === "confirm_lunch_named"
-        ? await namedRpc.rpc("confirm_event_rsvp_lunch_named", {
-            p_token: token, p_guests: extra.guest_details,
-          })
-        : await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
-            p_token: token, p_response: extra.response, p_mode: extra.participation_mode,
-            p_cyclists: extra.cyclists, p_non_cyclists: extra.non_cyclists,
-          });
-      failure = saved.error;
-      if (!failure) {
-        const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
-        response = loaded.data as RsvpData | null;
-        failure = loaded.error;
-      }
-    } else {
-      const saved = await supabase.functions.invoke("event-rsvp", { body: { action, token, ...extra } });
-      response = saved.data as RsvpData | null;
-      failure = saved.error;
+    const namedRpc = supabase as unknown as {
+      rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+    };
+    const saved = await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
+      p_token: token, p_response: extra.response, p_mode: extra.participation_mode,
+      p_cyclists: extra.cyclists, p_non_cyclists: extra.non_cyclists,
+    });
+    failure = saved.error;
+    if (!failure) {
+      const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
+      response = loaded.data as RsvpData | null;
+      failure = loaded.error;
     }
     if (failure || response?.error) setError(response?.error || failure?.message || "No pudimos guardar. Intentá de nuevo.");
     else {
       hydrate(response as RsvpData);
-      setNotice(action === "respond_with_types"
-        ? "Respuesta actualizada. Podés volver a editarla desde este mismo enlace."
-        : "Datos y aceptación guardados. La reserva queda confirmada sólo cuando administración verifica el pago con el restaurante.");
-      setAccepted(false);
+      setNotice(extra.response === "no_voy"
+        ? "Gracias por responder. Registramos que no vas a asistir."
+        : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
     }
     setSaving(false);
   };
@@ -173,39 +151,6 @@ export default function EventRsvp() {
   };
 
   const total = useMemo(() => data ? lunchAmount(counts, data.prices) : null, [counts, data]);
-  const whatsappUrl = useMemo(() => {
-    const text = data
-      ? `Hola! Soy ${data.name || "participante de Reybaud"}. Envío el comprobante del almuerzo del Fondazo para ${lunchDinerTotal(counts)} persona(s). Total transferido: ${total == null ? "importe a confirmar" : formatPrice(total, "ARS")}.`
-      : "Hola! Envío el comprobante del almuerzo del Fondazo.";
-    return `${RESTAURANT_WHATSAPP_URL}?text=${encodeURIComponent(text)}`;
-  }, [counts, data, total]);
-
-  const copyAlias = async () => {
-    try { await navigator.clipboard.writeText(RESTAURANT_ALIAS); setNotice("Alias copiado."); }
-    catch { setError(`No pudimos copiar. El alias es ${RESTAURANT_ALIAS}.`); }
-  };
-
-  const submitLunch = () => {
-    const validation = validateLunchCounts(counts, guests);
-    if (validation || guestDetails.length !== guests) { setError(validation || "Revisá la cantidad de acompañantes."); return; }
-    if (guestDetails.some((person) => person.name.trim().length < 2 || person.name.trim().length > 100)) {
-      setError("Completá nombre y apellido de cada acompañante."); return;
-    }
-    if (!accepted) { setError("Leé y aceptá las condiciones para continuar."); return; }
-    call("confirm_lunch_named", { guest_details: guestDetails.map((person) => ({
-      name: person.name.trim(), category: person.category, is_cyclist: person.is_cyclist === true,
-    })) });
-  };
-  const savedDetails = data?.lunch.attendees || [];
-  // Postgres serializa las claves jsonb en un orden distinto del objeto JS.
-  // Comparar cada campo evita bloquear WhatsApp aunque la aceptación se haya guardado.
-  const detailsAreSaved = !!data?.lunch.terms_accepted_at &&
-    savedDetails.length === guestDetails.length &&
-    savedDetails.every((saved, index) =>
-      saved.name === guestDetails[index]?.name.trim() &&
-      saved.category === guestDetails[index]?.category &&
-      (saved.is_cyclist === true) === (guestDetails[index]?.is_cyclist === true)
-    );
   const locked = data?.lunch.status === "pago_verificado" || data?.lunch.status === "comprobante_informado";
 
   return (
@@ -274,104 +219,22 @@ export default function EventRsvp() {
                 mode={mode} disabled={!!locked} />
             </div>}
 
-            <p className="text-xs text-muted-foreground">Podés modificar tu respuesta más adelante. El almuerzo se reserva cuando se verifica el pago.</p>
+            <p className="text-xs text-muted-foreground">Solo estamos confirmando tu asistencia y la cantidad de acompañantes. Si corresponde un pago, recibirás sus instrucciones por correo separado.</p>
             <Button onClick={submitRsvp} disabled={saving} variant="gold" className="w-full">
               {saving ? "Guardando…" : "Confirmar mi respuesta"}
             </Button>
 
-            {choice === "voy" && hasLunchInterest(data.response, data.participation_mode) && <section className="border-t border-border pt-6 space-y-5">
-              <div className="space-y-3">
-                <div className="flex items-center gap-2">
-                  <UtensilsCrossed className="h-5 w-5 text-accent" aria-hidden="true" />
-                  <h2 className="text-xl font-bold">Tu reserva de parrilla</h2>
-                </div>
-                <Badge variant="outline" className="w-fit max-w-full whitespace-normal px-3 py-1.5 text-xs font-medium border-primary/40 text-primary">{LUNCH_STATUS_LABELS[data.lunch.status]}</Badge>
-                <p className="text-sm text-muted-foreground">La parrilla se paga directamente al restaurante. Revisá quiénes van a comer y confirmá las condiciones antes de transferir.</p>
+            {choice === "voy" && hasLunchInterest(data.response, data.participation_mode) && <section className="rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5 space-y-3" aria-label="Resumen de personas para la parrilla">
+              <div className="flex items-center gap-2 font-semibold"><UtensilsCrossed className="h-5 w-5 text-accent" /> Personas para la parrilla</div>
+              <p className="text-sm text-muted-foreground">Comprobá los datos de arriba antes de confirmar tu respuesta.</p>
+              <div className="text-sm grid grid-cols-3 gap-2">
+                <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Adultos</div><strong>{counts.adults_count}</strong></div>
+                <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Niños (4–9)</div><strong>{counts.children_4_9_count}</strong></div>
+                <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Menores de 4</div><strong>{counts.under_4_count}</strong></div>
               </div>
-
-              {!data.prices.prices_confirmed_at ? <>
-                <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Adultos</div><strong>{formatPrice(ADULT_LUNCH_PRICE_ANNOUNCED, "ARS")}</strong></div>
-                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">De 4 a 9 años</div><strong>A confirmar</strong></div>
-                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Menores de 4</div><strong>A confirmar</strong></div>
-                </div>
-                <p className="text-xs text-muted-foreground">Bebidas aparte.</p>
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <h3 className="font-semibold">Pago directo al restaurante (solo parrilla)</h3>
-                  <div className="flex items-center justify-between gap-2"><strong>Alias: {RESTAURANT_ALIAS}</strong>
-                    <Button type="button" size="sm" variant="outline" onClick={copyAlias}><Copy /> Copiar</Button></div>
-                  <p className="text-sm"><strong>No transfieras todavía.</strong> Falta confirmar las tarifas de menores para calcular tu total exacto; te avisamos cuando puedas transferir. El aporte de $30.000 de amigos ciclistas no se paga a este alias.</p>
-                  <Button type="button" variant="outline" className="w-full" disabled><MessageCircle /> Enviar comprobante a Scarlett (disponible al confirmar el total)</Button>
-                </div>
-              </> : <>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm" aria-label="Valores de la parrilla por edad">
-                  {[
-                    ["Adultos · 10 años o más", data.prices.adult_price],
-                    ["Niños · 4 a 9 años", data.prices.child_4_9_price],
-                    ["Menores de 4", data.prices.under_4_price],
-                  ].map(([label, price]) => (
-                    <div key={String(label)} className="rounded-lg border border-border bg-muted/25 px-4 py-3 flex items-center justify-between sm:items-start sm:flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">{String(label)}</span>
-                      <strong className="text-sm">{formatLunchPrice(price as number | null)}</strong>
-                    </div>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground">Bebidas aparte. Total de comensales: {guests + 1} (incluyéndote). Los ciclistas que también comen se cuentan una sola vez.</p>
-                <div className="space-y-2">
-                  <h3 className="font-semibold">¿Quiénes vienen a la parrilla?</h3>
-                  <p className="text-xs text-muted-foreground">Los nombres se completan en la sección de acompañantes de arriba.</p>
-                  <div className="rounded-lg bg-muted/40 p-3 text-sm">{data.name || "Titular de la invitación"} · Titular adulto</div>
-                  {guestDetails.map((person, index) => <div key={index} className="rounded-lg border p-3 text-sm">
-                    {person.name || "Falta completar nombre"} · {person.is_cyclist ? "Ciclista invitado pendiente de aprobación" : "No ciclista"} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "Niño de 4 a 9 años" : "Menor de 4 años"}
-                  </div>)}
-                </div>
-                <div className="rounded-xl border-2 border-accent/40 bg-accent/10 p-4 sm:p-5 space-y-1">
-                  <div className="font-semibold text-sm">Total de la parrilla · {lunchDinerTotal(counts)} comensales</div>
-                  <div className="text-3xl font-extrabold text-accent tabular-nums">{total == null ? "Revisá las cantidades" : formatPrice(total, "ARS")}</div>
-                  <p className="text-xs text-muted-foreground">Bebidas aparte. Este total NO incluye los $30.000 del fondo por cada amigo ciclista aprobado.</p>
-                </div>
-
-                <div className="rounded-xl border border-border overflow-hidden">
-                  <div className="bg-muted/30 px-4 py-3 flex gap-2 items-center border-b border-border">
-                    <ShieldCheck className="h-5 w-5 text-primary" />
-                    <h3 className="font-semibold">Condiciones de reserva</h3>
-                  </div>
-                  <div className="p-4 space-y-3 text-sm">
-                    <div className="space-y-1">
-                      <p className="font-semibold">Si avisás hasta el 24/11 inclusive</p>
-                      <p className="text-muted-foreground">El importe abonado queda como crédito para comer en La Carreta del Gato en otra ocasión.</p>
-                    </div>
-                    <div className="border-t border-border pt-3 space-y-1">
-                      <p className="font-semibold">Si no asistís y no avisás</p>
-                      <p className="text-muted-foreground">Se pierde el 100% del importe abonado.</p>
-                    </div>
-                    <div className="border-t border-border pt-3 flex gap-2 items-start">
-                      <AlertTriangle className="h-4 w-4 shrink-0 text-accent mt-0.5" />
-                      <p className="text-muted-foreground">Cancelaciones avisadas del 25 al 28/11, o el mismo día: las condiciones están pendientes de definición. No se consideran automáticamente una ausencia sin aviso.</p>
-                    </div>
-                    <p className="text-xs text-muted-foreground">El crédito lo administra el restaurante, no Reybaud.</p>
-                    <label className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 p-3 cursor-pointer">
-                      <Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} className="mt-0.5 shrink-0" />
-                      <span className="font-medium">Leí y acepto las condiciones del almuerzo.</span>
-                    </label>
-                  </div>
-                </div>
-                <Button onClick={submitLunch} disabled={saving || locked} variant="gold" className="w-full">
-                  {saving ? "Guardando…" : locked ? "Reserva en revisión por administración" : data.lunch.terms_accepted_at ? "Actualizar nombres y aceptación" : "Confirmar comensales y aceptar condiciones"}
-                </Button>
-
-                <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
-                  <h3 className="font-semibold">Pago directo al restaurante</h3>
-                  <div className="flex items-center justify-between gap-2"><strong className="text-sm">Alias: {RESTAURANT_ALIAS}</strong>
-                    <Button type="button" size="sm" variant="outline" onClick={copyAlias}><Copy /> Copiar</Button></div>
-                  <p className="text-xs text-muted-foreground">Este alias es solo para la parrilla. No incluyas acá el aporte de $30.000 de amigos ciclistas.</p>
-                  <p className="text-sm">{detailsAreSaved ? "Transferí el total de la parrilla y enviá el comprobante al WhatsApp de Scarlett. Nosotros lo compartiremos con el restaurante." : "Primero confirmá los nombres de los comensales y aceptá las condiciones. Después vas a poder enviar tu comprobante a Scarlett."}</p>
-                  {detailsAreSaved
-                    ? <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noopener noreferrer"><MessageCircle /> Enviar comprobante a Scarlett por WhatsApp</a></Button>
-                    : <Button type="button" variant="outline" className="w-full" disabled><MessageCircle /> Enviar comprobante (después de confirmar)</Button>}
-                  <p className="text-xs text-muted-foreground"><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. Avisar que transferiste no confirma la reserva: administración debe verificarla con el restaurante.</p>
-                </div>
-              </>}
+              <p className="font-semibold text-sm">Total: {lunchDinerTotal(counts)} comensales, incluyéndote.</p>
+              {total !== null && <p className="text-sm text-muted-foreground">Valor estimado de la parrilla: {formatPrice(total, "ARS")} (bebidas aparte).</p>}
+              <p className="text-xs text-muted-foreground">No tenés que transferir ahora. El correo de pago llegará por separado después de confirmar tu asistencia.</p>
             </section>}
 
             {notice && <p role="status" className="rounded-lg bg-accent/10 text-accent p-3 text-sm">{notice}</p>}

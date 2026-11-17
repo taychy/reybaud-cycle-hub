@@ -25,9 +25,9 @@ export const PARTICIPATION_LABELS = {
 
 export const LUNCH_STATUS_LABELS = {
   sin_interes: "Sin interés en almuerzo",
-  intencion_confirmada: "Pendiente de completar datos",
-  instrucciones_pendientes: "Reserva pendiente de pago",
-  instrucciones_enviadas: "Reserva pendiente de pago",
+  intencion_confirmada: "Asistencia registrada · correo de pago pendiente",
+  instrucciones_pendientes: "Correo de pago pendiente",
+  instrucciones_enviadas: "Instrucciones de pago enviadas",
   comprobante_informado: "Comprobante recibido",
   pago_verificado: "Reserva confirmada · pago verificado",
 } as const;
@@ -93,26 +93,60 @@ export const rsvpInvitationEmail = () => ({
   </div>`,
 });
 
+export const GUEST_CYCLIST_PAYMENT_ALIAS = "granfondo.tc";
+export const GUEST_CYCLIST_PAYMENT_OWNER = "Scarlett Tayná";
+
+// Segundo correo, manual y posterior al VOY. Solo se envía a quienes eligieron almuerzo.
 export const rsvpLunchEmail = () => ({
-  subject: "Fondazo Reybaud | Cómo confirmar tu almuerzo en La Carreta del Gato",
-  preheader: "Tarifas confirmadas, transferencia directa al restaurante y comprobante a la organización por WhatsApp.",
+  subject: "Fondazo Reybaud | Datos para abonar la parrilla",
+  preheader: "Tu asistencia está registrada. Te compartimos los datos para transferir el almuerzo.",
   content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.55">
     <div style="color:#ff7d16;font-size:14px;font-weight:800;letter-spacing:2px">CICLISMO REYBAUD</div>
-    <h1 style="font-size:27px;margin:14px 0">TU ALMUERZO EN EL FONDAZO</h1>
-    <p>Hola {nombre}! Ya están confirmados los valores del restaurante:</p>
-    <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Menores de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4 años: <strong>{rsvp_under_4_price}</strong></li></ul>
-    <p>Bebidas aparte. Completá el nombre y grupo de edad de cada acompañante en la pantalla para calcular el importe total del almuerzo. El titular aparece automáticamente.</p>
+    <h1 style="font-size:27px;margin:14px 0">PARRILLA DE FIN DE AÑO</h1>
+    <p>Hola {nombre}! Gracias por confirmar tu asistencia al Fondazo del domingo 29/11.</p>
+    <p>Ya podés realizar el pago correspondiente a la parrilla en La Carreta del Gato:</p>
+    <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Niños de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4: <strong>sin cargo</strong></li></ul>
+    <p>Bebidas aparte. El importe que transferís es el total del menú para todos los comensales de tu grupo.</p>
+    <p style="font-size:13px;color:#b7c0c7">Si necesitás revisar la cantidad de personas que registraste y el importe estimado, podés consultar tu respuesta:</p>
+    <div style="text-align:center;margin:12px 0">${button("{rsvp_lunch_url}", "VER MIS ACOMPAÑANTES", "#182b38", "#ffffff")}</div>
     <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
-      <strong>Transferencia directa a La Carreta del Gato</strong><br>
-      Alias: <strong>${RESTAURANT_ALIAS}</strong><br>
-      Enviá tu comprobante a la organización de Ciclismo Reybaud por WhatsApp al <a style="color:#00c5f7" href="${RESTAURANT_WHATSAPP_URL}">+54 9 11 7171-1122</a>. Nosotros lo compartiremos con el restaurante para verificar tu reserva.<br>
-      Incluí tu nombre y la cantidad de comensales. La transferencia cubre el total del precio del restaurante para cada comensal, no un porcentaje.
+      <strong>Pago de la parrilla — directamente al restaurante</strong><br>
+      Alias: <strong>${RESTAURANT_ALIAS}</strong>
     </div>
-    <p><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. El pago queda confirmado únicamente cuando administración lo verifica con el restaurante.</p>
-    <div style="text-align:center;margin:22px 0">${button("{rsvp_lunch_url}", "CONFIRMAR DATOS DEL ALMUERZO", "#ff7d16", "#101010")}</div>
-    <p style="font-size:13px;color:#b7c0c7">Antes de confirmar vas a leer y aceptar las condiciones. Responder VOY, transferir o avisar por WhatsApp no equivalen por sí solos a una reserva verificada.</p>
+    <p>Una vez que transfieras, enviá el comprobante por WhatsApp a Scarlett. Nosotros se lo vamos a reenviar al restaurante.</p>
+    <div style="text-align:center;margin:18px 0">${button(RESTAURANT_WHATSAPP_URL, "ENVIAR COMPROBANTE POR WHATSAPP", "#ff7d16", "#101010")}</div>
+    <p style="font-size:13px;color:#b7c0c7"><strong>Cancelaciones:</strong> si avisás hasta el 24/11 inclusive, el importe queda como crédito para consumir en el restaurante en otra ocasión. Si no asistís y no avisás, perdés lo abonado. Para avisos del 25 al 28/11 o el mismo día, consultanos antes.</p>
+    <p style="font-size:13px;color:#b7c0c7">El pago del fondo de amigos ciclistas aprobados es independiente y tiene otro alias. No lo sumes a esta transferencia.</p>
   </div>`,
 });
+
+// Correo individual: sólo cuando Claudio aprobó el/los amigos ciclistas.
+// No se envía desde el formulario: administración lo prepara después del VOY.
+export const guestCyclistPaymentEmail = (approvedNames: string[]) => {
+  if (!approvedNames.length) throw new Error("No hay ciclistas aprobados para generar el correo de pago.");
+  const count = approvedNames.length;
+  const amount = count * GUEST_CYCLIST_FEE;
+  return {
+    subject: "Fondazo Reybaud | Pago del cupo de ciclista invitado",
+    body: `Hola! Ya tenemos la aprobación de Claudio para ${approvedNames.join(", ")}.
+
+Para confirmar el cupo ${count === 1 ? "del ciclista invitado" : "de los ciclistas invitados"}:
+Cantidad: ${count}
+Valor por ciclista: $30.000
+Total: ${formatPrice(amount, "ARS")}
+
+Alias: ${GUEST_CYCLIST_PAYMENT_ALIAS}
+Titular: ${GUEST_CYCLIST_PAYMENT_OWNER}
+
+Una vez que transfieras, enviá el comprobante a Scarlett por WhatsApp:
+https://wa.me/5491171711122
+
+Este pago corresponde solamente al fondo en bicicleta y no incluye la parrilla, que se abona por separado al restaurante.
+
+¡Nos vemos en el Fondazo!
+Equipo Ciclismo Reybaud`,
+  };
+};
 
 export const formatLunchPrice = (value: number | null | undefined) =>
   value == null ? "Pendiente" : formatPrice(value, "ARS");

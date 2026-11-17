@@ -6,6 +6,8 @@ on:
       - "src/lib/appUpdate.test.ts"
       - "src/main.tsx"
       - "src/pages/EventRsvp.tsx"
+      - "src/lib/eventRsvp.ts"
+      - "src/lib/eventRsvp.test.ts"
       - "vite.config.ts"
       - ".github/workflows/test-pwa-deeplinks.yml"
   push:
@@ -31,3 +33,5 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Comprobar enlaces y actualización en la PWA
         run: npm run test -- src/lib/appUpdate.test.ts
+      - name: Validar plantillas de pago del Fondazo
+        run: npm run test -- src/lib/eventRsvp.test.ts
