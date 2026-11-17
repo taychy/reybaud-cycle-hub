@@ -136,7 +136,8 @@ Total: ${formatPrice(amount, "ARS")}
 Alias: ${GUEST_CYCLIST_PAYMENT_ALIAS}
 Titular: ${GUEST_CYCLIST_PAYMENT_OWNER}
 
-Una vez que transfieras, enviá el comprobante por WhatsApp a Scarlett: +54 9 11 7171-1122.
+Una vez que transfieras, enviá el comprobante a Scarlett por WhatsApp:
+https://wa.me/5491171711122
 
 Este pago corresponde solamente al fondo en bicicleta y no incluye la parrilla, que se abona por separado al restaurante.
 
