@@ -103,6 +103,7 @@ import EventInterest from "./pages/EventInterest";
 import BroadcastUnsubscribe from "./pages/BroadcastUnsubscribe";
 import EventSurvey from "./pages/EventSurvey";
 import EventRsvp from "./pages/EventRsvp";
+import PublicEventRsvpEntry from "./pages/PublicEventRsvpEntry";
 import PublicRoadbookTeaser from "./pages/PublicRoadbookTeaser";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
@@ -179,6 +180,7 @@ const App = () => (
           <Route path="/interes/:eventId" element={<EventInterest />} />
           <Route path="/encuesta/:token" element={<EventSurvey />} />
           <Route path="/confirmar-asistencia/:token" element={<EventRsvp />} />
+          <Route path="/eventos/:eventId/confirmar" element={<PublicEventRsvpEntry />} />
           <Route path="/liquidacion/cargar/:token" element={<LiquidacionCargar />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />
           <Route path="/tienda" element={<PublicStore />} />
