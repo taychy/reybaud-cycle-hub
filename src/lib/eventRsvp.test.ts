@@ -5,6 +5,8 @@ import {
   LUNCH_POLICY_VERSION,
   RESTAURANT_ALIAS,
   RESTAURANT_WHATSAPP_URL,
+  GUEST_CYCLIST_ALIAS,
+  GUEST_CYCLIST_ACCOUNT_HOLDER,
   hasLunchInterest,
   lunchAmount,
   lunchDinerTotal,
@@ -45,18 +47,18 @@ describe("Fondazo · precios verificados", () => {
     expect(lunchAmount(counts, { ...prices, child_4_9_price: null })).toBeNull();
   });
 
-  it("el segundo correo usa tarifas confirmadas y nunca los valores viejos del folleto", () => {
+  it("el segundo correo separa claramente las cuentas del restaurante y los ciclistas aprobados", () => {
     const mail = rsvpLunchEmail();
     expect(mail.content_html).toContain(RESTAURANT_ALIAS);
     expect(mail.content_html).toContain(RESTAURANT_WHATSAPP_URL);
-    expect(mail.content_html).toContain("organización de Ciclismo Reybaud");
-    expect(mail.content_html).toContain("Nosotros lo compartiremos con el restaurante");
-    expect(mail.content_html).not.toContain("Comprobantes del restaurante");
+    expect(mail.content_html).toContain(GUEST_CYCLIST_ALIAS);
+    expect(mail.content_html).toContain(GUEST_CYCLIST_ACCOUNT_HOLDER);
+    expect(mail.content_html).toContain("esperá la aprobación expresa de Claudio antes de transferir");
+    expect(mail.content_html).toContain("ENVIAR COMPROBANTE POR WHATSAPP");
     expect(mail.content_html).toContain("{rsvp_adult_price}");
     expect(mail.content_html).toContain("{rsvp_child_price}");
-    expect(mail.content_html).not.toContain("40.000");
-    expect(mail.content_html).not.toContain("20.000");
-    expect(mail.content_html).toContain("No pagues en la aplicación");
+    expect(mail.content_html).toContain("{rsvp_under_4_price}");
+    expect(mail.content_html).toContain("$30.000");
   });
 });
 
@@ -65,7 +67,7 @@ describe("Fondazo · correo y condiciones", () => {
     const mail = rsvpInvitationEmail();
     expect(mail.content_html).toContain("{rsvp_voy_url}");
     expect(mail.content_html).toContain("{rsvp_no_voy_url}");
-    expect(mail.content_html).toContain("recién cuando confirmás en la pantalla");
+    expect(mail.content_html).toContain("Tocá VOY o NO VOY");
   });
 
   it("conserva literalmente la política y deja pendiente el intervalo no definido", () => {
