@@ -151,7 +151,7 @@ BEGIN
      BTRIM(COALESCE(p_receipt_reference, v_invite.receipt_reference, ''))='' THEN
     RAISE EXCEPTION 'Para verificar el pago, registrá referencia del comprobante recibido por WhatsApp.'; END IF;
   UPDATE public.event_rsvp_invites SET lunch_status = p_status,
-    lunch_admin_comment = BTRIM(p_comment), receipt_reference = NULLIF(BTRIM(p_receipt_reference), ''),
+    lunch_admin_comment = BTRIM(p_comment), receipt_reference = COALESCE(NULLIF(BTRIM(p_receipt_reference), ''), v_invite.receipt_reference),
     lunch_status_changed_at = now(), lunch_status_changed_by = v_actor, updated_at = now()
   WHERE id = v_invite.id;
   INSERT INTO public.event_rsvp_lunch_audit (event_id, invite_id, from_status, to_status, comment, receipt_reference, actor_user_id)
