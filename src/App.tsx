@@ -103,6 +103,7 @@ import EventInterest from "./pages/EventInterest";
 import BroadcastUnsubscribe from "./pages/BroadcastUnsubscribe";
 import EventSurvey from "./pages/EventSurvey";
 import EventRsvp from "./pages/EventRsvp";
+import PublicEventRsvpEntry from "./pages/PublicEventRsvpEntry";
 import PublicRoadbookTeaser from "./pages/PublicRoadbookTeaser";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
 import PreorderAlumnoPagoRedirect from "./pages/PreorderAlumnoPagoRedirect";
