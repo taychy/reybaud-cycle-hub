@@ -189,10 +189,15 @@ export default function EventRsvp() {
     })) });
   };
   const savedDetails = data?.lunch.attendees || [];
+  // Postgres serializa las claves jsonb en un orden distinto del objeto JS.
+  // Comparar cada campo evita bloquear WhatsApp aunque la aceptación se haya guardado.
   const detailsAreSaved = !!data?.lunch.terms_accepted_at &&
-    JSON.stringify(savedDetails) === JSON.stringify(guestDetails.map((person) => ({
-      name: person.name.trim(), category: person.category, is_cyclist: person.is_cyclist === true,
-    })));
+    savedDetails.length === guestDetails.length &&
+    savedDetails.every((saved, index) =>
+      saved.name === guestDetails[index]?.name.trim() &&
+      saved.category === guestDetails[index]?.category &&
+      (saved.is_cyclist === true) === (guestDetails[index]?.is_cyclist === true)
+    );
   const locked = data?.lunch.status === "pago_verificado" || data?.lunch.status === "comprobante_informado";
 
   return (
