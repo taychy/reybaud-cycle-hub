@@ -68,7 +68,7 @@ BEGIN
   IF v_event_id = '08fc7e07-10df-4ace-b3ed-a0d581b6f7c9'::uuid AND v_lunch THEN
     UPDATE public.event_rsvp_invites
     SET terms_version = 'fondazo-almuerzo-v2-2026-11-17',
-        terms_accepted_at = COALESCE(terms_accepted_at, now()),
+        terms_accepted_at = now(),
         terms_text_snapshot = v_policy,
         updated_at = now()
     WHERE token = p_token;
