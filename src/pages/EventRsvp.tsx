@@ -200,6 +200,16 @@ export default function EventRsvp() {
             {data && <>
               <p className="flex gap-2 items-center text-accent"><CalendarDays className="w-4 h-4" /> {eventDate(data.event.date)}</p>
               <p className="flex gap-2 items-start text-muted-foreground text-sm"><MapPin className="w-4 h-4 mt-0.5 shrink-0" /> {data.event.location}</p>
+              <a
+                href="https://maps.app.goo.gl/6Bg9nS9BFn4g8hV79"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-accent text-sm font-semibold underline underline-offset-4 hover:opacity-80"
+                aria-label="Ver ubicación de La Carreta del Gato en Google Maps (abre en una pestaña nueva)"
+              >
+                <MapPin className="w-4 h-4" />
+                Ver restaurante en Google Maps (nueva pestaña)
+              </a>
             </>}
           </div>
 
