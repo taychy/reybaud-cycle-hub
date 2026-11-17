@@ -28,6 +28,6 @@ jobs:
           node-version: "20"
           cache: npm
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install --no-audit --no-fund
       - name: Comprobar enlaces y actualización en la PWA
         run: npm run test -- src/lib/appUpdate.test.ts
