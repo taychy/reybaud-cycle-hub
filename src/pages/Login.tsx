@@ -228,6 +228,7 @@ const Login = () => {
       if (!trimmedEmail) { setLoginError(t("login.enterEmail")); setLoading(false); return; }
 
       if (!canRequestOtpAgain("main", trimmedEmail)) {
+        setLoginError("Ya pediste un código hace unos segundos. Esperá un momento antes de reenviarlo.");
         setLoading(false);
         return;
       }
@@ -270,6 +271,10 @@ const Login = () => {
     setMagicLinkSent(true);
     setLoading(false);
     toast.success("Código de acceso enviado. Revisá tu email.");
+    } catch (error) {
+      console.warn("Student OTP send failed unexpectedly", { message: error instanceof Error ? error.message : "unknown" });
+      setLoginError("No pudimos enviar el código. Revisá tu conexión e intentá nuevamente.");
+      setLoading(false);
     } finally {
       finishOtpRequest();
     }
@@ -368,6 +373,7 @@ const Login = () => {
             <div className="flex justify-center">
               <InputOTP
                 maxLength={OTP_LENGTH}
+                aria-label="Código de acceso de ocho dígitos"
                 value={otpCode}
                 onChange={(value) => {
                   setOtpCode(normalizeOtpCode(value));
@@ -376,7 +382,7 @@ const Login = () => {
               >
                 <InputOTPGroup>
                   {Array.from({ length: OTP_LENGTH }, (_, i) => (
-                    <InputOTPSlot key={i} index={i} className="h-9 w-7 text-base sm:h-10 sm:w-10" />
+                    <InputOTPSlot key={i} index={i} className="h-11 min-w-0 flex-1 text-lg sm:h-12" />
                   ))}
                 </InputOTPGroup>
               </InputOTP>
