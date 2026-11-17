@@ -59,7 +59,7 @@ BEGIN
     IF jsonb_typeof(v_item)<>'object' THEN RAISE EXCEPTION 'Completá los ciclistas invitados.'; END IF;
     v_name:=btrim(COALESCE(v_item->>'name',''));
     v_category:=COALESCE(v_item->>'category','adult');
-    IF jsonb_typeof(v_item->'lunch')<>'boolean' THEN RAISE EXCEPTION 'Indicá si el ciclista también viene a la parrilla.'; END IF;
+    IF jsonb_typeof(v_item->'lunch') IS DISTINCT FROM 'boolean' THEN RAISE EXCEPTION 'Indicá si el ciclista también viene a la parrilla.'; END IF;
     v_lunch:=(v_item->>'lunch')::boolean;
     IF length(v_name)<2 OR length(v_name)>100 OR v_category NOT IN ('adult','child_4_9','under_4') THEN
       RAISE EXCEPTION 'Completá nombre y categoría de cada ciclista invitado.';
