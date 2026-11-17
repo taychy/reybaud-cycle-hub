@@ -70,6 +70,7 @@ export default function EventRsvp() {
     return derived;
   }, [guestDetails, guests]);
   const [loading, setLoading] = useState(true);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -91,17 +92,34 @@ export default function EventRsvp() {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      setLoading(true);
+      setError("");
       if (!token) { setError("Enlace inválido."); setLoading(false); return; }
-      const { data: response, error: failure } = await supabase.functions.invoke("event-rsvp", {
-        body: { action: "status", token },
-      });
+      let response: RsvpData | null = null;
+      let lastError = "";
+      // Si hay un fallo temporal de conexión con la encuesta, reintentar una
+      // vez antes de presentar un error al alumno. No modifica respuestas.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const result = await supabase.functions.invoke("event-rsvp", {
+            body: { action: "status", token },
+          });
+          if (!result.error && result.data && !result.data.error) {
+            response = result.data as RsvpData;
+            break;
+          }
+          lastError = result.data?.error || result.error?.message || "El enlace no respondió.";
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : "Problema de conexión.";
+        }
+      }
       if (!mounted) return;
-      if (failure || response?.error) setError(response?.error || "No pudimos abrir este enlace.");
-      else hydrate(response as RsvpData, true);
+      if (response) hydrate(response, true);
+      else setError(lastError || "No pudimos abrir tu encuesta. Intentá nuevamente.");
       setLoading(false);
     })();
     return () => { mounted = false; };
-  }, [token]);
+  }, [token, reloadNonce]);
 
   const call = async (action: "respond_with_types", extra: Record<string, unknown>) => {
     if (!token) return;
@@ -240,7 +258,12 @@ export default function EventRsvp() {
 
             {notice && <p role="status" className="rounded-lg bg-accent/10 text-accent p-3 text-sm">{notice}</p>}
             {error && <p role="alert" className="rounded-lg bg-destructive/10 text-destructive p-3 text-sm">{error}</p>}
-          </> : <p role="alert" className="text-destructive">{error || "Enlace no disponible."}</p>}
+          </> : <div className="space-y-3">
+            <p role="alert" className="text-destructive">{error || "Enlace no disponible."}</p>
+            <Button type="button" variant="outline" onClick={() => setReloadNonce((value) => value + 1)}>
+              Reintentar abrir mi encuesta
+            </Button>
+          </div>}
 
           <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-2"><Bike className="w-4 h-4" /> Ciclismo Reybaud</p>
         </CardContent>
