@@ -36,7 +36,7 @@ type Row = {
   participation_mode: ParticipationMode | null;
   guests_count: number;
   lunch_attendees: { name: string; category: "adult" | "child_4_9" | "under_4"; is_cyclist?: boolean }[];
-  cyclist_guests: { name: string; lunch: boolean; category: "adult" | "child_4_9" | "under_4" }[];
+  cyclist_guests: { name: string; lunch: boolean; category: "adult" | "child_4_9" | "under_4"; whatsapp?: string }[];
   non_cyclist_guests: { name: string; category: "adult" | "child_4_9" | "under_4" }[];
   responded_at: string | null;
   last_sent_at: string | null;
@@ -330,7 +330,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                   {test.cyclist_guests?.length || 0} amigo(s) ciclista(s) · {test.non_cyclist_guests?.length || 0} acompañante(s) no ciclista(s)
                 </p>
                 {(test.cyclist_guests || []).map((person, index) =>
-                  <p key={`test-c-${index}`} className="text-xs">Ciclista: {person.name} · Adulto{person.lunch ? " · también almuerza" : ""}</p>)}
+                  <p key={`test-c-${index}`} className="text-xs">Ciclista: {person.name} · Adulto{person.lunch ? " · también almuerza" : ""}{person.whatsapp ? ` · WhatsApp: ${person.whatsapp}` : ""}</p>)}
                 {(test.non_cyclist_guests || []).map((person, index) =>
                   <p key={`test-n-${index}`} className="text-xs">{person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "Niño/a 4 a 9 años" : "Menor de 4"}: {person.name}</p>)}
               </div>
@@ -357,7 +357,10 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
               <div className="flex justify-between gap-3"><div><strong>{row.recipient_name || row.recipient_email}</strong><div className="text-xs text-muted-foreground">{diners(row)} comensales · {row.guests_count} acompañantes</div></div><Badge variant="outline">{LUNCH_STATUS_LABELS[row.lunch_status]}</Badge></div>
               {!!row.cyclist_guests?.length && <div className="rounded-md border border-primary/40 p-2 text-xs">
                 <strong>Ciclistas invitados · aprobación de Claudio pendiente</strong>
-                {row.cyclist_guests.map((person, index) => <div key={index}>{person.name} · {person.lunch ? "Fondo + almuerzo" : "Solo fondo"}</div>)}
+                {row.cyclist_guests.map((person, index) => <div key={index} className="space-y-1 py-1">
+                  <div>{person.name} · {person.lunch ? "Fondo + almuerzo" : "Solo fondo"}</div>
+                  {person.whatsapp && <a className="text-accent underline break-all" href={`https://wa.me/${person.whatsapp.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer">WhatsApp: {person.whatsapp}</a>}
+                </div>)}
               </div>}
               <div className="text-xs text-muted-foreground">Asistencia confirmada en la encuesta. Las condiciones y comprobantes se comunican en el correo de pago posterior.</div>
               <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">

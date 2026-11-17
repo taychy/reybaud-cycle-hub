@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
   PARTICIPATION_LABELS,
+  normalizeGuestWhatsApp,
   lunchAmount,
   lunchDinerTotal,
   type LunchCounts,
@@ -70,6 +71,7 @@ export default function EventRsvp() {
     return derived;
   }, [guestDetails, guests]);
   const [loading, setLoading] = useState(true);
+  const [reloadNonce, setReloadNonce] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
@@ -83,7 +85,7 @@ export default function EventRsvp() {
     if (response.response && (!isInitialLoad || !hasLinkChoice)) setChoice(response.response);
     if (response.participation_mode) setMode(response.participation_mode);
     setCyclists(Array.isArray(response.cyclist_guests)
-      ? response.cyclist_guests.map((person) => ({ ...person, category: "adult" as const }))
+      ? response.cyclist_guests.map((person) => ({ ...person, category: "adult" as const, whatsapp: person.whatsapp || "" }))
       : []);
     setNonCyclists(Array.isArray(response.non_cyclist_guests) ? response.non_cyclist_guests : []);
   };
@@ -91,17 +93,32 @@ export default function EventRsvp() {
   useEffect(() => {
     let mounted = true;
     (async () => {
+      setLoading(true);
+      setError("");
       if (!token) { setError("Enlace inválido."); setLoading(false); return; }
-      const { data: response, error: failure } = await supabase.functions.invoke("event-rsvp", {
-        body: { action: "status", token },
-      });
+      let response: RsvpData | null = null;
+      let lastError = "";
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          const result = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
+          if (!result.error && result.data && !result.data.error) {
+            response = result.data as RsvpData;
+            break;
+          }
+          lastError = result.data?.error || result.error?.message || "El enlace no respondió.";
+          // Los enlaces vencidos o inválidos no deberían recibir reintentos.
+          if (result.data?.error) break;
+        } catch (err) {
+          lastError = err instanceof Error ? err.message : "Problema de conexión.";
+        }
+      }
       if (!mounted) return;
-      if (failure || response?.error) setError(response?.error || "No pudimos abrir este enlace.");
-      else hydrate(response as RsvpData, true);
+      if (response) hydrate(response, true);
+      else setError(lastError || "No pudimos abrir tu encuesta. Intentá nuevamente.");
       setLoading(false);
     })();
     return () => { mounted = false; };
-  }, [token]);
+  }, [token, reloadNonce]);
 
   const call = async (action: "respond_with_types", extra: Record<string, unknown>) => {
     if (!token) return;
@@ -137,13 +154,24 @@ export default function EventRsvp() {
 
   const submitRsvp = () => {
     const riders = choice === "voy" && mode !== "solo_almuerzo"
-      ? cyclists.map((person) => ({ name: person.name.trim(), category: "adult", lunch: mode !== "solo_fondo" && person.lunch }))
+      ? cyclists.map((person) => ({
+          name: person.name.trim(),
+          category: "adult",
+          lunch: mode !== "solo_fondo" && person.lunch,
+          whatsapp: normalizeGuestWhatsApp(person.whatsapp) || "",
+        }))
       : [];
     const diners = choice === "voy" && mode !== "solo_fondo"
       ? nonCyclists.map((person) => ({ name: person.name.trim(), category: person.category }))
       : [];
     if ([...riders, ...diners].some((person) => person.name.length < 2 || person.name.length > 100)) {
       setError("Completá nombre y apellido de cada acompañante."); return;
+    }
+    if (riders.some((person) => !/\S+\s+\S+/.test(person.name))) {
+      setError("Ingresá nombre y apellido completos de cada ciclista invitado."); return;
+    }
+    if (riders.some((person) => !person.whatsapp)) {
+      setError("Ingresá el WhatsApp de cada ciclista invitado con código de país (por ejemplo, +54 9 11 1234-5678)."); return;
     }
     call("respond_with_types", {
       response: choice, participation_mode: choice === "voy" ? mode : null,
@@ -240,7 +268,12 @@ export default function EventRsvp() {
 
             {notice && <p role="status" className="rounded-lg bg-accent/10 text-accent p-3 text-sm">{notice}</p>}
             {error && <p role="alert" className="rounded-lg bg-destructive/10 text-destructive p-3 text-sm">{error}</p>}
-          </> : <p role="alert" className="text-destructive">{error || "Enlace no disponible."}</p>}
+          </> : <div className="space-y-3">
+            <p role="alert" className="text-destructive">{error || "Enlace no disponible."}</p>
+            <Button type="button" variant="outline" onClick={() => setReloadNonce((value) => value + 1)}>
+              Reintentar abrir mi encuesta
+            </Button>
+          </div>}
 
           <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-2"><Bike className="w-4 h-4" /> Ciclismo Reybaud</p>
         </CardContent>
