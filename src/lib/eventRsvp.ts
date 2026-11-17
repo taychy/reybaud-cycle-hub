@@ -86,10 +86,10 @@ export const rsvpInvitationEmail = () => ({
     <p style="font-size:18px;color:#00c5f7;margin:0 0 20px">Domingo 29/11 · La Carreta del Gato, Capilla del Señor</p>
     <p>Hola {nombre}! Queremos despedir este 2026 juntos: fondo en ruta y parrilla después.</p>
     <div style="border:2px solid #ff7d16;border-radius:10px;padding:14px 16px;margin:18px 0;background:#141d26;font-size:14px">${FONDAZO_NOTICE}</div>
-    <p><strong>¿Contamos con vos?</strong></p>
+    <p><a href="https://maps.app.goo.gl/6Bg9nS9BFn4g8hV79" target="_blank" rel="noopener noreferrer" style="color:#00c5f7;text-decoration:underline;font-weight:700">📍 Ver restaurante en Google Maps</a></p>
+    <p><strong>¿Contamos con vos?</strong> Tocá VOY o NO VOY para confirmar tu participación.</p>
+    <p>Si venís acompañado, podés completar los datos de tus invitados al confirmar.</p>
     <div style="text-align:center;margin:22px 0">${button("{rsvp_voy_url}", "VOY", "#ff7d16", "#101010")}${button("{rsvp_no_voy_url}", "NO VOY", "#182b38", "#ffffff")}</div>
-    <p style="font-size:13px;color:#b7c0c7">Cada botón abre una confirmación segura, sin iniciar sesión. El voto se registra recién cuando confirmás en la pantalla. Si venís, podés elegir fondo, almuerzo o ambos y editar tu respuesta.</p>
-    <p style="font-size:13px;color:#b7c0c7">En la pantalla vas a indicar por separado cuántos amigos ciclistas querés invitar al fondo y cuántos acompañantes no ciclistas vienen al almuerzo. Podés indicar si un amigo ciclista también viene a la parrilla. Completá los nombres y edades de los comensales para calcular el total. Los ciclistas invitados requieren aprobación previa de Claudio y hay 10 cupos en total; responder no reserva uno.</p>
   </div>`,
 });
 
