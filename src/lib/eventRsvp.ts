@@ -25,11 +25,11 @@ export const PARTICIPATION_LABELS = {
 
 export const LUNCH_STATUS_LABELS = {
   sin_interes: "Sin interés en almuerzo",
-  intencion_confirmada: "Intención confirmada",
-  instrucciones_pendientes: "Instrucciones pendientes",
-  instrucciones_enviadas: "Instrucciones enviadas",
-  comprobante_informado: "Comprobante informado",
-  pago_verificado: "Pago verificado · reserva confirmada",
+  intencion_confirmada: "Pendiente de completar datos",
+  instrucciones_pendientes: "Reserva pendiente de pago",
+  instrucciones_enviadas: "Reserva pendiente de pago",
+  comprobante_informado: "Comprobante recibido",
+  pago_verificado: "Reserva confirmada · pago verificado",
 } as const;
 
 export type ParticipationMode = keyof typeof PARTICIPATION_LABELS;
@@ -89,7 +89,7 @@ export const rsvpInvitationEmail = () => ({
     <p><strong>¿Contamos con vos?</strong></p>
     <div style="text-align:center;margin:22px 0">${button("{rsvp_voy_url}", "VOY", "#ff7d16", "#101010")}${button("{rsvp_no_voy_url}", "NO VOY", "#182b38", "#ffffff")}</div>
     <p style="font-size:13px;color:#b7c0c7">Cada botón abre una confirmación segura, sin iniciar sesión. El voto se registra recién cuando confirmás en la pantalla. Si venís, podés elegir fondo, almuerzo o ambos y editar tu respuesta.</p>
-    <p style="font-size:13px;color:#b7c0c7">Esta respuesta es preliminar: no reserva el almuerzo ni genera ningún pago.</p>
+    <p style="font-size:13px;color:#b7c0c7">Si elegís almuerzo, vas a registrar nombre y categoría (adulto o niño) de cada acompañante. El total de la parrilla se calcula automáticamente. Esta respuesta inicial no reserva el almuerzo ni genera ningún pago.</p>
   </div>`,
 });
 
@@ -101,7 +101,7 @@ export const rsvpLunchEmail = () => ({
     <h1 style="font-size:27px;margin:14px 0">TU ALMUERZO EN EL FONDAZO</h1>
     <p>Hola {nombre}! Ya están confirmados los valores del restaurante:</p>
     <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Menores de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4 años: <strong>{rsvp_under_4_price}</strong></li></ul>
-    <p>Bebidas aparte. El total depende de las cantidades que confirmes y lo vas a ver antes de aceptar las condiciones.</p>
+    <p>Bebidas aparte. Completá el nombre y grupo de edad de cada acompañante en la pantalla para calcular el importe total del almuerzo. El titular aparece automáticamente.</p>
     <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
       <strong>Transferencia directa a La Carreta del Gato</strong><br>
       Alias: <strong>${RESTAURANT_ALIAS}</strong><br>

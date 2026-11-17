@@ -29,13 +29,16 @@ import {
 } from "@/lib/eventRsvp";
 import { formatPrice } from "@/lib/currency";
 
+type LunchGuest = { name: string; category: "adult" | "child_4_9" | "under_4" };
+const newLunchGuest = (): LunchGuest => ({ name: "", category: "adult" });
+
 type RsvpData = {
   event: { title: string; date: string; location: string };
   name: string | null;
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
   guests_count: number;
-  lunch: LunchCounts & { status: LunchStatus; terms_version: string | null; terms_accepted_at: string | null };
+  lunch: LunchCounts & { status: LunchStatus; terms_version: string | null; terms_accepted_at: string | null; attendees: LunchGuest[] };
   prices: LunchPrices;
 };
 
@@ -53,7 +56,19 @@ export default function EventRsvp() {
   const [choice, setChoice] = useState<"voy" | "no_voy">(params.get("opcion") === "no_voy" ? "no_voy" : "voy");
   const [mode, setMode] = useState<ParticipationMode>("fondo_y_almuerzo");
   const [guests, setGuests] = useState(0);
-  const [counts, setCounts] = useState<LunchCounts>({ adults_count: 1, children_4_9_count: 0, under_4_count: 0 });
+  const [guestDetails, setGuestDetails] = useState<LunchGuest[]>([]);
+  useEffect(() => {
+    setGuestDetails((previous) => Array.from({ length: guests }, (_, index) => previous[index] || newLunchGuest()));
+  }, [guests]);
+  const counts = useMemo<LunchCounts>(() => {
+    const derived = { adults_count: 1, children_4_9_count: 0, under_4_count: 0 };
+    guestDetails.slice(0, guests).forEach((person) => {
+      if (person.category === "adult") derived.adults_count += 1;
+      else if (person.category === "child_4_9") derived.children_4_9_count += 1;
+      else derived.under_4_count += 1;
+    });
+    return derived;
+  }, [guestDetails, guests]);
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -65,11 +80,7 @@ export default function EventRsvp() {
     if (response.response) setChoice(response.response);
     if (response.participation_mode) setMode(response.participation_mode);
     setGuests(response.guests_count || 0);
-    setCounts({
-      adults_count: response.lunch.adults_count ?? 1,
-      children_4_9_count: response.lunch.children_4_9_count ?? 0,
-      under_4_count: response.lunch.under_4_count ?? 0,
-    });
+    setGuestDetails(Array.isArray(response.lunch.attendees) ? response.lunch.attendees : []);
   };
 
   useEffect(() => {
@@ -87,12 +98,31 @@ export default function EventRsvp() {
     return () => { mounted = false; };
   }, [token]);
 
-  const call = async (action: "respond" | "confirm_lunch", extra: Record<string, unknown>) => {
+  const call = async (action: "respond" | "confirm_lunch_named", extra: Record<string, unknown>) => {
     if (!token) return;
     setSaving(true); setError(""); setNotice("");
-    const { data: response, error: failure } = await supabase.functions.invoke("event-rsvp", {
-      body: { action, token, ...extra },
-    });
+    // Los nombres se guardan por RPC segura con el token de invitación.
+    // El resto de las respuestas mantiene el canal existente, sin desplegar nuevas Edge Functions.
+    let response: RsvpData | { error?: string } | null = null;
+    let failure: { message: string } | null = null;
+    if (action === "confirm_lunch_named") {
+      const namedRpc = supabase as unknown as {
+        rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+      };
+      const saved = await namedRpc.rpc("confirm_event_rsvp_lunch_named", {
+        p_token: token, p_guests: extra.guest_details,
+      });
+      failure = saved.error;
+      if (!failure) {
+        const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
+        response = loaded.data as RsvpData | null;
+        failure = loaded.error;
+      }
+    } else {
+      const saved = await supabase.functions.invoke("event-rsvp", { body: { action, token, ...extra } });
+      response = saved.data as RsvpData | null;
+      failure = saved.error;
+    }
     if (failure || response?.error) setError(response?.error || failure?.message || "No pudimos guardar. Intentá de nuevo.");
     else {
       hydrate(response as RsvpData);
@@ -125,10 +155,17 @@ export default function EventRsvp() {
 
   const submitLunch = () => {
     const validation = validateLunchCounts(counts, guests);
-    if (validation) { setError(validation); return; }
+    if (validation || guestDetails.length !== guests) { setError(validation || "Revisá la cantidad de acompañantes."); return; }
+    if (guestDetails.some((person) => person.name.trim().length < 2 || person.name.trim().length > 100)) {
+      setError("Completá nombre y apellido de cada acompañante."); return;
+    }
     if (!accepted) { setError("Leé y aceptá las condiciones para continuar."); return; }
-    call("confirm_lunch", counts);
+    call("confirm_lunch_named", { guest_details: guestDetails.map((person) => ({ name: person.name.trim(), category: person.category })) });
   };
+  const savedDetails = data?.lunch.attendees || [];
+  const detailsAreSaved = !!data?.lunch.terms_accepted_at &&
+    JSON.stringify(savedDetails) === JSON.stringify(guestDetails.map((person) => ({ name: person.name.trim(), category: person.category })));
+  const locked = data?.lunch.status === "pago_verificado" || data?.lunch.status === "comprobante_informado";
 
   return (
     <div className="min-h-screen bg-background text-foreground px-4 py-8 sm:py-12">
@@ -211,21 +248,31 @@ export default function EventRsvp() {
                   <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Menores de 4</div><strong>{formatLunchPrice(data.prices.under_4_price)}</strong></div>
                 </div>
                 <p className="text-xs text-muted-foreground">Bebidas aparte. Confirmá las edades: deben sumar {guests + 1}, incluyéndote.</p>
-                <div className="grid grid-cols-3 gap-2">
-                  {([
-                    ["adults_count", "Adultos"],
-                    ["children_4_9_count", "4 a 9 años"],
-                    ["under_4_count", "Menores de 4"],
-                  ] as const).map(([key, label]) => <div key={key} className="space-y-1">
-                    <Label htmlFor={key} className="text-xs">{label}</Label>
-                    <Input id={key} type="number" min={key === "adults_count" ? 1 : 0} max={COMPANIONS_TECH_MAX + 1} value={counts[key]}
-                      onChange={(e) => setCounts({ ...counts, [key]: Math.max(0, Math.min(COMPANIONS_TECH_MAX + 1, Math.trunc(Number(e.target.value) || 0))) })} />
+                <div className="space-y-3">
+                  <h3 className="font-semibold">¿Quiénes vienen a la parrilla?</h3>
+                  <p className="text-xs text-muted-foreground">Sumamos tu nombre como titular adulto. Completá nombre y apellido y grupo de edad de cada acompañante que no pedalea.</p>
+                  <div className="rounded-lg bg-muted/40 p-3 text-sm">
+                    <div className="font-medium">{data.name || "Titular de la invitación"}</div>
+                    <div className="text-xs text-muted-foreground">Titular · Adulto · {formatLunchPrice(data.prices.adult_price)}</div>
+                  </div>
+                  {guestDetails.map((person, index) => <div key={index} className="rounded-lg border p-3 space-y-2">
+                    <Label htmlFor={`guest-name-${index}`}>Acompañante {index + 1}</Label>
+                    <Input id={`guest-name-${index}`} placeholder="Nombre y apellido" maxLength={100} value={person.name} disabled={locked}
+                      onChange={(e) => setGuestDetails((previous) => previous.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
+                    <select aria-label={`Grupo de edad del acompañante ${index + 1}`} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      value={person.category} disabled={locked}
+                      onChange={(e) => setGuestDetails((previous) => previous.map((item, i) => i === index ? { ...item, category: e.target.value as LunchGuest["category"] } : item))}>
+                      <option value="adult">Adulto (10 años o más) · {formatLunchPrice(data.prices.adult_price)}</option>
+                      <option value="child_4_9">4 a 9 años · {formatLunchPrice(data.prices.child_4_9_price)}</option>
+                      <option value="under_4">Menor de 4 años · {formatLunchPrice(data.prices.under_4_price)}</option>
+                    </select>
                   </div>)}
+                  <p className="text-xs text-muted-foreground">No agregues acá amigos ciclistas: requieren aprobación previa de Claudio y se gestionan por separado.</p>
                 </div>
                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
                   <div className="text-sm text-muted-foreground">Total a transferir al restaurante · {lunchDinerTotal(counts)} comensales</div>
                   <div className="text-2xl font-bold text-accent">{total == null ? "Revisá las cantidades" : formatPrice(total, "ARS")}</div>
-                  <p className="text-xs mt-1">Es el total del restaurante, no una seña porcentual.</p>
+                  <p className="text-xs mt-1">Importe completo de la parrilla, bebidas aparte. No incluye el fondo de $30.000 de amigos ciclistas.</p>
                 </div>
 
                 <div className="space-y-3 text-sm rounded-lg border p-4">
@@ -237,8 +284,8 @@ export default function EventRsvp() {
                     <span>Leí y acepto las condiciones, versión {LUNCH_POLICY_VERSION}.</span>
                   </label>
                 </div>
-                <Button onClick={submitLunch} disabled={saving} variant="gold" className="w-full">
-                  {saving ? "Guardando…" : data.lunch.terms_accepted_at ? "Actualizar datos y aceptación" : "Aceptar condiciones y confirmar datos"}
+                <Button onClick={submitLunch} disabled={saving || locked} variant="gold" className="w-full">
+                  {saving ? "Guardando…" : locked ? "Reserva en revisión por administración" : data.lunch.terms_accepted_at ? "Actualizar nombres y aceptación" : "Confirmar comensales y aceptar condiciones"}
                 </Button>
 
                 <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
@@ -246,8 +293,8 @@ export default function EventRsvp() {
                   <div className="flex items-center justify-between gap-2"><strong className="text-sm">Alias: {RESTAURANT_ALIAS}</strong>
                     <Button type="button" size="sm" variant="outline" onClick={copyAlias}><Copy /> Copiar</Button></div>
                   <p className="text-xs text-muted-foreground">Este alias es solo para la parrilla. No incluyas acá el aporte de $30.000 de amigos ciclistas.</p>
-                  <p className="text-sm">Transferí el total confirmado al restaurante. Después, enviá tu comprobante a la organización de Ciclismo Reybaud por WhatsApp al <strong>+54 9 11 7171-1122</strong>, indicando tu nombre y la cantidad de comensales. Nosotros lo compartiremos con el restaurante para verificar tu reserva.</p>
-                  <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante a Scarlett por WhatsApp</a></Button>
+                  <p className="text-sm">{detailsAreSaved ? "Transferí el total de la parrilla al restaurante y enviá tu comprobante al WhatsApp de Scarlett. Nosotros lo compartiremos con el restaurante para verificar tu reserva." : "Primero confirmá los nombres, las categorías y las condiciones. Después podrás transferir el total de la parrilla y enviar el comprobante a Scarlett."}</p>
+                  <Button asChild variant="outline" className="w-full" disabled={!detailsAreSaved}><a href={detailsAreSaved ? whatsappUrl : undefined} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante a Scarlett por WhatsApp</a></Button>
                   <p className="text-xs text-muted-foreground"><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. Avisar que transferiste no confirma la reserva: administración debe verificarla con el restaurante.</p>
                 </div>
               </>}
