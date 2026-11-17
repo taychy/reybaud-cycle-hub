@@ -157,14 +157,15 @@ export default function EventRsvp() {
         throw new Error(saved.data?.error || saved.error?.message || "No pudimos comprobar la respuesta guardada.");
       }
       hydrate(saved.data as RsvpData);
+      const cyclistRequests = Array.isArray(extra.cyclists) ? extra.cyclists.length : 0;
       if (extra.response === "no_voy") {
         setNotice("Gracias por responder. Registramos que no vas a asistir. No se generó ningún cobro.");
       } else if (saved.data.notification?.participant !== "sent") {
         setNotice("Tu respuesta quedó registrada y ya está visible en gestión, pero no pudimos confirmar el envío del correo.");
-      } else if (cyclists.length && saved.data.notification?.claudio !== "sent") {
+      } else if (cyclistRequests && saved.data.notification?.claudio !== "sent") {
         setNotice("Tu asistencia y el correo quedaron registrados. El aviso a Claudio quedó pendiente; los ciclistas no quedaron inscriptos.");
       } else {
-        setNotice(cyclists.length
+        setNotice(cyclistRequests
           ? "¡Tu asistencia quedó registrada! Enviamos tu correo y la solicitud a Claudio. Los ciclistas siguen pendientes de aprobación."
           : "¡Tu asistencia quedó registrada! Te enviamos el correo correspondiente.");
       }

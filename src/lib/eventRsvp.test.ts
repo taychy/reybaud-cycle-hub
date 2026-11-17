@@ -4,7 +4,6 @@ import {
   LUNCH_POLICY_TEXT,
   LUNCH_POLICY_VERSION,
   RESTAURANT_ALIAS,
-  RESTAURANT_WHATSAPP_URL,
   guestCyclistPaymentEmail,
   hasLunchInterest,
   lunchAmount,
@@ -51,7 +50,7 @@ describe("Fondazo · precios verificados", () => {
   it("el segundo correo usa tarifas confirmadas y nunca los valores viejos del folleto", () => {
     const mail = rsvpLunchEmail();
     expect(mail.content_html).toContain(RESTAURANT_ALIAS);
-    expect(mail.content_html).toContain(RESTAURANT_WHATSAPP_URL);
+    expect(mail.content_html).toContain("{rsvp_receipt_whatsapp_url}");
     expect(mail.content_html).toContain("WhatsApp de <strong>Scarlett");
     expect(mail.content_html).toContain("Scarlett lo reenvía personalmente al restaurante");
     expect(mail.content_html).not.toContain("Comprobantes del restaurante");

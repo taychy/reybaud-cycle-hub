@@ -25,6 +25,10 @@ SELECT public.confirm_event_rsvp_lunch('00000000-0000-0000-0000-0000000000aa',40
 DO $$ BEGIN
   IF (SELECT guests_count FROM public.event_rsvp_invites) <> 45 THEN RAISE EXCEPTION 'guests not saved'; END IF;
   IF (SELECT lunch_status FROM public.event_rsvp_invites) <> 'instrucciones_pendientes' THEN RAISE EXCEPTION 'status changed'; END IF;
+  IF (SELECT terms_version FROM public.event_rsvp_invites) <> 'fondazo-almuerzo-v2-2026-11-17'
+    OR (SELECT terms_text_snapshot FROM public.event_rsvp_invites) NOT LIKE '%viernes 27/11/2026 inclusive%' THEN
+    RAISE EXCEPTION 'current cancellation policy not accepted';
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM public.event_rsvp_lunch_audit) THEN RAISE EXCEPTION 'audit missing'; END IF;
 END $$;
 -- máximo técnico: 500 ok, 501 rechazado; 501 comensales ok, 502 rechazado

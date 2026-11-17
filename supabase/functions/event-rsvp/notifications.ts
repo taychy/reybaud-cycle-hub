@@ -21,7 +21,7 @@ async function digest(value: string): Promise<string> {
 async function claudioEmail(db: any): Promise<string | null> {
   const { data, error } = await db.from("coaches").select("email").eq("estado", "activo").ilike("nombre", "Claudio");
   if (error) throw error;
-  const emails = [...new Set((data || []).map((row: any) => String(row.email || "").trim().toLowerCase()).filter(Boolean))];
+  const emails: string[] = [...new Set<string>((data || []).map((row: any) => String(row.email || "").trim().toLowerCase()).filter(Boolean))];
   return emails.length === 1 ? emails[0] : null;
 }
 

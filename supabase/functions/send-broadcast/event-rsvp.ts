@@ -55,14 +55,24 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
         .eq("response", "voy").in("participation_mode", ["fondo_y_almuerzo", "solo_almuerzo"]).maybeSingle();
       if (!interest) continue;
     }
-    const realName = String(recipient.display_name || recipient.name || `${recipient.nombre ?? ""} ${recipient.apellido ?? ""}`.trim()).trim();
-    if (!isTest && !realName) throw new Error("Falta el nombre real del perfil; la invitación no se preparó con un saludo genérico");
+    const { data: existing, error: existingError } = await admin.from("event_rsvp_invites")
+      .select("alumno_id,recipient_name").eq("event_id", segment.rsvp_event_id)
+      .eq("recipient_email", email).eq("is_test", isTest).maybeSingle();
+    if (existingError) throw existingError;
+    const alumnoId = recipient.contact_type === "alumno" ? recipient.id : existing?.alumno_id || null;
+    const realName = String(
+      (alumnoId && recipient.contact_type !== "alumno" ? existing?.recipient_name : null) ||
+      recipient.display_name || recipient.name || `${recipient.nombre ?? ""} ${recipient.apellido ?? ""}`.trim()
+    ).trim();
+    if (!isTest && (!realName || realName.toLowerCase() === email)) {
+      throw new Error("Falta el nombre real del perfil; la invitación no se preparó con un saludo genérico");
+    }
     const recipientName = realName || "Test Reybaud";
     const payload: Record<string, unknown> = {
       event_id: segment.rsvp_event_id,
       recipient_email: email,
       recipient_name: recipientName,
-      alumno_id: recipient.contact_type === "alumno" ? recipient.id : null,
+      alumno_id: alumnoId,
       is_test: isTest,
     };
     if (isTest && segment.rsvp_kind === "almuerzo") {

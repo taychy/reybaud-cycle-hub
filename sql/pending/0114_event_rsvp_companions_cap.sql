@@ -73,8 +73,8 @@ AS $function$
 DECLARE
   v_invite public.event_rsvp_invites%rowtype;
   v_prices public.event_rsvp_settings%rowtype;
-  v_policy_version constant text := 'fondazo-almuerzo-v1-2026-11-16';
-  v_policy constant text := 'Si cancelás avisando con al menos 5 días de anticipación (hasta el 24/11/2026 inclusive), el importe abonado queda como crédito para consumir en La Carreta del Gato en otra ocasión. Si no asistís el día del evento y no avisás, perdés el 100% del importe abonado. Las cancelaciones avisadas entre el 25 y el 28/11/2026 o el mismo día están pendientes de definición administrativa; no se consideran automáticamente una ausencia sin aviso. El crédito lo administra La Carreta del Gato, no Ciclismo Reybaud.';
+  v_policy_version constant text := 'fondazo-almuerzo-v2-2026-11-17';
+  v_policy constant text := 'Si cancelás avisando hasta el viernes 27/11/2026 inclusive, el importe abonado queda como crédito para consumir en La Carreta del Gato en otra ocasión. Después de esa fecha no hay reembolso. El crédito lo administra La Carreta del Gato, no Ciclismo Reybaud.';
   v_next_status text;
 BEGIN
   SELECT * INTO v_invite FROM public.event_rsvp_invites WHERE token = p_token FOR UPDATE;
