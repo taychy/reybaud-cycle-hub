@@ -8,6 +8,7 @@ import {
 
 const token = "e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39";
 const base: TestRsvp = {
+  event: { id: "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9" },
   is_test: true,
   name: "Test Reybaud",
   response: "voy",
@@ -23,8 +24,11 @@ const base: TestRsvp = {
 };
 
 describe("Fondazo: envío de correos automático para usuario de prueba", () => {
-  it("no genera un solo email con registros reales", () => {
+  it("no genera correos con registros reales ni otros eventos", () => {
     expect(buildAutomaticFondazoTestMails({ ...base, is_test: false }, token)).toEqual([]);
+    expect(buildAutomaticFondazoTestMails({
+      ...base, event: { id: "2d9ca909-3176-4e1e-96c0-4bf8bdd241ca" },
+    }, token)).toEqual([]);
   });
 
   it("envía confirmación y pago de parrilla cuando no hay ciclistas invitados", () => {
