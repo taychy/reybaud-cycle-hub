@@ -7,12 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Bike, CalendarDays, CheckCircle2, MapPin, MessageCircle, XCircle, Copy } from "lucide-react";
+import { Bike, CalendarDays, CheckCircle2, MapPin, MessageCircle, XCircle, Copy, UtensilsCrossed, ShieldCheck, AlertTriangle } from "lucide-react";
 import {
-  FONDAZO_NOTICE, ADULT_LUNCH_PRICE_ANNOUNCED, COMPANIONS_TECH_MAX,
-  LUNCH_POLICY_PENDING,
-  LUNCH_POLICY_TEXT,
-  LUNCH_POLICY_VERSION,
+  ADULT_LUNCH_PRICE_ANNOUNCED,
   LUNCH_STATUS_LABELS,
   PARTICIPATION_LABELS,
   RESTAURANT_ALIAS,
@@ -83,9 +80,13 @@ export default function EventRsvp() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
 
-  const hydrate = (response: RsvpData) => {
+  const hydrate = (response: RsvpData, isInitialLoad = false) => {
     setData(response);
-    if (response.response) setChoice(response.response);
+    // Un enlace VOY/NO VOY del correo debe respetar la elección inicial incluso
+    // si el participante ya respondió anteriormente. Al guardar usamos el estado del servidor.
+    const requestedOption = params.get("opcion");
+    const hasLinkChoice = requestedOption === "voy" || requestedOption === "no_voy";
+    if (response.response && (!isInitialLoad || !hasLinkChoice)) setChoice(response.response);
     if (response.participation_mode) setMode(response.participation_mode);
     setCyclists(Array.isArray(response.cyclist_guests) ? response.cyclist_guests : []);
     setNonCyclists(Array.isArray(response.non_cyclist_guests) ? response.non_cyclist_guests : []);
@@ -100,7 +101,7 @@ export default function EventRsvp() {
       });
       if (!mounted) return;
       if (failure || response?.error) setError(response?.error || "No pudimos abrir este enlace.");
-      else hydrate(response as RsvpData);
+      else hydrate(response as RsvpData, true);
       setLoading(false);
     })();
     return () => { mounted = false; };
@@ -183,11 +184,20 @@ export default function EventRsvp() {
       setError("Completá nombre y apellido de cada acompañante."); return;
     }
     if (!accepted) { setError("Leé y aceptá las condiciones para continuar."); return; }
-    call("confirm_lunch_named", { guest_details: guestDetails.map((person) => ({ name: person.name.trim(), category: person.category })) });
+    call("confirm_lunch_named", { guest_details: guestDetails.map((person) => ({
+      name: person.name.trim(), category: person.category, is_cyclist: person.is_cyclist === true,
+    })) });
   };
   const savedDetails = data?.lunch.attendees || [];
+  // Postgres serializa las claves jsonb en un orden distinto del objeto JS.
+  // Comparar cada campo evita bloquear WhatsApp aunque la aceptación se haya guardado.
   const detailsAreSaved = !!data?.lunch.terms_accepted_at &&
-    JSON.stringify(savedDetails) === JSON.stringify(guestDetails.map((person) => ({ name: person.name.trim(), category: person.category })));
+    savedDetails.length === guestDetails.length &&
+    savedDetails.every((saved, index) =>
+      saved.name === guestDetails[index]?.name.trim() &&
+      saved.category === guestDetails[index]?.category &&
+      (saved.is_cyclist === true) === (guestDetails[index]?.is_cyclist === true)
+    );
   const locked = data?.lunch.status === "pago_verificado" || data?.lunch.status === "comprobante_informado";
 
   return (
@@ -214,8 +224,22 @@ export default function EventRsvp() {
           </div>
 
           {loading ? <p className="text-muted-foreground">Abriendo tu invitación…</p> : data ? <>
-            <div role="note" className="rounded-lg border-2 border-primary bg-primary/10 p-4 text-sm font-medium">{FONDAZO_NOTICE}</div>
-            <p>Hola{data.name ? `, ${data.name}` : ""}! Elegí una opción y después tocá <strong>Confirmar mi respuesta</strong>.</p>
+            <div role="note" className="rounded-xl border border-border overflow-hidden">
+              <div className="bg-muted/40 px-4 py-3 border-b border-border font-semibold text-sm">Información de la jornada</div>
+              <div className="grid sm:grid-cols-2 gap-0">
+                <div className="p-4 space-y-1.5 sm:border-r border-b sm:border-b-0 border-border">
+                  <div className="flex gap-2 items-center font-semibold text-primary"><Bike className="h-4 w-4" /> Fondo en bicicleta</div>
+                  <p className="text-sm"><strong>Gratis</strong> para alumnos activos.</p>
+                  <p className="text-xs text-muted-foreground">Amigos ciclistas: $30.000 por persona, sujetos a aprobación de Claudio. 10 cupos disponibles en total.</p>
+                </div>
+                <div className="p-4 space-y-1.5">
+                  <div className="flex gap-2 items-center font-semibold text-accent"><UtensilsCrossed className="h-4 w-4" /> Parrilla</div>
+                  <p className="text-sm">Adultos <strong>$40.000</strong> · Niños de 4 a 9 <strong>$20.000</strong></p>
+                  <p className="text-xs text-muted-foreground">Menores de 4 sin cargo · Bebidas aparte. Acompañantes no ciclistas sin cupo comercial.</p>
+                </div>
+              </div>
+            </div>
+            <p className="text-sm sm:text-base">Hola{data.name ? `, ${data.name}` : ""}! ¿Nos acompañás? Elegí una opción para confirmar tu asistencia.</p>
             <div className="grid grid-cols-2 gap-3">
               <Button type="button" variant={choice === "voy" ? "gold" : "outline"} onClick={() => setChoice("voy")}>
                 <CheckCircle2 /> VOY
@@ -240,20 +264,19 @@ export default function EventRsvp() {
                 mode={mode} disabled={!!locked} />
             </div>}
 
-            <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
-              Esta respuesta es preliminar y editable. No reserva el almuerzo, no genera cargos y no confirma pagos.
-            </div>
+            <p className="text-xs text-muted-foreground">Podés modificar tu respuesta más adelante. El almuerzo se reserva cuando se verifica el pago.</p>
             <Button onClick={submitRsvp} disabled={saving} variant="gold" className="w-full">
               {saving ? "Guardando…" : "Confirmar mi respuesta"}
             </Button>
 
-            {hasLunchInterest(data.response, data.participation_mode) && <section className="border-t border-border pt-6 space-y-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-xl font-bold">Almuerzo en La Carreta del Gato</h2>
-                  <p className="text-sm text-muted-foreground">Reserva y pago se gestionan directamente con el restaurante.</p>
+            {choice === "voy" && hasLunchInterest(data.response, data.participation_mode) && <section className="border-t border-border pt-6 space-y-5">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <UtensilsCrossed className="h-5 w-5 text-accent" aria-hidden="true" />
+                  <h2 className="text-xl font-bold">Tu reserva de parrilla</h2>
                 </div>
-                <Badge variant="outline" className="text-xs">{LUNCH_STATUS_LABELS[data.lunch.status]}</Badge>
+                <Badge variant="outline" className="w-fit max-w-full whitespace-normal px-3 py-1.5 text-xs font-medium border-primary/40 text-primary">{LUNCH_STATUS_LABELS[data.lunch.status]}</Badge>
+                <p className="text-sm text-muted-foreground">La parrilla se paga directamente al restaurante. Revisá quiénes van a comer y confirmá las condiciones antes de transferir.</p>
               </div>
 
               {!data.prices.prices_confirmed_at ? <>
@@ -271,12 +294,19 @@ export default function EventRsvp() {
                   <Button type="button" variant="outline" className="w-full" disabled><MessageCircle /> Enviar comprobante a Scarlett (disponible al confirmar el total)</Button>
                 </div>
               </> : <>
-                <div className="grid grid-cols-3 gap-2 text-center text-sm">
-                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Adultos</div><strong>{formatLunchPrice(data.prices.adult_price)}</strong></div>
-                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">De 4 a 9 años</div><strong>{formatLunchPrice(data.prices.child_4_9_price)}</strong></div>
-                  <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Menores de 4</div><strong>{formatLunchPrice(data.prices.under_4_price)}</strong></div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm" aria-label="Valores de la parrilla por edad">
+                  {[
+                    ["Adultos · 10 años o más", data.prices.adult_price],
+                    ["Niños · 4 a 9 años", data.prices.child_4_9_price],
+                    ["Menores de 4", data.prices.under_4_price],
+                  ].map(([label, price]) => (
+                    <div key={String(label)} className="rounded-lg border border-border bg-muted/25 px-4 py-3 flex items-center justify-between sm:items-start sm:flex-col gap-1">
+                      <span className="text-xs text-muted-foreground">{String(label)}</span>
+                      <strong className="text-sm">{formatLunchPrice(price as number | null)}</strong>
+                    </div>
+                  ))}
                 </div>
-                <p className="text-xs text-muted-foreground">Bebidas aparte. El total incluye a los ciclistas invitados que también comen y a los acompañantes no ciclistas: {guests + 1} comensales, incluyéndote.</p>
+                <p className="text-xs text-muted-foreground">Bebidas aparte. Total de comensales: {guests + 1} (incluyéndote). Los ciclistas que también comen se cuentan una sola vez.</p>
                 <div className="space-y-2">
                   <h3 className="font-semibold">¿Quiénes vienen a la parrilla?</h3>
                   <p className="text-xs text-muted-foreground">Los nombres se completan en la sección de acompañantes de arriba.</p>
@@ -285,20 +315,36 @@ export default function EventRsvp() {
                     {person.name || "Falta completar nombre"} · {person.is_cyclist ? "Ciclista invitado pendiente de aprobación" : "No ciclista"} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "Niño de 4 a 9 años" : "Menor de 4 años"}
                   </div>)}
                 </div>
-                <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
-                  <div className="text-sm text-muted-foreground">Total a transferir al restaurante · {lunchDinerTotal(counts)} comensales</div>
-                  <div className="text-2xl font-bold text-accent">{total == null ? "Revisá las cantidades" : formatPrice(total, "ARS")}</div>
-                  <p className="text-xs mt-1">Importe completo de la parrilla, bebidas aparte. No incluye el fondo de $30.000 de amigos ciclistas.</p>
+                <div className="rounded-xl border-2 border-accent/40 bg-accent/10 p-4 sm:p-5 space-y-1">
+                  <div className="font-semibold text-sm">Total de la parrilla · {lunchDinerTotal(counts)} comensales</div>
+                  <div className="text-3xl font-extrabold text-accent tabular-nums">{total == null ? "Revisá las cantidades" : formatPrice(total, "ARS")}</div>
+                  <p className="text-xs text-muted-foreground">Bebidas aparte. Este total NO incluye los $30.000 del fondo por cada amigo ciclista aprobado.</p>
                 </div>
 
-                <div className="space-y-3 text-sm rounded-lg border p-4">
-                  <h3 className="font-semibold">Condiciones del almuerzo</h3>
-                  <p>{LUNCH_POLICY_TEXT}</p>
-                  <p className="text-muted-foreground">{LUNCH_POLICY_PENDING}</p>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} className="mt-1" />
-                    <span>Leí y acepto las condiciones, versión {LUNCH_POLICY_VERSION}.</span>
-                  </label>
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="bg-muted/30 px-4 py-3 flex gap-2 items-center border-b border-border">
+                    <ShieldCheck className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Condiciones de reserva</h3>
+                  </div>
+                  <div className="p-4 space-y-3 text-sm">
+                    <div className="space-y-1">
+                      <p className="font-semibold">Si avisás hasta el 24/11 inclusive</p>
+                      <p className="text-muted-foreground">El importe abonado queda como crédito para comer en La Carreta del Gato en otra ocasión.</p>
+                    </div>
+                    <div className="border-t border-border pt-3 space-y-1">
+                      <p className="font-semibold">Si no asistís y no avisás</p>
+                      <p className="text-muted-foreground">Se pierde el 100% del importe abonado.</p>
+                    </div>
+                    <div className="border-t border-border pt-3 flex gap-2 items-start">
+                      <AlertTriangle className="h-4 w-4 shrink-0 text-accent mt-0.5" />
+                      <p className="text-muted-foreground">Cancelaciones avisadas del 25 al 28/11, o el mismo día: las condiciones están pendientes de definición. No se consideran automáticamente una ausencia sin aviso.</p>
+                    </div>
+                    <p className="text-xs text-muted-foreground">El crédito lo administra el restaurante, no Reybaud.</p>
+                    <label className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/20 p-3 cursor-pointer">
+                      <Checkbox checked={accepted} onCheckedChange={(value) => setAccepted(value === true)} className="mt-0.5 shrink-0" />
+                      <span className="font-medium">Leí y acepto las condiciones del almuerzo.</span>
+                    </label>
+                  </div>
                 </div>
                 <Button onClick={submitLunch} disabled={saving || locked} variant="gold" className="w-full">
                   {saving ? "Guardando…" : locked ? "Reserva en revisión por administración" : data.lunch.terms_accepted_at ? "Actualizar nombres y aceptación" : "Confirmar comensales y aceptar condiciones"}
@@ -309,8 +355,10 @@ export default function EventRsvp() {
                   <div className="flex items-center justify-between gap-2"><strong className="text-sm">Alias: {RESTAURANT_ALIAS}</strong>
                     <Button type="button" size="sm" variant="outline" onClick={copyAlias}><Copy /> Copiar</Button></div>
                   <p className="text-xs text-muted-foreground">Este alias es solo para la parrilla. No incluyas acá el aporte de $30.000 de amigos ciclistas.</p>
-                  <p className="text-sm">{detailsAreSaved ? "Transferí el total de la parrilla al restaurante y enviá tu comprobante al WhatsApp de Scarlett. Nosotros lo compartiremos con el restaurante para verificar tu reserva." : "Primero confirmá los nombres, las categorías y las condiciones. Después podrás transferir el total de la parrilla y enviar el comprobante a Scarlett."}</p>
-                  <Button asChild variant="outline" className="w-full" disabled={!detailsAreSaved}><a href={detailsAreSaved ? whatsappUrl : undefined} target="_blank" rel="noreferrer"><MessageCircle /> Enviar comprobante a Scarlett por WhatsApp</a></Button>
+                  <p className="text-sm">{detailsAreSaved ? "Transferí el total de la parrilla y enviá el comprobante al WhatsApp de Scarlett. Nosotros lo compartiremos con el restaurante." : "Primero confirmá los nombres de los comensales y aceptá las condiciones. Después vas a poder enviar tu comprobante a Scarlett."}</p>
+                  {detailsAreSaved
+                    ? <Button asChild variant="outline" className="w-full"><a href={whatsappUrl} target="_blank" rel="noopener noreferrer"><MessageCircle /> Enviar comprobante a Scarlett por WhatsApp</a></Button>
+                    : <Button type="button" variant="outline" className="w-full" disabled><MessageCircle /> Enviar comprobante (después de confirmar)</Button>}
                   <p className="text-xs text-muted-foreground"><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. Avisar que transferiste no confirma la reserva: administración debe verificarla con el restaurante.</p>
                 </div>
               </>}
