@@ -7,7 +7,6 @@ import { Label } from "@/components/ui/label";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
   PARTICIPATION_LABELS,
-  hasLunchInterest,
   lunchAmount,
   lunchDinerTotal,
   type LunchCounts,
