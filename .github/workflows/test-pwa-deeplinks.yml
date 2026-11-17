@@ -8,6 +8,8 @@ on:
       - "src/pages/EventRsvp.tsx"
       - "src/lib/eventRsvp.ts"
       - "src/lib/eventRsvp.test.ts"
+      - "src/lib/fondazoTestEmails.ts"
+      - "src/lib/fondazoTestEmails.test.ts"
       - "vite.config.ts"
       - ".github/workflows/test-pwa-deeplinks.yml"
   push:
@@ -34,4 +36,4 @@ jobs:
       - name: Comprobar enlaces y actualización en la PWA
         run: npm run test -- src/lib/appUpdate.test.ts
       - name: Validar plantillas de pago del Fondazo
-        run: npm run test -- src/lib/eventRsvp.test.ts
+        run: npm run test -- src/lib/eventRsvp.test.ts src/lib/fondazoTestEmails.test.ts
