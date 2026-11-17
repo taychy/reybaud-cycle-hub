@@ -101,9 +101,28 @@ export default function EventRsvp() {
   const call = async (action: "respond" | "confirm_lunch_named", extra: Record<string, unknown>) => {
     if (!token) return;
     setSaving(true); setError(""); setNotice("");
-    const { data: response, error: failure } = await supabase.functions.invoke("event-rsvp", {
-      body: { action, token, ...extra },
-    });
+    // Los nombres se guardan por RPC segura con el token de invitación.
+    // El resto de las respuestas mantiene el canal existente, sin desplegar nuevas Edge Functions.
+    let response: RsvpData | { error?: string } | null = null;
+    let failure: { message: string } | null = null;
+    if (action === "confirm_lunch_named") {
+      const namedRpc = supabase as unknown as {
+        rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+      };
+      const saved = await namedRpc.rpc("confirm_event_rsvp_lunch_named", {
+        p_token: token, p_guests: extra.guest_details,
+      });
+      failure = saved.error;
+      if (!failure) {
+        const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
+        response = loaded.data as RsvpData | null;
+        failure = loaded.error;
+      }
+    } else {
+      const saved = await supabase.functions.invoke("event-rsvp", { body: { action, token, ...extra } });
+      response = saved.data as RsvpData | null;
+      failure = saved.error;
+    }
     if (failure || response?.error) setError(response?.error || failure?.message || "No pudimos guardar. Intentá de nuevo.");
     else {
       hydrate(response as RsvpData);
