@@ -68,7 +68,7 @@ export default function EventRsvp() {
   const guestDetails = useMemo<LunchGuest[]>(() => [
     ...nonCyclists.map((person) => ({ name: person.name, category: person.category, is_cyclist: false })),
     ...(mode === "fondo_y_almuerzo"
-      ? cyclists.filter((person) => person.lunch).map((person) => ({ name: person.name, category: person.category, is_cyclist: true }))
+      ? cyclists.filter((person) => person.lunch).map((person) => ({ name: person.name, category: "adult" as const, is_cyclist: true }))
       : []),
   ], [cyclists, nonCyclists, mode]);
   const counts = useMemo<LunchCounts>(() => {
@@ -94,7 +94,9 @@ export default function EventRsvp() {
     const hasLinkChoice = requestedOption === "voy" || requestedOption === "no_voy";
     if (response.response && (!isInitialLoad || !hasLinkChoice)) setChoice(response.response);
     if (response.participation_mode) setMode(response.participation_mode);
-    setCyclists(Array.isArray(response.cyclist_guests) ? response.cyclist_guests : []);
+    setCyclists(Array.isArray(response.cyclist_guests)
+      ? response.cyclist_guests.map((person) => ({ ...person, category: "adult" as const }))
+      : []);
     setNonCyclists(Array.isArray(response.non_cyclist_guests) ? response.non_cyclist_guests : []);
   };
 
@@ -156,7 +158,7 @@ export default function EventRsvp() {
 
   const submitRsvp = () => {
     const riders = choice === "voy" && mode !== "solo_almuerzo"
-      ? cyclists.map((person) => ({ name: person.name.trim(), category: person.category, lunch: mode !== "solo_fondo" && person.lunch }))
+      ? cyclists.map((person) => ({ name: person.name.trim(), category: "adult" as const, lunch: mode !== "solo_fondo" && person.lunch }))
       : [];
     const diners = choice === "voy" && mode !== "solo_fondo"
       ? nonCyclists.map((person) => ({ name: person.name.trim(), category: person.category }))
