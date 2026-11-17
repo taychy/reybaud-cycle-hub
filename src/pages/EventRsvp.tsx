@@ -106,32 +106,34 @@ export default function EventRsvp() {
 
   const call = async (action: "respond_with_types", extra: Record<string, unknown>) => {
     if (!token) return;
-    setSaving(true); setError(""); setNotice("");
-    // Los nombres se guardan por RPC segura con el token de invitación.
-    // El resto de las respuestas mantiene el canal existente, sin desplegar nuevas Edge Functions.
-    let response: RsvpData | { error?: string } | null = null;
-    let failure: { message: string } | null = null;
-    const namedRpc = supabase as unknown as {
-      rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-    };
-    const saved = await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
-      p_token: token, p_response: extra.response, p_mode: extra.participation_mode,
-      p_cyclists: extra.cyclists, p_non_cyclists: extra.non_cyclists,
-    });
-    failure = saved.error;
-    if (!failure) {
+    setSaving(true);
+    setError("");
+    setNotice("");
+    try {
+      const namedRpc = supabase as unknown as {
+        rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
+      };
+      const saved = await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
+        p_token: token,
+        p_response: extra.response,
+        p_mode: extra.participation_mode,
+        p_cyclists: extra.cyclists,
+        p_non_cyclists: extra.non_cyclists,
+      });
+      if (saved.error) throw new Error(saved.error.message);
       const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
-      response = loaded.data as RsvpData | null;
-      failure = loaded.error;
-    }
-    if (failure || response?.error) setError(response?.error || failure?.message || "No pudimos guardar. Intentá de nuevo.");
-    else {
-      hydrate(response as RsvpData);
+      if (loaded.error || loaded.data?.error || !loaded.data) {
+        throw new Error(loaded.data?.error || loaded.error?.message || "No pudimos comprobar la respuesta guardada.");
+      }
+      hydrate(loaded.data as RsvpData);
       setNotice(extra.response === "no_voy"
         ? "Gracias por responder. Registramos que no vas a asistir."
         : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No pudimos confirmar tu respuesta. Intentá nuevamente.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const submitRsvp = () => {
@@ -224,7 +226,7 @@ export default function EventRsvp() {
               {saving ? "Guardando…" : "Confirmar mi respuesta"}
             </Button>
 
-            {choice === "voy" && hasLunchInterest(data.response, data.participation_mode) && <section className="rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5 space-y-3" aria-label="Resumen de personas para la parrilla">
+            {choice === "voy" && mode !== "solo_fondo" && <section className="rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5 space-y-3" aria-label="Resumen de personas para la parrilla">
               <div className="flex items-center gap-2 font-semibold"><UtensilsCrossed className="h-5 w-5 text-accent" /> Personas para la parrilla</div>
               <p className="text-sm text-muted-foreground">Comprobá los datos de arriba antes de confirmar tu respuesta.</p>
               <div className="text-sm grid grid-cols-3 gap-2">
