@@ -11,6 +11,7 @@ import {
   lunchDinerTotal,
   rsvpInvitationEmail,
   rsvpLunchEmail,
+  normalizeGuestWhatsApp,
   validateLunchCounts,
 } from "./eventRsvp";
 
@@ -104,5 +105,17 @@ describe("Fondazo · correo separado para cupo ciclista aprobado", () => {
 
   it("no permite preparar mensajes de pago para invitados no aprobados", () => {
     expect(() => guestCyclistPaymentEmail([])).toThrow(/No hay ciclistas aprobados/);
+  });
+});
+
+describe("Fondazo · WhatsApp de amigos ciclistas", () => {
+  it("normaliza un número argentino escrito con espacios o guiones", () => {
+    expect(normalizeGuestWhatsApp("+54 9 11 1234-5678")).toBe("+5491112345678");
+  });
+  it("exige un número internacional completo y no admite texto arbitrario", () => {
+    expect(normalizeGuestWhatsApp("11 1234-5678")).toBeNull();
+    expect(normalizeGuestWhatsApp("")).toBeNull();
+    expect(normalizeGuestWhatsApp("+54911<0000>0000")).toBeNull();
+    expect(normalizeGuestWhatsApp("+54(9)11.1234.5678")).toBe("+5491112345678");
   });
 });
