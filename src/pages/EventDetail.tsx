@@ -1047,7 +1047,9 @@ const EventDetail = () => {
               <p className="text-sm text-muted-foreground">
                 {isExternal
                   ? "Este evento es organizado por un tercero. Te lo compartimos porque puede ser de tu interés."
-                  : "Este evento es solo informativo. No requiere inscripción."}
+                  : event.metadata?.rsvp_enabled === true
+                    ? "La asistencia se confirma desde los botones VOY / NO VOY del correo de invitación. No se realizan reservas pagas ni cobros en esta pantalla."
+                    : "Este evento es solo informativo. No requiere inscripción."}
               </p>
               {event.metadata?.web_url && (
                 <a href={event.metadata.web_url} target="_blank" rel="noopener noreferrer">
