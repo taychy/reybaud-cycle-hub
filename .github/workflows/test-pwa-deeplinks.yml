@@ -1,0 +1,33 @@
+name: Pruebas de enlaces de la PWA
+on:
+  pull_request:
+    paths:
+      - "src/lib/appUpdate.ts"
+      - "src/lib/appUpdate.test.ts"
+      - "src/main.tsx"
+      - "src/pages/EventRsvp.tsx"
+      - "vite.config.ts"
+      - ".github/workflows/test-pwa-deeplinks.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/lib/appUpdate.ts"
+      - "src/lib/appUpdate.test.ts"
+      - "src/main.tsx"
+      - "src/pages/EventRsvp.tsx"
+      - "vite.config.ts"
+      - ".github/workflows/test-pwa-deeplinks.yml"
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+      - name: Instalar dependencias
+        run: npm ci
+      - name: Comprobar enlaces y actualización en la PWA
+        run: npm run test -- src/lib/appUpdate.test.ts
