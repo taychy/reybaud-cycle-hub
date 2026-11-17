@@ -53,13 +53,15 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
   for (const recipient of rows) {
     const email = emailKey(recipient.email);
     if (!email) continue;
+    let confirmed: any = null;
     if (segment.rsvp_kind === "almuerzo" && !isTest) {
       const { data: interest } = await admin.from("event_rsvp_invites")
-        .select("id,participation_mode,cyclist_guests")
+        .select("id,participation_mode,cyclist_guests,non_cyclist_guests")
         .eq("event_id", segment.rsvp_event_id).eq("recipient_email", email).eq("is_test", false)
         .eq("response", "voy").maybeSingle();
       if (!interest || !(["fondo_y_almuerzo", "solo_almuerzo"].includes(interest.participation_mode) ||
         (Array.isArray(interest.cyclist_guests) && interest.cyclist_guests.length > 0))) continue;
+      confirmed = interest;
     }
     const payload: Record<string, unknown> = {
       event_id: segment.rsvp_event_id,
@@ -76,6 +78,28 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
     }).select("token").single();
     if (error || !invite?.token) throw error || new Error("No se pudo preparar el enlace individual");
     const base = `${PUBLIC_ORIGIN}/confirmar-asistencia/${invite.token}`;
+    let paymentSummary = "";
+    if (segment.rsvp_kind === "almuerzo" && confirmed && prices) {
+      const riders = Array.isArray(confirmed.cyclist_guests) ? confirmed.cyclist_guests : [];
+      const non = Array.isArray(confirmed.non_cyclist_guests) ? confirmed.non_cyclist_guests : [];
+      if (["fondo_y_almuerzo", "solo_almuerzo"].includes(confirmed.participation_mode)) {
+        const adults = 1 + non.filter((person: any) => person.category === "adult").length +
+          riders.filter((person: any) => person.lunch === true).length;
+        const children = non.filter((person: any) => person.category === "child_4_9").length;
+        const under4 = non.filter((person: any) => person.category === "under_4").length;
+        const total = adults * Number(prices.adult_price) +
+          children * Number(prices.child_4_9_price) + under4 * Number(prices.under_4_price);
+        paymentSummary += `<p style="border:1px solid #1883a4;background:#132a34;padding:14px;border-radius:10px">
+          <strong>Tu parrilla:</strong> ${adults} adulto(s), ${children} niño(s) de 4 a 9, ${under4} menor(es) de 4.
+          <br><strong>Total del restaurante: ${money(total)}</strong></p>`;
+      }
+      if (riders.length > 0) {
+        paymentSummary += `<p style="border:1px solid #a86930;background:#2d221b;padding:14px;border-radius:10px">
+          Solicitaste ${riders.length} amigo(s) ciclista(s). El fondo cuesta
+          <strong>${money(30000)} por invitado aprobado</strong>.
+          Confirmá primero con Claudio cuáles están autorizados. No transfieras por una solicitud todavía no aprobada.</p>`;
+      }
+    }
     decorated.push({
       ...recipient,
       rsvp_voy_url: `${base}?opcion=voy`,
@@ -84,6 +108,7 @@ export async function decorateRsvpRecipients(admin: any, rows: any[], segment: R
       rsvp_adult_price: money(prices?.adult_price),
       rsvp_child_price: money(prices?.child_4_9_price),
       rsvp_under_4_price: money(prices?.under_4_price),
+      rsvp_payment_summary_html: paymentSummary,
     });
   }
   return decorated;
