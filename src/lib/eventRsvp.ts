@@ -7,8 +7,8 @@ export const FONDAZO_EVENT_ID = "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
  * Ejemplo: +54 9 11 1234-5678 → +5491112345678.
  */
 export const normalizeGuestWhatsApp = (raw: string | null | undefined): string | null => {
-  const compact = (raw ?? "").trim().replace(/[\\s().-]/g, "");
-  return /^\\+[1-9][0-9]{7,14}$/.test(compact) ? compact : null;
+  const compact = (raw ?? "").trim().replace(/[\s().-]/g, "");
+  return /^\+[1-9][0-9]{7,14}$/.test(compact) ? compact : null;
 };
 
 export const RESTAURANT_ALIAS = "Lacarretadelgato";
