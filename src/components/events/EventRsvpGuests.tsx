@@ -6,7 +6,7 @@ import { Minus, Plus, Users, Bike } from "lucide-react";
 
 export type GuestAge = "adult" | "child_4_9" | "under_4";
 export type DinnerGuest = { name: string; category: GuestAge; is_cyclist?: boolean };
-export type CyclistGuest = { name: string; category: "adult"; lunch: boolean };
+export type CyclistGuest = { name: string; category: "adult"; lunch: boolean; whatsapp: string };
 
 const ageChoices: { value: GuestAge; label: string; description: string; cost: string; guestLabel: string }[] = [
   { value: "adult", label: "Adultos", description: "", cost: "$40.000", guestLabel: "Adulto" },
@@ -60,7 +60,7 @@ export default function EventRsvpGuests({
           type="number" min={0} max={10} disabled={disabled} value={cyclists.length}
           onChange={(e) => {
             const n = Math.max(0, Math.min(10, Math.trunc(Number(e.target.value) || 0)));
-            setCyclists(Array.from({ length: n }, (_, i) => cyclists[i] || { name: "", category: "adult", lunch: false }));
+            setCyclists(Array.from({ length: n }, (_, i) => cyclists[i] || { name: "", category: "adult", lunch: false, whatsapp: "" }));
           }}
         />
       </div>
@@ -74,6 +74,20 @@ export default function EventRsvpGuests({
           disabled={disabled} value={person.name}
           onChange={(e) => setCyclists(cyclists.map((item, i) => i === index ? { ...item, name: e.target.value } : item))}
         />
+        <div className="space-y-1.5">
+          <Label htmlFor={`rsvp-cyclist-whatsapp-${index}`}>WhatsApp del amigo ciclista {index + 1}</Label>
+          <Input
+            id={`rsvp-cyclist-whatsapp-${index}`}
+            type="tel" inputMode="tel" autoComplete="off"
+            aria-label={`WhatsApp de ${person.name || `amigo ciclista ${index + 1}`}`}
+            placeholder="+54 9 11 1234-5678" maxLength={24}
+            disabled={disabled} required value={person.whatsapp || ""}
+            onChange={(e) => setCyclists(cyclists.map((item, i) =>
+              i === index ? { ...item, whatsapp: e.target.value } : item
+            ))}
+          />
+          <p className="text-xs text-muted-foreground">Ingresá el número con código de país. Lo usaremos únicamente para coordinar este evento si Claudio aprueba la solicitud. Consultá antes con tu amigo si podemos contactarlo.</p>
+        </div>
         {lunchAllowed && <label className="flex items-center gap-2 text-sm">
           <Checkbox
             disabled={disabled} checked={person.lunch}
