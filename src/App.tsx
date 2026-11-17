@@ -180,6 +180,7 @@ const App = () => (
           <Route path="/interes/:eventId" element={<EventInterest />} />
           <Route path="/encuesta/:token" element={<EventSurvey />} />
           <Route path="/confirmar-asistencia/:token" element={<EventRsvp />} />
+          <Route path="/eventos/:eventId/confirmar" element={<PublicEventRsvpEntry />} />
           <Route path="/liquidacion/cargar/:token" element={<LiquidacionCargar />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />
           <Route path="/tienda" element={<PublicStore />} />
