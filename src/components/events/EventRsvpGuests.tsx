@@ -97,8 +97,9 @@ export default function EventRsvpGuests({
           />
           También viene a la parrilla
         </label>}
-        {lunchAllowed && person.lunch && ageSelector(`rsvp-cyclist-age-${index}`, person.category, disabled,
-          (category) => setCyclists(cyclists.map((item, i) => i === index ? { ...item, category } : item)))}
+        {lunchAllowed && person.lunch && <p className="text-xs text-muted-foreground">
+          Parrilla de adulto · $40.000 por persona. Se suma automáticamente al total del almuerzo.
+        </p>}
       </div>)}
     </section>}
     {lunchAllowed && <section className="rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5 space-y-4">
