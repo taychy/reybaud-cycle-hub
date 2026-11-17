@@ -3,7 +3,6 @@ import { useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
@@ -130,7 +129,7 @@ export default function EventRsvp() {
       hydrate(response as RsvpData);
       setNotice(extra.response === "no_voy"
         ? "Gracias por responder. Registramos que no vas a asistir."
-        : "¡Tu asistencia quedó registrada! Más adelante te enviaremos otro correo con las instrucciones de pago que correspondan. Los amigos ciclistas necesitan aprobación previa de Claudio.");
+        : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
     }
     setSaving(false);
   };
@@ -220,7 +219,7 @@ export default function EventRsvp() {
                 mode={mode} disabled={!!locked} />
             </div>}
 
-            <p className="text-xs text-muted-foreground">Solo estamos confirmando tu asistencia y la cantidad de acompañantes. Más adelante enviaremos un correo separado con los datos para los pagos correspondientes.</p>
+            <p className="text-xs text-muted-foreground">Solo estamos confirmando tu asistencia y la cantidad de acompañantes. Si corresponde un pago, recibirás sus instrucciones por correo separado.</p>
             <Button onClick={submitRsvp} disabled={saving} variant="gold" className="w-full">
               {saving ? "Guardando…" : "Confirmar mi respuesta"}
             </Button>
