@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ChevronRight, ArrowLeft } from "lucide-react";
+import { ChevronRight, ArrowLeft, MailCheck } from "lucide-react";
+import { canRequestOtpAgain, finishOtpRequest, savePendingOtpState, startOtpRequest } from "@/lib/pendingOtp";
 import logo from "@/assets/logo.png";
 
 const Register = () => {
@@ -11,10 +12,13 @@ const Register = () => {
   const [form, setForm] = useState({ nombre: "", apellido: "", email: "", telefono: "", documento: "" });
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [existingEmail, setExistingEmail] = useState<string | null>(null);
+  const [sendingAccess, setSendingAccess] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm({ ...form, [e.target.name]: e.target.value });
     setError(null);
+    setExistingEmail(null);
   };
 
   const [dupWarning, setDupWarning] = useState<string | null>(null);
@@ -39,6 +43,47 @@ const Register = () => {
     setLinking(false);
   };
 
+  // Reutilizamos el acceso OTP ya existente. Muchos alumnos históricos todavía
+  // no tienen un usuario en Auth: NO usar shouldCreateUser:false en este flujo.
+  const handleSendExistingAccess = async () => {
+    const email = form.email.toLowerCase().trim();
+    if (!existingEmail || existingEmail !== email || sendingAccess) return;
+    if (!startOtpRequest()) return;
+
+    setError(null);
+    setSendingAccess(true);
+    try {
+      if (!canRequestOtpAgain("main", email)) {
+        setError("Ya solicitaste un código hace unos segundos. Esperá un momento y volvé a intentar.");
+        return;
+      }
+
+      const { error: sendError } = await supabase.auth.signInWithOtp({
+        email,
+        options: { emailRedirectTo: "https://reybaud-app.com/auth/callback" },
+      });
+
+      if (sendError) {
+        console.warn("Existing account OTP send failed", {
+          code: sendError.code,
+          status: sendError.status,
+        });
+        setError("No pudimos enviar el acceso. Intentá nuevamente en unos minutos.");
+        return;
+      }
+
+      savePendingOtpState({ email, returnTo: null, context: "main" });
+      // El login existente ya tiene la pantalla de ocho dígitos, reenvío
+      // y procesamiento del enlace. No duplicamos esa experiencia.
+      navigate("/", { replace: true });
+    } catch {
+      setError("No pudimos conectar con el servicio de acceso. Probá nuevamente.");
+    } finally {
+      setSendingAccess(false);
+      finishOtpRequest();
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -47,17 +92,23 @@ const Register = () => {
     const email = form.email.toLowerCase().trim();
 
     // Check if email already exists
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .rpc("lookup_alumno_by_email", { p_email: email })
       .maybeSingle();
 
+    if (existingError) {
+      setError("No pudimos verificar el email. Intentá nuevamente.");
+      setLoading(false);
+      return;
+    }
+
     if (existing) {
-      if (existing.estado === "activo") {
-        setError("Ya existe una cuenta con ese email. Podés iniciar sesión.");
+      if (existing.estado === "bloqueado") {
+        setError("Esta cuenta no está habilitada para ingresar. Contactá a administración.");
       } else {
-        // Existing inactive user — send to plan selection
-        localStorage.setItem("registro_alumno_id", existing.id);
-        navigate("/planes");
+        // No crear otra ficha ni enviar a planes sin confirmar el correo.
+        setExistingEmail(email);
+        setDupWarning(null);
       }
       setLoading(false);
       return;
@@ -210,6 +261,27 @@ const Register = () => {
               </div>
             )}
 
+            {existingEmail && (
+              <div className="rounded-xl border-2 border-primary/50 bg-primary/5 p-4 space-y-3" role="status">
+                <div className="flex items-center gap-2">
+                  <MailCheck className="h-5 w-5 shrink-0 text-primary" />
+                  <p className="font-semibold text-foreground">Ya tenés una cuenta en Reybaud</p>
+                </div>
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  El email <strong className="text-foreground break-all">{existingEmail}</strong> ya está registrado.
+                  No necesitás crear otra cuenta. Podemos enviarte un código y un enlace de acceso a ese correo.
+                </p>
+                <Button type="button" variant="gold" className="w-full min-h-12 rounded-lg"
+                  disabled={sendingAccess} onClick={handleSendExistingAccess}>
+                  <MailCheck className="h-4 w-4 mr-2" />
+                  {sendingAccess ? "Enviando acceso..." : "Enviarme enlace de acceso"}
+                </Button>
+                <p className="text-xs text-muted-foreground">
+                  Después podés ingresar usando el enlace o el código del email.
+                </p>
+              </div>
+            )}
+
             {dupWarning && (
               <div className="text-sm text-amber-400 bg-amber-500/10 border border-amber-500/30 rounded-md p-3 space-y-3">
                 <p>{dupWarning}</p>
@@ -239,7 +311,7 @@ const Register = () => {
             )}
 
 
-            <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading}>
+            <Button type="submit" variant="gold" className="w-full" size="lg" disabled={loading || sendingAccess || !!existingEmail}>
               {loading ? "Creando cuenta..." : "Continuar"}
               <ChevronRight className="w-4 h-4" />
             </Button>
