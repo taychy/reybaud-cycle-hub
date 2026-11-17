@@ -279,6 +279,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
               {!!row.cyclist_guests?.length && <div className="text-xs text-primary">Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}. No quedan aprobados automáticamente.</div>}
               {row.response === "voy" && !!row.cyclist_guests?.length && <div className="mt-2 border border-primary/30 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-semibold">Pago del cupo ciclista · después de la aprobación de Claudio</p>
+                <p className="text-xs text-muted-foreground">Marcá solo los ciclistas que Claudio haya aprobado. Esta selección prepara el correo y no guarda una aprobación automática.</p>
                 {row.cyclist_guests.map((person, i) => <label key={i} className="flex gap-2 items-center text-xs">
                   <Checkbox checked={(approvedForEmail[row.id] || []).includes(person.name)}
                     onCheckedChange={(checked) => setApprovedForEmail((current) => ({
@@ -320,7 +321,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                 <strong>Ciclistas invitados · aprobación de Claudio pendiente</strong>
                 {row.cyclist_guests.map((person, index) => <div key={index}>{person.name} · {person.lunch ? "Fondo + almuerzo" : "Solo fondo"}</div>)}
               </div>}
-              <div className="text-xs text-muted-foreground">{row.terms_accepted_at ? `Condiciones ${row.terms_version} aceptadas ${new Date(row.terms_accepted_at).toLocaleString("es-AR")}` : "Condiciones todavía no aceptadas"}</div>
+              <div className="text-xs text-muted-foreground">Asistencia confirmada en la encuesta. Las condiciones y comprobantes se comunican en el correo de pago posterior.</div>
               <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
                 <div className="font-semibold">Comensales declarados en la encuesta</div>
                 <div>{row.recipient_name || row.recipient_email} · Titular adulto</div>
@@ -361,8 +362,8 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       <Dialog open={!!statusEdit} onOpenChange={(open) => !open && setStatusEdit(null)}>
         <DialogContent><DialogHeader><DialogTitle>Cambiar estado del almuerzo</DialogTitle><DialogDescription>{statusEdit?.row.recipient_name} · {statusEdit && LUNCH_STATUS_LABELS[statusEdit.status]}. La fecha y el usuario quedan registrados.</DialogDescription></DialogHeader>
           <div className="space-y-2"><Label htmlFor="status-comment">Comentario obligatorio</Label><Textarea id="status-comment" value={statusComment} onChange={(e) => setStatusComment(e.target.value)} placeholder="Motivo del cambio o verificación con el restaurante" /></div>
-          <div className="space-y-2"><Label htmlFor="receipt-reference">Enlace o nota del comprobante (opcional)</Label><Input id="receipt-reference" value={receiptReference} onChange={(e) => setReceiptReference(e.target.value)} placeholder="Dato administrativo, sin subir archivos" /></div>
-          <DialogFooter><Button variant="outline" onClick={() => setStatusEdit(null)}>Cancelar</Button><Button onClick={saveStatus} disabled={busy || statusComment.trim().length < 3}>Guardar con auditoría</Button></DialogFooter>
+          <div className="space-y-2"><Label htmlFor="receipt-reference">Referencia del comprobante {statusEdit?.status === "pago_verificado" ? "(obligatoria)" : "(opcional)"}</Label><Input id="receipt-reference" value={receiptReference} onChange={(e) => setReceiptReference(e.target.value)} placeholder="Dato administrativo, sin subir archivos" /></div>
+          <DialogFooter><Button variant="outline" onClick={() => setStatusEdit(null)}>Cancelar</Button><Button onClick={saveStatus} disabled={busy || statusComment.trim().length < 3 || (statusEdit?.status === "pago_verificado" && !receiptReference.trim())}>Guardar con auditoría</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </CardContent>
