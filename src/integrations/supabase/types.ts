@@ -6135,6 +6135,8 @@ export type Database = {
           lunch_status_changed_at: string | null
           lunch_status_changed_by: string | null
           non_cyclist_guests: Json
+          participant_first_name: string | null
+          participant_last_name: string | null
           participant_whatsapp: string | null
           participation_mode: string | null
           receipt_reference: string | null
@@ -6168,6 +6170,8 @@ export type Database = {
           lunch_status_changed_at?: string | null
           lunch_status_changed_by?: string | null
           non_cyclist_guests?: Json
+          participant_first_name?: string | null
+          participant_last_name?: string | null
           participant_whatsapp?: string | null
           participation_mode?: string | null
           receipt_reference?: string | null
@@ -6201,6 +6205,8 @@ export type Database = {
           lunch_status_changed_at?: string | null
           lunch_status_changed_by?: string | null
           non_cyclist_guests?: Json
+          participant_first_name?: string | null
+          participant_last_name?: string | null
           participant_whatsapp?: string | null
           participation_mode?: string | null
           receipt_reference?: string | null
@@ -21799,16 +21805,28 @@ export type Database = {
         }
         Returns: undefined
       }
-      respond_event_rsvp_with_guest_types: {
-        Args: {
-          p_cyclists: Json
-          p_mode: string
-          p_non_cyclists: Json
-          p_response: string
-          p_token: string
-        }
-        Returns: undefined
-      }
+      respond_event_rsvp_with_guest_types:
+        | {
+            Args: {
+              p_cyclists: Json
+              p_mode: string
+              p_non_cyclists: Json
+              p_response: string
+              p_token: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_cyclists: Json
+              p_identity: Json
+              p_mode: string
+              p_non_cyclists: Json
+              p_response: string
+              p_token: string
+            }
+            Returns: undefined
+          }
       reuse_pending_subscription: {
         Args: {
           p_alumno_id: string

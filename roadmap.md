@@ -3,8 +3,10 @@
 - [x] CTA WhatsApp personalizado, política vigente hasta 27/11 y avisos VOY/Claudio sin cobro en NO VOY.
 - [x] Vista admin con origen/asociación; 14 Vitest + 8 Deno, tipos Deno, compilación y dos suites SQL temporales (identidad/permisos y cupos/política) OK; sin correos, despliegue, publicación ni escrituras reales.
 - [x] Verificación 17/11: tope 500 activo; `event-rsvp` responde estado 200 y `send-broadcast` filtra interesados en vista previa sin crear invitaciones. La invitación aislada ya figura VOY+parrilla, pero no hay correo automático registrado; 0 invitaciones reales y 0 campañas.
-- [ ] Fotos de Drive: validar bytes/URLs queda bloqueado porque no hay conexión de Google Drive disponible; no usar enlaces sin verificar ni lanzar la campaña.
-- [ ] Aplicar 0115 y verificar el flujo automático de `event-rsvp`; después hacer la prueba aislada autorizada. Desplegar/publicar sólo con autorización posterior. El evento figura actualmente `publicado`, `estado_publicacion=publicado` y visible pese al requisito de borrador; se informó y no se cambió ese dato.
+- [ ] Fotos: validar bytes/URLs queda bloqueado porque no hay conexión de Google Drive disponible; no usar enlaces sin verificar ni lanzar la campaña.
+- [x] 0115 aplicada 17/11; `event-rsvp` y `send-broadcast` desplegadas; prueba aislada VOY+parrilla a scarlettbonatto@gmail.com aceptada por el proveedor (nombre, alias, $40.000, WhatsApp verificados).
+- [ ] Campaña a alumnos activos: bloqueada hasta tener las dos fotos accesibles (no están en los archivos del proyecto ni hay Drive conectado).
+- [ ] (nota previa) Desplegar/publicar sólo con autorización posterior. El evento figura actualmente `publicado`, `estado_publicacion=publicado` y visible pese al requisito de borrador; se informó y no se cambió ese dato.
 
 ## Fondazo · Asistencia y almuerzo directo al restaurante (16/11)
 - [x] Auditar evento, PR #47 y canal Brevo existente; conservar evento en borrador y reutilizar su diseño sin integrar la rama.
