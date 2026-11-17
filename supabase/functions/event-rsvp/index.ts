@@ -193,7 +193,7 @@ Deno.serve(async (req) => {
     if (!event || event.metadata?.rsvp_enabled !== true) return json({ error: "Confirmación no disponible" }, 404);
 
     if (body.action === "summary") {
-      const [invitesResult, settingsResult, auditResult] = await Promise.all([
+      const [invitesResult, settingsResult, auditResult, alertsResult] = await Promise.all([
         db.from("event_rsvp_invites").select(`id,recipient_name,recipient_email,response,participation_mode,guests_count,
           responded_at,last_sent_at,lunch_status,adults_count,children_4_9_count,under_4_count,lunch_confirmed_at,
           terms_version,terms_accepted_at,receipt_reference,lunch_admin_comment,lunch_status_changed_at`)
@@ -201,15 +201,19 @@ Deno.serve(async (req) => {
         db.from("event_rsvp_settings").select("*").eq("event_id", body.event_id).maybeSingle(),
         db.from("event_rsvp_lunch_audit").select("id,invite_id,from_status,to_status,comment,receipt_reference,actor_user_id,created_at")
           .eq("event_id", body.event_id).order("created_at", { ascending: false }).limit(200),
+        db.from("event_rsvp_guest_alerts").select("invite_id,guest_key,guest_name,status,sent_at,last_error")
+          .eq("event_id", body.event_id),
       ]);
       if (invitesResult.error) throw invitesResult.error;
       if (settingsResult.error) throw settingsResult.error;
       if (auditResult.error) throw auditResult.error;
+      if (alertsResult.error) throw alertsResult.error;
       return json({
         event_title: event.title,
         rows: invitesResult.data || [],
         prices: settingsResult.data || { prices_confirmed_at: null },
         audit: auditResult.data || [],
+        guest_alerts: alertsResult.data || [],
       });
     }
 
