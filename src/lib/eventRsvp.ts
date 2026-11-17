@@ -4,6 +4,8 @@ export const FONDAZO_EVENT_ID = "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
 export const RESTAURANT_ALIAS = "Lacarretadelgato";
 export const RESTAURANT_WHATSAPP = "5491171711122";
 export const RESTAURANT_WHATSAPP_URL = `https://wa.me/${RESTAURANT_WHATSAPP}`;
+export const GUEST_CYCLIST_ALIAS = "granfondo.tc";
+export const GUEST_CYCLIST_ACCOUNT_HOLDER = "Scarlett Tayná";
 export const LUNCH_POLICY_VERSION = "fondazo-almuerzo-v1-2026-11-16";
 export const LUNCH_POLICY_TEXT =
   "Si cancelás avisando con al menos 5 días de anticipación (hasta el 24/11/2026 inclusive), el importe abonado queda como crédito para consumir en La Carreta del Gato en otra ocasión. Si no asistís el día del evento y no avisás, perdés el 100% del importe abonado.";
@@ -25,7 +27,7 @@ export const PARTICIPATION_LABELS = {
 
 export const LUNCH_STATUS_LABELS = {
   sin_interes: "Sin interés en almuerzo",
-  intencion_confirmada: "Pendiente de completar datos",
+  intencion_confirmada: "Asistencia registrada · pago por correo",
   instrucciones_pendientes: "Reserva pendiente de pago",
   instrucciones_enviadas: "Reserva pendiente de pago",
   comprobante_informado: "Comprobante recibido",
@@ -93,24 +95,40 @@ export const rsvpInvitationEmail = () => ({
   </div>`,
 });
 
+/**
+ * Segunda etapa: se envía a quienes respondieron VOY después de revisar la
+ * lista. No se dispara desde la encuesta, ni se cobran importes en la app.
+ * Las transferencias al fondo de invitados requieren aprobación de Claudio.
+ */
 export const rsvpLunchEmail = () => ({
-  subject: "Fondazo Reybaud | Cómo confirmar tu almuerzo en La Carreta del Gato",
-  preheader: "Tarifas confirmadas, transferencia directa al restaurante y comprobante a la organización por WhatsApp.",
-  content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.55">
+  subject: "Fondazo Reybaud | Tu asistencia y las indicaciones de pago",
+  preheader: "Almuerzo en La Carreta del Gato y, si corresponde, fondo de amigos ciclistas aprobados.",
+  content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.6">
     <div style="color:#ff7d16;font-size:14px;font-weight:800;letter-spacing:2px">CICLISMO REYBAUD</div>
-    <h1 style="font-size:27px;margin:14px 0">TU ALMUERZO EN EL FONDAZO</h1>
-    <p>Hola {nombre}! Ya están confirmados los valores del restaurante:</p>
-    <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Menores de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4 años: <strong>{rsvp_under_4_price}</strong></li></ul>
-    <p>Bebidas aparte. Completá el nombre y grupo de edad de cada acompañante en la pantalla para calcular el importe total del almuerzo. El titular aparece automáticamente.</p>
-    <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
-      <strong>Transferencia directa a La Carreta del Gato</strong><br>
-      Alias: <strong>${RESTAURANT_ALIAS}</strong><br>
-      Enviá tu comprobante a la organización de Ciclismo Reybaud por WhatsApp al <a style="color:#00c5f7" href="${RESTAURANT_WHATSAPP_URL}">+54 9 11 7171-1122</a>. Nosotros lo compartiremos con el restaurante para verificar tu reserva.<br>
-      Incluí tu nombre y la cantidad de comensales. La transferencia cubre el total del precio del restaurante para cada comensal, no un porcentaje.
+    <h1 style="font-size:28px;margin:14px 0">FONDAZO · INFORMACIÓN PARA RESERVAR</h1>
+    <p>Hola {nombre}! Gracias por confirmar tu participación para el domingo 29/11 en La Carreta del Gato, Capilla del Señor.</p>
+    <p>Te compartimos los importes y los datos de transferencia. El fondo de la escuela es gratuito para alumnos activos.</p>
+    <div style="border:1px solid #00baf2;border-radius:10px;padding:16px;margin:18px 0;background:#142630">
+      <div style="font-size:16px;font-weight:bold;color:#00c5f7">1 · Parrilla del restaurante</div>
+      <p style="margin:8px 0">Adultos: <strong>{rsvp_adult_price}</strong> por persona.<br>Niños de 4 a 9 años: <strong>{rsvp_child_price}</strong> por persona.<br>Menores de 4: <strong>{rsvp_under_4_price}</strong>. Bebidas aparte.</p>
+      <p style="margin:8px 0">Si confirmaste almuerzo, transferí el importe de todos tus comensales al restaurante:</p>
+      <p style="font-size:17px;margin:8px 0">Alias: <strong>${RESTAURANT_ALIAS}</strong></p>
+      <p style="font-size:13px;color:#b5c5cd">Este alias recibe únicamente el valor de la parrilla, nunca el del fondo.</p>
     </div>
-    <p><strong>No pagues en la aplicación.</strong> Reybaud no cobra ni factura este almuerzo. El pago queda confirmado únicamente cuando administración lo verifica con el restaurante.</p>
-    <div style="text-align:center;margin:22px 0">${button("{rsvp_lunch_url}", "CONFIRMAR DATOS DEL ALMUERZO", "#ff7d16", "#101010")}</div>
-    <p style="font-size:13px;color:#b7c0c7">Antes de confirmar vas a leer y aceptar las condiciones. Responder VOY, transferir o avisar por WhatsApp no equivalen por sí solos a una reserva verificada.</p>
+    <div style="border:1px solid #ff7d16;border-radius:10px;padding:16px;margin:18px 0;background:#241b16">
+      <div style="font-size:16px;font-weight:bold;color:#ff9c4b">2 · Amigo ciclista invitado</div>
+      <p style="margin:8px 0">Valor del fondo: <strong>$30.000 por cada ciclista invitado aprobado</strong>. Hay solamente 10 cupos aprobados en total.</p>
+      <p style="margin:8px 0"><strong>Importante:</strong> si solicitaste traer un amigo ciclista, esperá la aprobación expresa de Claudio antes de transferir este importe.</p>
+      <p style="font-size:17px;margin:8px 0">Alias: <strong>${GUEST_CYCLIST_ALIAS}</strong></p>
+      <p style="font-size:14px;margin:0">Titular: <strong>${GUEST_CYCLIST_ACCOUNT_HOLDER}</strong></p>
+      <p style="font-size:13px;color:#e8b98e;margin:8px 0 0">Si no tenés un ciclista invitado aprobado, no corresponde este pago.</p>
+    </div>
+    <p><strong>Comprobantes:</strong> enviá la constancia de cada transferencia por WhatsApp a Scarlett e indicá a qué concepto corresponde.</p>
+    <div style="text-align:center;margin:20px 0">${button(RESTAURANT_WHATSAPP_URL, "ENVIAR COMPROBANTE POR WHATSAPP", "#ff7d16", "#111111")}</div>
+    <div style="border-top:1px solid #3b444a;padding-top:14px;font-size:13px;color:#c3c9cd">
+      <strong>Condiciones de la parrilla:</strong> avisando hasta el 24/11 inclusive, lo abonado queda como crédito para otra visita al restaurante. Si no asistís el 29/11 y no avisás, se pierde el importe abonado. Para cancelaciones avisadas del 25 al 28/11, consultanos antes.
+    </div>
+    <p style="font-size:13px;color:#aab8c1">La reserva se verifica manualmente después de recibir el comprobante. No se realizan pagos dentro de Reybaud.</p>
   </div>`,
 });
 
