@@ -89,7 +89,7 @@ export const rsvpInvitationEmail = () => ({
     <p><strong>¿Contamos con vos?</strong></p>
     <div style="text-align:center;margin:22px 0">${button("{rsvp_voy_url}", "VOY", "#ff7d16", "#101010")}${button("{rsvp_no_voy_url}", "NO VOY", "#182b38", "#ffffff")}</div>
     <p style="font-size:13px;color:#b7c0c7">Cada botón abre una confirmación segura, sin iniciar sesión. El voto se registra recién cuando confirmás en la pantalla. Si venís, podés elegir fondo, almuerzo o ambos y editar tu respuesta.</p>
-    <p style="font-size:13px;color:#b7c0c7">Si elegís almuerzo, vas a registrar nombre y categoría (adulto o niño) de cada acompañante. El total de la parrilla se calcula automáticamente. Esta respuesta inicial no reserva el almuerzo ni genera ningún pago.</p>
+    <p style="font-size:13px;color:#b7c0c7">En la pantalla vas a indicar por separado cuántos amigos ciclistas querés invitar al fondo y cuántos acompañantes no ciclistas vienen al almuerzo. Podés indicar si un amigo ciclista también viene a la parrilla. Completá los nombres y edades de los comensales para calcular el total. Los ciclistas invitados requieren aprobación previa de Claudio y hay 10 cupos en total; responder no reserva uno.</p>
   </div>`,
 });
 
