@@ -107,6 +107,8 @@ export const rsvpLunchEmail = () => ({
     <p>Ya podés realizar el pago correspondiente a la parrilla en La Carreta del Gato:</p>
     <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Niños de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4: <strong>sin cargo</strong></li></ul>
     <p>Bebidas aparte. El importe que transferís es el total del menú para todos los comensales de tu grupo.</p>
+    <p style="font-size:13px;color:#b7c0c7">Si necesitás revisar la cantidad de personas que registraste y el importe estimado, podés consultar tu respuesta:</p>
+    <div style="text-align:center;margin:12px 0">${button("{rsvp_lunch_url}", "VER MIS ACOMPAÑANTES", "#182b38", "#ffffff")}</div>
     <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
       <strong>Pago de la parrilla — directamente al restaurante</strong><br>
       Alias: <strong>${RESTAURANT_ALIAS}</strong>
