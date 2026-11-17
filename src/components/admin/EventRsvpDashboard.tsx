@@ -34,7 +34,9 @@ type Row = {
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
   guests_count: number;
-  lunch_attendees: { name: string; category: "adult" | "child_4_9" | "under_4" }[];
+  lunch_attendees: { name: string; category: "adult" | "child_4_9" | "under_4"; is_cyclist?: boolean }[];
+  cyclist_guests: { name: string; lunch: boolean; category: "adult" | "child_4_9" | "under_4" }[];
+  non_cyclist_guests: { name: string; category: "adult" | "child_4_9" | "under_4" }[];
   responded_at: string | null;
   last_sent_at: string | null;
   lunch_status: LunchStatus;
@@ -94,12 +96,22 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       };
       const guestNames = await adminRpc.rpc("get_event_rsvp_guest_names_admin", { p_event_id: eventId });
       if (guestNames.error) throw new Error(guestNames.error.message);
+      const typeRpc = supabase as unknown as {
+        rpc: (name: string, args: Record<string, unknown>) => Promise<{
+          data: Record<string, { cyclists: Row["cyclist_guests"]; non_cyclists: Row["non_cyclist_guests"] }> | null;
+          error: { message: string } | null;
+        }>;
+      };
+      const guestTypes = await typeRpc.rpc("get_event_rsvp_guest_types_admin", { p_event_id: eventId });
+      if (guestTypes.error) throw new Error(guestTypes.error.message);
       const baseSummary = result as Summary;
       setSummary({
         ...baseSummary,
         rows: (baseSummary.rows || []).map((row) => ({
           ...row,
           lunch_attendees: guestNames.data?.[row.id] || [],
+          cyclist_guests: guestTypes.data?.[row.id]?.cyclists || [],
+          non_cyclist_guests: guestTypes.data?.[row.id]?.non_cyclists || [],
         })),
       });
       const counts = await Promise.all((["invitacion", "almuerzo"] as CampaignKind[]).map(async (kind) => {
@@ -140,6 +152,8 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     fondo: rows.filter((r) => r.response === "voy" && r.participation_mode !== "solo_almuerzo").length,
     lunch: lunchRows.reduce((sum, row) => sum + diners(row), 0),
     paid: lunchRows.filter((r) => r.lunch_status === "pago_verificado").reduce((sum, row) => sum + diners(row), 0),
+    cyclistRequested: rows.reduce((sum, row) => sum + (row.cyclist_guests?.length || 0), 0),
+    nonCyclists: rows.reduce((sum, row) => sum + (row.non_cyclist_guests?.length || 0), 0),
   }), [rows, lunchRows]);
 
   const sendCampaign = async (kind: CampaignKind, mode: "test" | "send") => {
@@ -242,7 +256,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           ["Invitados", totals.invited], ["VOY", totals.yes], ["NO VOY", totals.no], ["Pendientes", totals.pending],
-          ["Al fondo", totals.fondo], ["Comensales preliminares", totals.lunch], ["Interesados en almuerzo", lunchRows.length], ["Comensales con pago verificado", totals.paid],
+          ["Al fondo (alumnos)", totals.fondo], ["Ciclistas invitados · requieren aprobación", totals.cyclistRequested], ["Acompañantes no ciclistas", totals.nonCyclists], ["Comensales preliminares", totals.lunch], ["Comensales con pago verificado", totals.paid],
         ].map(([label, value]) => <div key={String(label)} className="border rounded-lg p-3 bg-muted/20"><div className="text-xs text-muted-foreground">{label}</div><div className="text-2xl font-bold">{value}</div></div>)}
       </div>
 
@@ -251,7 +265,8 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         <TabsContent value="respuestas" className="space-y-2 pt-3">
           {rows.length ? <div className="border rounded-lg divide-y">{rows.map((row) => <div key={row.id} className="p-3 flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0"><div className="font-medium truncate">{row.recipient_name || row.recipient_email}</div><div className="text-xs text-muted-foreground truncate">{row.recipient_email}</div>
-              {row.participation_mode && <div className="text-xs">{PARTICIPATION_LABELS[row.participation_mode]} · {row.guests_count} acompañantes</div>}</div>
+              {row.participation_mode && <div className="text-xs">{PARTICIPATION_LABELS[row.participation_mode]} · {row.cyclist_guests?.length || 0} amigos ciclistas (solicitud) · {row.non_cyclist_guests?.length || 0} acompañantes no ciclistas · {row.guests_count} acompañantes a parrilla</div>}
+              {!!row.cyclist_guests?.length && <div className="text-xs text-primary">Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}. No quedan aprobados automáticamente.</div>}</div>
             <span className="shrink-0 flex items-center gap-1 text-xs">{row.response === "voy" ? <><CheckCircle className="text-accent" /> VOY</> : row.response === "no_voy" ? <><XCircle /> NO VOY</> : row.last_sent_at ? "Pendiente" : "Preparado"}</span>
           </div>)}</div> : <p className="text-sm text-muted-foreground">Todavía no hay invitaciones preparadas.</p>}
         </TabsContent>
@@ -273,12 +288,16 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           <div className="space-y-2"><h4 className="font-semibold">Gestión administrativa</h4>
             {lunchRows.length ? lunchRows.map((row) => <div key={row.id} className="border rounded-lg p-3 space-y-2">
               <div className="flex justify-between gap-3"><div><strong>{row.recipient_name || row.recipient_email}</strong><div className="text-xs text-muted-foreground">{diners(row)} comensales · {row.guests_count} acompañantes</div></div><Badge variant="outline">{LUNCH_STATUS_LABELS[row.lunch_status]}</Badge></div>
+              {!!row.cyclist_guests?.length && <div className="rounded-md border border-primary/40 p-2 text-xs">
+                <strong>Ciclistas invitados · aprobación de Claudio pendiente</strong>
+                {row.cyclist_guests.map((person, index) => <div key={index}>{person.name} · {person.lunch ? "Fondo + almuerzo" : "Solo fondo"}</div>)}
+              </div>}
               <div className="text-xs text-muted-foreground">{row.terms_accepted_at ? `Condiciones ${row.terms_version} aceptadas ${new Date(row.terms_accepted_at).toLocaleString("es-AR")}` : "Condiciones todavía no aceptadas"}</div>
               {row.terms_accepted_at && <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
                 <div className="font-semibold">Comensales de esta reserva</div>
                 <div>{row.recipient_name || row.recipient_email} · Titular adulto</div>
                 {(row.lunch_attendees || []).map((person, index) =>
-                  <div key={index}>{person.name} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
+                  <div key={index}>{person.name} · {person.is_cyclist ? "Ciclista invitado" : "No ciclista"} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
                 )}
                 {(!row.lunch_attendees?.length && row.guests_count > 0) && <div className="text-destructive">Falta registrar nombres de acompañantes</div>}
                 {summary?.prices.prices_confirmed_at && <div className="font-medium pt-1">Total parrilla: {formatPrice(
