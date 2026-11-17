@@ -86,7 +86,22 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     setLoading(true);
     try {
       const result = await call("summary");
-      setSummary(result as Summary);
+      const adminRpc = supabase as unknown as {
+        rpc: (name: string, args: Record<string, unknown>) => Promise<{
+          data: Record<string, Row["lunch_attendees"]> | null;
+          error: { message: string } | null;
+        }>;
+      };
+      const guestNames = await adminRpc.rpc("get_event_rsvp_guest_names_admin", { p_event_id: eventId });
+      if (guestNames.error) throw new Error(guestNames.error.message);
+      const baseSummary = result as Summary;
+      setSummary({
+        ...baseSummary,
+        rows: (baseSummary.rows || []).map((row) => ({
+          ...row,
+          lunch_attendees: guestNames.data?.[row.id] || [],
+        })),
+      });
       const counts = await Promise.all((["invitacion", "almuerzo"] as CampaignKind[]).map(async (kind) => {
         const { data, error } = await supabase.functions.invoke("send-broadcast", {
           body: { mode: "preview_count", segment_filters: campaignFilters(kind) },
