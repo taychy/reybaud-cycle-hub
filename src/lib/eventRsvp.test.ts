@@ -98,7 +98,7 @@ describe("Fondazo · correo separado para cupo ciclista aprobado", () => {
     expect(mail.body).toContain("60.000");
     expect(mail.body).toContain("granfondo.tc");
     expect(mail.body).toContain("Scarlett Tayná");
-    expect(mail.body).toContain("+54 9 11 7171-1122");
+    expect(mail.body).toContain("https://wa.me/5491171711122");
     expect(mail.body).not.toContain("Lacarretadelgato");
   });
 
