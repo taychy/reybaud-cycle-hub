@@ -29,7 +29,10 @@ export const GUEST_CYCLIST_FEE = 30000;
 export const GUEST_CYCLIST_MAX = 10;
 export const COMPANIONS_TECH_MAX = 500;
 export const FONDAZO_NOTICE =
-  "El fondo es gratis para alumnos activos. ¿Querés traer un amigo ciclista? Consultalo antes con Claudio: deberá evaluar su nivel técnico y de rendimiento. Solo 10 cupos para amigos ciclistas aprobados. Invitados al fondo: $30.000. Parrilla: $40.000 por adulto. Acompañantes que solo vienen al almuerzo: sin límite de cupos.";
+  "El fondo es gratis para alumnos activos. ¿Querés traer un amigo ciclista? Consultalo antes con Claudio: deberá evaluar su nivel técnico y de rendimiento. Solo 10 cupos para amigos ciclistas aprobados. Invitados al fondo: $30.000. Parrilla: $40.000 por adulto, bebidas aparte. Acompañantes que solo vienen al almuerzo: sin límite comercial de cupos.";
+
+const FONDAZO_PARRILLA_IMAGE = "https://tgqfakfloonbunwkdoug.supabase.co/storage/v1/object/public/email-assets/fondazo-2026%2Fparrilla-calida.jpg";
+const FONDAZO_PILETA_IMAGE = "https://tgqfakfloonbunwkdoug.supabase.co/storage/v1/object/public/email-assets/fondazo-2026%2Fpileta-calida.jpg";
 
 export const PARTICIPATION_LABELS = {
   fondo_y_almuerzo: "Fondo + almuerzo",
@@ -92,14 +95,18 @@ const button = (href: string, label: string, background: string, color: string) 
   `<a href="${href}" style="display:inline-block;padding:15px 28px;border-radius:9px;background:${background};color:${color};text-decoration:none;font-weight:800;margin:6px">${label}</a>`;
 
 export const rsvpInvitationEmail = () => ({
-  subject: "🚴 Fondazo de fin de año Reybaud | Confirmá si venís",
-  preheader: "Contanos si venís al Fondazo del domingo 29/11. Podés elegir fondo, almuerzo o ambos.",
+  subject: "🚴 Fondazo de Fin de Año Reybaud | Confirmá si venís",
+  preheader: "Un domingo de ciclismo, parrilla y naturaleza. Vení con amigos y familia!",
   content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.55">
     <div style="color:#ff7d16;font-size:14px;font-weight:800;letter-spacing:2px">CICLISMO REYBAUD</div>
     <h1 style="font-size:30px;margin:14px 0 4px">FONDAZO DE FIN DE AÑO</h1>
     <p style="font-size:18px;color:#00c5f7;margin:0 0 20px">Domingo 29/11 · La Carreta del Gato, Capilla del Señor</p>
-    <p>Hola {nombre}! Queremos despedir este 2026 juntos: fondo en ruta y parrilla después.</p>
+    <p>Hola {nombre}! Queremos despedir este 2026 juntos: fondazo en ruta y parrillada en La Carreta del Gato.</p>
+    <p>Un lugar con árboles, naturaleza y pileta para disfrutar el domingo. Podés venir con amigos y familia.</p>
+    <img src="${FONDAZO_PARRILLA_IMAGE}" width="552" alt="Mesas al aire libre en La Carreta del Gato" style="display:block;width:100%;max-width:552px;height:auto;border-radius:10px;margin:18px 0" />
+    <img src="${FONDAZO_PILETA_IMAGE}" width="552" alt="Pileta y parque de La Carreta del Gato" style="display:block;width:100%;max-width:552px;height:auto;border-radius:10px;margin:18px 0" />
     <div style="border:2px solid #ff7d16;border-radius:10px;padding:14px 16px;margin:18px 0;background:#141d26;font-size:14px">${FONDAZO_NOTICE}</div>
+    <p style="font-size:13px;color:#b7c0c7"><strong>Cancelaciones del almuerzo:</strong> avisando hasta el viernes 27/11/2026 inclusive, el importe queda como crédito para consumir en La Carreta del Gato. Después de esa fecha no hay reembolso.</p>
     <p><a href="https://maps.app.goo.gl/6Bg9nS9BFn4g8hV79" target="_blank" rel="noopener noreferrer" style="color:#00c5f7;text-decoration:underline;font-weight:700">📍 Ver restaurante en Google Maps</a></p>
     <p><strong>¿Contamos con vos?</strong> Tocá VOY o NO VOY para confirmar tu participación.</p>
     <p>Si venís acompañado, podés completar los datos de tus invitados al confirmar.</p>

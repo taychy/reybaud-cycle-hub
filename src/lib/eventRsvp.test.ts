@@ -76,6 +76,19 @@ describe("Fondazo · correo y condiciones", () => {
     expect(mail.content_html).toContain("confirmar tu participación");
   });
 
+  it("usa el asunto, preheader, fotos reales y condiciones aprobados para la campaña", () => {
+    const mail = rsvpInvitationEmail();
+    expect(mail.subject).toBe("🚴 Fondazo de Fin de Año Reybaud | Confirmá si venís");
+    expect(mail.preheader).toBe("Un domingo de ciclismo, parrilla y naturaleza. Vení con amigos y familia!");
+    expect(mail.content_html).toContain("árboles, naturaleza y pileta");
+    expect(mail.content_html).toContain("Podés venir con amigos y familia");
+    expect(mail.content_html).toContain("fondazo-2026%2Fparrilla-calida.jpg");
+    expect(mail.content_html).toContain("fondazo-2026%2Fpileta-calida.jpg");
+    expect(mail.content_html).toContain("$40.000 por adulto, bebidas aparte");
+    expect(mail.content_html).toContain("viernes 27/11/2026 inclusive");
+    expect(mail.content_html).not.toContain("transferí");
+  });
+
   it("conserva la política vigente: crédito hasta el viernes 27 y sin reembolso posterior", () => {
     expect(LUNCH_POLICY_TEXT).toContain("viernes 27/11/2026 inclusive");
     expect(LUNCH_POLICY_TEXT).toContain("Después de esa fecha no hay reembolso");
