@@ -157,3 +157,29 @@ Equipo Ciclismo Reybaud`,
 
 export const formatLunchPrice = (value: number | null | undefined) =>
   value == null ? "Pendiente" : formatPrice(value, "ARS");
+
+/** Segunda campaña del Fondazo (autorizada 17/11/2026): reutiliza los enlaces individuales existentes. */
+export const rsvpDetailsEmail = () => ({
+  subject: "🚴 Fondazo Reybaud | Todos los detalles para disfrutar el domingo",
+  preheader: "Punto de encuentro, recorridos por niveles, parrillada y todo lo que necesitás saber para el 29 de noviembre.",
+  content_html: `<div style="max-width:600px;margin:auto;background:#0b1118;padding:30px 24px;color:#fff;font-family:Arial,sans-serif;line-height:1.55">
+    <div style="color:#ff7d16;font-size:14px;font-weight:800;letter-spacing:2px">CICLISMO REYBAUD</div>
+    <h1 style="font-size:30px;margin:14px 0 4px">FONDAZO DE FIN DE AÑO</h1>
+    <p style="font-size:18px;color:#00c5f7;margin:0 0 20px">Domingo 29/11 · La Carreta del Gato, Capilla del Señor</p>
+    <p>Hola {nombre}! Te contamos todos los detalles para disfrutar el domingo.</p>
+    <p><strong>Punto de encuentro:</strong> cada alumno llega <strong>en auto</strong> a La Carreta del Gato y estaciona en el restaurante. <strong>No salimos pedaleando desde CABA.</strong></p>
+    <p><strong>Recorridos por niveles:</strong> desde el restaurante pedaleamos por la zona en grupos G1, G2, G3, G4 e Inicial, según tu nivel.</p>
+    <p><strong>Parrillada:</strong> al terminar volvemos al restaurante a almorzar bajo los árboles, con naturaleza y pileta. Familiares y amigos que no pedalean pueden ir directamente a la parrilla.</p>
+    <img src="${FONDAZO_PARRILLA_IMAGE}" width="552" alt="Mesas al aire libre en La Carreta del Gato" style="display:block;width:100%;max-width:552px;height:auto;border-radius:10px;margin:18px 0" />
+    <img src="${FONDAZO_PILETA_IMAGE}" width="552" alt="Pileta y parque de La Carreta del Gato" style="display:block;width:100%;max-width:552px;height:auto;border-radius:10px;margin:18px 0" />
+    <div style="border:2px solid #ff7d16;border-radius:10px;padding:14px 16px;margin:18px 0;background:#141d26;font-size:14px">
+      <p style="margin:0 0 8px">El fondo es <strong>sin cargo para alumnos activos</strong>.</p>
+      <p style="margin:0 0 8px">Almuerzo: <strong>$40.000 por adulto</strong>, bebidas aparte.</p>
+      <p style="margin:0">Amigos ciclistas: <strong>$30.000</strong>, sujetos a evaluación y aprobación de Claudio y a disponibilidad de cupos.</p>
+    </div>
+    <p style="font-size:13px;color:#b7c0c7"><strong>Cancelaciones del almuerzo:</strong> avisando hasta el viernes 27/11 inclusive, el importe queda como crédito en el restaurante. Después de esa fecha no hay reembolso.</p>
+    <p><a href="https://maps.app.goo.gl/6Bg9nS9BFn4g8hV79" target="_blank" rel="noopener noreferrer" style="color:#00c5f7;text-decoration:underline;font-weight:700">📍 Ver La Carreta del Gato en Google Maps</a></p>
+    <p><strong>¿Contamos con vos?</strong> Si todavía no respondiste, o querés cambiar tu respuesta, tocá VOY o NO VOY.</p>
+    <div style="text-align:center;margin:22px 0">${button("{rsvp_voy_url}", "VOY", "#ff7d16", "#101010")}${button("{rsvp_no_voy_url}", "NO VOY", "#182b38", "#ffffff")}</div>
+  </div>`,
+});
