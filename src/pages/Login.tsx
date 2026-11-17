@@ -358,10 +358,10 @@ const Login = () => {
               Revisá tu email
             </h1>
             <p className="text-muted-foreground text-sm leading-relaxed">
-              Te enviamos un código de acceso a{" "}
+              Solicitamos un correo de acceso para{" "}
               <strong className="text-foreground">{email}</strong>.
               <br />
-              Ingresalo acá para entrar.
+              Si recibiste un código, ingresalo acá. Si recibiste un enlace, abrilo para entrar.
             </p>
           </div>
 
@@ -406,7 +406,7 @@ const Login = () => {
           </div>
 
           <p className="text-xs text-muted-foreground">
-            También podés tocar el enlace del email si estás en el navegador.
+            Si no lo ves, revisá también Spam o Correo no deseado.
           </p>
 
           <div className="space-y-3 pt-2">
