@@ -269,7 +269,7 @@ const Register = () => {
                 </div>
                 <p className="text-sm leading-relaxed text-muted-foreground">
                   El email <strong className="text-foreground break-all">{existingEmail}</strong> ya está registrado.
-                  No necesitás crear otra cuenta. Podemos enviarte un código y un enlace de acceso a ese correo.
+                  No necesitás crear otra cuenta. Te enviamos las instrucciones para ingresar a ese correo.
                 </p>
                 <Button type="button" variant="gold" className="w-full min-h-12 rounded-lg"
                   disabled={sendingAccess} onClick={handleSendExistingAccess}>
@@ -277,7 +277,7 @@ const Register = () => {
                   {sendingAccess ? "Enviando acceso..." : "Enviarme enlace de acceso"}
                 </Button>
                 <p className="text-xs text-muted-foreground">
-                  Después podés ingresar usando el enlace o el código del email.
+                  El correo incluirá un enlace o un código, según cómo esté habilitado tu acceso.
                 </p>
               </div>
             )}
