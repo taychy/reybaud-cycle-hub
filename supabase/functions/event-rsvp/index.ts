@@ -3,17 +3,13 @@ import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
 import { z } from "npm:zod@3.23.8";
 
 const BodySchema = z.object({
-  action: z.enum(["status", "respond", "confirm_lunch", "confirm_lunch_named", "summary", "update_prices", "update_lunch"]),
+  action: z.enum(["status", "respond", "confirm_lunch", "summary", "update_prices", "update_lunch"]),
   event_id: z.string().uuid().optional(),
   invite_id: z.string().uuid().optional(),
   token: z.string().uuid().optional(),
   response: z.enum(["voy", "no_voy"]).optional(),
   participation_mode: z.enum(["fondo_y_almuerzo", "solo_fondo", "solo_almuerzo"]).nullable().optional(),
   guests_count: z.number().int().min(0).max(500).optional(),
-  guest_details: z.array(z.object({
-    name: z.string().trim().min(2).max(100),
-    category: z.enum(["adult", "child_4_9", "under_4"]),
-  })).max(500).optional(),
   adults_count: z.number().int().min(0).max(501).optional(),
   children_4_9_count: z.number().int().min(0).max(501).optional(),
   under_4_count: z.number().int().min(0).max(501).optional(),
@@ -53,14 +49,7 @@ async function requireAdmin(req: Request) {
 async function publicStatus(token: string) {
   const { data, error } = await db.rpc("get_event_rsvp_by_token", { p_token: token });
   if (error) throw error;
-  if (!data) return data;
-  const { data: invite, error: guestsError } = await db.from("event_rsvp_invites")
-    .select("lunch_attendees").eq("token", token).maybeSingle();
-  if (guestsError) throw guestsError;
-  return {
-    ...data,
-    lunch: { ...data.lunch, attendees: invite?.lunch_attendees || [] },
-  };
+  return data;
 }
 
 Deno.serve(async (req) => {
@@ -71,7 +60,7 @@ Deno.serve(async (req) => {
     if (!parsed.success) return json({ error: "Datos inválidos", fields: parsed.error.flatten().fieldErrors }, 400);
     const body = parsed.data;
 
-    if (body.action === "status" || body.action === "respond" || body.action === "confirm_lunch" || body.action === "confirm_lunch_named") {
+    if (body.action === "status" || body.action === "respond" || body.action === "confirm_lunch") {
       if (!body.token) return json({ error: "Enlace inválido" }, 400);
       if (body.action === "respond") {
         if (!body.response) return json({ error: "Elegí una respuesta" }, 400);
@@ -92,14 +81,6 @@ Deno.serve(async (req) => {
         });
         if (error) return json({ error: error.message }, 400);
       }
-      if (body.action === "confirm_lunch_named") {
-        if (!body.guest_details) return json({ error: "Completá los nombres y categorías de todos los acompañantes." }, 400);
-        const { error } = await db.rpc("confirm_event_rsvp_lunch_named", {
-          p_token: body.token,
-          p_guests: body.guest_details,
-        });
-        if (error) return json({ error: error.message }, 400);
-      }
       const status = await publicStatus(body.token);
       if (!status) return json({ error: "Enlace no encontrado o encuesta no disponible" }, 404);
       return json(status);
@@ -113,7 +94,7 @@ Deno.serve(async (req) => {
     if (body.action === "summary") {
       const [invitesResult, settingsResult, auditResult] = await Promise.all([
         db.from("event_rsvp_invites").select(`id,recipient_name,recipient_email,response,participation_mode,guests_count,
-          responded_at,last_sent_at,lunch_status,adults_count,children_4_9_count,under_4_count,lunch_attendees,lunch_confirmed_at,
+          responded_at,last_sent_at,lunch_status,adults_count,children_4_9_count,under_4_count,lunch_confirmed_at,
           terms_version,terms_accepted_at,receipt_reference,lunch_admin_comment,lunch_status_changed_at`)
           .eq("event_id", body.event_id).eq("is_test", false).order("recipient_name"),
         db.from("event_rsvp_settings").select("*").eq("event_id", body.event_id).maybeSingle(),
