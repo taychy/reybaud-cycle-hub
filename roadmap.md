@@ -2,7 +2,9 @@
 - [x] Saludo real en invitación, identidad por token/alumno y datos obligatorios de visitantes; nunca vincular por email. Reintentos conservan alumno_id y nombre.
 - [x] CTA WhatsApp personalizado, política vigente hasta 27/11 y avisos VOY/Claudio sin cobro en NO VOY.
 - [x] Vista admin con origen/asociación; 14 Vitest + 8 Deno, tipos Deno, compilación y dos suites SQL temporales (identidad/permisos y cupos/política) OK; sin correos, despliegue, publicación ni escrituras reales.
-- [ ] Aplicar 0114/0115 y desplegar/publicar sólo con autorización posterior. El evento figura actualmente `publicado`, `estado_publicacion=publicado` y visible pese al requisito de borrador; se informó y no se cambió ese dato.
+- [x] Verificación 17/11: tope 500 activo; `event-rsvp` responde estado 200 y `send-broadcast` filtra interesados en vista previa sin crear invitaciones. La invitación aislada ya figura VOY+parrilla, pero no hay correo automático registrado; 0 invitaciones reales y 0 campañas.
+- [ ] Fotos de Drive: validar bytes/URLs queda bloqueado porque no hay conexión de Google Drive disponible; no usar enlaces sin verificar ni lanzar la campaña.
+- [ ] Aplicar 0115 y verificar el flujo automático de `event-rsvp`; después hacer la prueba aislada autorizada. Desplegar/publicar sólo con autorización posterior. El evento figura actualmente `publicado`, `estado_publicacion=publicado` y visible pese al requisito de borrador; se informó y no se cambió ese dato.
 
 ## Fondazo · Asistencia y almuerzo directo al restaurante (16/11)
 - [x] Auditar evento, PR #47 y canal Brevo existente; conservar evento en borrador y reutilizar su diseño sin integrar la rama.
