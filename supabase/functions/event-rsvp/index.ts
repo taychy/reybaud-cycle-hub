@@ -64,7 +64,7 @@ async function publicStatus(token: string) {
 }
 
 const FONDAZO_ID = "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
-const CLAUDIO_EMAIL = Deno.env.get("FONDAZO_CLAUDIO_EMAIL") || "claudioreybaud@ciclismoreybaud.com";
+const CLAUDIO_EMAIL = Deno.env.get("FONDAZO_CLAUDIO_EMAIL")?.trim();
 const htmlEscape = (value: string) => value.replace(/[&<>"']/g, (char) =>
   ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
 
@@ -96,6 +96,8 @@ async function notifyClaudioAboutCyclists(token: string): Promise<void> {
     if (error) throw error;
   }
 
+  // Nunca publicar el correo privado de Claudio en el repositorio.
+  if (!CLAUDIO_EMAIL) throw new Error("FONDAZO_CLAUDIO_EMAIL no configurado");
   // También reintenta notificaciones pendientes de este mismo invitante.
   const { data: alerts, error: claimError } = await db.rpc("claim_event_rsvp_guest_alerts", {
     p_invite_id: invite.id,
