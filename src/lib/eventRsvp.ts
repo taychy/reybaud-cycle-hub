@@ -4,18 +4,18 @@ export const FONDAZO_EVENT_ID = "08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
 export const RESTAURANT_ALIAS = "Lacarretadelgato";
 export const RESTAURANT_WHATSAPP = "5491171711122";
 export const RESTAURANT_WHATSAPP_URL = `https://wa.me/${RESTAURANT_WHATSAPP}`;
-export const LUNCH_POLICY_VERSION = "fondazo-almuerzo-v1-2026-11-16";
+export const LUNCH_POLICY_VERSION = "fondazo-almuerzo-v2-2026-11-17";
 export const LUNCH_POLICY_TEXT =
-  "Si cancelás avisando con al menos 5 días de anticipación (hasta el 24/11/2026 inclusive), el importe abonado queda como crédito para consumir en La Carreta del Gato en otra ocasión. Si no asistís el día del evento y no avisás, perdés el 100% del importe abonado.";
+  "Si cancelás hasta el viernes 27/11/2026 inclusive, lo abonado queda como crédito para consumir en La Carreta del Gato. Desde el sábado 28/11/2026, no hay devolución ni crédito.";
 export const LUNCH_POLICY_PENDING =
-  "Las cancelaciones avisadas entre el 25 y el 28/11/2026 o el mismo día están pendientes de definición administrativa; no se consideran automáticamente una ausencia sin aviso. El crédito lo administra La Carreta del Gato, no Ciclismo Reybaud.";
+  "Los créditos de cancelaciones realizadas hasta el 27/11 inclusive los administra La Carreta del Gato.";
 
 export const ADULT_LUNCH_PRICE_ANNOUNCED = 40000;
 export const GUEST_CYCLIST_FEE = 30000;
 export const GUEST_CYCLIST_MAX = 10;
 export const COMPANIONS_TECH_MAX = 500;
 export const FONDAZO_NOTICE =
-  "El fondo es gratis para alumnos activos. ¿Querés traer un amigo ciclista? Consultalo antes con Claudio: deberá evaluar su nivel técnico y de rendimiento. Solo 10 cupos para amigos ciclistas aprobados. Invitados al fondo: $30.000. Parrilla: $40.000 por adulto. Acompañantes que solo vienen al almuerzo: sin límite de cupos.";
+  "El fondo es gratis para alumnos activos. Los amigos ciclistas requieren aprobación de Claudio ($30.000, hasta 10 cupos). Parrilla: adultos $40.000, niños de 4 a 9 años $20.000, menores de 4 sin cargo. Bebidas aparte.";
 
 export const PARTICIPATION_LABELS = {
   fondo_y_almuerzo: "Fondo + almuerzo",
@@ -107,15 +107,15 @@ export const rsvpLunchEmail = () => ({
     <p>Ya podés realizar el pago correspondiente a la parrilla en La Carreta del Gato:</p>
     <ul style="padding-left:22px"><li>Adultos: <strong>{rsvp_adult_price}</strong></li><li>Niños de 4 a 9 años: <strong>{rsvp_child_price}</strong></li><li>Menores de 4: <strong>sin cargo</strong></li></ul>
     <p>Bebidas aparte. El importe que transferís es el total del menú para todos los comensales de tu grupo.</p>
-    <p style="font-size:13px;color:#b7c0c7">Si necesitás revisar la cantidad de personas que registraste y el importe estimado, podés consultar tu respuesta:</p>
-    <div style="text-align:center;margin:12px 0">${button("{rsvp_lunch_url}", "VER MIS ACOMPAÑANTES", "#182b38", "#ffffff")}</div>
+    <p style="font-size:13px;color:#b7c0c7">Consultá el detalle de tu almuerzo:</p>
+    <div style="text-align:center;margin:12px 0">${button("{rsvp_lunch_url}", "VER DETALLE DEL ALMUERZO", "#182b38", "#ffffff")}</div>
     <div style="background:#182b38;border-radius:10px;padding:16px;margin:18px 0">
       <strong>Pago de la parrilla — directamente al restaurante</strong><br>
       Alias: <strong>${RESTAURANT_ALIAS}</strong>
     </div>
-    <p>Una vez que transfieras, enviá el comprobante por WhatsApp a Scarlett. Nosotros se lo vamos a reenviar al restaurante.</p>
+    <p>Después de transferir, enviá el comprobante por WhatsApp a Scarlett para verificar tu reserva con el restaurante.</p>
     <div style="text-align:center;margin:18px 0">${button(RESTAURANT_WHATSAPP_URL, "ENVIAR COMPROBANTE POR WHATSAPP", "#ff7d16", "#101010")}</div>
-    <p style="font-size:13px;color:#b7c0c7"><strong>Cancelaciones:</strong> si avisás hasta el 24/11 inclusive, el importe queda como crédito para consumir en el restaurante en otra ocasión. Si no asistís y no avisás, perdés lo abonado. Para avisos del 25 al 28/11 o el mismo día, consultanos antes.</p>
+    <p style="font-size:13px;color:#b7c0c7"><strong>Cancelaciones:</strong> ${LUNCH_POLICY_TEXT}</p>
     <p style="font-size:13px;color:#b7c0c7">El pago del fondo de amigos ciclistas aprobados es independiente y tiene otro alias. No lo sumes a esta transferencia.</p>
   </div>`,
 });
