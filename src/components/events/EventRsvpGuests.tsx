@@ -150,8 +150,8 @@ export default function EventRsvpGuests({
       </p>
     </section>}
     <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm">
-      <p><strong>{cyclists.length}</strong> ciclista(s) invitado(s) pendiente(s) de aprobación</p>
-      {lunchAllowed && <p className="mt-1"><strong>{meals}</strong> persona(s) para la parrilla, incluyéndote
+      <p><strong>{cyclists.length}</strong> {cyclists.length === 1 ? "amigo ciclista invitado pendiente de aprobación" : "amigos ciclistas invitados pendientes de aprobación"}</p>
+      {lunchAllowed && <p className="mt-1"><strong>{meals}</strong> {meals === 1 ? "persona" : "personas"} para la parrilla, incluyéndote
         {nonCyclists.some((person) => person.category !== "adult") && " (con niños)"}
       </p>}
     </div>
