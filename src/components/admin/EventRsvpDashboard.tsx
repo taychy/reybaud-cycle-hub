@@ -52,7 +52,8 @@ type Row = {
 };
 type Prices = { adult_price: number | null; child_4_9_price: number | null; under_4_price: number | null; prices_confirmed_at: string | null; prices_note?: string | null };
 type Audit = { id: string; invite_id: string; from_status: LunchStatus | null; to_status: LunchStatus; comment: string; receipt_reference: string | null; created_at: string };
-type Summary = { event_title: string; rows: Row[]; prices: Prices; audit: Audit[] };
+type GuestAlert = { invite_id: string; guest_key: string; guest_name: string; status: "pending" | "sending" | "sent" | "failed"; sent_at: string | null; last_error: string | null };
+type Summary = { event_title: string; rows: Row[]; prices: Prices; audit: Audit[]; guest_alerts: GuestAlert[] };
 type CampaignKind = "invitacion" | "almuerzo";
 
 const statusOptions: LunchStatus[] = ["intencion_confirmada", "instrucciones_pendientes", "instrucciones_enviadas", "comprobante_informado", "pago_verificado"];
@@ -153,8 +154,12 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     lunch: lunchRows.reduce((sum, row) => sum + diners(row), 0),
     paid: lunchRows.filter((r) => r.lunch_status === "pago_verificado").reduce((sum, row) => sum + diners(row), 0),
     cyclistRequested: rows.reduce((sum, row) => sum + (row.cyclist_guests?.length || 0), 0),
+    alertPending: rows.reduce((sum, row) => sum + (row.cyclist_guests || []).filter((guest) => {
+      const key = guest.name.trim().normalize("NFKC").toLocaleLowerCase("es-AR");
+      return !(summary?.guest_alerts || []).some((alert) => alert.invite_id === row.id && alert.guest_key === key && alert.status === "sent");
+    }).length, 0),
     nonCyclists: rows.reduce((sum, row) => sum + (row.non_cyclist_guests?.length || 0), 0),
-  }), [rows, lunchRows]);
+  }), [rows, lunchRows, summary?.guest_alerts]);
 
   const sendCampaign = async (kind: CampaignKind, mode: "test" | "send") => {
     setBusy(true);
@@ -266,7 +271,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
         {[
           ["Invitados", totals.invited], ["VOY", totals.yes], ["NO VOY", totals.no], ["Pendientes", totals.pending],
-          ["Al fondo (alumnos)", totals.fondo], ["Ciclistas invitados · requieren aprobación", totals.cyclistRequested], ["Acompañantes no ciclistas", totals.nonCyclists], ["Comensales preliminares", totals.lunch], ["Comensales con pago verificado", totals.paid],
+          ["Al fondo (alumnos)", totals.fondo], ["Ciclistas invitados · requieren aprobación", totals.cyclistRequested], ["Acompañantes no ciclistas", totals.nonCyclists], ["Avisos a Claudio pendientes", totals.alertPending], ["Comensales preliminares", totals.lunch], ["Comensales con pago verificado", totals.paid],
         ].map(([label, value]) => <div key={String(label)} className="border rounded-lg p-3 bg-muted/20"><div className="text-xs text-muted-foreground">{label}</div><div className="text-2xl font-bold">{value}</div></div>)}
       </div>
 
@@ -276,7 +281,18 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           {rows.length ? <div className="border rounded-lg divide-y">{rows.map((row) => <div key={row.id} className="p-3 flex items-center justify-between gap-3 text-sm">
             <div className="min-w-0"><div className="font-medium truncate">{row.recipient_name || row.recipient_email}</div><div className="text-xs text-muted-foreground truncate">{row.recipient_email}</div>
               {row.participation_mode && <div className="text-xs">{PARTICIPATION_LABELS[row.participation_mode]} · {row.cyclist_guests?.length || 0} amigos ciclistas (solicitud) · {row.non_cyclist_guests?.length || 0} acompañantes no ciclistas · {row.guests_count} acompañantes a parrilla</div>}
-              {!!row.cyclist_guests?.length && <div className="text-xs text-primary">Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}. No quedan aprobados automáticamente.</div>}
+              {!!row.cyclist_guests?.length && <div className="text-xs text-primary">
+                Ciclistas a consultar con Claudio: {row.cyclist_guests.map((person) => person.name).join(", ")}.
+                <div className="text-muted-foreground mt-1">
+                  Aviso automático: {row.cyclist_guests.map((guest) => {
+                    const key = guest.name.trim().normalize("NFKC").toLocaleLowerCase("es-AR");
+                    const alert = (summary?.guest_alerts || []).find((entry) =>
+                      entry.invite_id === row.id && entry.guest_key === key);
+                    return `${guest.name}: ${alert?.status === "sent" ? "enviado" : alert?.status === "failed" ? "falló, revisar" : "pendiente"}`;
+                  }).join(" · ")}
+                </div>
+                Ningún cupo queda aprobado automáticamente.
+              </div>}
               {row.response === "voy" && !!row.cyclist_guests?.length && <div className="mt-2 border border-primary/30 rounded-lg p-3 space-y-2">
                 <p className="text-xs font-semibold">Pago del cupo ciclista · después de la aprobación de Claudio</p>
                 <p className="text-xs text-muted-foreground">Marcá solo los ciclistas que Claudio haya aprobado. Esta selección prepara el correo y no guarda una aprobación automática.</p>

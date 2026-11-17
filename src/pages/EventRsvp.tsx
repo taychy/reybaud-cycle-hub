@@ -4,9 +4,12 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
   PARTICIPATION_LABELS,
+  LUNCH_POLICY_TEXT,
+  LUNCH_POLICY_VERSION,
   lunchAmount,
   lunchDinerTotal,
   type LunchCounts,
@@ -73,9 +76,11 @@ export default function EventRsvp() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const hydrate = (response: RsvpData, isInitialLoad = false) => {
     setData(response);
+    setTermsAccepted(response.lunch.terms_version === LUNCH_POLICY_VERSION && !!response.lunch.terms_accepted_at);
     // Un enlace VOY/NO VOY del correo debe respetar la elección inicial incluso
     // si el participante ya respondió anteriormente. Al guardar usamos el estado del servidor.
     const requestedOption = params.get("opcion");
@@ -103,31 +108,31 @@ export default function EventRsvp() {
     return () => { mounted = false; };
   }, [token]);
 
-  const call = async (action: "respond_with_types", extra: Record<string, unknown>) => {
+  const call = async (extra: Record<string, unknown>) => {
     if (!token) return;
     setSaving(true);
     setError("");
     setNotice("");
     try {
-      const namedRpc = supabase as unknown as {
-        rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
-      };
-      const saved = await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
-        p_token: token,
-        p_response: extra.response,
-        p_mode: extra.participation_mode,
-        p_cyclists: extra.cyclists,
-        p_non_cyclists: extra.non_cyclists,
+      // Todo se guarda y valida en el servidor; los nuevos invitados generan
+      // alertas idempotentes para Claudio sin requerir sesión en la app.
+      const { data: saved, error: failure } = await supabase.functions.invoke("event-rsvp", {
+        body: {
+          action: "respond_with_types", token,
+          response: extra.response,
+          participation_mode: extra.participation_mode,
+          cyclists: extra.cyclists,
+          non_cyclists: extra.non_cyclists,
+          accept_terms: extra.accept_terms,
+        },
       });
-      if (saved.error) throw new Error(saved.error.message);
-      const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
-      if (loaded.error || loaded.data?.error || !loaded.data) {
-        throw new Error(loaded.data?.error || loaded.error?.message || "No pudimos comprobar la respuesta guardada.");
+      if (failure || saved?.error || !saved) {
+        throw new Error(saved?.error || failure?.message || "No pudimos confirmar tu respuesta.");
       }
-      hydrate(loaded.data as RsvpData);
+      hydrate(saved as RsvpData);
       setNotice(extra.response === "no_voy"
-        ? "Gracias por responder. Registramos que no vas a asistir."
-        : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
+        ? "Recibimos tu respuesta."
+        : "¡Listo! Recibimos tu confirmación.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos confirmar tu respuesta. Intentá nuevamente.");
     } finally {
@@ -145,9 +150,13 @@ export default function EventRsvp() {
     if ([...riders, ...diners].some((person) => person.name.length < 2 || person.name.length > 100)) {
       setError("Completá nombre y apellido de cada acompañante."); return;
     }
-    call("respond_with_types", {
+    if (choice === "voy" && mode !== "solo_fondo" && !termsAccepted) {
+      setError("Aceptá las condiciones del almuerzo para continuar."); return;
+    }
+    call({
       response: choice, participation_mode: choice === "voy" ? mode : null,
       cyclists: riders, non_cyclists: diners,
+      accept_terms: choice === "voy" && mode !== "solo_fondo" ? termsAccepted : false,
     });
   };
 
@@ -178,22 +187,11 @@ export default function EventRsvp() {
           </div>
 
           {loading ? <p className="text-muted-foreground">Abriendo tu invitación…</p> : data ? <>
-            <div role="note" className="rounded-xl border border-border overflow-hidden">
-              <div className="bg-muted/40 px-4 py-3 border-b border-border font-semibold text-sm">Información de la jornada</div>
-              <div className="grid sm:grid-cols-2 gap-0">
-                <div className="p-4 space-y-1.5 sm:border-r border-b sm:border-b-0 border-border">
-                  <div className="flex gap-2 items-center font-semibold text-primary"><Bike className="h-4 w-4" /> Fondo en bicicleta</div>
-                  <p className="text-sm"><strong>Gratis</strong> para alumnos activos.</p>
-                  <p className="text-xs text-muted-foreground">Amigos ciclistas: $30.000 por persona, sujetos a aprobación de Claudio. 10 cupos disponibles en total.</p>
-                </div>
-                <div className="p-4 space-y-1.5">
-                  <div className="flex gap-2 items-center font-semibold text-accent"><UtensilsCrossed className="h-4 w-4" /> Parrilla</div>
-                  <p className="text-sm">Adultos <strong>$40.000</strong> · Niños de 4 a 9 <strong>$20.000</strong></p>
-                  <p className="text-xs text-muted-foreground">Menores de 4 sin cargo · Bebidas aparte. Acompañantes no ciclistas sin cupo comercial.</p>
-                </div>
-              </div>
+            <div role="note" className="rounded-lg border border-border p-3 text-sm space-y-1">
+              <p><strong>Fondo:</strong> gratis para alumnos activos. Amigos ciclistas: $30.000, previa aprobación de Claudio.</p>
+              <p><strong>Parrilla:</strong> adultos $40.000 · niños (4–9) $20.000 · menores de 4 sin cargo. Bebidas aparte.</p>
             </div>
-            <p className="text-sm sm:text-base">Hola{data.name ? `, ${data.name}` : ""}! ¿Nos acompañás? Elegí una opción para confirmar tu asistencia.</p>
+            <p className="text-sm sm:text-base">Hola{data.name ? `, ${data.name}` : ""}! ¿Nos acompañás?</p>
             <div className="grid grid-cols-2 gap-3">
               <Button type="button" aria-pressed={choice === "voy"} variant={choice === "voy" ? "gold" : "outline"} onClick={() => setChoice("voy")}>
                 <CheckCircle2 /> VOY
@@ -207,7 +205,7 @@ export default function EventRsvp() {
 
             {choice === "voy" && <div className="space-y-4">
               <div className="space-y-2">
-                <Label>¿De qué parte de la jornada vas a participar?</Label>
+                <Label>¿Qué vas a hacer?</Label>
                 {modes.map(([value, label]) => (
                   <label key={value} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${mode === value ? "border-accent bg-accent/10" : ""}`}>
                     <input type="radio" name="mode" checked={mode === value} onChange={() => setMode(value)} className="accent-[hsl(var(--accent))]" />
@@ -220,14 +218,9 @@ export default function EventRsvp() {
                 mode={mode} disabled={!!locked} />
             </div>}
 
-            <p className="text-xs text-muted-foreground">Solo estamos confirmando tu asistencia y la cantidad de acompañantes. Si corresponde un pago, recibirás sus instrucciones por correo separado.</p>
-            <Button onClick={submitRsvp} disabled={saving} variant="gold" className="w-full">
-              {saving ? "Guardando…" : "Confirmar mi respuesta"}
-            </Button>
-
             {choice === "voy" && mode !== "solo_fondo" && <section className="rounded-xl border border-accent/30 bg-accent/5 p-4 sm:p-5 space-y-3" aria-label="Resumen de personas para la parrilla">
               <div className="flex items-center gap-2 font-semibold"><UtensilsCrossed className="h-5 w-5 text-accent" /> Personas para la parrilla</div>
-              <p className="text-sm text-muted-foreground">Comprobá los datos de arriba antes de confirmar tu respuesta.</p>
+              <p className="text-sm text-muted-foreground">Revisá las personas incluidas en el almuerzo.</p>
               <div className="text-sm grid grid-cols-3 gap-2">
                 <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Adultos</div><strong>{counts.adults_count}</strong></div>
                 <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Niños (4–9)</div><strong>{counts.children_4_9_count}</strong></div>
@@ -235,8 +228,19 @@ export default function EventRsvp() {
               </div>
               <p className="font-semibold text-sm">Total: {lunchDinerTotal(counts)} {lunchDinerTotal(counts) === 1 ? "comensal" : "comensales"}, incluyéndote.</p>
               {total !== null && <p className="text-sm text-muted-foreground">Valor estimado de la parrilla: {formatPrice(total, "ARS")} (bebidas aparte).</p>}
-              <p className="text-xs text-muted-foreground">No tenés que transferir ahora. El correo de pago llegará por separado después de confirmar tu asistencia.</p>
+              <p className="text-xs text-muted-foreground">Los datos para pagar al restaurante te llegarán por correo.</p>
+              <div className="space-y-2 border-t border-border pt-3">
+                <p className="text-xs text-muted-foreground"><strong>Cancelaciones:</strong> {LUNCH_POLICY_TEXT}</p>
+                <label className="flex items-start gap-2 text-sm cursor-pointer">
+                  <Checkbox checked={termsAccepted} onCheckedChange={(checked) => setTermsAccepted(checked === true)} aria-label="Acepto las condiciones del almuerzo" />
+                  <span>Acepto las condiciones del almuerzo.</span>
+                </label>
+              </div>
             </section>}
+
+            <Button onClick={submitRsvp} disabled={saving || (choice === "voy" && mode !== "solo_fondo" && !termsAccepted)} variant="gold" className="w-full">
+              {saving ? "Guardando…" : "Confirmar respuesta"}
+            </Button>
 
             {notice && <p role="status" className="rounded-lg bg-accent/10 text-accent p-3 text-sm">{notice}</p>}
             {error && <p role="alert" className="rounded-lg bg-destructive/10 text-destructive p-3 text-sm">{error}</p>}

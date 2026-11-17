@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   LUNCH_POLICY_PENDING,
@@ -51,7 +52,7 @@ describe("Fondazo · precios verificados", () => {
     expect(mail.content_html).toContain(RESTAURANT_ALIAS);
     expect(mail.content_html).toContain(RESTAURANT_WHATSAPP_URL);
     expect(mail.content_html).toContain("WhatsApp a Scarlett");
-    expect(mail.content_html).toContain("Nosotros se lo vamos a reenviar al restaurante");
+    expect(mail.content_html).toContain("verificar tu reserva con el restaurante");
     expect(mail.content_html).not.toContain("Comprobantes del restaurante");
     expect(mail.content_html).toContain("{rsvp_adult_price}");
     expect(mail.content_html).toContain("{rsvp_child_price}");
@@ -70,13 +71,14 @@ describe("Fondazo · correo y condiciones", () => {
     expect(mail.content_html).toContain("confirmar tu participación");
   });
 
-  it("conserva literalmente la política y deja pendiente el intervalo no definido", () => {
-    expect(LUNCH_POLICY_TEXT).toContain("hasta el 24/11/2026 inclusive");
-    expect(LUNCH_POLICY_TEXT).toContain("perdés el 100%");
-    expect(LUNCH_POLICY_PENDING).toContain("25 y el 28/11/2026");
-    expect(LUNCH_POLICY_PENDING).toContain("pendientes de definición administrativa");
-    expect(LUNCH_POLICY_PENDING).toContain("La Carreta del Gato");
-    expect(LUNCH_POLICY_VERSION).toBe("fondazo-almuerzo-v1-2026-11-16");
+  it("incluye el crédito hasta el 27/11 y no lo promete después", () => {
+    expect(LUNCH_POLICY_TEXT).toContain("viernes 27/11/2026 inclusive");
+    expect(LUNCH_POLICY_TEXT).toContain("sábado 28/11/2026");
+    expect(LUNCH_POLICY_TEXT).toContain("no hay devolución ni crédito");
+    expect(LUNCH_POLICY_PENDING).toContain("los administra La Carreta del Gato");
+    expect(LUNCH_POLICY_VERSION).toBe("fondazo-almuerzo-v2-2026-11-17");
+    expect(rsvpLunchEmail().content_html).toContain(LUNCH_POLICY_TEXT);
+    expect(rsvpLunchEmail().content_html).not.toContain("24/11");
   });
 });
 
@@ -104,5 +106,21 @@ describe("Fondazo · correo separado para cupo ciclista aprobado", () => {
 
   it("no permite preparar mensajes de pago para invitados no aprobados", () => {
     expect(() => guestCyclistPaymentEmail([])).toThrow(/No hay ciclistas aprobados/);
+  });
+});
+
+describe("Fondazo · coherencia entre frontend y backend", () => {
+  it("mantiene idéntica la política aceptada en la base de datos y el correo", () => {
+    const sql = readFileSync("supabase/migrations/20261117051000_fondazo_policy_guest_alerts.sql", "utf8");
+    expect(sql).toContain(LUNCH_POLICY_TEXT);
+    expect(sql).toContain(LUNCH_POLICY_VERSION);
+    expect(sql).toContain("terms_accepted_at = now()");
+  });
+  it("solo notifica invitados desde el servidor y no envía avisos de invitaciones de prueba", () => {
+    const edge = readFileSync("supabase/functions/event-rsvp/index.ts", "utf8");
+    expect(edge).toContain('action === "respond_with_types"');
+    expect(edge).toContain("invite.is_test");
+    expect(edge).toContain("claim_event_rsvp_guest_alerts");
+    expect(edge).toContain("EdgeRuntime.waitUntil");
   });
 });
