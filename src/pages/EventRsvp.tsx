@@ -233,7 +233,7 @@ export default function EventRsvp() {
                 <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Niños (4–9)</div><strong>{counts.children_4_9_count}</strong></div>
                 <div className="rounded-lg bg-card p-3"><div className="text-muted-foreground text-xs">Menores de 4</div><strong>{counts.under_4_count}</strong></div>
               </div>
-              <p className="font-semibold text-sm">Total: {lunchDinerTotal(counts)} comensales, incluyéndote.</p>
+              <p className="font-semibold text-sm">Total: {lunchDinerTotal(counts)} {lunchDinerTotal(counts) === 1 ? "comensal" : "comensales"}, incluyéndote.</p>
               {total !== null && <p className="text-sm text-muted-foreground">Valor estimado de la parrilla: {formatPrice(total, "ARS")} (bebidas aparte).</p>}
               <p className="text-xs text-muted-foreground">No tenés que transferir ahora. El correo de pago llegará por separado después de confirmar tu asistencia.</p>
             </section>}
