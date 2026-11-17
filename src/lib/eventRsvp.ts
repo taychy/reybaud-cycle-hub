@@ -121,6 +121,7 @@ export const rsvpLunchEmail = () => ({
 // Correo individual: sólo cuando Claudio aprobó el/los amigos ciclistas.
 // No se envía desde el formulario: administración lo prepara después del VOY.
 export const guestCyclistPaymentEmail = (approvedNames: string[]) => {
+  if (!approvedNames.length) throw new Error("No hay ciclistas aprobados para generar el correo de pago.");
   const count = approvedNames.length;
   const amount = count * GUEST_CYCLIST_FEE;
   return {
