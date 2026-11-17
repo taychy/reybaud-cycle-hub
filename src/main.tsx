@@ -27,10 +27,14 @@ if (launchQueue?.setConsumer) {
       if (!requested) return;
       const current = window.location.pathname + window.location.search + window.location.hash;
       if (requested !== current) {
-        window.location.replace(requested);
-      } else {
-        window.dispatchEvent(new Event(SURVEY_LAUNCH_EVENT));
+        // Si el navegador aún tiene un manifest viejo con focus-existing,
+        // navegar dentro de React evita pedirle al SW una ruta privada
+        // usando index.html obsoleto (origen del 404 en algunas instalaciones).
+        window.history.replaceState(window.history.state, "", requested);
+        window.dispatchEvent(new PopStateEvent("popstate"));
       }
+      // Ejecutar el chequeo de versión tras cualquier relanzamiento.
+      window.dispatchEvent(new Event(SURVEY_LAUNCH_EVENT));
     } catch {
       // Ignore malformed launch payloads and continue normal startup.
     }
