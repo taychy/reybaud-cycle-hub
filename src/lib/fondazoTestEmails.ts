@@ -3,13 +3,14 @@
  * El envío lo autoriza de nuevo la función send-broadcast con rol admin.
  */
 import {
-  guestCyclistPaymentEmail, lunchAmount, rsvpLunchEmail,
+  FONDAZO_EVENT_ID, guestCyclistPaymentEmail, lunchAmount, rsvpLunchEmail,
   type LunchCounts, type LunchPrices, type ParticipationMode,
 } from "./eventRsvp";
 
 export const FONDAZO_TEST_RECIPIENT = "scarlettbonatto@gmail.com";
 
 export type TestRsvp = {
+  event: { id: string };
   is_test?: boolean;
   name: string | null;
   response: "voy" | "no_voy" | null;
@@ -48,7 +49,7 @@ const wrap = (content: string) => '<div style="background:#080c12;padding:25px 1
 const greeting = (name: string | null) => 'Hola, ' + escapeHtml(name?.trim() || "Test Reybaud") + '!';
 
 export function buildAutomaticFondazoTestMails(rsvp: TestRsvp, token: string): FondazoTestMail[] {
-  if (rsvp.is_test !== true) return [];
+  if (rsvp.is_test !== true || rsvp.event.id !== FONDAZO_EVENT_ID) return [];
 
   const attendance = rsvp.response === "voy";
   const firstContent = title +
@@ -107,7 +108,8 @@ export function buildAutomaticFondazoTestMails(rsvp: TestRsvp, token: string): F
  * No cambia cupos, estado de aprobación, pagos ni reservas.
  */
 export function buildApprovedCyclistsTestMail(rsvp: TestRsvp): FondazoTestMail {
-  if (!rsvp.is_test || rsvp.response !== "voy" || !rsvp.cyclist_guests.length) {
+  if (!rsvp.is_test || rsvp.event.id !== FONDAZO_EVENT_ID ||
+      rsvp.response !== "voy" || !rsvp.cyclist_guests.length) {
     throw new Error("Necesitás una respuesta de prueba con ciclistas invitados.");
   }
   const original = guestCyclistPaymentEmail(rsvp.cyclist_guests.map((person) => person.name));
