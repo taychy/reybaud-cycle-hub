@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import { initFontScale } from "./components/FontSizeToggle";
-import { getAppLaunchDestination, stripCacheBustParam, SURVEY_LAUNCH_EVENT } from "./lib/appUpdate";
+import { routeAppLaunchDestination, stripCacheBustParam } from "./lib/appUpdate";
 
 initFontScale();
 stripCacheBustParam();
