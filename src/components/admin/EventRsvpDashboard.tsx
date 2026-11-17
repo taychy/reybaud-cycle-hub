@@ -19,6 +19,8 @@ import {
   PARTICIPATION_LABELS,
   RESTAURANT_ALIAS,
   RESTAURANT_WHATSAPP_URL,
+  GUEST_CYCLIST_ALIAS,
+  GUEST_CYCLIST_ACCOUNT_HOLDER,
   hasLunchInterest,
   lunchDinerTotal,
   rsvpInvitationEmail,
@@ -55,9 +57,16 @@ type Summary = { event_title: string; rows: Row[]; prices: Prices; audit: Audit[
 type CampaignKind = "invitacion" | "almuerzo";
 
 const statusOptions: LunchStatus[] = ["intencion_confirmada", "instrucciones_pendientes", "instrucciones_enviadas", "comprobante_informado", "pago_verificado"];
-const diners = (row: Row) => row.terms_accepted_at
-  ? lunchDinerTotal(row)
-  : row.guests_count + 1;
+const diners = (row: Row) => row.guests_count + 1;
+const mealBreakdown = (row: Row) => {
+  const non = row.non_cyclist_guests || [];
+  const riders = (row.cyclist_guests || []).filter((person) => person.lunch).length;
+  return {
+    adults: 1 + riders + non.filter((person) => person.category === "adult").length,
+    children: non.filter((person) => person.category === "child_4_9").length,
+    under4: non.filter((person) => person.category === "under_4").length,
+  };
+};
 
 export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const { toast } = useToast();
@@ -190,7 +199,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         adult_price: Number(priceForm.adult), child_4_9_price: Number(priceForm.child),
         under_4_price: Number(priceForm.under4), prices_note: priceForm.note,
       });
-      toast({ title: "Tarifas confirmadas", description: "El segundo correo y la aceptación del almuerzo ya pueden prepararse." });
+      toast({ title: "Tarifas confirmadas", description: "El segundo correo con instrucciones de pago ya puede prepararse." });
       await refresh();
     } catch (error) {
       toast({ title: "No se guardaron las tarifas", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
@@ -219,9 +228,9 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     const blocked = isLunch && !summary?.prices?.prices_confirmed_at;
     return <div className="rounded-lg border p-4 space-y-3">
       <div>
-        <h4 className="font-semibold">{isLunch ? "Segundo correo · instrucciones del almuerzo" : "Primer correo · VOY / NO VOY"}</h4>
+        <h4 className="font-semibold">{isLunch ? "Segundo correo · instrucciones para transferir" : "Primer correo · VOY / NO VOY"}</h4>
         <p className="text-sm text-muted-foreground">
-          {isLunch ? `Sólo interesados en almuerzo (${eligible.almuerzo}). Incluye alias ${RESTAURANT_ALIAS}, WhatsApp de la organización y tarifas confirmadas.` : `Alumnos activos elegibles: ${eligible.invitacion}. Los botones abren la pantalla; no votan por prefetch.`}
+          {isLunch ? `Solo después de confirmar asistencia. Parrilla: ${RESTAURANT_ALIAS}. Invitados ciclistas aprobados: ${GUEST_CYCLIST_ALIAS}, titular ${GUEST_CYCLIST_ACCOUNT_HOLDER}. Incluye WhatsApp de Scarlett. Destinatarios actuales: ${eligible.almuerzo}.` : `Alumnos activos elegibles: ${eligible.invitacion}. Los botones abren la encuesta para confirmar asistencia.`}
         </p>
       </div>
       {blocked && <p className="text-sm text-primary">Bloqueado hasta ingresar y confirmar las tres tarifas actuales.</p>}
@@ -249,7 +258,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     <CardContent className="p-4 sm:p-6 space-y-5">
       <div className="flex items-start justify-between gap-3">
         <div><h3 className="text-lg font-heading font-bold">Fondazo · asistencia y almuerzo</h3>
-          <p className="text-xs text-muted-foreground">Evento en borrador. Intención, comprobante y pago verificado son estados distintos; nada genera cobros en Reybaud.</p></div>
+          <p className="text-xs text-muted-foreground">Evento en borrador. La encuesta solo registra asistencia; las instrucciones para transferir se envían después por correo.</p></div>
         <Button variant="outline" size="sm" onClick={refresh} disabled={loading}><RefreshCw /> Actualizar</Button>
       </div>
 
@@ -274,7 +283,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         <TabsContent value="almuerzo" className="space-y-5 pt-3">
           <div className="rounded-lg border p-4 space-y-3">
             <h4 className="font-semibold">Tarifas actuales del restaurante</h4>
-            <p className="text-xs text-muted-foreground">Sin valores históricos precargados. Ingresá los importes reconfirmados; el cero para menores de cuatro también requiere confirmación explícita.</p>
+            <p className="text-xs text-muted-foreground">Estos importes se utilizarán en el correo posterior de pago. El fondo de ciclistas invitados se gestiona por separado.</p>
             <div className="grid grid-cols-3 gap-2">
               <div><Label htmlFor="price-adult">Adultos ARS</Label><Input id="price-adult" type="number" min="0" value={priceForm.adult} onChange={(e) => setPriceForm({ ...priceForm, adult: e.target.value })} /></div>
               <div><Label htmlFor="price-child">4–9 años ARS</Label><Input id="price-child" type="number" min="0" value={priceForm.child} onChange={(e) => setPriceForm({ ...priceForm, child: e.target.value })} /></div>
@@ -292,20 +301,24 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                 <strong>Ciclistas invitados · aprobación de Claudio pendiente</strong>
                 {row.cyclist_guests.map((person, index) => <div key={index}>{person.name} · {person.lunch ? "Fondo + almuerzo" : "Solo fondo"}</div>)}
               </div>}
-              <div className="text-xs text-muted-foreground">{row.terms_accepted_at ? `Condiciones ${row.terms_version} aceptadas ${new Date(row.terms_accepted_at).toLocaleString("es-AR")}` : "Condiciones todavía no aceptadas"}</div>
-              {row.terms_accepted_at && <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
-                <div className="font-semibold">Comensales de esta reserva</div>
+              <div className="text-xs text-muted-foreground">Los nombres se registran al confirmar asistencia. Las condiciones de pago se comunican por correo.</div>
+              <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
+                <div className="font-semibold">Comensales registrados en la encuesta</div>
                 <div>{row.recipient_name || row.recipient_email} · Titular adulto</div>
-                {(row.lunch_attendees || []).map((person, index) =>
-                  <div key={index}>{person.name} · {person.is_cyclist ? "Ciclista invitado" : "No ciclista"} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
-                )}
-                {(!row.lunch_attendees?.length && row.guests_count > 0) && <div className="text-destructive">Falta registrar nombres de acompañantes</div>}
-                {summary?.prices.prices_confirmed_at && <div className="font-medium pt-1">Total parrilla: {formatPrice(
-                  row.adults_count * Number(summary.prices.adult_price) +
-                  row.children_4_9_count * Number(summary.prices.child_4_9_price) +
-                  row.under_4_count * Number(summary.prices.under_4_price), "ARS"
-                )}</div>}
-              </div>}
+                {(row.non_cyclist_guests || []).map((person, index) =>
+                  <div key={`n-${index}`}>{person.name} · No ciclista · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "Niño 4 a 9" : "Menor de 4"}</div>)}
+                {(row.cyclist_guests || []).filter((person) => person.lunch).map((person, index) =>
+                  <div key={`c-${index}`}>{person.name} · Amigo ciclista (Claudio debe aprobarlo) · Adulto</div>)}
+                {summary?.prices.prices_confirmed_at && <div className="font-medium pt-2">
+                  Parrilla: {mealBreakdown(row).adults} adulto(s), {mealBreakdown(row).children} niño(s) de 4 a 9,
+                  {mealBreakdown(row).under4} menor(es) de 4.
+                  <div>Total parrilla: {formatPrice(
+                    mealBreakdown(row).adults * Number(summary.prices.adult_price) +
+                    mealBreakdown(row).children * Number(summary.prices.child_4_9_price) +
+                    mealBreakdown(row).under4 * Number(summary.prices.under_4_price), "ARS"
+                  )}</div>
+                </div>}
+              </div>
               {row.receipt_reference && <div className="text-xs">Comprobante: {row.receipt_reference}</div>}
               <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>
@@ -323,7 +336,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           <div className="rounded-lg bg-muted/30 p-3 text-sm"><Mail className="inline mr-2" />Los envíos usan el canal Brevo existente, con bajas, supresiones y trazabilidad. Ningún correo se envía al abrir este tablero.</div>
           {campaignBlock("invitacion")}
           {campaignBlock("almuerzo")}
-          <p className="text-xs text-muted-foreground">Comprobantes a la organización de Ciclismo Reybaud: <a className="text-accent" href={RESTAURANT_WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp de Scarlett +54 9 11 7171-1122</a>. Scarlett los reenvía al restaurante; la reserva del almuerzo sólo se confirma con pago verificado.</p>
+          <p className="text-xs text-muted-foreground">El segundo correo incluirá el botón de WhatsApp para enviar comprobantes. Comprobantes a la organización de Ciclismo Reybaud: <a className="text-accent" href={RESTAURANT_WHATSAPP_URL} target="_blank" rel="noreferrer">WhatsApp de Scarlett +54 9 11 7171-1122</a>. Scarlett los reenvía al restaurante; la reserva del almuerzo sólo se confirma con pago verificado.</p>
         </TabsContent>
       </Tabs>
 
@@ -331,7 +344,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         <DialogContent><DialogHeader><DialogTitle>Cambiar estado del almuerzo</DialogTitle><DialogDescription>{statusEdit?.row.recipient_name} · {statusEdit && LUNCH_STATUS_LABELS[statusEdit.status]}. La fecha y el usuario quedan registrados.</DialogDescription></DialogHeader>
           <div className="space-y-2"><Label htmlFor="status-comment">Comentario obligatorio</Label><Textarea id="status-comment" value={statusComment} onChange={(e) => setStatusComment(e.target.value)} placeholder="Motivo del cambio o verificación con el restaurante" /></div>
           <div className="space-y-2"><Label htmlFor="receipt-reference">Enlace o nota del comprobante (opcional)</Label><Input id="receipt-reference" value={receiptReference} onChange={(e) => setReceiptReference(e.target.value)} placeholder="Dato administrativo, sin subir archivos" /></div>
-          <DialogFooter><Button variant="outline" onClick={() => setStatusEdit(null)}>Cancelar</Button><Button onClick={saveStatus} disabled={busy || statusComment.trim().length < 3}>Guardar con auditoría</Button></DialogFooter>
+          <DialogFooter><Button variant="outline" onClick={() => setStatusEdit(null)}>Cancelar</Button><Button onClick={saveStatus} disabled={busy || statusComment.trim().length < 3 || (statusEdit?.status === "pago_verificado" && !receiptReference.trim())}>Guardar con auditoría</Button></DialogFooter>
         </DialogContent>
       </Dialog>
     </CardContent>
