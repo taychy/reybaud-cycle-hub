@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams, useSearchParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -87,6 +87,18 @@ export default function EventRsvp() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Pantalla de éxito: se muestra cuando el servidor devuelve una respuesta guardada
+  // y el usuario no pidió explícitamente modificarla.
+  const [editing, setEditing] = useState(false);
+  const [emailStatus, setEmailStatus] = useState<"sent" | "unconfirmed" | null>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const showSuccess = !!data?.response && !editing;
+  useEffect(() => {
+    if (showSuccess) {
+      topRef.current?.scrollIntoView?.({ block: "start" });
+      topRef.current?.focus?.();
+    }
+  }, [showSuccess]);
 
   const hydrate = (response: RsvpData, isInitialLoad = false) => {
     setData(response);
@@ -99,7 +111,7 @@ export default function EventRsvp() {
     // si el participante ya respondió anteriormente. Al guardar usamos el estado del servidor.
     const requestedOption = params.get("opcion");
     const hasLinkChoice = requestedOption === "voy" || requestedOption === "no_voy";
-    if (response.response && (!isInitialLoad || !hasLinkChoice)) setChoice(response.response);
+    if (response.response || !isInitialLoad || !hasLinkChoice) { if (response.response) setChoice(response.response); }
     if (response.participation_mode) setMode(response.participation_mode);
     setCyclists(Array.isArray(response.cyclist_guests)
       ? response.cyclist_guests.map((person) => ({ ...person, category: "adult" as const, whatsapp: person.whatsapp || "" }))
@@ -156,7 +168,14 @@ export default function EventRsvp() {
       if (saved.error || saved.data?.error || !saved.data) {
         throw new Error(saved.data?.error || saved.error?.message || "No pudimos comprobar la respuesta guardada.");
       }
-      hydrate(saved.data as RsvpData);
+      const persisted = saved.data as RsvpData;
+      const expectedMode = extra.response === "voy" ? extra.participation_mode : null;
+      if (persisted.response !== extra.response || (expectedMode && persisted.participation_mode !== expectedMode)) {
+        throw new Error("No pudimos comprobar que tu respuesta quedó guardada. Intentá nuevamente.");
+      }
+      hydrate(persisted);
+      setEmailStatus(extra.response === "voy" ? (saved.data.notification?.participant === "sent" ? "sent" : "unconfirmed") : null);
+      setEditing(false);
       const cyclistRequests = Array.isArray(extra.cyclists) ? extra.cyclists.length : 0;
       if (extra.response === "no_voy") {
         setNotice("Gracias por responder. Registramos que no vas a asistir. No se generó ningún cobro.");
@@ -235,7 +254,10 @@ export default function EventRsvp() {
             </>}
           </div>
 
-          {loading ? <p className="text-muted-foreground">Abriendo tu invitación…</p> : data ? <>
+          {loading ? <p className="text-muted-foreground">Abriendo tu invitación…</p> : data && showSuccess ? (
+            <RsvpSuccess data={data} emailStatus={emailStatus} topRef={topRef}
+              onEdit={() => { setNotice(""); setError(""); setEmailStatus(null); hydrate(data); setEditing(true); }} />
+          ) : data ? <>
             <div role="note" className="rounded-xl border border-border overflow-hidden">
               <div className="bg-muted/40 px-4 py-3 border-b border-border font-semibold text-sm">Información de la jornada</div>
               <div className="grid sm:grid-cols-2 gap-0">
@@ -325,6 +347,50 @@ export default function EventRsvp() {
           <p className="text-center text-xs text-muted-foreground flex items-center justify-center gap-2"><Bike className="w-4 h-4" /> Ciclismo Reybaud</p>
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function RsvpSuccess({ data, emailStatus, topRef, onEdit }: {
+  data: RsvpData;
+  emailStatus: "sent" | "unconfirmed" | null;
+  topRef: React.RefObject<HTMLDivElement>;
+  onEdit: () => void;
+}) {
+  const going = data.response === "voy";
+  const mode = data.participation_mode;
+  const cyclists = going && mode !== "solo_almuerzo" ? data.cyclist_guests || [] : [];
+  const diners = going && mode !== "solo_fondo" ? data.non_cyclist_guests || [] : [];
+  const lunch = going && mode !== "solo_fondo";
+  const name = data.identity?.full_name || data.name || [data.identity?.first_name, data.identity?.last_name].filter(Boolean).join(" ");
+  const closeWindow = () => { window.close(); };
+  return (
+    <div ref={topRef} tabIndex={-1} role="status" aria-live="polite" className="space-y-5 text-center outline-none" data-testid="rsvp-success">
+      <CheckCircle2 aria-hidden className="mx-auto h-20 w-20 text-success" />
+      <h2 className="font-heading text-2xl sm:text-3xl font-bold">
+        {going ? "¡Tu asistencia está confirmada!" : "Registramos que no vas a asistir"}
+      </h2>
+      <dl className="text-left rounded-xl border border-border bg-muted/20 p-4 space-y-2 text-sm">
+        {name && <div><dt className="inline text-muted-foreground">Nombre: </dt><dd className="inline font-semibold">{name}</dd></div>}
+        <div><dt className="inline text-muted-foreground">Fecha: </dt><dd className="inline">{eventDate(data.event.date)}</dd></div>
+        <div><dt className="inline text-muted-foreground">Lugar: </dt><dd className="inline">La Carreta del Gato</dd></div>
+        <div><dt className="inline text-muted-foreground">Respuesta: </dt><dd className="inline font-semibold">{going ? (mode ? PARTICIPATION_LABELS[mode] : "Voy") : "No voy"}</dd></div>
+        {diners.length > 0 && <div><dt className="inline text-muted-foreground">Acompañantes que no pedalean (almuerzo): </dt><dd className="inline">{diners.length}</dd></div>}
+      </dl>
+      {cyclists.length > 0 && <p className="text-left rounded-lg border border-primary/40 bg-primary/10 p-3 text-sm">
+        <strong>{cyclists.length === 1 ? "Tu amigo ciclista está pendiente" : `Tus ${cyclists.length} amigos ciclistas están pendientes`} de aprobación de Claudio.</strong> Todavía no {cyclists.length === 1 ? "está confirmado" : "están confirmados"}.
+      </p>}
+      {lunch && <p className="text-left text-sm text-muted-foreground">Las instrucciones de pago de la parrilla llegan por correo separado.</p>}
+      {going && emailStatus === "sent" && <p className="text-sm text-muted-foreground">Te enviamos el correo de confirmación.</p>}
+      {going && emailStatus === "unconfirmed" && <p className="text-left rounded-lg bg-accent/10 p-3 text-sm">Tu asistencia quedó confirmada, pero no pudimos confirmar el envío del correo. Si no te llega, escribinos.</p>}
+      <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+        <Button type="button" variant="outline" onClick={onEdit}>Modificar mi respuesta</Button>
+        {typeof window !== "undefined" && window.opener ? (
+          <Button type="button" variant="ghost" onClick={closeWindow}>Cerrar</Button>
+        ) : (
+          <Button asChild variant="ghost"><Link to="/">Volver al inicio</Link></Button>
+        )}
+      </div>
     </div>
   );
 }
