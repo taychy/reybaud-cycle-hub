@@ -29,6 +29,24 @@ export const getAppLaunchDestination = (targetURL: string, origin: string): stri
   } catch { return null; }
 };
 
+/**
+ * Receives a deep link from an installed PWA while a window is already open.
+ * Navigate through the SPA router (not through a second HTTP document load):
+ * old service workers can otherwise serve an outdated index.html and 404.
+ * The update check is still triggered before the survey is shown.
+ */
+export const routeAppLaunchDestination = (targetURL: string, origin: string): boolean => {
+  const requested = getAppLaunchDestination(targetURL, origin);
+  if (!requested) return false;
+  const current = window.location.pathname + window.location.search + window.location.hash;
+  if (requested !== current) {
+    window.history.replaceState(window.history.state, "", requested);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }
+  window.dispatchEvent(new Event(SURVEY_LAUNCH_EVENT));
+  return true;
+};
+
 /** Build id embedded in this bundle at build time (full ISO timestamp). */
 export const CLIENT_BUILD_ID: string =
   typeof __BUILD_TIME__ !== "undefined" ? __BUILD_TIME__ : "dev";
