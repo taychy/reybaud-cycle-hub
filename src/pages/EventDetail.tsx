@@ -1048,8 +1048,16 @@ const EventDetail = () => {
                 {isExternal
                   ? "Este evento es organizado por un tercero. Te lo compartimos porque puede ser de tu interés."
                   : event.metadata?.rsvp_enabled === true
-                    ? "La asistencia se confirma desde los botones VOY / NO VOY del correo de invitación. No se realizan reservas pagas ni cobros en esta pantalla."
+                    ? "Confirmá tu asistencia para el fondo, la parrilla o ambos. Podés anotar acompañantes y solicitar la participación de un amigo ciclista, sujeto a aprobación de Claudio. Los pagos se gestionan después, por separado."
                     : "Este evento es solo informativo. No requiere inscripción."}
+              </p>
+              {event.metadata?.rsvp_enabled === true && !isDraftPreview && (
+                <Button variant="gold" className="mt-3 w-full sm:w-auto"
+                  onClick={() => navigate(`/eventos/${event.id}/confirmar`)}>
+                  <CheckCircle className="w-4 h-4 mr-2" /> Confirmar asistencia · VOY / NO VOY
+                </Button>
+              )}
+              {false && <p>
               </p>
               {event.metadata?.web_url && (
                 <a href={event.metadata.web_url} target="_blank" rel="noopener noreferrer">
