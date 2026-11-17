@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
+  FONDAZO_EVENT_ID,
   PARTICIPATION_LABELS,
   normalizeGuestWhatsApp,
   lunchAmount,
@@ -16,11 +17,16 @@ import {
 } from "@/lib/eventRsvp";
 import { formatPrice } from "@/lib/currency";
 import EventRsvpGuests, { type CyclistGuest, type DinnerGuest } from "@/components/events/EventRsvpGuests";
+import {
+  FONDAZO_TEST_RECIPIENT, buildAutomaticFondazoTestMails, buildApprovedCyclistsTestMail,
+  type FondazoTestMail,
+} from "@/lib/fondazoTestEmails";
 
 type LunchGuest = DinnerGuest;
 
 type RsvpData = {
-  event: { title: string; date: string; location: string };
+  is_test?: boolean;
+  event: { id: string; title: string; date: string; location: string };
   name: string | null;
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
@@ -75,6 +81,8 @@ export default function EventRsvp() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [testMailStatus, setTestMailStatus] = useState("");
+  const [testMailBusy, setTestMailBusy] = useState(false);
 
   const hydrate = (response: RsvpData, isInitialLoad = false) => {
     setData(response);
@@ -120,6 +128,75 @@ export default function EventRsvp() {
     return () => { mounted = false; };
   }, [token, reloadNonce]);
 
+  const sendBrevoTestMail = async (mail: FondazoTestMail) => {
+    // La función send-broadcast comprueba también la sesión de administrador
+    // en el servidor. Nunca utilizar mode:"send" ni destinatarios reales aquí.
+    const { data: answer, error: failure } = await supabase.functions.invoke("send-broadcast", {
+      body: {
+        mode: "test",
+        test_email: FONDAZO_TEST_RECIPIENT,
+        subject: mail.subject,
+        content_html: mail.content_html,
+        preheader: "Simulación del Fondazo de Reybaud. No realices transferencias.",
+        segment_filters: { layout: "plain" },
+      },
+    });
+    if (failure || answer?.ok !== true) {
+      throw new Error(answer?.error || answer?.response?.message || failure?.message ||
+        "El servicio de correos no confirmó el envío.");
+    }
+  };
+
+  const sendAutomaticTestEmails = async (updated: RsvpData) => {
+    if (!updated.is_test || !token) return;
+    setTestMailBusy(true);
+    setTestMailStatus("Comprobando tu sesión para iniciar el envío de prueba...");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Abrí la prueba desde Reybaud con tu sesión de administración iniciada.");
+      const mails = buildAutomaticFondazoTestMails(updated, token);
+      if (!mails.length) return;
+      let sent = 0;
+      for (const mail of mails) {
+        setTestMailStatus("Enviando correo de prueba " + (sent + 1) + " de " + mails.length + "...");
+        await sendBrevoTestMail(mail);
+        sent++;
+      }
+      setTestMailStatus(
+        "Brevo aceptó " + sent + " correo(s) de prueba para " +
+        FONDAZO_TEST_RECIPIENT + ". Comprobá la bandeja de entrada y spam."
+      );
+    } catch (err) {
+      setTestMailStatus(
+        "La asistencia se guardó, pero el correo de prueba no pudo enviarse: " +
+        (err instanceof Error ? err.message : "error de envío") +
+        ". Probá Reenviar correos con tu cuenta administradora."
+      );
+    } finally {
+      setTestMailBusy(false);
+    }
+  };
+
+  const simulateCyclistApproval = async () => {
+    if (!data?.is_test || data.response !== "voy" || !data.cyclist_guests.length) return;
+    setTestMailBusy(true);
+    setTestMailStatus("Enviando simulación del correo de cupo aprobado por Claudio...");
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Iniciá sesión con tu cuenta administradora.");
+      await sendBrevoTestMail(buildApprovedCyclistsTestMail(data));
+      setTestMailStatus(
+        "Brevo aceptó el correo de cupo aprobado SIMULADO para " + FONDAZO_TEST_RECIPIENT +
+        ". No se aprobó ningún ciclista real."
+      );
+    } catch (err) {
+      setTestMailStatus("No se pudo enviar la simulación: " +
+        (err instanceof Error ? err.message : "error desconocido"));
+    } finally {
+      setTestMailBusy(false);
+    }
+  };
+
   const call = async (action: "respond_with_types", extra: Record<string, unknown>) => {
     if (!token) return;
     setSaving(true);
@@ -141,10 +218,16 @@ export default function EventRsvp() {
       if (loaded.error || loaded.data?.error || !loaded.data) {
         throw new Error(loaded.data?.error || loaded.error?.message || "No pudimos comprobar la respuesta guardada.");
       }
-      hydrate(loaded.data as RsvpData);
+      const savedRsvp = loaded.data as RsvpData;
+      hydrate(savedRsvp);
       setNotice(extra.response === "no_voy"
         ? "Gracias por responder. Registramos que no vas a asistir."
         : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
+      // Solo el registro marcado como PRUEBA. La confirmación real permanece
+      // separada de emails y Brevo recibe únicamente la casilla permitida.
+      if (savedRsvp.is_test && savedRsvp.event.id === FONDAZO_EVENT_ID) {
+        await sendAutomaticTestEmails(savedRsvp);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos confirmar tu respuesta. Intentá nuevamente.");
     } finally {
@@ -266,6 +349,25 @@ export default function EventRsvp() {
               <p className="text-xs text-muted-foreground">No tenés que transferir ahora. El correo de pago llegará por separado después de confirmar tu asistencia.</p>
             </section>}
 
+            {data.is_test && data.event.id === FONDAZO_EVENT_ID && <section className="rounded-lg border border-primary/50 bg-primary/5 p-4 space-y-3" aria-label="Prueba de correos automáticos">
+              <div className="space-y-1">
+                <h3 className="text-sm font-semibold">Prueba de correos automáticos · solo administración</h3>
+                <p className="text-xs text-muted-foreground">
+                  Esta prueba envía correos exclusivamente a {FONDAZO_TEST_RECIPIENT} desde Brevo.
+                  No modifica cupos reales, no registra pagos y no envía mensajes a los alumnos.
+                </p>
+              </div>
+              {testMailStatus && <p role="status" className="rounded bg-muted/40 p-2 text-sm">{testMailStatus}</p>}
+              {data.response && <Button type="button" variant="outline" className="w-full" disabled={saving || testMailBusy}
+                onClick={() => void sendAutomaticTestEmails(data)}>
+                {testMailBusy ? "Enviando correos de prueba..." : "Reenviar mis correos automáticos de prueba"}
+              </Button>}
+              {data.response === "voy" && data.cyclist_guests.length > 0 && <Button
+                type="button" variant="outline" className="w-full" disabled={saving || testMailBusy}
+                onClick={() => void simulateCyclistApproval()}>
+                Simular aprobación de Claudio y enviarme el correo del cupo
+              </Button>}
+            </section>}
             {notice && <p role="status" className="rounded-lg bg-accent/10 text-accent p-3 text-sm">{notice}</p>}
             {error && <p role="alert" className="rounded-lg bg-destructive/10 text-destructive p-3 text-sm">{error}</p>}
           </> : <div className="space-y-3">
