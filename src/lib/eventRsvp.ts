@@ -128,7 +128,7 @@ export const rsvpLunchEmail = () => ({
     <div style="border-top:1px solid #3b444a;padding-top:14px;font-size:13px;color:#c3c9cd">
       <strong>Condiciones de la parrilla:</strong> avisando hasta el 24/11 inclusive, lo abonado queda como crédito para otra visita al restaurante. Si no asistís el 29/11 y no avisás, se pierde el importe abonado. Para cancelaciones avisadas del 25 al 28/11, consultanos antes.
     </div>
-    <p style="font-size:13px;color:#aab8c1">La reserva se verifica manualmente después de recibir el comprobante. No se realizan pagos dentro de Reybaud.</p>
+    <p style="font-size:13px;color:#aab8c1">Tu reserva se confirma una vez que verificamos el comprobante recibido.</p>
   </div>`,
 });
 
