@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { decideUpdateAction, getAppLaunchDestination, requiresSurveyUpdateCheck, wantsFoodSurvey, getCacheBustedUrl, stripCacheBustParam, fetchDeployedBuildId, recordAttempt, readAttempt, clearAttempts } from "./appUpdate";
+import { decideUpdateAction, getAppLaunchDestination, routeAppLaunchDestination, SURVEY_LAUNCH_EVENT, requiresSurveyUpdateCheck, wantsFoodSurvey, getCacheBustedUrl, stripCacheBustParam, fetchDeployedBuildId, recordAttempt, readAttempt, clearAttempts } from "./appUpdate";
 
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); clearAttempts(); });
 
@@ -11,6 +11,45 @@ describe("enlaces de encuesta y PWA instalada", () => {
   it.each(["https://other.example/viaje/mi-reserva?token=fixture", "https://other.example/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=voy", origin + "/confirmar-asistencia/not-a-token?opcion=voy", origin + "/viaje/mi-reserva-otra", origin + "/admin/eventos", "not-a-url"])("rechaza destino no autorizado %s", (url) => {
     expect(getAppLaunchDestination(url, origin)).toBeNull();
   });
+  it("la PWA abierta navega a NO VOY sin recargar un documento viejo", () => {
+    const prior = location.pathname + location.search + location.hash;
+    history.replaceState(null, "", "/");
+    const navigation = vi.fn();
+    const onLaunch = vi.fn();
+    window.addEventListener("popstate", navigation);
+    window.addEventListener(SURVEY_LAUNCH_EVENT, onLaunch);
+    try {
+      const target = origin + "/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=no_voy";
+      expect(routeAppLaunchDestination(target, origin)).toBe(true);
+      expect(location.pathname).toBe("/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39");
+      expect(new URLSearchParams(location.search).get("opcion")).toBe("no_voy");
+      expect(navigation).toHaveBeenCalledTimes(1);
+      expect(onLaunch).toHaveBeenCalledTimes(1);
+      // Un relanzamiento de la misma ruta chequea actualización igualmente.
+      expect(routeAppLaunchDestination(target, origin)).toBe(true);
+      expect(navigation).toHaveBeenCalledTimes(1);
+      expect(onLaunch).toHaveBeenCalledTimes(2);
+    } finally {
+      window.removeEventListener("popstate", navigation);
+      window.removeEventListener(SURVEY_LAUNCH_EVENT, onLaunch);
+      history.replaceState(null, "", prior);
+    }
+  });
+
+  it("rechaza enlaces ajenos y malformados sin mover la app", () => {
+    const old = location.href;
+    const onLaunch = vi.fn();
+    window.addEventListener(SURVEY_LAUNCH_EVENT, onLaunch);
+    try {
+      expect(routeAppLaunchDestination("https://malicioso.example/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39", origin)).toBe(false);
+      expect(routeAppLaunchDestination(origin + "/confirmar-asistencia/no-token", origin)).toBe(false);
+      expect(location.href).toBe(old);
+      expect(onLaunch).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(SURVEY_LAUNCH_EVENT, onLaunch);
+    }
+  });
+
   it("chequea encuesta general y personal inmediatamente, no otras rutas", () => {
     expect(requiresSurveyUpdateCheck("/viaje/encuesta-gastronomica", "?evento=e")).toBe(true);
     expect(requiresSurveyUpdateCheck("/viaje/mi-reserva", "?token=fixture&encuesta=gastronomia")).toBe(true);

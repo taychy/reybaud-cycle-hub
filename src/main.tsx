@@ -3,7 +3,7 @@ import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
 import { initFontScale } from "./components/FontSizeToggle";
-import { getAppLaunchDestination, stripCacheBustParam, SURVEY_LAUNCH_EVENT } from "./lib/appUpdate";
+import { routeAppLaunchDestination, stripCacheBustParam } from "./lib/appUpdate";
 
 initFontScale();
 stripCacheBustParam();
@@ -23,14 +23,7 @@ const launchQueue = (window as any).launchQueue;
 if (launchQueue?.setConsumer) {
   launchQueue.setConsumer((launchParams: any) => {
     try {
-      const requested = getAppLaunchDestination(launchParams?.targetURL ?? "", window.location.origin);
-      if (!requested) return;
-      const current = window.location.pathname + window.location.search + window.location.hash;
-      if (requested !== current) {
-        window.location.replace(requested);
-      } else {
-        window.dispatchEvent(new Event(SURVEY_LAUNCH_EVENT));
-      }
+      routeAppLaunchDestination(launchParams?.targetURL ?? "", window.location.origin);
     } catch {
       // Ignore malformed launch payloads and continue normal startup.
     }

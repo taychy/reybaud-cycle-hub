@@ -75,7 +75,11 @@ export default defineConfig(({ mode }) => ({
         orientation: "portrait",
         start_url: "/",
         scope: "/",
-        launch_handler: { client_mode: "focus-existing" },
+        // navigate-existing siempre lleva el enlace del correo a su ruta
+        // incluso cuando la PWA ya está abierta en otra pantalla.
+        // focus-existing sólo enfoca la app y depende de launchQueue, que
+        // puede no ejecutarse en instalaciones antiguas.
+        launch_handler: { client_mode: "navigate-existing" },
         icons: [
           {
             src: "/pwa-192x192.png",
