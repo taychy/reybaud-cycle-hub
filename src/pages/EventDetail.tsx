@@ -1057,8 +1057,6 @@ const EventDetail = () => {
                   <CheckCircle className="w-4 h-4 mr-2" /> Confirmar asistencia · VOY / NO VOY
                 </Button>
               )}
-              {false && <p>
-              </p>
               {event.metadata?.web_url && (
                 <a href={event.metadata.web_url} target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="mt-2">
