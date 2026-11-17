@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Bike, CalendarDays, CheckCircle2, MapPin, XCircle, UtensilsCrossed } from "lucide-react";
 import {
+  FONDAZO_EVENT_ID,
   PARTICIPATION_LABELS,
   normalizeGuestWhatsApp,
   lunchAmount,
@@ -25,7 +26,7 @@ type LunchGuest = DinnerGuest;
 
 type RsvpData = {
   is_test?: boolean;
-  event: { title: string; date: string; location: string };
+  event: { id: string; title: string; date: string; location: string };
   name: string | null;
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
@@ -224,7 +225,9 @@ export default function EventRsvp() {
         : "¡Tu asistencia quedó registrada! Si corresponde abonar parrilla o cupos ciclistas aprobados por Claudio, te enviaremos las instrucciones por otro correo.");
       // Solo el registro marcado como PRUEBA. La confirmación real permanece
       // separada de emails y Brevo recibe únicamente la casilla permitida.
-      if (savedRsvp.is_test) await sendAutomaticTestEmails(savedRsvp);
+      if (savedRsvp.is_test && savedRsvp.event.id === FONDAZO_EVENT_ID) {
+        await sendAutomaticTestEmails(savedRsvp);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "No pudimos confirmar tu respuesta. Intentá nuevamente.");
     } finally {
@@ -346,7 +349,7 @@ export default function EventRsvp() {
               <p className="text-xs text-muted-foreground">No tenés que transferir ahora. El correo de pago llegará por separado después de confirmar tu asistencia.</p>
             </section>}
 
-            {data.is_test && <section className="rounded-lg border border-primary/50 bg-primary/5 p-4 space-y-3" aria-label="Prueba de correos automáticos">
+            {data.is_test && data.event.id === FONDAZO_EVENT_ID && <section className="rounded-lg border border-primary/50 bg-primary/5 p-4 space-y-3" aria-label="Prueba de correos automáticos">
               <div className="space-y-1">
                 <h3 className="text-sm font-semibold">Prueba de correos automáticos · solo administración</h3>
                 <p className="text-xs text-muted-foreground">
