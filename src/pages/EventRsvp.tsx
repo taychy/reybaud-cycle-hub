@@ -28,9 +28,9 @@ import {
   type ParticipationMode,
 } from "@/lib/eventRsvp";
 import { formatPrice } from "@/lib/currency";
+import EventRsvpGuests, { type CyclistGuest, type DinnerGuest } from "@/components/events/EventRsvpGuests";
 
-type LunchGuest = { name: string; category: "adult" | "child_4_9" | "under_4" };
-const newLunchGuest = (): LunchGuest => ({ name: "", category: "adult" });
+type LunchGuest = DinnerGuest;
 
 type RsvpData = {
   event: { title: string; date: string; location: string };
@@ -38,6 +38,8 @@ type RsvpData = {
   response: "voy" | "no_voy" | null;
   participation_mode: ParticipationMode | null;
   guests_count: number;
+  cyclist_guests: CyclistGuest[];
+  non_cyclist_guests: DinnerGuest[];
   lunch: LunchCounts & { status: LunchStatus; terms_version: string | null; terms_accepted_at: string | null; attendees: LunchGuest[] };
   prices: LunchPrices;
 };
@@ -55,11 +57,17 @@ export default function EventRsvp() {
   const [data, setData] = useState<RsvpData | null>(null);
   const [choice, setChoice] = useState<"voy" | "no_voy">(params.get("opcion") === "no_voy" ? "no_voy" : "voy");
   const [mode, setMode] = useState<ParticipationMode>("fondo_y_almuerzo");
-  const [guests, setGuests] = useState(0);
-  const [guestDetails, setGuestDetails] = useState<LunchGuest[]>([]);
-  useEffect(() => {
-    setGuestDetails((previous) => Array.from({ length: guests }, (_, index) => previous[index] || newLunchGuest()));
-  }, [guests]);
+  const [cyclists, setCyclists] = useState<CyclistGuest[]>([]);
+  const [nonCyclists, setNonCyclists] = useState<DinnerGuest[]>([]);
+  const guests = choice === "voy" && mode !== "solo_fondo"
+    ? nonCyclists.length + (mode === "solo_almuerzo" ? 0 : cyclists.filter((person) => person.lunch).length)
+    : 0;
+  const guestDetails = useMemo<LunchGuest[]>(() => [
+    ...nonCyclists.map((person) => ({ name: person.name, category: person.category, is_cyclist: false })),
+    ...(mode === "fondo_y_almuerzo"
+      ? cyclists.filter((person) => person.lunch).map((person) => ({ name: person.name, category: person.category, is_cyclist: true }))
+      : []),
+  ], [cyclists, nonCyclists, mode]);
   const counts = useMemo<LunchCounts>(() => {
     const derived = { adults_count: 1, children_4_9_count: 0, under_4_count: 0 };
     guestDetails.slice(0, guests).forEach((person) => {
@@ -79,8 +87,8 @@ export default function EventRsvp() {
     setData(response);
     if (response.response) setChoice(response.response);
     if (response.participation_mode) setMode(response.participation_mode);
-    setGuests(response.guests_count || 0);
-    setGuestDetails(Array.isArray(response.lunch.attendees) ? response.lunch.attendees : []);
+    setCyclists(Array.isArray(response.cyclist_guests) ? response.cyclist_guests : []);
+    setNonCyclists(Array.isArray(response.non_cyclist_guests) ? response.non_cyclist_guests : []);
   };
 
   useEffect(() => {
@@ -98,20 +106,25 @@ export default function EventRsvp() {
     return () => { mounted = false; };
   }, [token]);
 
-  const call = async (action: "respond" | "confirm_lunch_named", extra: Record<string, unknown>) => {
+  const call = async (action: "respond_with_types" | "confirm_lunch_named", extra: Record<string, unknown>) => {
     if (!token) return;
     setSaving(true); setError(""); setNotice("");
     // Los nombres se guardan por RPC segura con el token de invitación.
     // El resto de las respuestas mantiene el canal existente, sin desplegar nuevas Edge Functions.
     let response: RsvpData | { error?: string } | null = null;
     let failure: { message: string } | null = null;
-    if (action === "confirm_lunch_named") {
+    if (action === "confirm_lunch_named" || action === "respond_with_types") {
       const namedRpc = supabase as unknown as {
         rpc: (name: string, args: Record<string, unknown>) => Promise<{ error: { message: string } | null }>;
       };
-      const saved = await namedRpc.rpc("confirm_event_rsvp_lunch_named", {
-        p_token: token, p_guests: extra.guest_details,
-      });
+      const saved = action === "confirm_lunch_named"
+        ? await namedRpc.rpc("confirm_event_rsvp_lunch_named", {
+            p_token: token, p_guests: extra.guest_details,
+          })
+        : await namedRpc.rpc("respond_event_rsvp_with_guest_types", {
+            p_token: token, p_response: extra.response, p_mode: extra.participation_mode,
+            p_cyclists: extra.cyclists, p_non_cyclists: extra.non_cyclists,
+          });
       failure = saved.error;
       if (!failure) {
         const loaded = await supabase.functions.invoke("event-rsvp", { body: { action: "status", token } });
@@ -126,7 +139,7 @@ export default function EventRsvp() {
     if (failure || response?.error) setError(response?.error || failure?.message || "No pudimos guardar. Intentá de nuevo.");
     else {
       hydrate(response as RsvpData);
-      setNotice(action === "respond"
+      setNotice(action === "respond_with_types"
         ? "Respuesta actualizada. Podés volver a editarla desde este mismo enlace."
         : "Datos y aceptación guardados. La reserva queda confirmada sólo cuando administración verifica el pago con el restaurante.");
       setAccepted(false);
@@ -134,11 +147,21 @@ export default function EventRsvp() {
     setSaving(false);
   };
 
-  const submitRsvp = () => call("respond", {
-    response: choice,
-    participation_mode: choice === "voy" ? mode : null,
-    guests_count: choice === "voy" && mode !== "solo_fondo" ? guests : 0,
-  });
+  const submitRsvp = () => {
+    const riders = choice === "voy" && mode !== "solo_almuerzo"
+      ? cyclists.map((person) => ({ name: person.name.trim(), category: person.category, lunch: mode !== "solo_fondo" && person.lunch }))
+      : [];
+    const diners = choice === "voy" && mode !== "solo_fondo"
+      ? nonCyclists.map((person) => ({ name: person.name.trim(), category: person.category }))
+      : [];
+    if ([...riders, ...diners].some((person) => person.name.length < 2 || person.name.length > 100)) {
+      setError("Completá nombre y apellido de cada acompañante."); return;
+    }
+    call("respond_with_types", {
+      response: choice, participation_mode: choice === "voy" ? mode : null,
+      cyclists: riders, non_cyclists: diners,
+    });
+  };
 
   const total = useMemo(() => data ? lunchAmount(counts, data.prices) : null, [counts, data]);
   const whatsappUrl = useMemo(() => {
@@ -202,13 +225,9 @@ export default function EventRsvp() {
                   </label>
                 ))}
               </div>
-              {mode !== "solo_fondo" && <div className="space-y-2">
-                <Label htmlFor="guests">¿Cuántos acompañantes que no pedalean vienen al almuerzo?</Label>
-                <Input id="guests" type="number" min={0} max={COMPANIONS_TECH_MAX} value={guests}
-                  onChange={(e) => setGuests(Math.max(0, Math.min(COMPANIONS_TECH_MAX, Math.trunc(Number(e.target.value) || 0))))} />
-                <p className="text-xs text-muted-foreground">Total preliminar para el almuerzo: {guests + 1}, incluyéndote. Sin límite comercial de cupos (solo un control interno técnico). Cuenta únicamente personas que no pedalean.</p>
-                <p className="text-xs text-muted-foreground"><strong>No sumes acá a amigos ciclistas.</strong> Para traer un amigo al fondo, consultalo antes con Claudio: su participación no queda registrada ni aprobada con este formulario.</p>
-              </div>}
+              <EventRsvpGuests cyclists={cyclists} setCyclists={setCyclists}
+                nonCyclists={nonCyclists} setNonCyclists={setNonCyclists}
+                mode={mode} disabled={!!locked} />
             </div>}
 
             <div className="rounded-lg bg-muted/40 p-3 text-xs text-muted-foreground">
@@ -247,27 +266,14 @@ export default function EventRsvp() {
                   <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">De 4 a 9 años</div><strong>{formatLunchPrice(data.prices.child_4_9_price)}</strong></div>
                   <div className="rounded-lg bg-muted/40 p-3"><div className="text-xs text-muted-foreground">Menores de 4</div><strong>{formatLunchPrice(data.prices.under_4_price)}</strong></div>
                 </div>
-                <p className="text-xs text-muted-foreground">Bebidas aparte. Confirmá las edades: deben sumar {guests + 1}, incluyéndote.</p>
-                <div className="space-y-3">
+                <p className="text-xs text-muted-foreground">Bebidas aparte. El total incluye a los ciclistas invitados que también comen y a los acompañantes no ciclistas: {guests + 1} comensales, incluyéndote.</p>
+                <div className="space-y-2">
                   <h3 className="font-semibold">¿Quiénes vienen a la parrilla?</h3>
-                  <p className="text-xs text-muted-foreground">Sumamos tu nombre como titular adulto. Completá nombre y apellido y grupo de edad de cada acompañante que no pedalea.</p>
-                  <div className="rounded-lg bg-muted/40 p-3 text-sm">
-                    <div className="font-medium">{data.name || "Titular de la invitación"}</div>
-                    <div className="text-xs text-muted-foreground">Titular · Adulto · {formatLunchPrice(data.prices.adult_price)}</div>
-                  </div>
-                  {guestDetails.map((person, index) => <div key={index} className="rounded-lg border p-3 space-y-2">
-                    <Label htmlFor={`guest-name-${index}`}>Acompañante {index + 1}</Label>
-                    <Input id={`guest-name-${index}`} placeholder="Nombre y apellido" maxLength={100} value={person.name} disabled={locked}
-                      onChange={(e) => setGuestDetails((previous) => previous.map((item, i) => i === index ? { ...item, name: e.target.value } : item))} />
-                    <select aria-label={`Grupo de edad del acompañante ${index + 1}`} className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      value={person.category} disabled={locked}
-                      onChange={(e) => setGuestDetails((previous) => previous.map((item, i) => i === index ? { ...item, category: e.target.value as LunchGuest["category"] } : item))}>
-                      <option value="adult">Adulto (10 años o más) · {formatLunchPrice(data.prices.adult_price)}</option>
-                      <option value="child_4_9">4 a 9 años · {formatLunchPrice(data.prices.child_4_9_price)}</option>
-                      <option value="under_4">Menor de 4 años · {formatLunchPrice(data.prices.under_4_price)}</option>
-                    </select>
+                  <p className="text-xs text-muted-foreground">Los nombres se completan en la sección de acompañantes de arriba.</p>
+                  <div className="rounded-lg bg-muted/40 p-3 text-sm">{data.name || "Titular de la invitación"} · Titular adulto</div>
+                  {guestDetails.map((person, index) => <div key={index} className="rounded-lg border p-3 text-sm">
+                    {person.name || "Falta completar nombre"} · {person.is_cyclist ? "Ciclista invitado pendiente de aprobación" : "No ciclista"} · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "Niño de 4 a 9 años" : "Menor de 4 años"}
                   </div>)}
-                  <p className="text-xs text-muted-foreground">No agregues acá amigos ciclistas: requieren aprobación previa de Claudio y se gestionan por separado.</p>
                 </div>
                 <div className="rounded-lg border border-accent/30 bg-accent/5 p-4">
                   <div className="text-sm text-muted-foreground">Total a transferir al restaurante · {lunchDinerTotal(counts)} comensales</div>
