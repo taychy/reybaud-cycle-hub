@@ -198,3 +198,8 @@ export const decideUpdateAction = (
   const done = attempt?.target === serverId ? attempt.count : 0;
   return done >= maxAttempts ? "blocking" : "auto-reload";
 };
+
+/** NotFound recovery for public RSVP links: one cache-bypassing reload per path. */
+export const RSVP_NOTFOUND_KEY = "app:rsvp-404-recovery";
+export const shouldRecoverRsvpNotFound = (pathname: string, alreadyTried: string | null) =>
+  (isRsvpLinkPath(pathname) || isRsvpEventEntryPath(pathname)) && alreadyTried !== pathname;

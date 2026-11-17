@@ -54,7 +54,13 @@ export default defineConfig(({ mode }) => ({
         maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         // Excluimos /~oauth y la ruta de chequeo de actualización para que
         // SIEMPRE pasen por la red (sin pasar por el SW cacheado).
-        navigateFallbackDenylist: [/^\/~oauth/, /^\/__update_check/],
+        navigateFallbackDenylist: [
+          /^\/~oauth/,
+          /^\/__update_check/,
+          // Enlaces públicos de RSVP: siempre por red (index.html fresco), nunca precache.
+          /^\/confirmar-asistencia\//,
+          /^\/eventos\/[^/]+\/confirmar\/?$/,
+        ],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         // NO usar clientsClaim/skipWaiting con registerType: "prompt".
         // Esa combinación dispara controllerchange apenas se instala el SW

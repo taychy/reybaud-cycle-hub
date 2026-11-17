@@ -122,3 +122,17 @@ describe("decideUpdateAction", () => {
     expect(decideUpdateAction("a", "c", { target: "b", count: 5 })).toBe("auto-reload");
   });
 });
+
+import { shouldRecoverRsvpNotFound } from "./appUpdate";
+describe("RSVP 404 recovery", () => {
+  const ev = "/eventos/08fc7e07-10df-4ace-b3ed-a0d581b6f7c9/confirmar";
+  const tk = "/confirmar-asistencia/08fc7e07-10df-4ace-b3ed-a0d581b6f7c9";
+  it("recovers once for RSVP deep links", () => {
+    expect(shouldRecoverRsvpNotFound(ev, null)).toBe(true);
+    expect(shouldRecoverRsvpNotFound(tk, null)).toBe(true);
+    expect(shouldRecoverRsvpNotFound(ev, ev)).toBe(false);
+  });
+  it("never for other paths", () => {
+    expect(shouldRecoverRsvpNotFound("/foo", null)).toBe(false);
+  });
+});
