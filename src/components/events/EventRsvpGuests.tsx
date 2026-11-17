@@ -27,7 +27,6 @@ export default function EventRsvpGuests({
   const cyclingAllowed = mode !== "solo_almuerzo";
   const lunchAllowed = mode !== "solo_fondo";
   const riderLunch = lunchAllowed && cyclingAllowed ? cyclists.filter((person) => person.lunch).length : 0;
-  const meals = 1 + (lunchAllowed ? nonCyclists.length + riderLunch : 0);
 
   const changeCategoryCount = (category: GuestAge, requested: number) => {
     const otherCount = nonCyclists.filter((person) => person.category !== category).length;
@@ -49,8 +48,7 @@ export default function EventRsvpGuests({
         <h3 className="font-semibold text-base">Amigos ciclistas invitados</h3>
       </div>
       <p className="text-sm text-muted-foreground">
-        ¿Querés invitar a alguien a pedalear? Antes debe consultar con Claudio, que evaluará su nivel técnico y rendimiento.
-        Hay <strong>10 cupos para invitados aprobados</strong> en total.
+        Agregá los nombres de tus amigos. Claudio evaluará cada solicitud (10 cupos en total).
       </p>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Label htmlFor="rsvp-cyclists" className="text-sm font-medium">Cantidad de amigos ciclistas</Label>
@@ -65,7 +63,7 @@ export default function EventRsvpGuests({
         />
       </div>
       <p className="text-xs text-muted-foreground">
-        Cada amigo ciclista aprobado paga $30.000 por el fondo. <strong>No queda aprobado por completar este formulario.</strong>
+        Valor por amigo aprobado: $30.000. La solicitud no confirma el cupo.
       </p>
       {cyclists.map((person, index) => <div key={index} className="space-y-3 rounded-lg border border-border bg-card p-3">
         <Label htmlFor={`rsvp-cyclist-name-${index}`}>Amigo ciclista {index + 1} · nombre y apellido</Label>
@@ -82,7 +80,7 @@ export default function EventRsvpGuests({
           También viene a la parrilla
         </label>}
         {lunchAllowed && person.lunch && <p className="text-xs text-muted-foreground">
-          Parrilla de adulto · $40.000 por persona. Se suma automáticamente al total del almuerzo.
+          El almuerzo de este invitado se suma al total.
         </p>}
       </div>)}
     </section>}
@@ -92,8 +90,7 @@ export default function EventRsvpGuests({
         <h3 className="font-semibold text-base">Acompañantes que no pedalean</h3>
       </div>
       <p className="text-sm text-muted-foreground">
-        ¿Cuántas personas te acompañan <strong>solo a la parrilla</strong>? Indicá por separado los adultos y los niños.
-        Vos ya estás incluido como titular adulto.
+        Incluí acá a quienes solo vienen al almuerzo. Vos ya estás incluido.
       </p>
       <div className="space-y-3">
         {ageChoices.map((choice) => {
@@ -127,7 +124,6 @@ export default function EventRsvpGuests({
               </div>
             </div>
             {people.length > 0 && <div className="grid gap-2 border-t border-border pt-3">
-              <p className="text-xs text-muted-foreground">Completá los nombres de este grupo:</p>
               {people.map((person, index) => {
                 const originalIndex = nonCyclists.indexOf(person);
                 return <div className="space-y-1" key={originalIndex}>
@@ -145,15 +141,6 @@ export default function EventRsvpGuests({
           </div>;
         })}
       </div>
-      <p className="text-xs text-muted-foreground">
-        Los acompañantes no ciclistas no tienen cupo comercial. Los amigos ciclistas que también comen se cuentan automáticamente, sin anotarlos dos veces.
-      </p>
     </section>}
-    <div className="rounded-lg border border-border bg-muted/20 p-3 text-sm">
-      <p><strong>{cyclists.length}</strong> {cyclists.length === 1 ? "amigo ciclista invitado pendiente de aprobación" : "amigos ciclistas invitados pendientes de aprobación"}</p>
-      {lunchAllowed && <p className="mt-1"><strong>{meals}</strong> {meals === 1 ? "persona" : "personas"} para la parrilla, incluyéndote
-        {nonCyclists.some((person) => person.category !== "adult") && " (con niños)"}
-      </p>}
-    </div>
   </div>;
 }
