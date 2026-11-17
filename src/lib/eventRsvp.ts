@@ -25,9 +25,9 @@ export const PARTICIPATION_LABELS = {
 
 export const LUNCH_STATUS_LABELS = {
   sin_interes: "Sin interés en almuerzo",
-  intencion_confirmada: "Pendiente de completar datos",
-  instrucciones_pendientes: "Reserva pendiente de pago",
-  instrucciones_enviadas: "Reserva pendiente de pago",
+  intencion_confirmada: "Asistencia registrada · correo de pago pendiente",
+  instrucciones_pendientes: "Correo de pago pendiente",
+  instrucciones_enviadas: "Instrucciones de pago enviadas",
   comprobante_informado: "Comprobante recibido",
   pago_verificado: "Reserva confirmada · pago verificado",
 } as const;
