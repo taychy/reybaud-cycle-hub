@@ -5,10 +5,10 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); clearAttempts(); })
 
 describe("enlaces de encuesta y PWA instalada", () => {
   const origin = "https://reybaud-app.com";
-  it.each(["/viaje/encuesta-gastronomica?evento=event", "/viaje/mi-reserva?token=fixture-private&encuesta=gastronomia#form", "/formacion-inicial?cohort=c", "/preinscripcion/plan?beneficio=b"])("abre exactamente el destino permitido %s", (path) => {
+  it.each(["/viaje/encuesta-gastronomica?evento=event", "/viaje/mi-reserva?token=fixture-private&encuesta=gastronomia#form", "/formacion-inicial?cohort=c", "/preinscripcion/plan?beneficio=b", "/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=voy", "/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=no_voy"])("abre exactamente el destino permitido %s", (path) => {
     expect(getAppLaunchDestination(origin + path, origin)).toBe(path);
   });
-  it.each(["https://other.example/viaje/mi-reserva?token=fixture", origin + "/viaje/mi-reserva-otra", origin + "/admin/eventos", "not-a-url"])("rechaza destino no autorizado %s", (url) => {
+  it.each(["https://other.example/viaje/mi-reserva?token=fixture", "https://other.example/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=voy", origin + "/confirmar-asistencia/not-a-token?opcion=voy", origin + "/viaje/mi-reserva-otra", origin + "/admin/eventos", "not-a-url"])("rechaza destino no autorizado %s", (url) => {
     expect(getAppLaunchDestination(url, origin)).toBeNull();
   });
   it("chequea encuesta general y personal inmediatamente, no otras rutas", () => {
@@ -16,6 +16,8 @@ describe("enlaces de encuesta y PWA instalada", () => {
     expect(requiresSurveyUpdateCheck("/viaje/mi-reserva", "?token=fixture&encuesta=gastronomia")).toBe(true);
     expect(requiresSurveyUpdateCheck("/viaje/mi-reserva", "?token=fixture&step=gastronomia")).toBe(true);
     expect(requiresSurveyUpdateCheck("/viaje/mi-reserva", "?token=fixture")).toBe(false);
+    expect(requiresSurveyUpdateCheck("/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39", "?opcion=voy")).toBe(true);
+    expect(requiresSurveyUpdateCheck("/confirmar-asistencia/no-es-uuid", "?opcion=voy")).toBe(false);
     expect(wantsFoodSurvey("?step=pagos")).toBe(false);
   });
   it("recarga mantiene token, query y hash; limpieza técnica mantiene sesión", () => {
