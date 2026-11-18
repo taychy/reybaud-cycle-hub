@@ -855,7 +855,7 @@ const EventDetail = () => {
                 premium
                 triggerClassName={editorialAlpine ? "h-12 w-full rounded-xl border-0 bg-primary font-semibold text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground focus-visible:ring-primary" : undefined}
                 onReserve={
-                  allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
+                  inquiryCtas.length === 0 && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? (pkgId: string | null) => {
                         if (pkgId) setChosenPackageId(pkgId);
                         if (!alumno) {
@@ -893,7 +893,7 @@ const EventDetail = () => {
               <EventPackagesDrawer
                 eventId={id}
                 onReserve={
-                  allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
+                  inquiryCtas.length === 0 && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente
                     ? (pkgId: string | null) => {
                         if (pkgId) setChosenPackageId(pkgId);
                         if (!alumno) {
