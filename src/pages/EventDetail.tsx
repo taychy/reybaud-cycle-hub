@@ -32,6 +32,7 @@ import EventAnnouncementsSection from "@/components/reservation/EventAnnouncemen
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
+import EventInquiryCtas, { parseInquiryCtas } from "@/components/event/EventInquiryCtas";
 import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
 import EventPromoBanner from "@/components/event/EventPromoBanner";
@@ -487,6 +488,7 @@ const EventDetail = () => {
   // Borrador: solo visible para admins (RLS). Vista previa privada sin reservas ni cobros.
   const isDraftPreview = event.estado_publicacion === "borrador";
   const premiumLanding = getPremiumLanding(event.metadata);
+  const inquiryCtas = parseInquiryCtas(event.metadata);
   const isBormioLanding = !!premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641";
   const editorialAlpine = premiumLanding?.layout_variant === "editorial_alpine";
   const premiumDates = premiumDateSummary(event);
@@ -950,8 +952,12 @@ const EventDetail = () => {
             </div>
           )}
 
+          {inquiryCtas.length > 0 && !eventPast && (
+            <EventInquiryCtas eventId={event.id} eventTitle={event.title} ctas={inquiryCtas} />
+          )}
+
           {/* ═══ NO RESERVATION CTAs ═══ */}
-          {alumno && !(premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641") && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
+          {inquiryCtas.length === 0 && alumno && !(premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641") && allowsParticipation && !hasReservation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-2">
                 <h3 className="font-heading font-semibold text-foreground">
@@ -986,7 +992,7 @@ const EventDetail = () => {
             </div>
           )}
 
-          {!alumno && !(premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641") && allowsParticipation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
+          {inquiryCtas.length === 0 && !alumno && !(premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641") && allowsParticipation && !eventPast && spotsLeft !== 0 && !isSoldOut && !isProximamente && (
             <div className="glass-card rounded-xl p-5 space-y-4 animate-fade-in">
               <div className="text-center space-y-1">
                 <h3 className="font-heading font-semibold text-foreground">

@@ -331,7 +331,7 @@ export default function AdminEventWaitlist() {
                     <tbody>
                       {filtered.map((r) => (
                         <tr key={r.id} className="border-b border-border/50 hover:bg-muted/20">
-                          <td className="py-2 px-2 font-medium">{r.nombre}</td>
+                          <td className="py-2 px-2 font-medium">{r.nombre}{r.respuestas?.tipo === "consulta" && <p className="text-xs font-normal text-primary">{r.respuestas.opcion_label}{r.respuestas.mensaje ? <span className="block text-muted-foreground">{r.respuestas.mensaje}</span> : null}</p>}</td>
                           <td className="py-2 px-2 text-muted-foreground">{r.email}</td>
                           {isMaratona && <td className="py-2 px-2 text-sm">{r.respuestas.package_name}<p className="text-muted-foreground">€{r.respuestas.price_eur} · {r.respuestas.bike_included ? "Bicicleta incluida" : "Bicicleta propia"}</p><p>{r.respuestas.eligibility}</p></td>}
                           <td className="py-2 px-2 text-muted-foreground">{r.telefono || "—"}</td>
