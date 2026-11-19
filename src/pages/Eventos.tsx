@@ -164,6 +164,11 @@ const EventCard = ({
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
         />
+        {event.image_url && event.metadata?.image_credit && (
+          <span className="absolute bottom-1 right-2 z-10 rounded bg-background/70 px-1.5 py-0.5 text-[10px] text-foreground/80">
+            {event.metadata.image_credit}
+          </span>
+        )}
         {/* Favorite heart */}
         <button
           onClick={(e) => { e.stopPropagation(); onToggleFavorite(); }}

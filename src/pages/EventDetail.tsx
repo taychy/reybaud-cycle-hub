@@ -530,6 +530,11 @@ const EventDetail = () => {
         ) : (
           <EventHeroMedia hero={hero} title={rescheduled?.title || event.title} />
         )}
+        {event.image_url && event.metadata?.image_credit && (
+          <span className="absolute z-20 bottom-1 right-2 rounded bg-background/70 px-1.5 py-0.5 text-[10px] text-foreground/80">
+            {event.metadata.image_credit}
+          </span>
+        )}
         <Button
           type="button"
           variant="ghost"
