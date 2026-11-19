@@ -72,6 +72,7 @@ import AdminEventReservations from "@/components/admin/AdminEventReservations";
 import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsManager";
 import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRsvpDashboard from "@/components/admin/EventRsvpDashboard";
+import DatePollReport from "@/components/admin/DatePollReport";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
@@ -734,6 +735,7 @@ const EventsList = () => {
               )}
               <TabsContent value="gestion" className="pt-4">
                 <div className="space-y-6">
+                  <DatePollReport eventId={reservationsEvent.id} />
                   {reservationsEvent.metadata?.rsvp_enabled === true ? (
                     <EventRsvpDashboard eventId={reservationsEvent.id} />
                   ) : (

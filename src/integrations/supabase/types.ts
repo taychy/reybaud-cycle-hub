@@ -2700,6 +2700,95 @@ export type Database = {
           },
         ]
       }
+      date_poll_invites: {
+        Row: {
+          alumno_id: string | null
+          change_count: number
+          choice: string | null
+          created_at: string
+          id: string
+          is_test: boolean
+          last_sent_at: string | null
+          poll_id: string
+          recipient_email: string
+          recipient_name: string | null
+          responded_at: string | null
+          suggestion: string | null
+          token: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          change_count?: number
+          choice?: string | null
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          last_sent_at?: string | null
+          poll_id: string
+          recipient_email: string
+          recipient_name?: string | null
+          responded_at?: string | null
+          suggestion?: string | null
+          token?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          change_count?: number
+          choice?: string | null
+          created_at?: string
+          id?: string
+          is_test?: boolean
+          last_sent_at?: string | null
+          poll_id?: string
+          recipient_email?: string
+          recipient_name?: string | null
+          responded_at?: string | null
+          suggestion?: string | null
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "date_poll_invites_poll_id_fkey"
+            columns: ["poll_id"]
+            isOneToOne: false
+            referencedRelation: "date_polls"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      date_polls: {
+        Row: {
+          created_at: string
+          event_id: string | null
+          id: string
+          is_open: boolean
+          options: Json
+          question: string
+          slug: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          is_open?: boolean
+          options: Json
+          question: string
+          slug: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string | null
+          id?: string
+          is_open?: boolean
+          options?: Json
+          question?: string
+          slug?: string
+          title?: string
+        }
+        Relationships: []
+      }
       delivery_item_check_log: {
         Row: {
           actor_type: string
@@ -20506,6 +20595,7 @@ export type Database = {
         Args: { p_ip?: string; p_token: string; p_user_agent?: string }
         Returns: Json
       }
+      get_date_poll_by_token: { Args: { p_token: string }; Returns: Json }
       get_deudores_cobranzas: {
         Args: never
         Returns: {
@@ -22229,6 +22319,10 @@ export type Database = {
         Returns: boolean
       }
       store_order_estados_comprometidos: { Args: never; Returns: string[] }
+      submit_date_poll_vote: {
+        Args: { p_choice: string; p_suggestion?: string; p_token: string }
+        Returns: Json
+      }
       submit_event_booking_request: {
         Args: {
           p_email: string

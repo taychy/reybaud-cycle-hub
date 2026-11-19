@@ -456,3 +456,7 @@
 - [ ] 0111 BLOQUEADA / NO APLICAR: los ARS 882.528 son una proyección, no crédito ficticio confirmado (ver .lovable/archivo/alerta-contable-0111-validacion-documental-2026-11-13.md). Espera la conciliación de Natalia de Pablo Braier, Silvina Ambrosini, Pedro Ferroni, Sergio Celuch Eguren y Augusto Marcenaro (posible doble cargo de septiembre).
 - [x] Fondazo: 2ª campaña 'Todos los detalles' reutilizando tokens (autorizada 17/11)
 - [ ] Recordatorio Fondazo lun 23/11 09:00 ART (separado, no ahora)
+
+## San Luis 2027 · Encuesta de fechas (19/11)
+- [x] Encuesta, landing con voto por POST, reporte admin y borrador de correo listos.
+- [ ] Desplegar send-broadcast, publicar y enviar: requiere aprobación.

@@ -2,7 +2,11 @@
 // Modes: "test" (single recipient) or "send" (all targeted recipients).
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { corsHeaders } from "npm:@supabase/supabase-js@2/cors";
-import { decorateRsvpRecipients, filterRsvpRecipients, markRsvpSent } from "./event-rsvp.ts";
+import { decorateRsvpRecipients as decorateRsvpOnly, filterRsvpRecipients, markRsvpSent as markRsvpOnly } from "./event-rsvp.ts";
+import { decorateDatePollRecipients, markDatePollSent, personalizeDatePoll } from "./date-poll.ts";
+const decorateRsvpRecipients = async (a: any, rows: any[], f: any, t = false) =>
+  decorateDatePollRecipients(a, await decorateRsvpOnly(a, rows, f, t), f, t);
+const markRsvpSent = async (a: any, r: any, f: any, t = false) => { await markRsvpOnly(a, r, f, t); await markDatePollSent(a, r, f, t); };
 
 const GATEWAY_URL = "https://connector-gateway.lovable.dev/brevo";
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -40,6 +44,8 @@ interface SegmentFilters {
   // Enlaces individuales de eventos informativos; se materializan sólo al probar/enviar.
   rsvp_event_id?: string;
   rsvp_kind?: "invitacion" | "almuerzo";
+  // Encuesta de preferencia de fecha (date_polls.slug); placeholders {poll_url_<opcion>}.
+  date_poll_slug?: string;
 }
 
 interface SendBody {
@@ -195,7 +201,7 @@ function personalize(value: string | undefined, recipient: any) {
   if (!value) return value;
   const nombre = recipient?.display_name || recipient?.name || recipient?.recipient_name || `${recipient?.nombre ?? ""} ${recipient?.apellido ?? ""}`.trim();
   const email = recipient?.email || "";
-  return value
+  return personalizeDatePoll(value, recipient)
     .replaceAll("{nombre_url}", encodeUrlValue(nombre))
     .replaceAll("{email_url}", encodeUrlValue(email))
     .replaceAll("{nombre}", escapeHtml(nombre))
