@@ -16024,11 +16024,143 @@ export type Database = {
           },
         ]
       }
+      training_camp_credit_conciliation_sources: {
+        Row: {
+          amount_ars: number
+          conciliation_id: string
+          holder_alumno_id: string
+          id: string
+          is_cession: boolean
+          note: string | null
+          source_reservation_id: string
+        }
+        Insert: {
+          amount_ars: number
+          conciliation_id: string
+          holder_alumno_id: string
+          id?: string
+          is_cession?: boolean
+          note?: string | null
+          source_reservation_id: string
+        }
+        Update: {
+          amount_ars?: number
+          conciliation_id?: string
+          holder_alumno_id?: string
+          id?: string
+          is_cession?: boolean
+          note?: string | null
+          source_reservation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_camp_credit_conciliation_so_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_conciliation_so_source_reservation_id_fkey"
+            columns: ["source_reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_conciliation_sources_conciliation_id_fkey"
+            columns: ["conciliation_id"]
+            isOneToOne: false
+            referencedRelation: "training_camp_credit_conciliations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      training_camp_credit_conciliations: {
+        Row: {
+          authorization_note: string
+          authorized_by: string
+          created_at: string
+          executed_at: string | null
+          executed_by: string | null
+          expected_target_paid_before: number
+          expected_target_total: number
+          fx_ars_per_unit: number
+          id: string
+          payment_id: string | null
+          recognized_amount: number
+          recognized_currency: string
+          reference: string
+          status: string
+          target_reservation_id: string
+          total_ars: number
+        }
+        Insert: {
+          authorization_note: string
+          authorized_by: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          expected_target_paid_before: number
+          expected_target_total: number
+          fx_ars_per_unit: number
+          id?: string
+          payment_id?: string | null
+          recognized_amount: number
+          recognized_currency: string
+          reference: string
+          status?: string
+          target_reservation_id: string
+          total_ars: number
+        }
+        Update: {
+          authorization_note?: string
+          authorized_by?: string
+          created_at?: string
+          executed_at?: string | null
+          executed_by?: string | null
+          expected_target_paid_before?: number
+          expected_target_total?: number
+          fx_ars_per_unit?: number
+          id?: string
+          payment_id?: string | null
+          recognized_amount?: number
+          recognized_currency?: string
+          reference?: string
+          status?: string
+          target_reservation_id?: string
+          total_ars?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "training_camp_credit_conciliations_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "reservation_payments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_conciliations_target_reservation_id_fkey"
+            columns: ["target_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_conciliations_target_reservation_id_fkey"
+            columns: ["target_reservation_id"]
+            isOneToOne: false
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
+      }
       training_camp_credit_ledger: {
         Row: {
           account_id: string
           actor_id: string
           amount: number
+          conciliation_id: string | null
           created_at: string
           id: string
           idempotency_key: string
@@ -16040,6 +16172,7 @@ export type Database = {
           account_id: string
           actor_id: string
           amount: number
+          conciliation_id?: string | null
           created_at?: string
           id?: string
           idempotency_key: string
@@ -16051,6 +16184,7 @@ export type Database = {
           account_id?: string
           actor_id?: string
           amount?: number
+          conciliation_id?: string | null
           created_at?: string
           id?: string
           idempotency_key?: string
@@ -16064,6 +16198,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "training_camp_credit_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "training_camp_credit_ledger_conciliation_id_fkey"
+            columns: ["conciliation_id"]
+            isOneToOne: false
+            referencedRelation: "training_camp_credit_conciliations"
             referencedColumns: ["id"]
           },
           {
@@ -18748,6 +18889,10 @@ export type Database = {
         Returns: string
       }
       _delivery_variant_norm: { Args: { v: string }; Returns: string }
+      _execute_camp_credit_conciliation: {
+        Args: { p_actor: string; p_id: string }
+        Returns: string
+      }
       _extra_meal_compute: { Args: { p: Json }; Returns: Json }
       _extra_meal_slots: { Args: { p_reservation_id: string }; Returns: Json }
       _extra_night_apply: {
@@ -19140,6 +19285,10 @@ export type Database = {
         }[]
       }
       admin_enable_food_meals: { Args: { p_event: string }; Returns: Json }
+      admin_execute_camp_credit_conciliation: {
+        Args: { p_id: string }
+        Returns: string
+      }
       admin_extra_meal_survey_report: {
         Args: { p_event_id: string }
         Returns: Json
