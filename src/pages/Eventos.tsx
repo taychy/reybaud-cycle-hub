@@ -252,7 +252,7 @@ const EventCard = ({
         </div>
 
         {/* Price + CTA */}
-        <div className="flex items-end justify-between pt-1.5 border-t border-border/50">
+        <div className="flex flex-col gap-1.5 pt-1.5 border-t border-border/50">
           {priceDisplay.mode === "con_valor" && priceDisplay.price != null ? (
             <div>
               <p className="text-[9px] text-muted-foreground">Desde</p>
@@ -268,7 +268,7 @@ const EventCard = ({
           <Button
             size="sm"
             variant={hasUserLink ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
-            className="text-[10px] h-7 px-2.5"
+            className="w-full text-[11px] h-8 px-2.5"
             onClick={(e) => {
               e.stopPropagation();
               const isWaitlistState =
@@ -291,6 +291,7 @@ const EventCard = ({
               : isPast ? "Finalizado"
               : isInformative ? "Ver info"
               : isInscriptionOnly ? "Inscribirme"
+              : Array.isArray(event.metadata?.inquiry_ctas) && event.metadata.inquiry_ctas.length > 0 ? "Ver opciones"
               : priceDisplay.mode === "con_valor" ? "Reservar"
               : "Ver detalle"}
             <ChevronRight className="w-3 h-3 ml-0.5" />

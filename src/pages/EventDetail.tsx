@@ -32,7 +32,7 @@ import EventAnnouncementsSection from "@/components/reservation/EventAnnouncemen
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
-import EventInquiryCtas, { parseInquiryCtas } from "@/components/event/EventInquiryCtas";
+import EventInquiryCtas, { packageWhatsAppUrl, parseInquiryCtas } from "@/components/event/EventInquiryCtas";
 import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
 import EventPromoBanner from "@/components/event/EventPromoBanner";
@@ -953,7 +953,12 @@ const EventDetail = () => {
           )}
 
           {inquiryCtas.length > 0 && !eventPast && (
+            <>
             <EventInquiryCtas eventId={event.id} eventTitle={event.title} ctas={inquiryCtas} />
+            <Button asChild variant="outline" className="w-full mt-2">
+              <a href={packageWhatsAppUrl(event.title)} target="_blank" rel="noopener noreferrer">Consultar paquete por WhatsApp</a>
+            </Button>
+            </>
           )}
 
           {/* ═══ NO RESERVATION CTAs ═══ */}

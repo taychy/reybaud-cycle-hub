@@ -30,6 +30,12 @@ const schema = z.object({
   mensaje: z.string().trim().max(1000).optional(),
 });
 
+export const REYBAUD_PACKAGE_WHATSAPP = "5491160026623";
+export function packageWhatsAppUrl(eventTitle: string) {
+  const text = `Hola, soy ciclista de Reybaud y quiero recibir información sobre el paquete completo para la carrera ${eventTitle}.`;
+  return `https://wa.me/${REYBAUD_PACKAGE_WHATSAPP}?text=${encodeURIComponent(text)}`;
+}
+
 export default function EventInquiryCtas({ eventId, eventTitle, ctas }: { eventId: string; eventTitle: string; ctas: InquiryCta[] }) {
   const [active, setActive] = useState<InquiryCta | null>(null);
   const [form, setForm] = useState({ nombre: "", email: "", telefono: "", mensaje: "" });
