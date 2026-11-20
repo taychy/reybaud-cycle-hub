@@ -36,7 +36,7 @@ export function packageWhatsAppUrl(eventTitle: string) {
   return `https://wa.me/${REYBAUD_PACKAGE_WHATSAPP}?text=${encodeURIComponent(text)}`;
 }
 
-export default function EventInquiryCtas({ eventId, eventTitle, ctas }: { eventId: string; eventTitle: string; ctas: InquiryCta[] }) {
+export default function EventInquiryCtas({ eventId, eventTitle, ctas, secondary = false }: { eventId: string; eventTitle: string; ctas: InquiryCta[]; secondary?: boolean }) {
   const [active, setActive] = useState<InquiryCta | null>(null);
   const [form, setForm] = useState({ nombre: "", email: "", telefono: "", mensaje: "" });
   const [alumnoId, setAlumnoId] = useState<string | null>(null);
@@ -93,8 +93,8 @@ export default function EventInquiryCtas({ eventId, eventTitle, ctas }: { eventI
     <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in border border-primary/30">
       {ctas.map((c, i) => (
         <div key={c.key} className="space-y-1">
-          <Button variant={i === 0 ? "gold" : "outline"} className="w-full h-12 text-sm whitespace-normal" onClick={() => setActive(c)}>
-            {c.label}
+          <Button variant={!secondary && i === 0 ? "gold" : "outline"} className="w-full h-12 text-sm whitespace-normal" onClick={() => setActive(c)}>
+            {secondary ? `Dejar consulta · ${c.label.replace(/^(Consultar|Inscribirme)[^—]*—?\s*/i, "") || c.label}` : c.label}
           </Button>
           {c.note && <p className="text-[11px] text-muted-foreground text-center">{c.note}</p>}
         </div>

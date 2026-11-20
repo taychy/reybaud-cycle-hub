@@ -959,10 +959,11 @@ const EventDetail = () => {
 
           {inquiryCtas.length > 0 && !eventPast && (
             <>
-            <EventInquiryCtas eventId={event.id} eventTitle={event.title} ctas={inquiryCtas} />
-            <Button asChild variant="outline" className="w-full mt-2">
+            <Button asChild variant="gold" className="w-full h-12 mb-3">
               <a href={packageWhatsAppUrl(event.title)} target="_blank" rel="noopener noreferrer">Consultar paquete por WhatsApp</a>
             </Button>
+            <p className="text-xs text-muted-foreground mb-2">¿Preferís que te escribamos? Dejar consulta (opcional, no es una reserva):</p>
+            <EventInquiryCtas eventId={event.id} eventTitle={event.title} ctas={inquiryCtas} secondary />
             </>
           )}
 

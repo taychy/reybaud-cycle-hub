@@ -1,3 +1,4 @@
+import { packageWhatsAppUrl } from "@/components/event/EventInquiryCtas";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 import { useEffect, useState } from "react";
@@ -6,7 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  CalendarDays, MapPin, Users, ChevronRight, Heart,
+  CalendarDays, MapPin, Users, ChevronRight, Heart, MessageCircle,
   ArrowLeft, Bookmark, Plane, Trophy, Bike, LayoutGrid,
 } from "lucide-react";
 import logo from "@/assets/logo.png";
@@ -163,9 +164,13 @@ const EventCard = ({
           alt={rescheduled?.title || event.title}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           loading="lazy"
+          onError={(e) => {
+            const fb = placeholderImages[event.type] || placeholderImages.otro;
+            if (e.currentTarget.src !== fb) e.currentTarget.src = fb;
+          }}
         />
         {event.image_url && event.metadata?.image_credit && (
-          <span className="absolute bottom-1 right-2 z-10 rounded bg-background/70 px-1.5 py-0.5 text-[10px] text-foreground/80">
+          <span className="absolute bottom-1 right-1 left-1 z-10 truncate rounded bg-background/70 px-1.5 py-0.5 text-[9px] leading-tight text-foreground/80 text-right">
             {event.metadata.image_credit}
           </span>
         )}
@@ -270,6 +275,19 @@ const EventCard = ({
           ) : (
             <span />
           )}
+          {!rescheduled && !hasUserLink && !isPast && Array.isArray(event.metadata?.inquiry_ctas) && event.metadata.inquiry_ctas.length > 0 ? (
+            <Button asChild size="sm" variant="gold" className="w-full text-[11px] h-8 px-2.5">
+              <a
+                href={packageWhatsAppUrl(event.title)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                aria-label={`Consultar por WhatsApp: ${event.title}`}
+              >
+                <MessageCircle className="w-3.5 h-3.5 mr-1" /> Consultar
+              </a>
+            </Button>
+          ) : (
           <Button
             size="sm"
             variant={hasUserLink ? "outline" : priceDisplay.mode === "con_valor" ? "gold" : "outline"}
@@ -301,6 +319,7 @@ const EventCard = ({
               : "Ver detalle"}
             <ChevronRight className="w-3 h-3 ml-0.5" />
           </Button>
+          )}
         </div>
       </div>
     </div>
