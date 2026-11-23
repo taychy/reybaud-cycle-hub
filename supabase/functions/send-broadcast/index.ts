@@ -43,7 +43,7 @@ interface SegmentFilters {
   layout?: "plain";
   // Enlaces individuales de eventos informativos; se materializan sólo al probar/enviar.
   rsvp_event_id?: string;
-  rsvp_kind?: "invitacion" | "almuerzo";
+  rsvp_kind?: "invitacion" | "almuerzo" | "recordatorio";
   // Encuesta de preferencia de fecha (date_polls.slug); placeholders {poll_url_<opcion>}.
   date_poll_slug?: string;
 }

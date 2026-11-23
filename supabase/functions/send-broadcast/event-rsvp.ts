@@ -6,13 +6,13 @@ const money = (value: unknown) => new Intl.NumberFormat("es-AR", {
   style: "currency", currency: "ARS", minimumFractionDigits: 0, maximumFractionDigits: 2,
 }).format(Number(value || 0));
 
-export type RsvpBroadcastKind = "invitacion" | "almuerzo";
+export type RsvpBroadcastKind = "invitacion" | "almuerzo" | "recordatorio";
 export type RsvpSegment = { rsvp_event_id?: string; rsvp_kind?: RsvpBroadcastKind };
 
 function assertSegment(segment: RsvpSegment) {
   if (!segment.rsvp_event_id) return false;
   if (!/^[0-9a-f-]{36}$/i.test(segment.rsvp_event_id)) throw new Error("Evento RSVP inválido");
-  if (!["invitacion", "almuerzo"].includes(segment.rsvp_kind || "")) throw new Error("Tipo de correo RSVP inválido");
+  if (!["invitacion", "almuerzo", "recordatorio"].includes(segment.rsvp_kind || "")) throw new Error("Tipo de correo RSVP inválido");
   return true;
 }
 
@@ -30,6 +30,17 @@ async function eventAndPrices(admin: any, segment: RsvpSegment) {
 export async function filterRsvpRecipients(admin: any, rows: any[], segment: RsvpSegment) {
   if (!assertSegment(segment)) return rows;
   await eventAndPrices(admin, segment);
+  if (segment.rsvp_kind === "recordatorio") {
+    // Recordatorio: sólo invitaciones reales ya existentes y sin respuesta; nunca crea ni toca invitaciones.
+    const pending = await pendingInvitesByEmail(admin, segment, rows.map((r) => emailKey(r.email)).filter(Boolean));
+    const seen = new Set<string>();
+    return rows.filter((r) => {
+      const key = emailKey(r.email);
+      if (!pending.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
   if (segment.rsvp_kind !== "almuerzo") return rows;
   const emails = rows.map((r) => emailKey(r.email)).filter(Boolean);
   if (!emails.length) return [];
@@ -41,10 +52,34 @@ export async function filterRsvpRecipients(admin: any, rows: any[], segment: Rsv
   return rows.filter((r) => eligible.has(emailKey(r.email)));
 }
 
+async function pendingInvitesByEmail(admin: any, segment: RsvpSegment, emails: string[]) {
+  const map = new Map<string, any>();
+  for (let i = 0; i < emails.length; i += 200) {
+    const { data, error } = await admin.from("event_rsvp_invites")
+      .select("recipient_email,recipient_name,token").eq("event_id", segment.rsvp_event_id).eq("is_test", false)
+      .is("response", null).in("recipient_email", emails.slice(i, i + 200));
+    if (error) throw error;
+    for (const r of data || []) map.set(emailKey(r.recipient_email), r);
+  }
+  return map;
+}
+
 /** Crea/recupera el enlace individual justo antes de una prueba o envío, nunca en preview_count. */
 export async function decorateRsvpRecipients(admin: any, rows: any[], segment: RsvpSegment, isTest = false) {
   if (!assertSegment(segment)) return rows;
   const prices = await eventAndPrices(admin, segment);
+  if (segment.rsvp_kind === "recordatorio") {
+    if (isTest) throw new Error("El recordatorio no admite pruebas: reutiliza sólo enlaces reales existentes");
+    const pending = await pendingInvitesByEmail(admin, segment, rows.map((r) => emailKey(r.email)).filter(Boolean));
+    return rows.flatMap((recipient) => {
+      const invite = pending.get(emailKey(recipient.email));
+      if (!invite?.token) return [];
+      const name = String(recipient.display_name || recipient.name || invite.recipient_name || "").trim();
+      if (!name) throw new Error("Falta el nombre real del perfil; el recordatorio no se preparó con un saludo genérico");
+      const base = `${PUBLIC_ORIGIN}/confirmar-asistencia/${invite.token}`;
+      return [{ ...recipient, display_name: name, rsvp_voy_url: `${base}?opcion=voy`, rsvp_no_voy_url: `${base}?opcion=no_voy` }];
+    });
+  }
   const decorated: any[] = [];
   for (const recipient of rows) {
     const email = emailKey(recipient.email);
