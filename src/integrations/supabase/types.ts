@@ -19425,6 +19425,17 @@ export type Database = {
         Args: { p_confirm: string; p_reason: string; p_reservation_id: string }
         Returns: Json
       }
+      admin_register_turnera_payment: {
+        Args: {
+          _alumno_id?: string
+          _metodo: string
+          _moneda: string
+          _monto: number
+          _mp_movement_id?: string
+          _reserva_id: string
+        }
+        Returns: Json
+      }
       admin_renew_reservation_terms_link: {
         Args: { p_reservation_id: string }
         Returns: Json
@@ -20496,6 +20507,18 @@ export type Database = {
       get_alumno_store_order_targets: {
         Args: { _alumno_id: string }
         Returns: Json
+      }
+      get_alumno_turnera_debts: {
+        Args: { _alumno_id: string }
+        Returns: {
+          amount: number
+          currency: string
+          fecha: string
+          hora_inicio: string
+          id: string
+          label: string
+          pago_estado: string
+        }[]
       }
       get_billing_dashboard: { Args: never; Returns: Json }
       get_cash_box_balance: {
