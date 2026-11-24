@@ -39,6 +39,26 @@ export interface TurneraMpLike {
   suscripcion_id?: string | null;
   reservation_payment_id?: string | null;
   imputaciones_activas?: number;
+  status?: string | null;
+  direccion?: string | null;
+  tipo?: string | null;
+  /** pago_saldo_disponible('mp_movement', id) cuando se conoce. */
+  saldo_disponible?: number | null;
+}
+
+/** Planes "por clase" que NUNCA deben generar una nueva mensualidad: se cobran en la reserva de turnera.
+ *  Coincidencia exacta (no por contener "personalizada"): Asesoría Personalizada y packs siguen igual. */
+const TURNERA_EVENTUAL_PLAN_NAMES = new Set(["clase personalizada", "clase personalizada cr"]);
+export function isTurneraEventualPlanName(nombre: string | null | undefined): boolean {
+  const n = String(nombre ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().replace(/\s+/g, " ").toLowerCase();
+  return TURNERA_EVENTUAL_PLAN_NAMES.has(n);
+}
+
+/** Filtro de opciones MP seleccionables en la UI (el servidor vuelve a validar). */
+export function isSelectableTurneraMp(m: TurneraMpLike, reservaId: string): boolean {
+  return m.status === "approved" && m.direccion === "ingreso" && (m.tipo ?? "payment") === "payment"
+    && !!String(m.mp_payment_id ?? "").trim() && m.external_reference === `${TURNERA_REF_PREFIX}${reservaId}`
+    && !m.suscripcion_id && !m.reservation_payment_id;
 }
 
 export type TurneraPaymentCheck = { ok: true; duplicate: boolean } | { ok: false; error: string };
@@ -64,18 +84,25 @@ export function checkTurneraPayment(input: {
   if (!(input.monto > 0) || input.monto !== Number(r.precio_snapshot ?? 0))
     return { ok: false, error: "El importe debe coincidir con el precio de la reserva" };
   if (mp) {
-    if (isTurneraPaid(r) && r.pago_mp_payment_id === mp.mp_payment_id) return { ok: true, duplicate: true };
+    if (!String(mp.mp_payment_id ?? "").trim()) return { ok: false, error: "El movimiento no tiene número de operación de Mercado Pago" };
+    if (mp.status !== "approved") return { ok: false, error: "El cobro de Mercado Pago no está aprobado" };
+    if (mp.direccion !== "ingreso") return { ok: false, error: "El movimiento no es un ingreso" };
+    if ((mp.tipo ?? "payment") !== "payment") return { ok: false, error: "El movimiento no es un cobro (reintegro/liquidación)" };
+    if (mp.external_reference !== `${TURNERA_REF_PREFIX}${r.id}`) return { ok: false, error: "El cobro no fue emitido para esta reserva de turnera" };
     if (mp.alumno_id && mp.alumno_id !== r.alumno_id) return { ok: false, error: "El cobro de Mercado Pago es de otro alumno" };
-    if (String(mp.currency ?? "ARS").toUpperCase() !== input.moneda.toUpperCase()) return { ok: false, error: "Moneda del cobro distinta" };
+    if (String(mp.currency ?? "").toUpperCase() !== input.moneda.toUpperCase()) return { ok: false, error: "Moneda del cobro distinta" };
     if (Number(mp.amount ?? 0) < input.monto) return { ok: false, error: "El cobro no alcanza el importe de la reserva" };
-    const refId = turneraReservaIdFromRef(mp.external_reference);
-    if (isTurneraRef(mp.external_reference) && refId !== r.id) return { ok: false, error: "El cobro corresponde a otra reserva de turnera" };
     if (mp.suscripcion_id || mp.reservation_payment_id)
-      return { ok: false, error: "El cobro ya está vinculado a otra obligación: requiere revisión manual, no se modificó nada" };
-    if ((mp.imputaciones_activas ?? 0) > 0)
-      return { ok: false, error: "El cobro ya tiene imputaciones: riesgo de doble haber, no se modificó nada" };
+      return { ok: false, error: "El cobro ya está vinculado a otro destino: requiere revisión manual, no se modificó nada" };
     if ((input.otherReservasWithMp ?? []).some((id) => id !== r.id))
       return { ok: false, error: "El cobro ya está aplicado a otra reserva de turnera" };
+    // Idempotencia solo después de validar el cobro.
+    if (isTurneraPaid(r) && r.pago_mp_payment_id === mp.mp_payment_id) return { ok: true, duplicate: true };
+    if (isTurneraPaid(r)) return { ok: false, error: "La reserva ya figura pagada: no se registra un segundo pago" };
+    if ((mp.imputaciones_activas ?? 0) > 0)
+      return { ok: false, error: "El cobro ya tiene imputaciones: riesgo de doble haber, no se modificó nada" };
+    if (mp.saldo_disponible != null && mp.saldo_disponible < input.monto)
+      return { ok: false, error: "El cobro no tiene saldo disponible suficiente (ya consumido)" };
   }
   if (isTurneraPaid(r)) return { ok: false, error: "La reserva ya figura pagada: no se registra un segundo pago" };
   return { ok: true, duplicate: false };

@@ -1,1 +1,2 @@
 - Turnera payments: one obligation per reservas_turnera; pay only via admin_register_turnera_payment so sync_turnera_cuenta_corriente makes the single credit; no pagos_imputaciones/subscriptions; `turnera:` MP refs never link to subscriptions (turneraPayment.ts). Why: no double credit.
+- Turnera MP credit only from approved ingreso `payment` movements with exact `turnera:<reserva>` ref and real available balance; plans "Clase Personalizada"/"CR" (exact name, turneraPayment.ts) never create new mensualidades. Why: no invalid or reused credits.

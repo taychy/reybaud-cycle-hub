@@ -14,7 +14,9 @@ import { endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
-import { DollarSign, RefreshCw } from "lucide-react";
+import { DollarSign, RefreshCw, CalendarClock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { isTurneraEventualPlanName, TURNERA_LABEL } from "@/lib/turneraPayment";
 
 interface RegisterPaymentModalProps {
   open: boolean;
@@ -61,6 +63,7 @@ export function RegisterPaymentModal({
   subscripcionId,
   onSuccess,
 }: RegisterPaymentModalProps) {
+  const navigate = useNavigate();
   // Student search (when alumnoId not provided)
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{ id: string; nombre: string; email: string }[]>([]);
@@ -184,7 +187,8 @@ export function RegisterPaymentModal({
         setAvailablePlans(plans);
         // Pre-seleccionar el último plan que tuvo (para renovar)
         if (!nuevoPlanId && historicalSubs.length > 0) {
-          const lastPaid = historicalSubs.find(s => s.plan_id && plans.some(p => p.id === s.plan_id));
+          // Nunca pre-seleccionar un plan de clase eventual (se cobra en la reserva de turnera).
+          const lastPaid = historicalSubs.find(s => s.plan_id && plans.some(p => p.id === s.plan_id && !isTurneraEventualPlanName(p.nombre)));
           if (lastPaid) setNuevoPlanId(lastPaid.plan_id);
         }
       });
@@ -291,6 +295,10 @@ export function RegisterPaymentModal({
     }
     if (nuevaSubMode && !nuevoPlanId) {
       toast.error("Elegí el plan para la nueva suscripción.");
+      return;
+    }
+    if (nuevaSubMode && isTurneraEventualPlanName(availablePlans.find(p => p.id === nuevoPlanId)?.nombre)) {
+      toast.error("Las clases eventuales se registran en la reserva (Turnera), no como mensualidad.");
       return;
     }
     if (!fechaPago) {
@@ -589,11 +597,13 @@ export function RegisterPaymentModal({
                     </SelectTrigger>
                     <SelectContent>
                       {availablePlans.map(p => (
-                        <SelectItem key={p.id} value={p.id}>
+                        <SelectItem key={p.id} value={p.id} disabled={isTurneraEventualPlanName(p.nombre)}>
                           <div className="flex flex-col text-left">
                             <span className="font-medium">{p.nombre}</span>
                             <span className="text-[10px] text-muted-foreground">
-                              {p.moneda} {p.precio.toLocaleString("es-AR")}
+                              {isTurneraEventualPlanName(p.nombre)
+                                ? `${TURNERA_LABEL}: se cobra en la reserva`
+                                : `${p.moneda} ${p.precio.toLocaleString("es-AR")}`}
                             </span>
                           </div>
                         </SelectItem>
@@ -603,6 +613,19 @@ export function RegisterPaymentModal({
                   <p className="text-[10px] text-emerald-400 mt-1">
                     Se creará una nueva suscripción con el pago cargado.
                   </p>
+                  {availablePlans.some(p => isTurneraEventualPlanName(p.nombre)) && selectedAlumnoId && (
+                    <div className="mt-2 rounded-md border border-primary/30 bg-primary/5 p-2 space-y-1.5">
+                      <p className="text-[11px] text-muted-foreground">
+                        Una clase personalizada suelta no es una mensualidad: cada clase se cobra en su reserva de turnera, aunque sean varias en el mes.
+                      </p>
+                      <Button
+                        type="button" size="sm" variant="outline" className="h-8 text-xs w-full"
+                        onClick={() => { onOpenChange(false); navigate(`/admin/alumnos?alumno=${selectedAlumnoId}&section=cuenta`); }}
+                      >
+                        <CalendarClock className="h-3.5 w-3.5 mr-1.5" /> Registrar en la reserva (Turnera)
+                      </Button>
+                    </div>
+                  )}
                   {pendingSubs.length > 0 && (
                     <button
                       type="button"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { checkTurneraPayment, isTurneraPaid, type TurneraReservaLike } from "./turneraPayment";
+import { checkTurneraPayment, isTurneraPaid, type TurneraReservaLike, isTurneraEventualPlanName, isSelectableTurneraMp } from "./turneraPayment";
 import { canOfferDebtDistribution, canOfferGenericImputation, imputadoDestinoLabel, isTurneraMovement } from "./mpConciliacion";
 
 const A = "alumno-1";
@@ -36,20 +36,20 @@ describe("turnera: cobro por reserva", () => {
 
   it("reintento del mismo cobro MP es idempotente y no suma haber", () => {
     const r = pay(res(R1), "mp-1");
-    const mp = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS", external_reference: `turnera:${R1}` };
+    const mp = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R1}` };
     expect(checkTurneraPayment({ reserva: r, alumnoId: A, monto: 25000, moneda: "ARS", mp })).toEqual({ ok: true, duplicate: true });
     expect(credits([r])).toBe(1);
   });
 
   it("dos operaciones MP reales distintas para dos reservas son válidas", () => {
-    const mp1 = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS", external_reference: `turnera:${R1}` };
-    const mp2 = { mp_payment_id: "mp-2", amount: 25000, currency: "ARS", external_reference: `turnera:${R2}` };
+    const mp1 = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R1}` };
+    const mp2 = { mp_payment_id: "mp-2", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R2}` };
     expect(checkTurneraPayment({ reserva: res(R1), alumnoId: A, monto: 25000, moneda: "ARS", mp: mp1 }).ok).toBe(true);
     expect(checkTurneraPayment({ reserva: res(R2), alumnoId: A, monto: 25000, moneda: "ARS", mp: mp2 }).ok).toBe(true);
   });
 
   it("el mismo cobro MP no puede aplicarse a otra reserva", () => {
-    const mp1 = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS", external_reference: `turnera:${R1}` };
+    const mp1 = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R1}` };
     expect(checkTurneraPayment({ reserva: res(R2), alumnoId: A, monto: 25000, moneda: "ARS", mp: mp1 }).ok).toBe(false);
     const sinRef = { mp_payment_id: "mp-1", amount: 25000, currency: "ARS" };
     expect(checkTurneraPayment({ reserva: res(R2), alumnoId: A, monto: 25000, moneda: "ARS", mp: sinRef, otherReservasWithMp: [R1] }).ok).toBe(false);
@@ -66,7 +66,7 @@ describe("turnera: cobro por reserva", () => {
   });
 
   it("cobro ya vinculado a mensualidad o con imputaciones falla sin tocar nada (no doble haber)", () => {
-    const base = { mp_payment_id: "mp-9", amount: 25000, currency: "ARS", external_reference: `turnera:${R1}` };
+    const base = { mp_payment_id: "mp-9", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R1}` };
     expect(checkTurneraPayment({ reserva: res(R1), alumnoId: A, monto: 25000, moneda: "ARS", mp: { ...base, suscripcion_id: "sub" } }).ok).toBe(false);
     expect(checkTurneraPayment({ reserva: res(R1), alumnoId: A, monto: 25000, moneda: "ARS", mp: { ...base, imputaciones_activas: 1 } }).ok).toBe(false);
   });
@@ -81,5 +81,35 @@ describe("conciliación MP de cobros turnera", () => {
   });
   it("vínculo histórico a suscripción queda marcado para revisión", () => {
     expect(imputadoDestinoLabel({ ...mov, suscripcion_id: "sub" })).toContain("revisar");
+  });
+
+  it("MP pending/rejected/egreso/reintegro o sin referencia exacta no acreditan", () => {
+    const base = { mp_payment_id: "mp-9", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R1}` };
+    for (const bad of [{ status: "pending" }, { status: "rejected" }, { direccion: "egreso" }, { tipo: "refund" }, { external_reference: null }, { mp_payment_id: " " }]) {
+      expect(checkTurneraPayment({ reserva: res(R1), alumnoId: A, monto: 25000, moneda: "ARS", mp: { ...base, ...bad } as any }).ok).toBe(false);
+    }
+  });
+
+  it("cobro ya consumido no acredita; idempotencia no salta validaciones", () => {
+    const mp = { mp_payment_id: "mp-9", amount: 25000, currency: "ARS", status: "approved", direccion: "ingreso", external_reference: `turnera:${R1}` };
+    expect(checkTurneraPayment({ reserva: res(R1), alumnoId: A, monto: 25000, moneda: "ARS", mp: { ...mp, saldo_disponible: 0 } }).ok).toBe(false);
+    const paid = { ...res(R1), estado_economico: "pagado", pago_mp_payment_id: "mp-9" };
+    expect(checkTurneraPayment({ reserva: paid, alumnoId: A, monto: 25000, moneda: "ARS", mp: { ...mp, status: "rejected" } }).ok).toBe(false);
+  });
+});
+
+describe("planes de clase eventual (no generan mensualidad)", () => {
+  it("bloquea solo Clase Personalizada y Clase Personalizada CR", () => {
+    expect(isTurneraEventualPlanName("Clase Personalizada")).toBe(true);
+    expect(isTurneraEventualPlanName("  clase personalizada CR ")).toBe(true);
+    expect(isTurneraEventualPlanName("Asesoría Personalizada")).toBe(false);
+    expect(isTurneraEventualPlanName("Pack 4 Clases Personalizadas")).toBe(false);
+  });
+  it("solo ofrece cobros MP aprobados de ingreso de esa reserva", () => {
+    const ok = { mp_payment_id: "1", status: "approved", direccion: "ingreso", tipo: "payment", external_reference: `turnera:${R1}` };
+    expect(isSelectableTurneraMp(ok, R1)).toBe(true);
+    expect(isSelectableTurneraMp({ ...ok, status: "pending" }, R1)).toBe(false);
+    expect(isSelectableTurneraMp({ ...ok, direccion: "egreso" }, R1)).toBe(false);
+    expect(isSelectableTurneraMp(ok, R2)).toBe(false);
   });
 });

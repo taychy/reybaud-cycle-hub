@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { formatPrice } from "@/lib/currency";
 import { rpcErrorMessage } from "@/lib/edgeErrors";
-import { TURNERA_LABEL } from "@/lib/turneraPayment";
+import { TURNERA_LABEL, isSelectableTurneraMp } from "@/lib/turneraPayment";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
@@ -41,12 +41,13 @@ export function TurneraDebtsCard({ alumnoId, onChanged }: { alumnoId: string; on
 
   const openFor = async (d: TurneraDebt) => {
     setTarget(d); setMpId(""); setMetodo("transferencia"); setMpOptions([]);
-    // Solo cobros MP emitidos para ESTA reserva y sin vínculo previo.
+    // Solo cobros MP aprobados, de ingreso, emitidos para ESTA reserva y sin vínculo previo (el servidor revalida).
     const { data } = await supabase.from("mp_account_movements")
-      .select("id, mp_payment_id, amount, currency, fecha_movimiento")
-      .eq("external_reference", `turnera:${d.id}`)
-      .is("suscripcion_id", null).is("reservation_payment_id", null);
-    setMpOptions(((data ?? []) as any[]).map((m) => ({ ...m, amount: Number(m.amount) || 0 })));
+      .select("id, mp_payment_id, amount, currency, fecha_movimiento, status, direccion, tipo, external_reference, suscripcion_id, reservation_payment_id")
+      .eq("external_reference", `turnera:${d.id}`).eq("status", "approved").eq("direccion", "ingreso")
+      .is("suscripcion_id", null).is("reservation_payment_id", null).is("gasto_id", null).is("liquidacion_id", null);
+    setMpOptions(((data ?? []) as any[]).filter((m) => isSelectableTurneraMp(m, d.id))
+      .map((m) => ({ id: m.id, mp_payment_id: m.mp_payment_id, amount: Number(m.amount) || 0, currency: m.currency, fecha_movimiento: m.fecha_movimiento })));
   };
 
   const save = async () => {
