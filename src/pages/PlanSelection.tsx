@@ -1,9 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { formatPrice } from "@/lib/currency";
 import { useStudentDiscounts } from "@/hooks/useStudentDiscounts";
 import { useNavigate } from "react-router-dom";
 import { calendarMonthPeriod, resolvePurchasePeriod, monthLabel, endOfCalendarMonth } from "@/lib/subscriptionPeriod";
 import { businessToday } from "@/lib/businessTime";
+import { useTarifasVigentes } from "@/hooks/useTarifasVigentes";
+import { withTarifaVigente } from "@/lib/tarifaVigente";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Check, X, ArrowLeft, AlertTriangle, MessageSquare, CheckCircle, LogOut } from "lucide-react";
@@ -118,7 +120,7 @@ const PlanSelection = () => {
 
 
   const vacationPreselectPlanId = localStorage.getItem("alumno_preselect_plan_id");
-  const [planes, setPlanes] = useState<Plan[]>([]);
+  const [rawPlanes, setPlanes] = useState<Plan[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
@@ -153,6 +155,16 @@ const PlanSelection = () => {
   const [notifyProcessing, setNotifyProcessing] = useState(false);
   const [activeGrupalPlan, setActiveGrupalPlan] = useState<{ planId: string; planName: string } | null>(null);
   const [activePausaPlan, setActivePausaPlan] = useState<{ planId: string; planName: string; fechaFin: string | null } | null>(null);
+  // Precio mostrado = tarifa vigente para el período que se compra (misma regla del servidor).
+  const pricingStart = effectivePurchasePeriod(
+    resolvePurchasePeriod({
+      earlyRenewalPeriod: earlyRenewal ? { fechaInicio: earlyRenewal.fechaInicio, fechaFin: earlyRenewal.fechaFin } : null,
+      coveredUntil: previousSub?.fechaFin ?? null,
+    }),
+    chosenPeriod,
+  ).fechaInicio;
+  const tarifasVigentes = useTarifasVigentes("plan", rawPlanes.map((p) => p.id), pricingStart);
+  const planes = useMemo(() => withTarifaVigente(rawPlanes, tarifasVigentes), [rawPlanes, tarifasVigentes]);
   // El alumno decide arrancar el plan nuevo recién cuando termine la pausa (renovación al próximo período).
   const [scheduleAfterPausa, setScheduleAfterPausa] = useState(false);
   // Cuando el alumno elige una pausa, almacenamos la fecha de regreso confirmada en el diálogo.

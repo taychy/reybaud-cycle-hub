@@ -1,5 +1,6 @@
 import { buildFechaNacimientoISO, toLocalISODate } from "@/lib/turneraDates";
 import { useEffect, useMemo, useState } from "react";
+import { useTarifasVigentes } from "@/hooks/useTarifasVigentes";
 import { useParams, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { resolveServicioSlug } from "@/lib/turneraSlug";
@@ -112,6 +113,9 @@ const BookingFlow = () => {
   const [selectedSede, setSelectedSede] = useState<string | "any" | null>(null);
   const [selectedCoach, setSelectedCoach] = useState<string | "any" | null>(null);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
+  // Precio vigente según la fecha del turno (misma regla que aplica el servidor al reservar).
+  const tarifaTurno = useTarifasVigentes("servicio_turnera", servicio ? [servicio.id] : [], selectedDate ? toLocalISODate(selectedDate) : null);
+  const precioTurno = servicio ? (tarifaTurno[servicio.id] ?? servicio.precio) : null;
   const [selectedSlot, setSelectedSlot] = useState<Slot | null>(null);
 
   const [loading, setLoading] = useState(true);
@@ -608,8 +612,8 @@ const BookingFlow = () => {
       origen: "turnera_externa",
       nombre_externo: `${form.nombre} ${form.apellido}`,
       alumno_id: alumnoId,
-      valor_base: servicio.precio || 0,
-      total: servicio.precio || 0,
+      valor_base: precioTurno || 0,
+      total: precioTurno || 0,
       estado_operativo: "reservada",
       estado_economico: "pendiente_revision",
     } as any);
@@ -1321,8 +1325,8 @@ const BookingFlow = () => {
                 <Row label="Fecha" value={selectedDate.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })} />
                 <Row label="Horario" value={selectedSlot.time} mono />
                 <Row label="Duración" value={`${servicio.duracion_minutos} min`} />
-                {servicio.precio && (
-                  <Row label="Precio" value={`$${Number(servicio.precio).toLocaleString("es-AR")} ${servicio.moneda}`} />
+                {precioTurno && (
+                  <Row label="Precio" value={`$${Number(precioTurno).toLocaleString("es-AR")} ${servicio.moneda}`} />
                 )}
                 <div className="border-t border-border pt-3 space-y-1">
                   <Row label="Nombre" value={`${form.nombre} ${form.apellido}`} />
