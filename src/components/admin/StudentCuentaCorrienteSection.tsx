@@ -34,6 +34,7 @@ import { logStudentActivity } from "@/lib/logStudentActivity";
 import { isDuplicateSubError, DUPLICATE_SUB_MSG } from "@/lib/subscriptionGuard";
 import { getPaymentProofSignedUrl } from "@/lib/paymentProofs";
 import SaldoDisponibleSection from "./SaldoDisponibleSection";
+import { TurneraDebtsCard } from "./TurneraDebtsCard";
 
 interface Props {
   alumnoId: string;
@@ -589,6 +590,8 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
           </Button>
         </div>
       </div>
+
+      <TurneraDebtsCard alumnoId={alumnoId} onChanged={fetchData} />
 
       {/* Saldos por moneda */}
       {saldos.length === 0 ? (

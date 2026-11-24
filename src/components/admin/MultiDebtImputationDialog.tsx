@@ -140,6 +140,7 @@ export function MultiDebtImputationDialog({
 
         <div className="space-y-2">
           {loading && <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" /> Buscando deudas vigentes…</div>}
+          <p className="text-xs text-muted-foreground">Las clases eventuales (turnera) no se distribuyen acá: se cobran en su reserva desde la cuenta corriente, para no duplicar el pago.</p>
           {!loading && targets.length === 0 && <p className="text-sm text-muted-foreground">No hay deudas pendientes en la moneda de este pago.</p>}
           {targets.map((target) => {
             const checked = amounts[target.key] !== undefined;

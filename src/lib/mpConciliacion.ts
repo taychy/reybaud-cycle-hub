@@ -47,6 +47,16 @@ export function classifyMpUnidad(m: MpMovementLike): MpUnidadNegocio {
   return "sin_clasificar";
 }
 
+/** Cobro emitido por create-turnera-mp-preference: clase eventual, nunca mensualidad. */
+export function isTurneraMovement(m: MpMovementLike): boolean {
+  return String(m.external_reference ?? "").startsWith("turnera:");
+}
+
+/** Vínculo histórico de un cobro de turnera a una suscripción: se conserva, pero requiere revisión manual. */
+export function hasTurneraSubscriptionConflict(m: MpMovementLike): boolean {
+  return isTurneraMovement(m) && !!m.suscripcion_id;
+}
+
 export function deriveMpConciliacionEstado(m: MpMovementLike): MpConciliacionEstado {
   const imputado = !!(
     m.suscripcion_id ||
@@ -63,6 +73,8 @@ export function deriveMpConciliacionEstado(m: MpMovementLike): MpConciliacionEst
 /** Si el destino ya es conocido (tienda o pago de reserva existente) no se ofrece imputación genérica. */
 export function canOfferGenericImputation(m: MpMovementLike): boolean {
   const hasRemainder = m.monto_disponible == null || m.monto_disponible > 0;
+  // Turnera: el destino es la reserva concreta (se vincula desde la cuenta corriente), nunca una mensualidad.
+  if (isTurneraMovement(m)) return false;
   if (isTiendaMovement(m) || m.rp_existente || Number(m.credito_representado ?? 0) > 0 || !hasRemainder) return false;
   // Una suscripción vinculada puede haber consumido solo una parte del ingreso.
   if (m.suscripcion_id) return Number(m.monto_disponible ?? 0) > 0;
@@ -75,6 +87,7 @@ export function canOfferDebtDistribution(m: MpMovementLike): boolean {
     && Number(m.monto_disponible ?? 0) > 0
     && !(Number(m.credito_representado ?? 0) > 0)
     && !isTiendaMovement(m)
+    && !isTurneraMovement(m)
     && !m.rp_existente;
 }
 
@@ -83,6 +96,8 @@ export function imputadoDestinoLabel(m: MpMovementLike): string | null {
   if (isTiendaMovement(m)) return m.tienda_existente ? "Imputado a Tienda" : null;
   if (m.rp_existente?.evento) return `Imputado a ${m.rp_existente.evento}`;
   if (m.reservation_payment_id || m.rp_existente) return "Imputado a evento";
+  if (hasTurneraSubscriptionConflict(m)) return "Clase eventual / Turnera · vínculo histórico a mensualidad (revisar)";
+  if (isTurneraMovement(m)) return "Clase eventual / Turnera";
   if (m.suscripcion_id) return "Imputado a suscripción";
   return null;
 }

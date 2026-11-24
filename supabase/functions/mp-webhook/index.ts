@@ -174,7 +174,9 @@ async function persistMpAccountMovement(
   if (rpMatch) {
     reservationPaymentId = rpMatch.id;
     alumnoId = rpMatch.alumno_id ?? null;
-  } else {
+  } else if (!String(payment?.external_reference ?? "").startsWith("turnera:")) {
+    // Cobros "turnera:<reserva>" son clases eventuales: nunca se vinculan a una mensualidad.
+    // Los vínculos históricos existentes se conservan (existing.suscripcion_id) para revisión manual.
     const { data: sub } = await supabaseAdmin
       .from("suscripciones")
       .select("id, alumno_id")

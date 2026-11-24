@@ -1,0 +1,1 @@
+- Turnera payments: one obligation per reservas_turnera; pay only via admin_register_turnera_payment so sync_turnera_cuenta_corriente makes the single credit; no pagos_imputaciones/subscriptions; `turnera:` MP refs never link to subscriptions (turneraPayment.ts). Why: no double credit.
