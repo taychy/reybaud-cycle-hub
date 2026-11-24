@@ -1,4 +1,5 @@
 -- 0117 · Cobro de clases eventuales (turnera) en la RESERVA, nunca como mensualidad.
+-- APLICADA en Lovable Cloud 2026-11-24 (autorización Scarlett, transacción externa). Conteos antes=después: suscripciones 1387, cargos turnera 15, créditos turnera 14, imputaciones activas 27. Prueba: supabase/tests/turnera_reservation_payments.sql. No re-aplicar.
 -- PENDIENTE: no aplicar sin autorización. Aditivo: no toca vw_cuenta_corriente_movimientos,
 -- sync_turnera_cuenta_corriente, precios, suscripciones ni vínculos históricos.
 -- El haber lo sigue creando sync_turnera_cuenta_corriente (1 crédito por reserva);
