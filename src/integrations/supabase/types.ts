@@ -10243,6 +10243,7 @@ export type Database = {
           plan_id: string
           precio_anterior: number
           precio_nuevo: number
+          programado: boolean
           suscripciones_actualizadas: number
         }
         Insert: {
@@ -10257,6 +10258,7 @@ export type Database = {
           plan_id: string
           precio_anterior: number
           precio_nuevo: number
+          programado?: boolean
           suscripciones_actualizadas?: number
         }
         Update: {
@@ -10271,6 +10273,7 @@ export type Database = {
           plan_id?: string
           precio_anterior?: number
           precio_nuevo?: number
+          programado?: boolean
           suscripciones_actualizadas?: number
         }
         Relationships: [
@@ -13728,6 +13731,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      servicio_turnera_precio_programado: {
+        Row: {
+          aplicado_at: string | null
+          created_at: string
+          fecha_vigencia: string
+          id: string
+          notas: string | null
+          precio_anterior: number
+          precio_nuevo: number
+          servicio_id: string
+        }
+        Insert: {
+          aplicado_at?: string | null
+          created_at?: string
+          fecha_vigencia: string
+          id?: string
+          notas?: string | null
+          precio_anterior: number
+          precio_nuevo: number
+          servicio_id: string
+        }
+        Update: {
+          aplicado_at?: string | null
+          created_at?: string
+          fecha_vigencia?: string
+          id?: string
+          notas?: string | null
+          precio_anterior?: number
+          precio_nuevo?: number
+          servicio_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "servicio_turnera_precio_programado_servicio_id_fkey"
+            columns: ["servicio_id"]
+            isOneToOne: false
+            referencedRelation: "servicios_turnera"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       servicios_turnera: {
         Row: {
@@ -22186,6 +22230,15 @@ export type Database = {
           test: number
         }[]
       }
+      run_tarifas_vigencia_tests: {
+        Args: {
+          _alumno_id: string
+          _descuento_id: string
+          _plan_id: string
+          _servicio_id: string
+        }
+        Returns: Json
+      }
       ruta_unidad_activa: {
         Args: { p_unidad: string }
         Returns: {
@@ -22423,6 +22476,14 @@ export type Database = {
           p_source?: string
         }
         Returns: Json
+      }
+      tarifa_vigente_plan: {
+        Args: { _fecha: string; _plan_id: string }
+        Returns: number
+      }
+      tarifa_vigente_servicio_turnera: {
+        Args: { _fecha: string; _servicio_id: string }
+        Returns: number
       }
       terms_reminder_candidates: {
         Args: never

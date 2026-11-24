@@ -262,12 +262,15 @@ Deno.serve(async (req) => {
         // Verificar que el alumno lo tenga asignado y ACTIVO
         const { data: da } = await supabase
           .from("descuentos_alumno")
-          .select("id, activo")
+          .select("id, activo, fecha_inicio, fecha_fin")
           .eq("alumno_id", old.alumno_id)
           .eq("descuento_id", old.descuento_id)
           .maybeSingle();
         if (!da || !(da as any).activo) {
           discountDecision = "dropped_inactive_on_student";
+        } else if ((da as any).fecha_fin && (da as any).fecha_fin < newFechaFin) {
+          // La asignación al alumno vence antes del fin del nuevo período (ej. proporcional del mes).
+          discountDecision = "dropped_expired";
         } else if (newPrecioBase == null) {
           discountDecision = "dropped_no_base_price";
         } else {

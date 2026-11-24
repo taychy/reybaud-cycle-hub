@@ -36,3 +36,4 @@
 - Seat release approval (admin_rescheduling_seat_action) cancels the reservation and frees its room atomically, never money; no revoke. Why: withdrawn people leave lodging.
 - Ledger: reservation payments fall back to reservation owner; origin filters group charges with payments. Why: no hidden payments.
 - Extra meals: slots from SQL _extra_meal_compute, saved only via save_extra_meal_survey. Why: not a purchase.
+- Tarifas con vigencia futura: programar en `precio_historial` (programado=true) / `servicio_turnera_precio_programado`; los triggers BEFORE INSERT toman la tarifa según fecha de servicio y el job diario aplica el catálogo. Nunca editar `planes.precio` por adelantado ni suscripciones existentes. Why: períodos anticipados o tardíos usan su tarifa sin tocar históricos.

@@ -813,6 +813,20 @@
       "when": 1795111629634,
       "tag": "0115_date_preference_polls",
       "breakpoints": true
+    },
+    {
+      "idx": 116,
+      "version": "7",
+      "when": 1795544144329,
+      "tag": "0116_tarifas_vigencia_programada",
+      "breakpoints": true
+    },
+    {
+      "idx": 117,
+      "version": "7",
+      "when": 1795544212608,
+      "tag": "0117_tarifas_vigencia_tests_fix",
+      "breakpoints": true
     }
   ]
 }
