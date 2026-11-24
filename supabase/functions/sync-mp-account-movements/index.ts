@@ -272,7 +272,8 @@ Deno.serve(async (req) => {
         if (rp) {
           resPayId = rp.id;
           alumnoId = rp.alumno_id ?? null;
-        } else {
+        } else if (!String(p?.external_reference ?? "").startsWith("turnera:")) {
+          // Clase eventual (turnera): nunca se auto-vincula a una mensualidad.
           const { data: sub } = await supabase
             .from("suscripciones")
             .select("id, alumno_id")

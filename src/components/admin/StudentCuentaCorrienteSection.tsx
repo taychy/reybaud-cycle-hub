@@ -526,7 +526,7 @@ export function StudentCuentaCorrienteSection({ alumnoId, onSubscriptionsChanged
         label: r.label, currency: r.currency, amount: Number(r.balance) || 0,
         fecha: r.fecha, extra: "evento", icon: "🎟️",
       })),
-      ...((d.cargos ?? []) as any[]).map((c) => ({
+      ...((d.cargos ?? []) as any[]).filter((t) => !String(t.label ?? "").startsWith("Turnera:")).map((c) => ({
         key: `cargo:${c.id}`, type: "cargo" as const, id: c.id,
         label: c.label, currency: c.currency, amount: Number(c.balance) || 0,
         fecha: c.fecha, extra: "cargo en cuenta", icon: "🧾",

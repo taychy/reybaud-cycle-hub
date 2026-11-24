@@ -70,7 +70,8 @@ export function MultiDebtImputationDialog({
           key: `reserva:${r.id}`, type: "reserva" as const, id: r.id,
           label: r.label, currency: r.currency, amount: Number(r.balance) || 0,
         })),
-        ...((d.cargos ?? []) as any[]).map((c) => ({
+        // Cargos de turnera ("Turnera: …") se cobran en la reserva: su haber lo crea el sistema.
+        ...((d.cargos ?? []) as any[]).filter((c) => !String(c.label ?? "").startsWith("Turnera:")).map((c) => ({
           key: `otro:${c.id}`, type: "otro" as const, id: c.id,
           label: c.label, currency: c.currency, amount: Number(c.balance) || 0,
         })),

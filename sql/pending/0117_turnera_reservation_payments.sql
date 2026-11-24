@@ -122,3 +122,20 @@ DROP TRIGGER IF EXISTS trg_guard_turnera_mp_not_subscription ON public.mp_accoun
 CREATE TRIGGER trg_guard_turnera_mp_not_subscription
   BEFORE INSERT OR UPDATE OF suscripcion_id ON public.mp_account_movements
   FOR EACH ROW EXECUTE FUNCTION public.guard_turnera_mp_not_subscription();
+
+-- 4) Los cargos de turnera (cuenta_ajustes con fuente reservas_turnera) ya reciben su haber del trigger:
+--    imputarles pagos_imputaciones duplicaría el crédito. Se rechaza con mensaje explícito.
+CREATE OR REPLACE FUNCTION public.guard_pagos_imputaciones_turnera()
+RETURNS trigger LANGUAGE plpgsql SET search_path = public AS $$
+BEGIN
+  IF NEW.obligacion_tipo = 'otro' AND EXISTS (
+    SELECT 1 FROM public.cuenta_ajustes c
+    WHERE c.id = NEW.obligacion_id AND c.aplicado_a_fuente_tabla = 'reservas_turnera') THEN
+    RAISE EXCEPTION 'Clase eventual (turnera): registrá el pago en la reserva, no por distribución (evita doble haber)';
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_guard_pagos_imputaciones_turnera ON public.pagos_imputaciones;
+CREATE TRIGGER trg_guard_pagos_imputaciones_turnera
+  BEFORE INSERT ON public.pagos_imputaciones
+  FOR EACH ROW EXECUTE FUNCTION public.guard_pagos_imputaciones_turnera();

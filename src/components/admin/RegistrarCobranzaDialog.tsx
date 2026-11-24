@@ -97,7 +97,7 @@ export function RegistrarCobranzaDialog({ open, onOpenChange, alumnoId, preselec
           key: `reservation:${x.id}`, type: "reservation" as const, id: x.id,
           label: x.label, currency: x.currency, amount: Number(x.balance) || 0, icon: "🎟️",
         })),
-        ...((d.cargos ?? []) as any[]).map((x) => ({
+        ...((d.cargos ?? []) as any[]).filter((t) => !String(t.label ?? "").startsWith("Turnera:")).map((x) => ({
           key: `cargo:${x.id}`, type: "cargo" as const, id: x.id,
           label: x.label, currency: x.currency, amount: Number(x.balance) || 0, icon: "🧾",
         })),

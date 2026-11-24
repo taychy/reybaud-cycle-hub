@@ -110,7 +110,7 @@ export function AjusteCuentaModal({ open, onOpenChange, alumnoId, initialValue, 
           key: `reservation:${r.id}`, type: "reservation" as const, id: r.id,
           label: r.label, currency: r.currency, amount: Number(r.balance) || 0, icon: "🎟️",
         })),
-        ...((d.cargos ?? []) as any[]).map((c) => ({
+        ...((d.cargos ?? []) as any[]).filter((t) => !String(t.label ?? "").startsWith("Turnera:")).map((c) => ({
           key: `cargo:${c.id}`, type: "cargo" as const, id: c.id,
           label: c.label, currency: c.currency, amount: Number(c.balance) || 0, icon: "🧾",
         })),
