@@ -834,6 +834,13 @@
       "when": 1795569989078,
       "tag": "0118_public_jornada_attendance",
       "breakpoints": true
+    },
+    {
+      "idx": 119,
+      "version": "7",
+      "when": 1795572435846,
+      "tag": "0119_admin_upsert_public_jornada",
+      "breakpoints": true
     }
   ]
 }

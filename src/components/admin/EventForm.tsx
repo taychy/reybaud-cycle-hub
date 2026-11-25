@@ -27,6 +27,7 @@ import { EventInstallmentsEditor } from "./EventInstallmentsEditor";
 import { useEffect as useEffectLegacy, useState as useStateLegacy } from "react";
 import { supabase as supabaseLegacy } from "@/integrations/supabase/client";
 import { AlertTriangle } from "lucide-react";
+import SpecialJornadaFields from "./SpecialJornadaFields";
 
 function LegacyInstallmentsGate({ eventId, eventCurrency, eventPrice }: { eventId: string; eventCurrency: string; eventPrice: number | null }) {
   const [state, setState] = useStateLegacy<"loading" | "none" | "legacy">("loading");
@@ -526,6 +527,11 @@ const EventForm = ({
         </div>
       </fieldset>
 
+
+      {(form.type === "otro" || form.type === "record_hora") && (
+        <SpecialJornadaFields metadata={form.metadata} title={form.title} date={form.date}
+          onMetadataChange={(metadata) => setForm((prev) => ({ ...prev, metadata }))} />
+      )}
 
       {/* ─── EVENT NATURE & PRICING (common) ─── */}
       <fieldset className="space-y-4 border border-primary/20 rounded-lg p-4">

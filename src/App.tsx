@@ -184,6 +184,7 @@ const App = () => (
           <Route path="/confirmar-asistencia/:token" element={<EventRsvp />} />
           <Route path="/preferencia-fechas/:token" element={<DatePollVote />} />
           <Route path="/scott-28-noviembre" element={<PublicJornada />} />
+          <Route path="/jornada/:slug" element={<PublicJornada />} />
           <Route path="/eventos/:eventId/confirmar" element={<PublicEventRsvpEntry />} />
           <Route path="/liquidacion/cargar/:token" element={<LiquidacionCargar />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />

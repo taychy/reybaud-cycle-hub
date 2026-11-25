@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,10 +7,13 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Bike, CalendarDays, CheckCircle2, Clock3, MapPin, Wrench } from "lucide-react";
 import { createJornadaToken, jornadaError, jornadaFormSchema, SCOTT_JORNADA_SLUG, type JornadaOwn, type JornadaStatus } from "@/lib/publicJornada";
 
-const storageKey = `jornada-access:${SCOTT_JORNADA_SLUG}`;
 const emptyForm: JornadaOwn = { first_name: "", last_name: "", phone: "", response: "voy" };
 
 export default function PublicJornada() {
+  const { slug: routeSlug } = useParams();
+  const slug = routeSlug && /^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(routeSlug) ? routeSlug : SCOTT_JORNADA_SLUG;
+  const storageKey = `jornada-access:${slug}`;
+  const isScott = slug === SCOTT_JORNADA_SLUG;
   const [status, setStatus] = useState<JornadaStatus | null>(null);
   const [form, setForm] = useState<JornadaOwn>(emptyForm);
   const [token, setToken] = useState("");
@@ -39,7 +42,7 @@ export default function PublicJornada() {
       if (inFlight.current) return;
       const requestId = ++readId.current;
       try {
-        const { data, error: failure } = await supabase.rpc("get_public_jornada", { p_slug: SCOTT_JORNADA_SLUG, p_token: personalToken });
+        const { data, error: failure } = await supabase.rpc("get_public_jornada", { p_slug: slug, p_token: personalToken });
         if (!active || requestId !== readId.current || inFlight.current) return;
         if (failure || !data) { setError("No pudimos consultar los lugares. Intentá nuevamente en unos momentos."); return; }
         const next = data as unknown as JornadaStatus;
@@ -71,7 +74,7 @@ export default function PublicJornada() {
     window.history.replaceState(window.history.state, "", url);
     try {
       const { data, error: failure } = await supabase.rpc("submit_public_jornada", {
-        p_slug: SCOTT_JORNADA_SLUG, p_token: token, p_first_name: validation.data.first_name,
+        p_slug: slug, p_token: token, p_first_name: validation.data.first_name,
         p_last_name: validation.data.last_name, p_phone: validation.data.phone, p_response: response,
       });
       if (failure) { setError(jornadaError(failure.message)); return; }
@@ -98,9 +101,9 @@ export default function PublicJornada() {
         <CheckCircle2 className="w-20 h-20 mx-auto text-success" aria-hidden />
         <h1 ref={heading} tabIndex={-1} className="font-display text-3xl outline-none">{status?.own?.response === "voy" ? "¡Tu lugar está confirmado!" : "Guardamos tu respuesta: No voy"}</h1>
         <p className="text-xl font-semibold break-words">{status?.own?.first_name} {status?.own?.last_name}</p>
-        <p className="font-display text-2xl">Jornada Scott · 28/11</p>
+        {isScott ? <><p className="font-display text-2xl">Jornada Scott · 28/11</p>
         <p>Sábado 28/11/2026 · 9:00–13:00</p>
-        <p className="text-muted-foreground">Salida 9:00 desde Parque Sarmiento. Regreso máximo 13:00.</p>
+        <p className="text-muted-foreground">Salida 9:00 desde Parque Sarmiento. Regreso máximo 13:00.</p></> : <><p className="font-display text-2xl">{status?.title}</p><p>{status?.date?.split("-").reverse().join("/")}</p></>}
         {status?.own?.response === "no_voy" && <p className="text-muted-foreground">No ocupás un lugar.</p>}
         <div className="flex flex-col gap-2">
           <Button variant="outline" onClick={async () => {
@@ -108,19 +111,21 @@ export default function PublicJornada() {
             catch { setError("No pudimos copiar el enlace. Podés guardarlo desde la barra de direcciones."); }
           }}>{copied ? "Enlace personal copiado" : "Copiar mi enlace personal"}</Button>
           <Button variant="ghost" disabled={busy} onClick={() => { setEditing(true); setError(""); }}>Modificar mi respuesta</Button>
-          {status?.own?.response === "voy" && <Button variant="ghost" disabled={busy} onClick={() => { if (window.confirm("¿Querés cancelar tu lugar en la Jornada Scott?")) void save("no_voy"); }}>{busy ? "Guardando…" : "Cancelar mi lugar"}</Button>}
+          {status?.own?.response === "voy" && <Button variant="ghost" disabled={busy} onClick={() => { if (window.confirm("¿Querés cancelar tu lugar en esta jornada?")) void save("no_voy"); }}>{busy ? "Guardando…" : "Cancelar mi lugar"}</Button>}
           <Button asChild variant="ghost"><Link to="/eventos">Volver a eventos</Link></Button>
         </div>
       </section> : <>
         <section className="space-y-3">
           <div className="flex items-center gap-3"><img src="/pwa-192x192.png" alt="Reybaud" className="w-12 h-12 rounded-lg" /><span className="text-primary text-sm font-semibold">Jornada especial · Gratuita</span></div>
+          {isScott ? <>
           <h1 className="font-display text-3xl">Jornada Scott · 28/11</h1>
           <p className="text-lg">Pedaleo, limpieza, mantenimiento y accesorios</p>
           <div className="space-y-2 text-sm text-muted-foreground">
             <p className="flex items-center gap-2"><CalendarDays className="w-4 h-4 shrink-0" />Sábado 28 de noviembre de 2026</p>
             <p className="flex items-center gap-2"><Clock3 className="w-4 h-4 shrink-0" />9:00–13:00 · regreso máximo</p>
             <p className="flex items-center gap-2"><MapPin className="w-4 h-4 shrink-0" />Salida y regreso: Parque Sarmiento</p>
-          </div>
+          </div></> : <><h1 className="font-display text-3xl">{status?.title || "Jornada especial"}</h1>
+          {status?.date && <p className="flex items-center gap-2 text-sm text-muted-foreground"><CalendarDays className="w-4 h-4 shrink-0" />{status.date.split("-").reverse().join("/")}</p>}</>}
         </section>
       </>}
       <p className="text-center font-semibold text-primary" aria-live="polite">{status ? `${status.confirmed} de ${status.capacity} lugares confirmados` : "Consultando lugares…"}</p>
@@ -141,7 +146,7 @@ export default function PublicJornada() {
         <p className="text-xs text-muted-foreground text-center">Una persona por lugar. Tus datos solo los ve la organización. No se enviarán mensajes automáticos.</p>
       </form>}
       {error && <p ref={errorNotice} tabIndex={-1} role="alert" className="text-destructive text-center outline-none">{error}</p>}
-      {!saved && <details className="border-y border-border py-4">
+      {!saved && isScott && <details className="border-y border-border py-4">
         <summary className="cursor-pointer font-semibold text-primary">Programa de la jornada</summary>
         <div className="pt-5 space-y-4">
           <div className="flex gap-3"><Bike className="w-5 h-5 text-primary shrink-0 mt-1" /><div><p className="font-semibold">9:00 · Pedaleo a Scott San Isidro</p><p className="text-sm text-muted-foreground">Desde Parque Sarmiento, practicando circulación.</p></div></div>

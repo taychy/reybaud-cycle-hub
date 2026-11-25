@@ -32,6 +32,7 @@ import EventAnnouncementsSection from "@/components/reservation/EventAnnouncemen
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
+import { getSpecialJornada } from "@/lib/specialJornada";
 import EventInquiryCtas, { packageWhatsAppUrl, parseInquiryCtas } from "@/components/event/EventInquiryCtas";
 import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
@@ -489,6 +490,7 @@ const EventDetail = () => {
   const isDraftPreview = event.estado_publicacion === "borrador";
   const premiumLanding = getPremiumLanding(event.metadata);
   const inquiryCtas = parseInquiryCtas(event.metadata);
+  const specialJornada = getSpecialJornada(event.metadata);
   const isBormioLanding = !!premiumLanding && event.id === "e726408b-bf46-45d6-9678-dc426a2d8641";
   const editorialAlpine = premiumLanding?.layout_variant === "editorial_alpine";
   const premiumDates = premiumDateSummary(event);
@@ -954,6 +956,16 @@ const EventDetail = () => {
                   Anotarme a la lista de espera
                 </Button>
               )}
+            </div>
+          )}
+
+          {specialJornada && !eventPast && !isDraftPreview && (
+            <div className="glass-card rounded-xl p-5 space-y-3 animate-fade-in">
+              <h3 className="font-heading font-semibold text-foreground text-center">Jornada gratuita · Cupos limitados</h3>
+              <Button variant="gold" className="w-full h-12 text-sm" onClick={() => navigate(specialJornada.path)}>
+                <CheckCircle className="w-4 h-4 mr-2" /> Inscribirme
+              </Button>
+              <p className="text-xs text-muted-foreground text-center">No requiere pago ni cuenta. Confirmás tu lugar en la inscripción.</p>
             </div>
           )}
 

@@ -74,6 +74,7 @@ import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRsvpDashboard from "@/components/admin/EventRsvpDashboard";
 import DatePollReport from "@/components/admin/DatePollReport";
 import PublicJornadaReport from "@/components/admin/PublicJornadaReport";
+import { getSpecialJornada, jornadaPublicUrl } from "@/lib/specialJornada";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
@@ -171,6 +172,8 @@ const EventsList = () => {
   const [reservationsTab, setReservationsTab] = useState("gestion");
   useEffect(() => { setReservationsTab("gestion"); }, [reservationsEvent?.id]);
   const [financeEvent, setFinanceEvent] = useState<Event | null>(null);
+  const [attendanceEvent, setAttendanceEvent] = useState<Event | null>(null);
+  const attendanceJornada = attendanceEvent ? getSpecialJornada(attendanceEvent.metadata) : null;
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [newReservationsByEvent, setNewReservationsByEvent] = useState<Record<string, number>>({});
   const [budgetEvent, setBudgetEvent] = useState<Event | null>(null);
@@ -373,8 +376,6 @@ const EventsList = () => {
         </div>
       </div>
 
-      <PublicJornadaReport />
-
       {/* Tab Filters */}
       <div className="flex gap-2 flex-wrap">
         {tabs.map((t) => {
@@ -552,6 +553,11 @@ const EventsList = () => {
                   <Button variant="outline" size="sm" onClick={() => openEdit(ev)}>
                     <Pencil className="w-3.5 h-3.5 mr-1.5" /> Editar
                   </Button>
+                  {getSpecialJornada(ev.metadata) && (
+                    <Button variant="outline" size="sm" onClick={() => setAttendanceEvent(ev)}>
+                      <Users className="w-3.5 h-3.5 mr-1.5" /> Asistencia
+                    </Button>
+                  )}
                   <Button
                     variant="outline"
                     size="sm"
@@ -774,6 +780,19 @@ const EventsList = () => {
             </Tabs>
           )}
 
+        </SheetContent>
+      </Sheet>
+
+      {/* Attendance Sheet (jornadas especiales) */}
+      <Sheet open={!!attendanceEvent} onOpenChange={(open) => !open && setAttendanceEvent(null)}>
+        <SheetContent side="bottom" className="h-[90vh] overflow-y-auto rounded-t-2xl">
+          <SheetHeader className="pb-2">
+            <SheetTitle className="font-heading uppercase tracking-wider text-xl">Asistencia — {attendanceEvent?.title}</SheetTitle>
+            <SheetDescription>Inscripciones de la jornada especial (fuente única de cupos).</SheetDescription>
+          </SheetHeader>
+          {attendanceJornada && (
+            <PublicJornadaReport slug={attendanceJornada.slug} publicUrl={jornadaPublicUrl(attendanceJornada)} />
+          )}
         </SheetContent>
       </Sheet>
 

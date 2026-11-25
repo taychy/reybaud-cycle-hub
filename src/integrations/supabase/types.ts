@@ -19748,6 +19748,16 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_upsert_public_jornada: {
+        Args: {
+          p_activity_date: string
+          p_capacity: number
+          p_is_open?: boolean
+          p_slug: string
+          p_title: string
+        }
+        Returns: Json
+      }
       agenda_grupal_conflicto: {
         Args: {
           p_coach_id: string

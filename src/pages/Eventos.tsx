@@ -1,4 +1,5 @@
 import { packageWhatsAppUrl } from "@/components/event/EventInquiryCtas";
+import { getSpecialJornada } from "@/lib/specialJornada";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 import { useEffect, useState } from "react";
@@ -146,6 +147,7 @@ const EventCard = ({
   const eventNature: string = event.metadata?.event_nature || "propio_con_reserva";
   const isInformative = eventNature === "propio_informativo" || eventNature === "externo_informativo";
   const isInscriptionOnly = eventNature === "propio_solo_inscripcion";
+  const specialJornada = getSpecialJornada(event.metadata);
   // Vínculo real del alumno con el evento (reserva o participación registrada)
   const hasUserLink = hasReservation || !!isParticipant;
   // Evento pasado: ya pasó la fecha de fin (o la fecha única si no hay end_date)
@@ -275,7 +277,13 @@ const EventCard = ({
           ) : (
             <span />
           )}
-          {!rescheduled && !hasUserLink && !isPast && Array.isArray(event.metadata?.inquiry_ctas) && event.metadata.inquiry_ctas.length > 0 ? (
+          {specialJornada && !rescheduled && !isPast ? (
+            <Button size="sm" variant="gold" className="w-full text-[11px] h-8 px-2.5"
+              onClick={(e) => { e.stopPropagation(); window.location.assign(specialJornada.path); }}
+              aria-label={`Inscribirme: ${event.title}`}>
+              Inscribirme <ChevronRight className="w-3 h-3 ml-0.5" />
+            </Button>
+          ) : !rescheduled && !hasUserLink && !isPast && Array.isArray(event.metadata?.inquiry_ctas) && event.metadata.inquiry_ctas.length > 0 ? (
             <Button asChild size="sm" variant="gold" className="w-full text-[11px] h-8 px-2.5">
               <a
                 href={packageWhatsAppUrl(event.title)}
