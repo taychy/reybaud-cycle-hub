@@ -5,6 +5,12 @@ afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); clearAttempts(); })
 
 describe("enlaces de encuesta y PWA instalada", () => {
   const origin = "https://reybaud-app.com";
+  it("conserva el acceso privado de la jornada y comprueba su versión", () => {
+    const path = "/scott-28-noviembre?origen=compartido#acceso=fixture-private";
+    expect(getAppLaunchDestination(origin + path, origin)).toBe(path);
+    expect(requiresSurveyUpdateCheck("/scott-28-noviembre", "")).toBe(true);
+    expect(getAppLaunchDestination(origin + "/scott-28-noviembre-otra", origin)).toBeNull();
+  });
   it.each(["/viaje/encuesta-gastronomica?evento=event", "/viaje/mi-reserva?token=fixture-private&encuesta=gastronomia#form", "/formacion-inicial?cohort=c", "/preinscripcion/plan?beneficio=b", "/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=voy", "/confirmar-asistencia/e5f33f3c-a1e5-4ba4-a84f-fbe00d440f39?opcion=no_voy"])("abre exactamente el destino permitido %s", (path) => {
     expect(getAppLaunchDestination(origin + path, origin)).toBe(path);
   });

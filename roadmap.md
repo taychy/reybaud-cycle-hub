@@ -1,3 +1,8 @@
+## Jornada Scott · 28/11/2026
+- [x] Inscripción aislada con 20 cupos atómicos, teléfono/alumno únicos, acceso privado y cancelación; migración 0118 aplicada y jornada creada sin respuestas reales.
+- [x] Reporte en Admin → Eventos → Jornada Scott; 38 pruebas, SQL concurrente aislado, UI 360/390 y panel con sesión real aprobados; compilación OK.
+- [ ] Publicar frontend y verificar link público: no se publicó sin orden explícita; último escaneo conserva 7 críticos previos sin ignorar. Dominio público sigue mostrando 404 en la ruta nueva; vista previa funciona. Ningún mensaje enviado.
+
 ## Fondazo · Identidad y avisos transaccionales (17/11)
 - [x] Saludo real en invitación, identidad por token/alumno y datos obligatorios de visitantes; nunca vincular por email. Reintentos conservan alumno_id y nombre.
 - [x] CTA WhatsApp personalizado, política vigente hasta 27/11 y avisos VOY/Claudio sin cobro en NO VOY.

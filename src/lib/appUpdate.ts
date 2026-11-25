@@ -13,9 +13,10 @@ export const isRsvpLinkPath = (pathname: string) =>
   /^\/confirmar-asistencia\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/?$/i.test(pathname);
 export const isRsvpEventEntryPath = (pathname: string) =>
   /^\/eventos\/[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}\/confirmar\/?$/i.test(pathname);
+export const isPublicJornadaPath = (pathname: string) => /^\/scott-28-noviembre\/?$/.test(pathname);
 
 export const requiresSurveyUpdateCheck = (pathname: string, search: string) =>
-  (isRsvpLinkPath(pathname) || isRsvpEventEntryPath(pathname)) ||
+  (isRsvpLinkPath(pathname) || isRsvpEventEntryPath(pathname) || isPublicJornadaPath(pathname)) ||
   pathname === "/viaje/encuesta-gastronomica" ||
   (pathname === "/viaje/mi-reserva" && (wantsFoodSurvey(search) || wantsExtraMealSurvey(search)));
 
@@ -26,7 +27,7 @@ export const getAppLaunchDestination = (targetURL: string, origin: string): stri
     if (target.origin !== origin) return null;
     const allowed = target.pathname === "/formacion-inicial" || target.pathname.startsWith("/preinscripcion/") ||
       target.pathname === "/viaje/encuesta-gastronomica" || target.pathname === "/viaje/mi-reserva" ||
-      isRsvpLinkPath(target.pathname) || isRsvpEventEntryPath(target.pathname);
+      isRsvpLinkPath(target.pathname) || isRsvpEventEntryPath(target.pathname) || isPublicJornadaPath(target.pathname);
     return allowed ? target.pathname + target.search + target.hash : null;
   } catch { return null; }
 };

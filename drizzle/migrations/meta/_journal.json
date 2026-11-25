@@ -827,6 +827,13 @@
       "when": 1795544212608,
       "tag": "0117_tarifas_vigencia_tests_fix",
       "breakpoints": true
+    },
+    {
+      "idx": 118,
+      "version": "7",
+      "when": 1795569989078,
+      "tag": "0118_public_jornada_attendance",
+      "breakpoints": true
     }
   ]
 }

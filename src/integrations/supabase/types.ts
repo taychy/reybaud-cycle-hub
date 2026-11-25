@@ -11059,6 +11059,104 @@ export type Database = {
           },
         ]
       }
+      public_jornada_attendees: {
+        Row: {
+          alumno_id: string | null
+          created_at: string
+          first_name: string
+          id: string
+          jornada_id: string
+          last_name: string
+          phone: string
+          response: string
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          alumno_id?: string | null
+          created_at?: string
+          first_name: string
+          id?: string
+          jornada_id: string
+          last_name: string
+          phone: string
+          response: string
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          alumno_id?: string | null
+          created_at?: string
+          first_name?: string
+          id?: string
+          jornada_id?: string
+          last_name?: string
+          phone?: string
+          response?: string
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "public_jornada_attendees_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "public_jornada_attendees_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "public_jornada_attendees_alumno_id_fkey"
+            columns: ["alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+          {
+            foreignKeyName: "public_jornada_attendees_jornada_id_fkey"
+            columns: ["jornada_id"]
+            isOneToOne: false
+            referencedRelation: "public_jornadas"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      public_jornadas: {
+        Row: {
+          activity_date: string
+          capacity: number
+          created_at: string
+          id: string
+          is_open: boolean
+          slug: string
+          title: string
+        }
+        Insert: {
+          activity_date: string
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_open?: boolean
+          slug: string
+          title: string
+        }
+        Update: {
+          activity_date?: string
+          capacity?: number
+          created_at?: string
+          id?: string
+          is_open?: boolean
+          slug?: string
+          title?: string
+        }
+        Relationships: []
+      }
       qa_backfill_test_results: {
         Row: {
           detalle: string | null
@@ -19465,6 +19563,7 @@ export type Database = {
         Args: { p_event_id: string; p_source_reservation_id: string }
         Returns: Json
       }
+      admin_public_jornada_report: { Args: { p_slug: string }; Returns: Json }
       admin_purge_test_reservation: {
         Args: { p_confirm: string; p_reason: string; p_reservation_id: string }
         Returns: Json
@@ -20975,6 +21074,10 @@ export type Database = {
         }[]
       }
       get_prospect_roadbook: { Args: { _token: string }; Returns: Json }
+      get_public_jornada: {
+        Args: { p_slug: string; p_token?: string }
+        Returns: Json
+      }
       get_public_program: { Args: { _cohort_slug: string }; Returns: Json }
       get_reingreso_checkout_context: {
         Args: { p_alumno_id: string }
@@ -21262,6 +21365,7 @@ export type Database = {
         }
         Returns: Json
       }
+      jornada_normalize_phone: { Args: { p_phone: string }; Returns: string }
       link_mp_viajes_outflow_to_event: {
         Args: {
           p_categoria?: string
@@ -22412,6 +22516,17 @@ export type Database = {
       }
       submit_liquidacion_by_token: {
         Args: { p_items: Json; p_observaciones?: string; p_token: string }
+        Returns: Json
+      }
+      submit_public_jornada: {
+        Args: {
+          p_first_name: string
+          p_last_name: string
+          p_phone: string
+          p_response: string
+          p_slug: string
+          p_token: string
+        }
         Returns: Json
       }
       submit_rescheduling_request: {

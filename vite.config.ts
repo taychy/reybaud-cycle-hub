@@ -60,6 +60,7 @@ export default defineConfig(({ mode }) => ({
           // Enlaces públicos de RSVP: siempre por red (index.html fresco), nunca precache.
           /^\/confirmar-asistencia\//,
           /^\/preferencia-fechas\//,
+          /^\/scott-28-noviembre\/?$/,
           /^\/eventos\/[^/]+\/confirmar\/?$/,
         ],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],

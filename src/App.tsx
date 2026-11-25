@@ -104,6 +104,7 @@ import BroadcastUnsubscribe from "./pages/BroadcastUnsubscribe";
 import EventSurvey from "./pages/EventSurvey";
 import EventRsvp from "./pages/EventRsvp";
 import DatePollVote from "./pages/DatePollVote";
+import PublicJornada from "./pages/PublicJornada";
 import PublicEventRsvpEntry from "./pages/PublicEventRsvpEntry";
 import PublicRoadbookTeaser from "./pages/PublicRoadbookTeaser";
 import PreorderPagoRedirect from "./pages/PreorderPagoRedirect";
@@ -182,6 +183,7 @@ const App = () => (
           <Route path="/encuesta/:token" element={<EventSurvey />} />
           <Route path="/confirmar-asistencia/:token" element={<EventRsvp />} />
           <Route path="/preferencia-fechas/:token" element={<DatePollVote />} />
+          <Route path="/scott-28-noviembre" element={<PublicJornada />} />
           <Route path="/eventos/:eventId/confirmar" element={<PublicEventRsvpEntry />} />
           <Route path="/liquidacion/cargar/:token" element={<LiquidacionCargar />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />

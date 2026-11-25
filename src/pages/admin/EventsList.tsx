@@ -73,6 +73,7 @@ import EventAnnouncementsManager from "@/components/admin/EventAnnouncementsMana
 import EventSurveyManager from "@/components/admin/EventSurveyManager";
 import EventRsvpDashboard from "@/components/admin/EventRsvpDashboard";
 import DatePollReport from "@/components/admin/DatePollReport";
+import PublicJornadaReport from "@/components/admin/PublicJornadaReport";
 import EventRoadbookEditor from "@/components/admin/EventRoadbookEditor";
 import { EventFinancePanel } from "@/components/admin/EventFinancePanel";
 import EventCostSimulator from "@/components/admin/EventCostSimulator";
@@ -371,6 +372,8 @@ const EventsList = () => {
           </Button>
         </div>
       </div>
+
+      <PublicJornadaReport />
 
       {/* Tab Filters */}
       <div className="flex gap-2 flex-wrap">
