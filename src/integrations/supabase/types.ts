@@ -5743,6 +5743,172 @@ export type Database = {
           },
         ]
       }
+      event_photo_settings: {
+        Row: {
+          created_at: string
+          enabled: boolean
+          event_id: string
+          max_files_per_submission: number
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          enabled?: boolean
+          event_id: string
+          max_files_per_submission?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          enabled?: boolean
+          event_id?: string
+          max_files_per_submission?: number
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_photo_settings_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_photo_submissions: {
+        Row: {
+          client_fingerprint: string | null
+          completed_at: string | null
+          created_at: string
+          event_id: string
+          file_count: number
+          finalize_token_hash: string
+          id: string
+          ownership_accepted_at: string
+          ownership_declared: boolean
+          ownership_text_version: string
+          publication_consent: boolean
+          publication_consent_at: string | null
+          publication_consent_text_version: string | null
+          status: string
+          submitter_email: string
+          submitter_name: string
+          user_id: string | null
+        }
+        Insert: {
+          client_fingerprint?: string | null
+          completed_at?: string | null
+          created_at?: string
+          event_id: string
+          file_count?: number
+          finalize_token_hash: string
+          id?: string
+          ownership_accepted_at: string
+          ownership_declared: boolean
+          ownership_text_version: string
+          publication_consent?: boolean
+          publication_consent_at?: string | null
+          publication_consent_text_version?: string | null
+          status?: string
+          submitter_email: string
+          submitter_name: string
+          user_id?: string | null
+        }
+        Update: {
+          client_fingerprint?: string | null
+          completed_at?: string | null
+          created_at?: string
+          event_id?: string
+          file_count?: number
+          finalize_token_hash?: string
+          id?: string
+          ownership_accepted_at?: string
+          ownership_declared?: boolean
+          ownership_text_version?: string
+          publication_consent?: boolean
+          publication_consent_at?: string | null
+          publication_consent_text_version?: string | null
+          status?: string
+          submitter_email?: string
+          submitter_name?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_photo_submissions_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_photos: {
+        Row: {
+          created_at: string
+          event_id: string
+          id: string
+          mime_type: string
+          original_filename: string | null
+          review_note: string | null
+          review_status: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          size_bytes: number
+          storage_path: string
+          submission_id: string
+          upload_status: string
+        }
+        Insert: {
+          created_at?: string
+          event_id: string
+          id?: string
+          mime_type: string
+          original_filename?: string | null
+          review_note?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          size_bytes: number
+          storage_path: string
+          submission_id: string
+          upload_status?: string
+        }
+        Update: {
+          created_at?: string
+          event_id?: string
+          id?: string
+          mime_type?: string
+          original_filename?: string | null
+          review_note?: string | null
+          review_status?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          size_bytes?: number
+          storage_path?: string
+          submission_id?: string
+          upload_status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_photos_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_photos_submission_id_fkey"
+            columns: ["submission_id"]
+            isOneToOne: false
+            referencedRelation: "event_photo_submissions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_rescheduling_campaigns: {
         Row: {
           consent_text: string
@@ -19645,6 +19811,10 @@ export type Database = {
         Args: { p_note: string; p_reservation_id: string }
         Returns: undefined
       }
+      admin_review_event_photos: {
+        Args: { p_note?: string; p_photo_ids: string[]; p_status: string }
+        Returns: Json
+      }
       admin_review_rescheduling: {
         Args: {
           p_command_id: string
@@ -19675,6 +19845,10 @@ export type Database = {
           p_source_hash: string
           p_version: number
         }
+        Returns: Json
+      }
+      admin_set_event_photo_reception: {
+        Args: { p_enabled: boolean; p_event_id: string }
         Returns: Json
       }
       admin_set_event_rsvp_lunch_status: {

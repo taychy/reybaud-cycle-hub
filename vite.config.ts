@@ -62,6 +62,7 @@ export default defineConfig(({ mode }) => ({
           /^\/preferencia-fechas\//,
           /^\/scott-28-noviembre\/?$/,
           /^\/eventos\/[^/]+\/confirmar\/?$/,
+          /^\/eventos\/[^/]+\/fotos\/?$/,
         ],
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
         // NO usar clientsClaim/skipWaiting con registerType: "prompt".

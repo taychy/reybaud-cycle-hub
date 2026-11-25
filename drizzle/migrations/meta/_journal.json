@@ -841,6 +841,13 @@
       "when": 1795572435846,
       "tag": "0119_admin_upsert_public_jornada",
       "breakpoints": true
+    },
+    {
+      "idx": 120,
+      "version": "7",
+      "when": 1795629439826,
+      "tag": "0120_event_photo_reception",
+      "breakpoints": true
     }
   ]
 }

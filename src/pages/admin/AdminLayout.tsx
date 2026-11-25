@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, Outlet, NavLink, useLocation, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, FileText, TrendingUp, Wallet, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing, ClipboardList, ChevronDown, Settings, AlertTriangle, CalendarDays } from "lucide-react";
+import { Users, Dumbbell, LogOut, Menu, X, UserCog, ShieldCheck, Trophy, Package, DollarSign, MapPin, LayoutDashboard, ScrollText, Receipt, ShoppingCart, Tag, Image, BarChart3, Boxes, FileText, TrendingUp, Wallet, CalendarClock, Banknote, MessageCircle, Megaphone, RefreshCw, Truck, GraduationCap, Workflow, BellRing, ClipboardList, ChevronDown, Settings, AlertTriangle, CalendarDays, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import logo from "@/assets/logo.png";
@@ -45,6 +45,7 @@ const modules: NavModule[] = [
         items: [
           { to: "/admin/eventos", label: "Eventos", icon: Trophy, noveltyKey: "eventos" },
           { to: "/admin/eventos/testeo-tecnico", label: "Testeo técnico", icon: ClipboardList },
+          { to: "/admin/eventos/fotos", label: "Fotos", icon: Camera },
           // { to: "/admin/solicitudes-alojamiento", label: "Solicitudes alojamiento", icon: BellRing, badgeKey: "waitlist" }, // oculto: casi sin uso
           { to: "/admin/waitlist-plantillas", label: "Preinscripciones", icon: ClipboardList, noveltyKey: "preinscripciones" },
 

@@ -56,6 +56,8 @@ import PlanPlaybookEditor from "./pages/admin/PlanPlaybookEditor";
 import AdminProgramaFlujoRunner from "./pages/admin/AdminProgramaFlujoRunner";
 import Eventos from "./pages/Eventos";
 import EventDetail from "./pages/EventDetail";
+import EventPhotosUpload from "./pages/EventPhotosUpload";
+import AdminEventPhotos from "./pages/admin/AdminEventPhotos";
 import MisReservas from "./pages/MisReservas";
 import MisReservasLegacyRedirect from "./pages/MisReservasLegacyRedirect";
 
@@ -186,6 +188,7 @@ const App = () => (
           <Route path="/scott-28-noviembre" element={<PublicJornada />} />
           <Route path="/jornada/:slug" element={<PublicJornada />} />
           <Route path="/eventos/:eventId/confirmar" element={<PublicEventRsvpEntry />} />
+          <Route path="/eventos/:eventId/fotos" element={<EventPhotosUpload />} />
           <Route path="/liquidacion/cargar/:token" element={<LiquidacionCargar />} />
           <Route path="/roadbook/:token" element={<PublicRoadbookTeaser />} />
           <Route path="/tienda" element={<PublicStore />} />
@@ -280,6 +283,7 @@ const App = () => (
             <Route path="waitlist-plantillas" element={<AdminWaitlistTemplates />} />
             <Route path="eventos/:id/lista-espera" element={<AdminEventWaitlist />} />
             <Route path="eventos/testeo-tecnico" element={<AdminTripAudit />} />
+            <Route path="eventos/fotos" element={<AdminEventPhotos />} />
 
             <Route path="metricas" element={<Navigate to="/admin/resumen?tab=metricas" replace />} />
             <Route path="gastos" element={<SuperAdminGastos />} />
