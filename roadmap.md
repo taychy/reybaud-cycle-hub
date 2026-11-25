@@ -1,3 +1,7 @@
+## Jornada Scott · Mailing aprobado (25/11/2026)
+- [x] Plantilla d5a83439-8e9a-4f2b-aaf6-2df721a891d2 guardada sin campaña, público ni envíos; edición/vista previa en Comunicaciones → Plantillas de mailing, disponible en preview. La pantalla nueva requiere publicación separada, no autorizada aquí.
+- [x] Sesión propia: guardar/releer plantilla; enlaces públicos HTTP 200/renderizados; 360/390/600 sin desborde; test de campos permitidos y build OK. Campañas/destinatarios con huellas idénticas, 33 campañas/11.490 destinatarios/10.575 enviados/5.399 logs intactos; cero invocaciones de envío.
+
 ## Jornada Scott · 28/11/2026
 - [x] Inscripción aislada con 20 cupos atómicos, teléfono/alumno únicos, acceso privado y cancelación; migración 0118 aplicada y jornada creada sin respuestas reales.
 - [x] Reporte en Admin → Eventos → Jornada Scott; 38 pruebas, SQL concurrente aislado, UI 360/390 y panel con sesión real aprobados; compilación OK.

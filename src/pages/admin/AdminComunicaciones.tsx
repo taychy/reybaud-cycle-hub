@@ -4,11 +4,12 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, Megaphone, Mail, CalendarDays, History } from "lucide-react";
 import WhatsAppConciliador from "./WhatsAppConciliador";
 import AdminBroadcasts from "./AdminBroadcasts";
+import MailingTemplatePreview from "@/components/admin/MailingTemplatePreview";
 import AdminEmailTemplates from "./AdminEmailTemplates";
 import ComunicacionesCalendario from "@/components/admin/ComunicacionesCalendario";
 import ComunicacionesHistorial from "@/components/admin/ComunicacionesHistorial";
 
-const VALID = ["calendario", "historial", "plantillas", "email-masivo", "whatsapp"] as const;
+const VALID = ["calendario", "historial", "plantillas", "plantillas-mailing", "email-masivo", "whatsapp"] as const;
 type Tab = (typeof VALID)[number];
 
 /**
@@ -58,10 +59,11 @@ const AdminComunicaciones = () => {
       </div>
 
       <Tabs value={tab} onValueChange={onTabChange} className="w-full space-y-4">
-        <TabsList className="bg-secondary">
+        <TabsList className="bg-secondary h-auto flex-wrap justify-start">
           <TabsTrigger value="calendario" className="gap-1.5"><CalendarDays className="w-4 h-4" />Calendario</TabsTrigger>
           <TabsTrigger value="historial" className="gap-1.5"><History className="w-4 h-4" />Historial</TabsTrigger>
           <TabsTrigger value="plantillas" className="gap-1.5"><Mail className="w-4 h-4" />Plantillas automáticas</TabsTrigger>
+          <TabsTrigger value="plantillas-mailing" className="gap-1.5"><Mail className="w-4 h-4" />Plantillas de mailing</TabsTrigger>
         </TabsList>
 
         <TabsContent value="calendario" className="mt-0">
@@ -72,6 +74,9 @@ const AdminComunicaciones = () => {
         </TabsContent>
         <TabsContent value="plantillas" className="mt-0">
           <AdminEmailTemplates embedded />
+        </TabsContent>
+        <TabsContent value="plantillas-mailing" className="mt-0">
+          <MailingTemplatePreview />
         </TabsContent>
         <TabsContent value="email-masivo" className="mt-0">
           <AdminBroadcasts embedded />
