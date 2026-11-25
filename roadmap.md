@@ -469,3 +469,5 @@
 ## San Luis 2027 · Encuesta de fechas (19/11)
 - [x] Encuesta, landing con voto por POST, reporte admin y borrador de correo listos.
 - [ ] Desplegar send-broadcast, publicar y enviar: requiere aprobación.
+
+- [ ] Gran Conquista Alpina: liberar cupo individual Julio Zabala vía start_reservation_transfer (requiere sesión admin) + max_capacity=15
