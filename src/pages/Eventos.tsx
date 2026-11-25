@@ -1,5 +1,5 @@
 import { packageWhatsAppUrl } from "@/components/event/EventInquiryCtas";
-import { getSpecialJornada } from "@/lib/specialJornada";
+import { eventTypeBadgeLabel, getSpecialJornada } from "@/lib/specialJornada";
 import { isEventDateTbd, DATES_TBD_LABEL } from "@/lib/eventDates";
 import { eventRescheduledPresentation } from "@/lib/eventRescheduledPresentation";
 import { useEffect, useState } from "react";
@@ -188,7 +188,7 @@ const EventCard = ({
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
           {rescheduled && <Badge className="text-[9px] font-heading px-2 py-0.5 bg-primary text-primary-foreground">{rescheduled.status}</Badge>}
           <span className={`text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm ${typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
-            {typeLabels[event.type] || event.type}
+            {eventTypeBadgeLabel(event.metadata, typeLabels[event.type] || event.type)}
           </span>
           {event.estado_publicacion === "proximamente" && (
             <span className="text-[9px] font-heading uppercase tracking-wider px-2 py-0.5 rounded-full font-semibold shadow-sm bg-primary text-primary-foreground">

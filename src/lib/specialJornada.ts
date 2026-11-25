@@ -26,3 +26,8 @@ export function getSpecialJornada(metadata: unknown): SpecialJornadaLink | null 
 export function jornadaPublicUrl(link: SpecialJornadaLink, origin = "https://reybaud-app.com") {
   return `${origin}${link.path}`;
 }
+
+/** Badge de tipo consistente: las jornadas especiales de Escuela muestran "Jornada especial"; el resto conserva su etiqueta habitual. */
+export function eventTypeBadgeLabel(metadata: unknown, fallback: string): string {
+  return getSpecialJornada(metadata) ? "Jornada especial" : fallback;
+}

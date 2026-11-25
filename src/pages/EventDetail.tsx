@@ -32,7 +32,7 @@ import EventAnnouncementsSection from "@/components/reservation/EventAnnouncemen
 import EventReglamentoSection from "@/components/event/EventReglamentoSection";
 import EventPriceBanner from "@/components/event/EventPriceBanner";
 import EventPaymentPlansPublic from "@/components/event/EventPaymentPlansPublic";
-import { getSpecialJornada } from "@/lib/specialJornada";
+import { eventTypeBadgeLabel, getSpecialJornada } from "@/lib/specialJornada";
 import EventInquiryCtas, { packageWhatsAppUrl, parseInquiryCtas } from "@/components/event/EventInquiryCtas";
 import EventPackagesDrawer from "@/components/event/EventPackagesDrawer";
 import EventRoadbook from "@/components/reservation/EventRoadbook";
@@ -571,7 +571,7 @@ const EventDetail = () => {
         <div className={heroContain ? "px-4 pt-3 flex items-center gap-2 w-full max-w-md md:max-w-2xl mx-auto" : "absolute bottom-4 left-4 flex items-center gap-2"}>
           {rescheduled && <span className="text-[10px] font-heading px-2.5 py-1 rounded-full border border-primary bg-primary text-primary-foreground">{rescheduled.status}</span>}
           <span className={`text-[10px] font-heading uppercase tracking-wider px-2.5 py-1 rounded-full border ${premiumLanding ? "bg-background/80 text-foreground border-primary" : typeBadgeColors[event.type] || typeBadgeColors.otro}`}>
-            {typeLabels[event.type] || event.type}
+            {eventTypeBadgeLabel(event.metadata, typeLabels[event.type] || event.type)}
           </span>
         </div>
         )}
@@ -1069,8 +1069,8 @@ const EventDetail = () => {
             </div>
           )}
 
-          {/* Informative events */}
-          {isInformativeOnly && !eventPast && (
+          {/* Informative events (hidden for special jornadas: their own CTA block above already explains the signup) */}
+          {isInformativeOnly && !eventPast && !specialJornada && (
             <div className="glass-card rounded-xl p-5 text-center space-y-3 animate-fade-in">
               <AlertCircle className="w-8 h-8 text-muted-foreground mx-auto" />
               <p className="text-sm text-muted-foreground">

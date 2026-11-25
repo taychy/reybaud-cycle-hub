@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getSpecialJornada } from "./specialJornada";
+import { eventTypeBadgeLabel, getSpecialJornada } from "./specialJornada";
 
 describe("getSpecialJornada", () => {
   it("returns the legacy Scott path", () => {
@@ -16,5 +16,16 @@ describe("getSpecialJornada", () => {
   it("ignores normal events", () => {
     expect(getSpecialJornada({ event_nature: "propio_con_reserva" })).toBeNull();
     expect(getSpecialJornada(null)).toBeNull();
+  });
+});
+
+describe("eventTypeBadgeLabel", () => {
+  it("shows Jornada especial for configured special jornadas", () => {
+    expect(eventTypeBadgeLabel({ school_subtype: "jornada_especial", special_jornada: { slug: "scott-28-noviembre" } }, "Evento")).toBe("Jornada especial");
+  });
+  it("keeps the fallback for other events or misconfigured jornadas", () => {
+    expect(eventTypeBadgeLabel({ event_nature: "propio_informativo" }, "Evento")).toBe("Evento");
+    expect(eventTypeBadgeLabel({ school_subtype: "jornada_especial" }, "Evento")).toBe("Evento");
+    expect(eventTypeBadgeLabel(null, "Carrera")).toBe("Carrera");
   });
 });
