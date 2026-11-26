@@ -87,7 +87,7 @@ export default function FondazoParticipantsPanel({ rows, prices, busy, onSetPelo
           <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setEdit({ row: r, peloton: pel }); setReason(""); }}>Cambiar pelotón</Button>
           {pay === "pendiente" && (wa.ok
             ? <Button asChild size="sm" variant="outline" className="h-7 text-xs"><a href={wa.url} target="_blank" rel="noopener noreferrer"><MessageCircle className="h-3 w-3" /> WhatsApp · solicitar pago</a></Button>
-            : <Button size="sm" variant="outline" className="h-7 text-xs" disabled title={wa.reason}><MessageCircle className="h-3 w-3" /> {wa.reason}</Button>)}
+            : <Button size="sm" variant="outline" className="h-7 text-xs" disabled title={"reason" in wa ? wa.reason : ""}><MessageCircle className="h-3 w-3" /> {"reason" in wa ? wa.reason : ""}</Button>)}
         </div>
       </div>;
     })}{!filtered.length && <p className="p-3 text-sm text-muted-foreground">Ningún participante coincide con los filtros.</p>}</div>
