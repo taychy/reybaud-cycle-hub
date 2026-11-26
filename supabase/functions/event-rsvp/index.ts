@@ -20,7 +20,9 @@ const IdentitySchema = z.object({
 });
 
 const BodySchema = z.object({
-  action: z.enum(["status", "respond", "respond_with_types", "confirm_lunch", "summary", "update_prices", "update_lunch"]),
+  action: z.enum(["status", "respond", "respond_with_types", "confirm_lunch", "summary", "update_prices", "update_lunch", "set_peloton"]),
+  peloton: z.enum(["G1", "G2", "G3", "G4", "iniciacion", "sin_asignar"]).optional(),
+  reason: z.string().trim().min(3).max(500).optional(),
   event_id: z.string().uuid().optional(),
   invite_id: z.string().uuid().optional(),
   token: z.string().uuid().optional(),
@@ -145,9 +147,28 @@ Deno.serve(async (req) => {
       if (invitesResult.error) throw invitesResult.error;
       if (settingsResult.error) throw settingsResult.error;
       if (auditResult.error) throw auditResult.error;
+      const alumnoIds = [...new Set((invitesResult.data || []).map((r) => r.alumno_id).filter(Boolean))];
+      const [groupsResult, pelotonResult, pelotonAuditResult] = await Promise.all([
+        alumnoIds.length ? db.from("alumnos").select("id,grupo,telefono").in("id", alumnoIds) : Promise.resolve({ data: [], error: null }),
+        db.from("event_rsvp_pelotones").select("invite_id,peloton,reason,updated_at").eq("event_id", body.event_id),
+        db.from("event_rsvp_peloton_audit").select("id,invite_id,from_peloton,to_peloton,reason,actor_user_id,created_at")
+          .eq("event_id", body.event_id).order("created_at", { ascending: false }).limit(200),
+      ]);
+      if (groupsResult.error) throw groupsResult.error;
+      if (pelotonResult.error) throw pelotonResult.error;
+      if (pelotonAuditResult.error) throw pelotonAuditResult.error;
+      const alumnoById = new Map((groupsResult.data || []).map((a: { id: string; grupo: string; telefono: string | null }) => [a.id, a]));
+      const pelotonById = new Map((pelotonResult.data || []).map((p) => [p.invite_id, p]));
       return json({
+        peloton_audit: pelotonAuditResult.data || [],
         event_title: event.title,
-        rows: invitesResult.data || [],
+        rows: (invitesResult.data || []).map((r) => ({
+          ...r,
+          alumno_grupo: r.alumno_id ? alumnoById.get(r.alumno_id)?.grupo ?? null : null,
+          alumno_telefono: r.alumno_id ? alumnoById.get(r.alumno_id)?.telefono ?? null : null,
+          peloton_override: pelotonById.get(r.id)?.peloton ?? null,
+          peloton_reason: pelotonById.get(r.id)?.reason ?? null,
+        })),
         prices: settingsResult.data || { prices_confirmed_at: null },
         audit: auditResult.data || [],
       });
@@ -172,6 +193,16 @@ Deno.serve(async (req) => {
         p_status: body.status,
         p_comment: body.comment || "",
         p_receipt_reference: body.receipt_reference || null,
+      });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+    if (body.action === "set_peloton") {
+      if (!body.invite_id || !body.peloton || !body.reason) return json({ error: "Participante, pelotón y motivo requeridos" }, 400);
+      const { data: invite } = await db.from("event_rsvp_invites").select("id").eq("id", body.invite_id).eq("event_id", body.event_id).maybeSingle();
+      if (!invite) return json({ error: "Participante no encontrado en este evento" }, 404);
+      const { error } = await client.rpc("admin_set_event_rsvp_peloton", {
+        p_invite_id: body.invite_id, p_peloton: body.peloton, p_reason: body.reason,
       });
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });

@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { CheckCircle, Mail, RefreshCw, Send, Users, XCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
+import FondazoParticipantsPanel from "@/components/admin/FondazoParticipantsPanel";
+import type { Peloton } from "@/lib/fondazoAdmin";
 import {
   LUNCH_STATUS_LABELS,
   PARTICIPATION_LABELS,
@@ -54,6 +56,9 @@ type Row = {
   receipt_reference: string | null;
   lunch_admin_comment: string | null;
   lunch_status_changed_at: string | null;
+  alumno_grupo?: string | null;
+  alumno_telefono?: string | null;
+  peloton_override?: Peloton | null;
 };
 type TestRow = Pick<Row, "id" | "recipient_name" | "recipient_email" | "response" | "participation_mode" | "cyclist_guests" | "non_cyclist_guests" | "responded_at">;
 type Prices = { adult_price: number | null; child_4_9_price: number | null; under_4_price: number | null; prices_confirmed_at: string | null; prices_note?: string | null };
@@ -243,6 +248,19 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
     window.location.assign(destination);
   };
 
+  const setPeloton = async (row: { id: string }, peloton: Peloton, reason: string) => {
+    setBusy(true);
+    try {
+      await call("set_peloton", { invite_id: row.id, peloton, reason });
+      toast({ title: "Pelotón guardado con auditoría" });
+      await refresh();
+      return true;
+    } catch (error) {
+      toast({ title: "No se guardó el pelotón", description: error instanceof Error ? error.message : String(error), variant: "destructive" });
+      return false;
+    } finally { setBusy(false); }
+  };
+
   const campaignBlock = (kind: CampaignKind) => {
     const isLunch = kind === "almuerzo";
     const state = testState[kind];
@@ -290,8 +308,11 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         ].map(([label, value]) => <div key={String(label)} className="border rounded-lg p-3 bg-muted/20"><div className="text-xs text-muted-foreground">{label}</div><div className="text-2xl font-bold">{value}</div></div>)}
       </div>
 
-      <Tabs defaultValue="respuestas">
-        <TabsList className="grid grid-cols-3 w-full"><TabsTrigger value="respuestas">Respuestas</TabsTrigger><TabsTrigger value="almuerzo">Almuerzo</TabsTrigger><TabsTrigger value="correos">Correos</TabsTrigger></TabsList>
+      <Tabs defaultValue="participantes">
+        <TabsList className="grid grid-cols-4 w-full"><TabsTrigger value="participantes">Participantes</TabsTrigger><TabsTrigger value="respuestas">Respuestas</TabsTrigger><TabsTrigger value="almuerzo">Almuerzo</TabsTrigger><TabsTrigger value="correos">Correos</TabsTrigger></TabsList>
+        <TabsContent value="participantes" className="pt-3">
+          <FondazoParticipantsPanel rows={rows} prices={summary?.prices || null} busy={busy} onSetPeloton={setPeloton} />
+        </TabsContent>
         <TabsContent value="respuestas" className="space-y-2 pt-3">
           <p className="text-xs text-muted-foreground">Respuestas reales: {rows.length}. Las pruebas no ocupan cupos ni se incluyen en correos generales.</p>
           {rows.length ? <div className="border rounded-lg divide-y">{rows.map((row) => <div key={row.id} className="p-3 flex items-center justify-between gap-3 text-sm">

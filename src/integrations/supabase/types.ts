@@ -6559,6 +6559,96 @@ export type Database = {
           },
         ]
       }
+      event_rsvp_peloton_audit: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          event_id: string
+          from_peloton: string | null
+          id: string
+          invite_id: string
+          reason: string
+          to_peloton: string
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          event_id: string
+          from_peloton?: string | null
+          id?: string
+          invite_id: string
+          reason: string
+          to_peloton: string
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          event_id?: string
+          from_peloton?: string | null
+          id?: string
+          invite_id?: string
+          reason?: string
+          to_peloton?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_peloton_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_peloton_audit_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "event_rsvp_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_rsvp_pelotones: {
+        Row: {
+          event_id: string
+          invite_id: string
+          peloton: string
+          reason: string
+          set_by: string
+          updated_at: string
+        }
+        Insert: {
+          event_id: string
+          invite_id: string
+          peloton: string
+          reason: string
+          set_by: string
+          updated_at?: string
+        }
+        Update: {
+          event_id?: string
+          invite_id?: string
+          peloton?: string
+          reason?: string
+          set_by?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_pelotones_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_pelotones_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: true
+            referencedRelation: "event_rsvp_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_rsvp_settings: {
         Row: {
           adult_price: number | null
@@ -19858,6 +19948,10 @@ export type Database = {
           p_receipt_reference?: string
           p_status: string
         }
+        Returns: undefined
+      }
+      admin_set_event_rsvp_peloton: {
+        Args: { p_invite_id: string; p_peloton: string; p_reason: string }
         Returns: undefined
       }
       admin_set_event_rsvp_prices: {
