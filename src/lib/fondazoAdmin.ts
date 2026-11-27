@@ -125,6 +125,52 @@ export const matchesFilters = (r: AdminRow, f: Filters) => {
   return true;
 };
 
+/**
+ * Búsqueda de la pestaña Almuerzo: titular o acompañante.
+ * Ignora mayúsculas, acentos y espacios; nunca afecta contadores globales ni pagos.
+ */
+export type LunchSearchRow = {
+  recipient_name: string | null;
+  recipient_email: string;
+  participant_first_name: string | null;
+  participant_last_name: string | null;
+  lunch_attendees?: { name: string }[] | null;
+  cyclist_guests?: { name: string }[] | null;
+  non_cyclist_guests?: { name: string }[] | null;
+};
+
+export const normalizeSearch = (value: string | null | undefined) =>
+  (value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, "");
+
+/** Cada campo se compara por separado para que un espacio borrado no mezcle dos datos distintos. */
+const lunchSearchFields = (r: LunchSearchRow): (string | null)[] => {
+  const first = r.participant_first_name || "";
+  const last = r.participant_last_name || "";
+  return [
+    r.recipient_name,
+    first,
+    last,
+    first && last ? `${first} ${last}` : "",
+    r.recipient_email,
+    ...(r.lunch_attendees || []).map((p) => p.name),
+    ...(r.non_cyclist_guests || []).map((p) => p.name),
+    ...(r.cyclist_guests || []).map((p) => p.name),
+  ];
+};
+
+export const matchesLunchSearch = (r: LunchSearchRow, query: string) => {
+  const q = normalizeSearch(query);
+  if (!q) return true;
+  return lunchSearchFields(r).some((field) => normalizeSearch(field).includes(q));
+};
+
+export const filterLunchRowsBySearch = <T extends LunchSearchRow>(rows: T[], query: string): T[] =>
+  rows.filter((row) => matchesLunchSearch(row, query));
+
 /** Celda CSV segura para Excel: comillas escapadas y neutraliza fórmulas. */
 export const csvCell = (value: unknown) => {
   let s = value == null ? "" : String(value);

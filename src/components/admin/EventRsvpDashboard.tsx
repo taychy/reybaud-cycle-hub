@@ -15,7 +15,7 @@ import { CheckCircle, Mail, RefreshCw, Send, Users, XCircle } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import FondazoParticipantsPanel from "@/components/admin/FondazoParticipantsPanel";
-import type { Peloton } from "@/lib/fondazoAdmin";
+import { filterLunchRowsBySearch, type Peloton } from "@/lib/fondazoAdmin";
 import {
   LUNCH_STATUS_LABELS,
   PARTICIPATION_LABELS,
@@ -85,6 +85,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const [statusComment, setStatusComment] = useState("");
   const [receiptReference, setReceiptReference] = useState("");
   const [approvedForEmail, setApprovedForEmail] = useState<Record<string, string[]>>({});
+  const [lunchQuery, setLunchQuery] = useState("");
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("event-rsvp", { body: { action, event_id: eventId, ...extra } });
@@ -169,6 +170,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
 
   const rows = useMemo(() => summary?.rows || [], [summary]);
   const lunchRows = useMemo(() => rows.filter((r) => hasLunchInterest(r.response, r.participation_mode)), [rows]);
+  const visibleLunchRows = useMemo(() => filterLunchRowsBySearch(lunchRows, lunchQuery), [lunchRows, lunchQuery]);
   const totals = useMemo(() => ({
     invited: rows.filter((r) => r.last_sent_at).length,
     yes: rows.filter((r) => r.response === "voy").length,
@@ -369,6 +371,21 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         </TabsContent>
 
         <TabsContent value="almuerzo" className="space-y-5 pt-3">
+          <div className="rounded-lg border p-4 space-y-2">
+            <Label htmlFor="lunch-search">Buscar en gestión administrativa</Label>
+            <div className="flex gap-2">
+              <Input
+                id="lunch-search"
+                value={lunchQuery}
+                onChange={(e) => setLunchQuery(e.target.value)}
+                placeholder="Buscar por nombre del titular o acompañante..."
+                aria-label="Buscar por nombre del titular o acompañante"
+              />
+              {lunchQuery && <Button variant="outline" onClick={() => setLunchQuery("")}>Limpiar</Button>}
+            </div>
+            <p className="text-xs text-muted-foreground">Mostrando {visibleLunchRows.length} de {lunchRows.length} · la búsqueda solo filtra la lista y no modifica tarifas, pagos ni contadores.</p>
+          </div>
+
           <div className="rounded-lg border p-4 space-y-3">
             <h4 className="font-semibold">Tarifas actuales del restaurante</h4>
             <p className="text-xs text-muted-foreground">Sin valores históricos precargados. Ingresá los importes reconfirmados; el cero para menores de cuatro también requiere confirmación explícita.</p>
@@ -383,7 +400,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           </div>
 
           <div className="space-y-2"><h4 className="font-semibold">Gestión administrativa</h4>
-            {lunchRows.length ? lunchRows.map((row) => <div key={row.id} className="border rounded-lg p-3 space-y-2">
+            {visibleLunchRows.length ? visibleLunchRows.map((row) => <div key={row.id} className="border rounded-lg p-3 space-y-2">
               <div className="flex justify-between gap-3"><div><strong>{row.recipient_name || row.recipient_email}</strong><div className="text-xs text-muted-foreground">{diners(row)} comensales · {row.guests_count} acompañantes</div></div><Badge variant="outline">{LUNCH_STATUS_LABELS[row.lunch_status]}</Badge></div>
               {!!row.cyclist_guests?.length && <div className="rounded-md border border-primary/40 p-2 text-xs">
                 <strong>Ciclistas invitados · aprobación de Claudio pendiente</strong>
@@ -413,7 +430,10 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
               <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>
               </div>
-            </div>) : <p className="text-sm text-muted-foreground">Todavía no hay interesados en el almuerzo.</p>}
+            </div>) : lunchRows.length ? <div className="rounded-lg border border-dashed p-4 text-center space-y-2">
+              <p className="text-sm">Sin resultados para «{lunchQuery.trim()}».</p>
+              <Button variant="outline" size="sm" onClick={() => setLunchQuery("")}>Limpiar búsqueda</Button>
+            </div> : <p className="text-sm text-muted-foreground">Todavía no hay interesados en el almuerzo.</p>}
           </div>
 
           {summary?.audit.length ? <div className="rounded-lg border p-4 space-y-2"><h4 className="font-semibold">Auditoría reciente</h4>{summary.audit.slice(0, 12).map((entry) => {

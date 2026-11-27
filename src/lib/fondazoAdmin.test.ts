@@ -1,5 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { csvCell, expectedLunchAmount, holderWhatsApp, internalReport, matchesFilters, paymentOf, paymentWhatsApp, pelotonOf, restaurantReport, type AdminRow } from "./fondazoAdmin";
+import { csvCell, expectedLunchAmount, filterLunchRowsBySearch, holderWhatsApp, internalReport, matchesFilters, matchesLunchSearch, normalizeSearch, paymentOf, paymentWhatsApp, pelotonOf, restaurantReport, type AdminRow, type LunchSearchRow } from "./fondazoAdmin";
+
+type LunchFixture = LunchSearchRow & { id: string };
+const lunchBase: LunchFixture = {
+  id: "l1", recipient_name: "María José Ferrández", recipient_email: "mj.ferrandez@example.com",
+  participant_first_name: "María", participant_last_name: "Ferrández",
+  lunch_attendees: [{ name: "Ana Beatriz Sosa" }],
+  cyclist_guests: [{ name: "Iván Quiroga" }],
+  non_cyclist_guests: [{ name: "José Núñez" }],
+};
+const lunchOther: LunchFixture = {
+  id: "l2", recipient_name: "Carlos Gómez", recipient_email: "cg@example.com",
+  participant_first_name: "Carlos", participant_last_name: "Gómez",
+  lunch_attendees: [], cyclist_guests: [], non_cyclist_guests: [],
+};
 
 const prices = { adult_price: 40000, child_4_9_price: 20000, under_4_price: 0, prices_confirmed_at: "2026-11-16T00:00:00Z" };
 const base: AdminRow = {
@@ -62,5 +76,44 @@ describe("Fondazo admin", () => {
     expect(csv).not.toContain("5555");
     expect(csv.split("Ana Test").length - 1).toBe(2);
     expect(csv).toContain(`"120000";"Pago verificado ARS 60000"`);
+  });
+});
+
+describe("Búsqueda de la pestaña Almuerzo", () => {
+  it("normaliza mayúsculas, acentos y espacios", () => {
+    expect(normalizeSearch("  MARÍA   JOSÉ  ")).toBe("mariajose");
+    expect(normalizeSearch(null)).toBe("");
+    expect(normalizeSearch(undefined)).toBe("");
+  });
+  it("encuentra por nombre o apellido del titular", () => {
+    expect(matchesLunchSearch(lunchBase, "ferrandez")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "FERRÁNDEZ")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "maria jose")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "mariajose")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "   Ferra   ndez   ")).toBe(true);
+  });
+  it("encuentra por titular cuando no hay nombre de destinatario", () => {
+    const sinNombre = { ...lunchBase, recipient_name: null, lunch_attendees: [], cyclist_guests: [], non_cyclist_guests: [] };
+    expect(matchesLunchSearch(sinNombre, "ferrandez")).toBe(true);
+    expect(matchesLunchSearch(sinNombre, "maria")).toBe(true);
+    expect(matchesLunchSearch(sinNombre, "ivan")).toBe(false);
+  });
+  it("encuentra por acompañante de encuesta, no ciclista y amigo ciclista", () => {
+    expect(matchesLunchSearch(lunchBase, "ana beatriz")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "nunez")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "NUÑEZ")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "ivan quiroga")).toBe(true);
+  });
+  it("encuentra por correo, descarta ajenos y la consulta vacía no filtra", () => {
+    expect(matchesLunchSearch(lunchBase, "mj.ferrandez@example.com")).toBe(true);
+    expect(matchesLunchSearch(lunchBase, "pedro")).toBe(false);
+    expect(matchesLunchSearch(lunchBase, "   ")).toBe(true);
+    expect(matchesLunchSearch(lunchOther, "ferrandez")).toBe(false);
+  });
+  it("filtra solo las filas coincidentes sin mutar el arreglo original", () => {
+    const rows = [lunchBase, lunchOther];
+    expect(filterLunchRowsBySearch(rows, "gomez").map((r) => r.id)).toEqual(["l2"]);
+    expect(filterLunchRowsBySearch(rows, "").map((r) => r.id)).toEqual(["l1", "l2"]);
+    expect(rows.map((r) => r.id)).toEqual(["l1", "l2"]);
   });
 });
