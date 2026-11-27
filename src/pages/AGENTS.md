@@ -1,0 +1,1 @@
+- Draft camp pages must stay behind DEV-only lazy imports and catalog links; their package snapshots come from a read-only database check, and their forms use the existing submit_waitlist_entry gates plus a disabled intake flag until explicitly authorized. Why: previews must never expose hidden catalog metadata, activate sales, or write into shared production data.

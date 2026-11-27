@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -157,6 +157,8 @@ const BontRedirect = () => {
 };
 
 const queryClient = new QueryClient();
+// Never expose the inactive catalog snapshot or draft intake in a production build.
+const SanLuis2027Draft = import.meta.env.DEV ? lazy(() => import("./pages/SanLuis2027")) : null;
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -224,6 +226,7 @@ const App = () => (
           <Route path="/coach/chequeo-alumnos" element={<ProtectedRoute allowedRoles={["coach"]} loginPath="/admin/login"><CoachChequeoAlumnos /></ProtectedRoute>} />
           <Route path="/admin/chequeo-alumnos" element={<ProtectedRoute allowedRoles={["admin"]} loginPath="/admin/login"><CoachChequeoAlumnos adminMode /></ProtectedRoute>} />
           <Route path="/eventos" element={<Eventos />} />
+          {SanLuis2027Draft && <Route path="/san-luis-2027" element={<Suspense fallback={<div role="status" className="p-8">Cargando San Luis…</div>}><SanLuis2027Draft /></Suspense>} />}
           {/* Landing pública email-only del Record (uso vía QR). Auto-detecta el evento record_hora activo. */}
           <Route path="/eventos/record-de-la-hora" element={<RecordDelAhora />} />
           <Route path="/eventos/record-de-la-hora/mi-resultados" element={<EventResults />} />

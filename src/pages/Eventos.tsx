@@ -516,6 +516,7 @@ export const EventosContent = () => {
         <h1 className="text-2xl font-heading font-bold text-foreground">Eventos</h1>
         <p className="text-xs text-muted-foreground mt-0.5">Encontrá tu próxima experiencia</p>
       </div>
+      {import.meta.env.DEV && <Button variant="outline" className="w-full min-h-12 whitespace-normal" onClick={() => navigate("/san-luis-2027")}>San Luis · Enero 2027 · Vista previa en borrador <ChevronRight className="h-4 w-4 shrink-0" /></Button>}
 
       <div className="flex justify-between px-1 overflow-x-auto overflow-y-visible no-scrollbar py-1">
         {categories.map((c) => (
