@@ -74,8 +74,8 @@ describe("Fondazo admin", () => {
     const csv = restaurantReport(rows, prices);
     expect(csv).not.toContain("@example.com");
     expect(csv).not.toContain("5555");
-    expect(csv.split("Ana Test").length - 1).toBe(2);
-    expect(csv).toContain(`"120000";"Pago verificado ARS 60000"`);
+    expect(csv.split("Ana Test").length - 1).toBe(4); // columnas Titular y Comensales
+    expect(csv).toContain(`"120000";"";"";"";"Pago verificado ARS 60000"`);
   });
 });
 

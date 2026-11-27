@@ -1,5 +1,6 @@
 // Clasificación, cálculo y exportes del panel admin del Fondazo (sin efectos secundarios).
 import { RESTAURANT_ALIAS, hasLunchInterest, type LunchStatus, type ParticipationMode } from "@/lib/eventRsvp";
+import { COVERAGE_LABELS, buildDiners, evaluateCoverage, type LunchPayment } from "@/lib/fondazoLunch";
 
 export type GuestCategory = "adult" | "child_4_9" | "under_4";
 export type AdminRow = {
@@ -18,6 +19,9 @@ export type AdminRow = {
   lunch_status_changed_at: string | null;
   cyclist_guests: { name: string; lunch: boolean }[];
   non_cyclist_guests: { name: string; category: GuestCategory }[];
+  participant_first_name?: string | null;
+  participant_last_name?: string | null;
+  lunch_payments?: LunchPayment[];
 };
 export type Prices = { adult_price: number | null; child_4_9_price: number | null; under_4_price: number | null; prices_confirmed_at: string | null };
 
@@ -204,16 +208,21 @@ export const restaurantReport = (rows: AdminRow[], prices: Prices | null, now = 
     const d = diners(r); const amount = expectedLunchAmount(r, prices); const state = paymentOf(r);
     t.a += d.adults; t.c += d.children_4_9; t.u += d.under_4;
     if (amount == null) t.unreconciled++; else { t.expected += amount; if (state === "pago_verificado") t.verified += amount; }
-    return [r.recipient_name || "Sin nombre", d.adults, d.children_4_9, d.under_4, d.adults + d.children_4_9 + d.under_4, amountCell(amount),
+    const list = buildDiners({ ...r, participant_first_name: r.participant_first_name ?? null, participant_last_name: r.participant_last_name ?? null });
+    const pays = (r.lunch_payments || []).filter((p) => !p.voided_at);
+    const cov = evaluateCoverage(list, pays, prices);
+    const coveredNames = list.filter((x) => cov.coveredKeys.has(x.key)).map((x) => x.name).join("; ");
+    return [r.recipient_name || "Sin nombre", list.map((x) => x.name).join("; "), d.adults, d.children_4_9, d.under_4, d.adults + d.children_4_9 + d.under_4, amountCell(amount),
+      pays.length ? cov.registered : "", coveredNames, pays.length ? COVERAGE_LABELS[cov.status] : "",
       state === "pago_verificado" ? "Pagado (verificado)" : state === "comprobante_informado" ? "Pendiente · comprobante a verificar" : "Pendiente", r.receipt_reference || shortRef(r.id)];
   });
   return toCsv([
     [`La Carreta del Gato · Fondazo Reybaud 29/11/2026 · corte ${cutoffArt(now)}`],
     ["Monto previsto = según tarifas y comensales declarados. Pago verificado = confirmado por administración con comprobante. Un comprobante informado no se cuenta como cobrado."],
     [],
-    ["Titular", "Adultos", "Niños 4-9", "Menores de 4", "Total comensales", "Monto previsto ARS", "Estado", "Referencia"],
+    ["Titular", "Comensales", "Adultos", "Niños 4-9", "Menores de 4", "Total comensales", "Monto previsto ARS", "Monto comprobante registrado ARS (sin verificar salvo Estado)", "Personas cubiertas por comprobante", "Cobertura", "Estado", "Referencia"],
     ...body,
     [],
-    ["TOTALES", t.a, t.c, t.u, t.a + t.c + t.u, t.expected, `Pago verificado ARS ${t.verified}`, t.unreconciled ? `${t.unreconciled} sin conciliar` : ""],
+    ["TOTALES", "", t.a, t.c, t.u, t.a + t.c + t.u, t.expected, "", "", "", `Pago verificado ARS ${t.verified}`, t.unreconciled ? `${t.unreconciled} sin conciliar` : ""],
   ]);
 };

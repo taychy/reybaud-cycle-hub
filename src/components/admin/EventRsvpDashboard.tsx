@@ -15,6 +15,8 @@ import { CheckCircle, Mail, RefreshCw, Send, Users, XCircle } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import FondazoParticipantsPanel from "@/components/admin/FondazoParticipantsPanel";
+import { GuestEditDialog, LunchDinersDetail, PaymentDialog, VoidPaymentDialog } from "@/components/admin/FondazoLunchTools";
+import type { LunchPayment } from "@/lib/fondazoLunch";
 import { filterLunchRowsBySearch, type Peloton } from "@/lib/fondazoAdmin";
 import {
   LUNCH_STATUS_LABELS,
@@ -59,6 +61,7 @@ type Row = {
   alumno_grupo?: string | null;
   alumno_telefono?: string | null;
   peloton_override?: Peloton | null;
+  lunch_payments?: LunchPayment[];
 };
 type TestRow = Pick<Row, "id" | "recipient_name" | "recipient_email" | "response" | "participation_mode" | "cyclist_guests" | "non_cyclist_guests" | "responded_at">;
 type Prices = { adult_price: number | null; child_4_9_price: number | null; under_4_price: number | null; prices_confirmed_at: string | null; prices_note?: string | null };
@@ -86,6 +89,9 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const [receiptReference, setReceiptReference] = useState("");
   const [approvedForEmail, setApprovedForEmail] = useState<Record<string, string[]>>({});
   const [lunchQuery, setLunchQuery] = useState("");
+  const [guestEditRow, setGuestEditRow] = useState<Row | null>(null);
+  const [paymentRow, setPaymentRow] = useState<Row | null>(null);
+  const [voidPayment, setVoidPayment] = useState<LunchPayment | null>(null);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("event-rsvp", { body: { action, event_id: eventId, ...extra } });
@@ -117,6 +123,11 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
       };
       const guestTypes = await typeRpc.rpc("get_event_rsvp_guest_types_admin", { p_event_id: eventId });
       if (guestTypes.error) throw new Error(guestTypes.error.message);
+      const paymentsRes = await (supabase as unknown as { rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: LunchPayment[] | null; error: { message: string } | null }> })
+        .rpc("get_event_rsvp_lunch_payments_admin", { p_event_id: eventId });
+      if (paymentsRes.error) throw new Error(paymentsRes.error.message);
+      const paymentsByInvite = new Map<string, LunchPayment[]>();
+      (paymentsRes.data || []).forEach((p) => paymentsByInvite.set(p.invite_id, [...(paymentsByInvite.get(p.invite_id) || []), p]));
       // Consulta administrativa de pruebas, sin incorporarlas a los contadores reales.
       const testRpc = supabase as unknown as {
         rpc: (name: string, args: Record<string, unknown>) => Promise<{
@@ -138,6 +149,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
           lunch_attendees: guestNames.data?.[row.id] || [],
           cyclist_guests: guestTypes.data?.[row.id]?.cyclists || [],
           non_cyclist_guests: guestTypes.data?.[row.id]?.non_cyclists || [],
+          lunch_payments: paymentsByInvite.get(row.id) || [],
         })),
       });
       const counts = await Promise.all((["invitacion", "almuerzo"] as CampaignKind[]).map(async (kind) => {
@@ -412,22 +424,14 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
               <div className="text-xs text-muted-foreground">Asistencia confirmada en la encuesta. Las condiciones y comprobantes se comunican en el correo de pago posterior.</div>
               <div className="rounded-md bg-muted/30 p-3 text-xs space-y-1">
                 <div className="font-semibold">Comensales declarados en la encuesta</div>
-                <div>{row.recipient_name || row.recipient_email} · Titular adulto</div>
-                {(row.non_cyclist_guests || []).map((person, index) =>
-                  <div key={`non-${index}`}>{person.name} · No ciclista · {person.category === "adult" ? "Adulto" : person.category === "child_4_9" ? "4 a 9 años" : "Menor de 4"}</div>
-                )}
-                {(row.cyclist_guests || []).filter((person) => person.lunch).map((person, index) =>
-                  <div key={`cyclist-${index}`}>{person.name} · Amigo ciclista · Adulto</div>
-                )}
-                {summary?.prices.prices_confirmed_at && <div className="font-medium pt-1">Estimación parrilla: {formatPrice(
-                  (1 + row.non_cyclist_guests.filter((person) => person.category === "adult").length +
-                    row.cyclist_guests.filter((person) => person.lunch).length) * Number(summary.prices.adult_price) +
-                  row.non_cyclist_guests.filter((person) => person.category === "child_4_9").length * Number(summary.prices.child_4_9_price) +
-                  row.non_cyclist_guests.filter((person) => person.category === "under_4").length * Number(summary.prices.under_4_price), "ARS"
-                )}</div>}
+                <LunchDinersDetail row={row} prices={summary?.prices || null} onVoid={setVoidPayment} />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" variant="outline" onClick={() => setGuestEditRow(row)} disabled={row.lunch_status === "pago_verificado"}>Editar acompañantes</Button>
+                <Button size="sm" variant="outline" onClick={() => setPaymentRow(row)} disabled={row.lunch_status === "pago_verificado" || !summary?.prices.prices_confirmed_at}>Registrar comprobante</Button>
               </div>
               {row.receipt_reference && <div className="text-xs">Comprobante: {row.receipt_reference}</div>}
-              <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
+              <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { if (status === "pago_verificado") { setPaymentRow(row); return; } setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
                 <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>
               </div>
             </div>) : lunchRows.length ? <div className="rounded-lg border border-dashed p-4 text-center space-y-2">
@@ -450,6 +454,9 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
         </TabsContent>
       </Tabs>
 
+      <GuestEditDialog row={guestEditRow} onClose={() => setGuestEditRow(null)} onDone={refresh} />
+      <PaymentDialog row={paymentRow} prices={summary?.prices || null} onClose={() => setPaymentRow(null)} onDone={refresh} />
+      <VoidPaymentDialog payment={voidPayment} onClose={() => setVoidPayment(null)} onDone={refresh} />
       <Dialog open={!!statusEdit} onOpenChange={(open) => !open && setStatusEdit(null)}>
         <DialogContent><DialogHeader><DialogTitle>Cambiar estado del almuerzo</DialogTitle><DialogDescription>{statusEdit?.row.recipient_name} · {statusEdit && LUNCH_STATUS_LABELS[statusEdit.status]}. La fecha y el usuario quedan registrados.</DialogDescription></DialogHeader>
           <div className="space-y-2"><Label htmlFor="status-comment">Comentario obligatorio</Label><Textarea id="status-comment" value={statusComment} onChange={(e) => setStatusComment(e.target.value)} placeholder="Motivo del cambio o verificación con el restaurante" /></div>

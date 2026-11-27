@@ -6371,6 +6371,60 @@ export type Database = {
           },
         ]
       }
+      event_rsvp_guest_edit_audit: {
+        Row: {
+          actor_user_id: string
+          after_counts: Json
+          after_guests: Json
+          before_counts: Json
+          before_guests: Json
+          created_at: string
+          event_id: string
+          id: string
+          invite_id: string
+          reason: string
+        }
+        Insert: {
+          actor_user_id: string
+          after_counts: Json
+          after_guests: Json
+          before_counts: Json
+          before_guests: Json
+          created_at?: string
+          event_id: string
+          id?: string
+          invite_id: string
+          reason: string
+        }
+        Update: {
+          actor_user_id?: string
+          after_counts?: Json
+          after_guests?: Json
+          before_counts?: Json
+          before_guests?: Json
+          created_at?: string
+          event_id?: string
+          id?: string
+          invite_id?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_guest_edit_audit_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_guest_edit_audit_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "event_rsvp_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_rsvp_invites: {
         Row: {
           adults_count: number
@@ -6552,6 +6606,69 @@ export type Database = {
           },
           {
             foreignKeyName: "event_rsvp_lunch_audit_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "event_rsvp_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_rsvp_lunch_payments: {
+        Row: {
+          actor_user_id: string
+          amount_ars: number
+          bank_reference: string
+          comment: string
+          covered: Json
+          created_at: string
+          event_id: string
+          expected_for_covered: number
+          id: string
+          invite_id: string
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          actor_user_id: string
+          amount_ars: number
+          bank_reference: string
+          comment: string
+          covered: Json
+          created_at?: string
+          event_id: string
+          expected_for_covered: number
+          id?: string
+          invite_id: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          actor_user_id?: string
+          amount_ars?: number
+          bank_reference?: string
+          comment?: string
+          covered?: Json
+          created_at?: string
+          event_id?: string
+          expected_for_covered?: number
+          id?: string
+          invite_id?: string
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_rsvp_lunch_payments_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_rsvp_lunch_payments_invite_id_fkey"
             columns: ["invite_id"]
             isOneToOne: false
             referencedRelation: "event_rsvp_invites"
@@ -19570,6 +19687,20 @@ export type Database = {
       _rescheduling_verified_email: { Args: never; Returns: boolean }
       _rs_name_ok: { Args: { given: string; stored: string }; Returns: boolean }
       _rs_norm: { Args: { t: string }; Returns: string }
+      _rsvp_lunch_diners: {
+        Args: {
+          p_invite: Database["public"]["Tables"]["event_rsvp_invites"]["Row"]
+        }
+        Returns: Json
+      }
+      _rsvp_name_key: { Args: { p_name: string }; Returns: string }
+      _rsvp_price_of: {
+        Args: {
+          p_category: string
+          p_settings: Database["public"]["Tables"]["event_rsvp_settings"]["Row"]
+        }
+        Returns: number
+      }
       _ruteo_grupo: { Args: { p_unidad: string }; Returns: string }
       _stock_disponible: {
         Args: { p_key: string; p_product_id: string }
@@ -19771,6 +19902,10 @@ export type Database = {
           source_reservation_id: string
         }[]
       }
+      admin_edit_event_rsvp_lunch_guests: {
+        Args: { p_invite_id: string; p_non_cyclists: Json; p_reason: string }
+        Returns: Json
+      }
       admin_enable_food_meals: { Args: { p_event: string }; Returns: Json }
       admin_execute_camp_credit_conciliation: {
         Args: { p_id: string }
@@ -19822,6 +19957,17 @@ export type Database = {
       admin_public_jornada_report: { Args: { p_slug: string }; Returns: Json }
       admin_purge_test_reservation: {
         Args: { p_confirm: string; p_reason: string; p_reservation_id: string }
+        Returns: Json
+      }
+      admin_register_event_rsvp_lunch_payment: {
+        Args: {
+          p_amount: number
+          p_bank_reference: string
+          p_comment: string
+          p_covered_keys: string[]
+          p_invite_id: string
+          p_mark_verified?: boolean
+        }
         Returns: Json
       }
       admin_register_turnera_payment: {
@@ -20025,6 +20171,10 @@ export type Database = {
           p_title: string
         }
         Returns: Json
+      }
+      admin_void_event_rsvp_lunch_payment: {
+        Args: { p_payment_id: string; p_reason: string }
+        Returns: undefined
       }
       agenda_grupal_conflicto: {
         Args: {
@@ -21146,6 +21296,10 @@ export type Database = {
         Returns: Json
       }
       get_event_rsvp_guest_types_admin: {
+        Args: { p_event_id: string }
+        Returns: Json
+      }
+      get_event_rsvp_lunch_payments_admin: {
         Args: { p_event_id: string }
         Returns: Json
       }
