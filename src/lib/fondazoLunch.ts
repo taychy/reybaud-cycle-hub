@@ -109,6 +109,7 @@ export const validateGuestEdit = (
   r: DinerSource & { lunch_status: string }, guests: GuestDraft[], reason: string, hasActivePayments: boolean,
 ): string | null => {
   if (r.lunch_status === "pago_verificado") return "El pago ya está verificado. Volvé el estado antes de corregir comensales.";
+  if (hasActivePayments) return "Hay comprobantes registrados vigentes: anulalos antes de corregir acompañantes y volvé a registrarlos después.";
   if (reason.trim().length < 3) return "Indicá el motivo de la corrección.";
   const taken = new Set([nameKey(titularName(r)), ...(r.cyclist_guests || []).map((c) => nameKey(c.name))]);
   for (const g of guests) {
@@ -121,7 +122,30 @@ export const validateGuestEdit = (
   const cyLunch = (r.cyclist_guests || []).filter((c) => c.lunch).length;
   const before = countsOf(r.non_cyclist_guests || [], cyLunch); const after = countsOf(guests, cyLunch);
   const changed = JSON.stringify(before) !== JSON.stringify(after);
-  if (changed && (hasActivePayments || r.lunch_status === "comprobante_informado"))
-    return "Hay un comprobante informado o registrado: cambiar cantidad o categoría cambia el importe. Anulá el comprobante o volvé el estado antes de corregir.";
+  if (changed && r.lunch_status === "comprobante_informado")
+    return "El participante informó un comprobante: cambiar cantidad o categoría cambia el importe. Volvé el estado con auditoría antes de corregir.";
   return null;
 };
+
+/** Verificación diferida de comprobantes ya registrados (espejo de admin_verify_event_rsvp_lunch_payments). */
+export const verifyExistingBlocker = (
+  lunchStatus: string, diners: Diner[], payments: LunchPayment[], prices: Prices | null | undefined,
+): string | null => {
+  if (lunchStatus !== "comprobante_informado") return "Solo se verifican comprobantes en estado «Comprobante recibido».";
+  if (!pricesConfirmed(prices)) return "Confirmá primero las tarifas del restaurante.";
+  const active = payments.filter((p) => !p.voided_at);
+  if (!active.length) return "No hay comprobantes registrados vigentes.";
+  if (active.some((p) => !(Number(p.amount_ars) > 0) || p.bank_reference.trim().length < 3)) return "Hay comprobantes sin importe o sin referencia bancaria.";
+  const keys = active.flatMap((p) => p.covered.map((c) => c.key));
+  if (new Set(keys).size !== keys.length) return "Una persona figura cubierta por más de un comprobante.";
+  const all = new Set(diners.map((d) => d.key));
+  if (keys.some((k) => !all.has(k))) return "Un comprobante cubre a personas que ya no figuran en la inscripción.";
+  const c = evaluateCoverage(diners, active, prices);
+  if (c.uncovered.length) return "Faltan comensales sin cubrir por comprobantes.";
+  if (!c.canVerify) return "Los comprobantes no suman la tarifa confirmada.";
+  return null;
+};
+
+/** Con comprobantes vigentes solo se permite «Comprobante recibido» (o verificar por su acción). */
+export const allowedManualStatus = (status: string, hasActivePayments: boolean) =>
+  status !== "pago_verificado" && (!hasActivePayments || status === "comprobante_informado");

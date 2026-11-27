@@ -12,14 +12,14 @@ import { useToast } from "@/hooks/use-toast";
 import type { GuestCategory, Prices } from "@/lib/fondazoAdmin";
 import {
   CATEGORY_LABELS, COVERAGE_LABELS, buildDiners, evaluateCoverage, pricesConfirmed, priceOf,
-  validateGuestEdit, validatePaymentDraft, countsOf, type DinerSource, type GuestDraft, type LunchPayment,
+  validateGuestEdit, validatePaymentDraft, verifyExistingBlocker, countsOf, type DinerSource, type GuestDraft, type LunchPayment,
 } from "@/lib/fondazoLunch";
 
 export type LunchToolRow = DinerSource & { id: string; lunch_status: string; receipt_reference: string | null; lunch_payments?: LunchPayment[] };
 
 const ars = (n: number) => `$${n.toLocaleString("es-AR")}`;
 const rpc = supabase as unknown as { rpc: (n: string, a: Record<string, unknown>) => Promise<{ data: unknown; error: { message: string } | null }> };
-const activePayments = (r: LunchToolRow) => (r.lunch_payments || []).filter((p) => !p.voided_at);
+export const activePayments = (r: LunchToolRow) => (r.lunch_payments || []).filter((p) => !p.voided_at);
 
 /** Detalle por persona, con importe por categoría y comprobantes registrados. */
 export function LunchDinersDetail({ row, prices, onVoid }: { row: LunchToolRow; prices: Prices | null; onVoid: (p: LunchPayment) => void }) {
@@ -169,5 +169,34 @@ export function VoidPaymentDialog({ payment, onClose, onDone }: { payment: Lunch
     <DialogDescription>{ars(Number(payment.amount_ars))} · ref. {payment.bank_reference}. Queda en el historial; no se borra.</DialogDescription></DialogHeader>
     <Label htmlFor="void-reason">Motivo obligatorio</Label><Textarea id="void-reason" value={reason} onChange={(e) => setReason(e.target.value)} />
     <DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button variant="destructive" disabled={busy || reason.trim().length < 3} onClick={save}>Anular</Button></DialogFooter>
+  </DialogContent></Dialog>;
+}
+
+export function VerifyPaymentsDialog({ row, prices, onClose, onDone }: { row: LunchToolRow | null; prices: Prices | null; onClose: () => void; onDone: () => Promise<void> }) {
+  const { toast } = useToast();
+  const [comment, setComment] = useState("");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => setComment(""), [row]);
+  if (!row) return null;
+  const diners = buildDiners(row); const payments = activePayments(row);
+  const blocker = verifyExistingBlocker(row.lunch_status, diners, payments, prices);
+  const cov = evaluateCoverage(diners, payments, prices);
+  const save = async () => {
+    setBusy(true);
+    try {
+      const { error } = await rpc.rpc("admin_verify_event_rsvp_lunch_payments", { p_invite_id: row.id, p_comment: comment });
+      if (error) throw new Error(error.message);
+      toast({ title: "Pago verificado con auditoría" }); onClose(); await onDone();
+    } catch (e) {
+      toast({ title: "No se verificó", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+  return <Dialog open onOpenChange={(o) => !o && onClose()}><DialogContent><DialogHeader><DialogTitle>Verificar pagos registrados</DialogTitle>
+    <DialogDescription>{diners[0].name}. Se verifican los comprobantes ya cargados, sin agregar uno nuevo.</DialogDescription></DialogHeader>
+    <ul className="text-sm space-y-1">{payments.map((p) => <li key={p.id}>{ars(Number(p.amount_ars))} · ref. {p.bank_reference} · cubre: {p.covered.map((c) => c.name).join("; ")}</li>)}</ul>
+    <p className="text-sm">Registrado {ars(cov.registered)} · tarifa confirmada {cov.expected == null ? "sin conciliar" : ars(cov.expected)}</p>
+    {blocker && <p className="text-sm text-destructive">{blocker}</p>}
+    <Label htmlFor="verify-comment">Comentario obligatorio</Label><Textarea id="verify-comment" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ej.: cotejado con La Carreta del Gato" />
+    <DialogFooter><Button variant="outline" onClick={onClose}>Cancelar</Button><Button disabled={busy || !!blocker || comment.trim().length < 3} onClick={save}>Verificar pago</Button></DialogFooter>
   </DialogContent></Dialog>;
 }

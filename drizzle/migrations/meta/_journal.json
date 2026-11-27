@@ -862,6 +862,20 @@
       "when": 1795818066235,
       "tag": "0122_event_rsvp_lunch_payments_and_guest_edits",
       "breakpoints": true
+    },
+    {
+      "idx": 123,
+      "version": "7",
+      "when": 1795818373051,
+      "tag": "0123_event_rsvp_lunch_verify_and_guards",
+      "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1795818424931,
+      "tag": "0124_event_rsvp_lunch_receipt_integrity_guard",
+      "breakpoints": true
     }
   ]
 }

@@ -20172,6 +20172,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_verify_event_rsvp_lunch_payments: {
+        Args: { p_comment: string; p_invite_id: string }
+        Returns: Json
+      }
       admin_void_event_rsvp_lunch_payment: {
         Args: { p_payment_id: string; p_reason: string }
         Returns: undefined

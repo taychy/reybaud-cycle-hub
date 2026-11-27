@@ -15,7 +15,8 @@ import { CheckCircle, Mail, RefreshCw, Send, Users, XCircle } from "lucide-react
 import { useToast } from "@/hooks/use-toast";
 import { formatPrice } from "@/lib/currency";
 import FondazoParticipantsPanel from "@/components/admin/FondazoParticipantsPanel";
-import { GuestEditDialog, LunchDinersDetail, PaymentDialog, VoidPaymentDialog } from "@/components/admin/FondazoLunchTools";
+import { GuestEditDialog, LunchDinersDetail, PaymentDialog, VerifyPaymentsDialog, VoidPaymentDialog, activePayments } from "@/components/admin/FondazoLunchTools";
+import { allowedManualStatus, buildDiners, verifyExistingBlocker } from "@/lib/fondazoLunch";
 import type { LunchPayment } from "@/lib/fondazoLunch";
 import { filterLunchRowsBySearch, type Peloton } from "@/lib/fondazoAdmin";
 import {
@@ -92,6 +93,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
   const [guestEditRow, setGuestEditRow] = useState<Row | null>(null);
   const [paymentRow, setPaymentRow] = useState<Row | null>(null);
   const [voidPayment, setVoidPayment] = useState<LunchPayment | null>(null);
+  const [verifyRow, setVerifyRow] = useState<Row | null>(null);
 
   const call = async (action: string, extra: Record<string, unknown> = {}) => {
     const { data, error } = await supabase.functions.invoke("event-rsvp", { body: { action, event_id: eventId, ...extra } });
@@ -427,12 +429,15 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
                 <LunchDinersDetail row={row} prices={summary?.prices || null} onVoid={setVoidPayment} />
               </div>
               <div className="flex flex-wrap gap-2">
-                <Button size="sm" variant="outline" onClick={() => setGuestEditRow(row)} disabled={row.lunch_status === "pago_verificado"}>Editar acompañantes</Button>
-                <Button size="sm" variant="outline" onClick={() => setPaymentRow(row)} disabled={row.lunch_status === "pago_verificado" || !summary?.prices.prices_confirmed_at}>Registrar comprobante</Button>
+                <Button size="sm" variant="outline" onClick={() => setGuestEditRow(row)} disabled={row.lunch_status === "pago_verificado" || activePayments(row).length > 0}>Editar acompañantes</Button>
+                <Button size="sm" variant="outline" onClick={() => setPaymentRow(row)} disabled={row.lunch_status === "pago_verificado" || !summary?.prices.prices_confirmed_at || (activePayments(row).length > 0 && !verifyExistingBlocker(row.lunch_status, buildDiners(row), activePayments(row), summary?.prices) )}>Registrar comprobante</Button>
+                {row.lunch_status === "comprobante_informado" && !verifyExistingBlocker(row.lunch_status, buildDiners(row), activePayments(row), summary?.prices) &&
+                  <Button size="sm" onClick={() => setVerifyRow(row)}>Verificar pagos registrados</Button>}
               </div>
+              {activePayments(row).length > 0 && row.lunch_status !== "pago_verificado" && <p className="text-xs text-muted-foreground">Con comprobantes registrados no se editan acompañantes ni se vuelve a un estado anterior: anulá el comprobante primero.</p>}
               {row.receipt_reference && <div className="text-xs">Comprobante: {row.receipt_reference}</div>}
               <div className="flex flex-col sm:flex-row gap-2"><Select value={statusEdit?.row.id === row.id ? statusEdit.status : row.lunch_status} onValueChange={(status) => { if (status === "pago_verificado") { setPaymentRow(row); return; } setStatusEdit({ row, status: status as LunchStatus }); setStatusComment(""); setReceiptReference(row.receipt_reference || ""); }}>
-                <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>
+                <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{statusOptions.map((status) => <SelectItem key={status} value={status} disabled={status !== "pago_verificado" && status !== row.lunch_status && !allowedManualStatus(status, activePayments(row).length > 0)}>{LUNCH_STATUS_LABELS[status]}</SelectItem>)}</SelectContent></Select>
               </div>
             </div>) : lunchRows.length ? <div className="rounded-lg border border-dashed p-4 text-center space-y-2">
               <p className="text-sm">Sin resultados para «{lunchQuery.trim()}».</p>
@@ -456,6 +461,7 @@ export default function EventRsvpDashboard({ eventId }: { eventId: string }) {
 
       <GuestEditDialog row={guestEditRow} onClose={() => setGuestEditRow(null)} onDone={refresh} />
       <PaymentDialog row={paymentRow} prices={summary?.prices || null} onClose={() => setPaymentRow(null)} onDone={refresh} />
+      <VerifyPaymentsDialog row={verifyRow} prices={summary?.prices || null} onClose={() => setVerifyRow(null)} onDone={refresh} />
       <VoidPaymentDialog payment={voidPayment} onClose={() => setVoidPayment(null)} onDone={refresh} />
       <Dialog open={!!statusEdit} onOpenChange={(open) => !open && setStatusEdit(null)}>
         <DialogContent><DialogHeader><DialogTitle>Cambiar estado del almuerzo</DialogTitle><DialogDescription>{statusEdit?.row.recipient_name} · {statusEdit && LUNCH_STATUS_LABELS[statusEdit.status]}. La fecha y el usuario quedan registrados.</DialogDescription></DialogHeader>
