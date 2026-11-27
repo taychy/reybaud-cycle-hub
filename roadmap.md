@@ -473,6 +473,7 @@
 - [ ] Gran Conquista Alpina: liberar cupo individual Julio Zabala vía start_reservation_transfer (requiere sesión admin) + max_capacity=15
 
 ## San Luis enero 2027 · Preinscripción en borrador
+- [x] Corrección UX final: aviso según recepción, envío deshabilitado, resumen con paquete/precio/fecha elegidos y texto del kit; 32 pruebas y compilación automática OK, ocho selecciones verificadas a 390/1280 sin escrituras, activación ni publicación.
 - [x] Landing /san-luis-2027 exclusiva de desarrollo con ocho tarifas cotejadas, imagen real con licencia, selector, resumen, FAQ y formulario preparado sobre submit_waitlist_entry; recepción bloqueada, sin abrir eventos ocultos.
 - [x] 23 tests aprobados; verificación navegador a 360/390/1280, ocho combinaciones, imagen cargada, sin desbordes/errores y cero llamadas de escritura; compilación/tipos automáticos OK, consulta final: cero entradas. Preview externo requiere acceso Lovable (HTTP 401 sin sesión de plataforma).
 - [ ] Activación de recepción y publicación: bloqueadas hasta autorización y condiciones definitivas.

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import SanLuisPreRegistrationForm from "@/components/event/SanLuisPreRegistrationForm";
-import { CampKey, sanLuisCamps, sanLuisPackages } from "@/lib/sanLuisPreRegistration";
+import { CampKey, SAN_LUIS_INTAKE_ENABLED, sanLuisCamps, sanLuisPackages } from "@/lib/sanLuisPreRegistration";
 import { formatPrice } from "@/lib/currency";
 
 const faqs = [
@@ -30,7 +30,7 @@ export default function SanLuis2027() {
     return () => { document.title = previous; robots.remove(); };
   }, []);
   const current = sanLuisCamps[camp];
-  const entry = sanLuisPackages[camp][3];
+  const selected = sanLuisPackages[camp].find(p => p.id === packageId);
   return <div className="bg-background text-foreground min-h-screen">
     <header className="flex items-center justify-between max-w-6xl mx-auto px-5 py-3 md:px-8">
       <Link to="/eventos" aria-label="Volver a eventos Reybaud"><img src={logo} alt="Reybaud" className="h-12 w-28 object-contain" /></Link>
@@ -41,7 +41,7 @@ export default function SanLuis2027() {
         <img src={scenery.url} alt="Sierras de Potrero de los Funes, San Luis" className="absolute inset-0 -z-20 h-full w-full object-cover" fetchPriority="high" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 to-background/10" />
         <div className="w-full max-w-6xl mx-auto px-5 py-10 md:px-8 md:py-14 space-y-6">
-          <p className="text-accent text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent shrink-0" /> Preinscripción abierta · tarifas estimadas hasta confirmación</p>
+          <p className="text-accent text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent shrink-0" /> {SAN_LUIS_INTAKE_ENABLED ? "Preinscripción abierta · tarifas estimadas hasta confirmación" : "Vista previa · preinscripción próximamente"}</p>
           <div><p className="font-heading text-lg uppercase text-foreground/90 mb-2">Reybaud · Enero 2027</p><h1 className="text-5xl md:text-7xl font-bold leading-[1.05] max-w-3xl">Training Camp<br /><span className="text-primary">San Luis</span></h1></div>
           <p className="max-w-xl text-lg leading-relaxed">Días de ruta, montaña y ciclismo compartido.<br className="hidden sm:block" /> Elegí una semana completa o una escapada de cuatro días.</p>
           <div className="flex flex-wrap gap-4 text-sm"><span className="flex gap-2 items-center"><MapPin className="h-4 w-4 text-accent" /> San Luis, Argentina</span><span className="flex gap-2 items-center"><Bike className="h-4 w-4 text-accent" /> Dirección técnica Reybaud</span></div>
@@ -68,7 +68,7 @@ export default function SanLuis2027() {
             </article>)}</div>
           </TabsContent>)}
         </Tabs>
-        <div className="mt-6 space-y-2 text-sm text-muted-foreground leading-relaxed"><p>Las cabañas con y sin comidas comparten inventario. No se ofrecen habitaciones triples convencionales.</p><p>Los límites de 30 y 15 son comerciales; la disponibilidad simultánea de hotel y vehículos para el 21–24/01 todavía debe confirmarse. Preinscribirte no bloquea una plaza.</p><p>Tarifas estimativas pendientes de reconfirmación del hotel y del kit. No se garantiza entrega ni contenido del kit.</p></div>
+        <div className="mt-6 space-y-2 text-sm text-muted-foreground leading-relaxed"><p>Las cabañas con y sin comidas comparten inventario. No se ofrecen habitaciones triples convencionales.</p><p>Los límites de 30 y 15 son comerciales; la disponibilidad simultánea de hotel y vehículos para el 21–24/01 todavía debe confirmarse. Preinscribirte no bloquea una plaza.</p><p>Los servicios y detalles finales del kit se confirmarán antes de la reserva.</p></div>
       </section>
 
       <section className="bg-secondary/50 border-y border-border"><div className="max-w-6xl mx-auto px-5 py-10 md:px-8 grid md:grid-cols-3 gap-8">
@@ -78,7 +78,7 @@ export default function SanLuis2027() {
       </div></section>
 
       <section id="preinscripcion" className="scroll-mt-6 max-w-6xl mx-auto px-5 py-12 md:px-8 md:py-16 grid lg:grid-cols-[1fr_1.5fr] gap-10">
-        <div><p className="text-accent text-sm uppercase font-semibold mb-2">El primer paso</p><h2 className="text-4xl mb-4">Quiero preinscribirme</h2><p className="text-muted-foreground leading-relaxed">Contanos qué propuesta te interesa. No necesitás ser alumno ni tener una cuenta en Reybaud.</p><div className="mt-7 border-t border-border pt-5 space-y-2"><p className="font-semibold">Tu elección actual</p><p>{current.label} · {current.nights} noches</p><p className="text-sm text-muted-foreground">Desde {formatPrice(entry.price)} ARS por ciclista</p></div></div>
+        <div><p className="text-accent text-sm uppercase font-semibold mb-2">El primer paso</p><h2 className="text-4xl mb-4">Quiero preinscribirme</h2><p className="text-muted-foreground leading-relaxed">Contanos qué propuesta te interesa. No necesitás ser alumno ni tener una cuenta en Reybaud.</p><div role="region" aria-label="Tu elección actual" className="mt-7 border-t border-border pt-5 space-y-2"><p className="font-semibold">Tu elección actual</p><p>{current.label} · {current.nights} noches</p><p className="text-sm text-muted-foreground">{current.dates} de 2027</p>{selected && <><p>{selected.label}</p><p className="text-sm text-muted-foreground">{formatPrice(selected.price, "ARS")} ARS estimados por ciclista</p></>}</div></div>
         <SanLuisPreRegistrationForm camp={camp} packageId={packageId} onSelectionChange={select} />
       </section>
       <section className="max-w-6xl mx-auto px-5 pb-14 md:px-8"><h2 className="text-3xl mb-6">Antes de sumarte</h2><Accordion type="single" collapsible>{faqs.map(([q, a], i) => <AccordionItem key={q} value={`faq-${i}`}><AccordionTrigger className="text-left gap-4">{q}</AccordionTrigger><AccordionContent className="max-w-3xl text-muted-foreground leading-relaxed">{a}</AccordionContent></AccordionItem>)}</Accordion></section>

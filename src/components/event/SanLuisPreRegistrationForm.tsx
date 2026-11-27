@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { CampKey, PRE_REGISTRATION_CONFIRMATION, sanLuisCamps, sanLuisPackages, preRegistrationSchema } from "@/lib/sanLuisPreRegistration";
+import { CampKey, SAN_LUIS_INTAKE_ENABLED, PRE_REGISTRATION_CONFIRMATION, sanLuisCamps, sanLuisPackages, preRegistrationSchema } from "@/lib/sanLuisPreRegistration";
 import { submitSanLuisPreRegistration } from "@/lib/sanLuisPreRegistrationService";
 
 export default function SanLuisPreRegistrationForm({ camp, packageId, onSelectionChange, submit = submitSanLuisPreRegistration }: {
@@ -23,6 +23,7 @@ export default function SanLuisPreRegistrationForm({ camp, packageId, onSelectio
   const extra = camp === "full" && extraNight;
   const send = async (event: React.FormEvent) => {
     event.preventDefault();
+    if (!SAN_LUIS_INTAKE_ENABLED || sending) return;
     const parsed = preRegistrationSchema.safeParse({ ...fields, camp, packageId, extraNight: extra, consent });
     if (!parsed.success) { setError(parsed.error.issues[0]?.message || "Revisá los datos"); return; }
     setSending(true); setError("");
@@ -45,9 +46,9 @@ export default function SanLuisPreRegistrationForm({ camp, packageId, onSelectio
       <div className="space-y-2"><Label htmlFor="sl-comment">Comentario (opcional)</Label><Textarea id="sl-comment" maxLength={600} value={fields.comment} onChange={e => setFields({ ...fields, comment: e.target.value })} placeholder="Contanos si venís con alguien o tenés alguna consulta." /></div>
       <div className="flex items-start gap-3"><Checkbox id="sl-consent" checked={consent} onCheckedChange={v => setConsent(v === true)} /><Label htmlFor="sl-consent" className="leading-relaxed">Autorizo a Reybaud a contactarme por email o WhatsApp sobre esta preinscripción. *</Label></div>
       <div className="border-l-2 border-accent pl-4 space-y-1" aria-label="Resumen de elección"><p className="font-semibold">{sanLuisCamps[camp].label} · {selected.label}</p><p className="text-sm">{sanLuisCamps[camp].dates} · {sanLuisCamps[camp].nights} noches</p><p className="text-accent font-semibold">ARS {selected.price.toLocaleString("es-AR")} estimados / ciclista</p>{extra && <p className="text-sm">Noche 17/01: interés, sin precio confirmado</p>}</div>
-      <p className="text-sm text-muted-foreground">Vista previa en borrador: la recepción aún no está habilitada. No se guardarán datos ni se reservarán cupos.</p>
+      {!SAN_LUIS_INTAKE_ENABLED && <p id="sl-intake-notice" className="text-sm text-muted-foreground">Estamos terminando de confirmar tarifas y disponibilidad. Todavía no recibimos preinscripciones.</p>}
       {error && <p role="alert" className="text-destructive leading-relaxed">{error}</p>}
-      <Button type="submit" className="w-full sm:w-auto min-h-12" disabled={sending}>{sending ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando…</> : "Quiero preinscribirme"}</Button>
+      <Button type="submit" className="w-full sm:w-auto min-h-12" disabled={!SAN_LUIS_INTAKE_ENABLED || sending} aria-describedby={!SAN_LUIS_INTAKE_ENABLED ? "sl-intake-notice" : undefined}>{sending ? <><Loader2 className="h-4 w-4 animate-spin" /> Procesando…</> : "Quiero preinscribirme"}</Button>
     </fieldset>
   </form>;
 }
