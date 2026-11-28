@@ -22,6 +22,7 @@ import {
   WAITLIST_ENTRY_STATES,
 } from "@/lib/waitlistTypes";
 import { getShareOrigin, copyToClipboard } from "@/lib/eventLinks";
+import { isSanLuisEvent, SAN_LUIS_PUBLIC_PATH, sanLuisPreRegistrationSummary } from "@/lib/sanLuisPreRegistration";
 import { csvCell } from "@/lib/rescheduling";
 import BookingOpeningChecklist from "@/components/admin/BookingOpeningChecklist";
 
@@ -61,6 +62,7 @@ const ESTADO_PUB_LABELS: Record<string, string> = {
 export default function AdminEventWaitlist() {
   const { id } = useParams<{ id: string }>();
   const isMaratona = id === "78a739f4-9b06-47af-bc6d-d8a1705e2477";
+  const isSanLuis = isSanLuisEvent(id);
   const { toast } = useToast();
 
   const [event, setEvent] = useState<EventRow | null>(null);
@@ -174,7 +176,7 @@ export default function AdminEventWaitlist() {
 
   const copyPublicLink = async () => {
     if (!event) return;
-    const url = `${getShareOrigin()}/eventos/${event.id}${isMaratona ? "" : "/lista-espera"}`;
+    const url = isSanLuis ? `${getShareOrigin()}${SAN_LUIS_PUBLIC_PATH}` : `${getShareOrigin()}/eventos/${event.id}${isMaratona ? "" : "/lista-espera"}`;
     const ok = await copyToClipboard(url);
     toast({
       title: ok ? "Link copiado" : "No se pudo copiar",
@@ -250,7 +252,7 @@ export default function AdminEventWaitlist() {
         </Link>
         <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mt-2">
           <div>
-            <h1 className="text-2xl font-heading font-bold">{isMaratona ? "Solicitudes de reserva · sin cobro" : "Lista de espera"}</h1>
+            <h1 className="text-2xl font-heading font-bold">{isMaratona ? "Solicitudes de reserva · sin cobro" : isSanLuis ? "Preinscripciones" : "Lista de espera"}</h1>
             <p className="text-sm text-muted-foreground">{event.title}</p>
             {isMaratona && <p className="mt-2 text-sm text-muted-foreground">Sin plaza confirmada. Verificar participación Alpes y alquiler en ambos viajes antes de aprobar su tarifa; cambiar estado aquí no crea reserva ni habilita pago.</p>}
           </div>
@@ -331,7 +333,7 @@ export default function AdminEventWaitlist() {
                     <tbody>
                       {filtered.map((r) => (
                         <tr key={r.id} className="border-b border-border/50 hover:bg-muted/20">
-                          <td className="py-2 px-2 font-medium">{r.nombre}{r.respuestas?.tipo === "consulta" && <p className="text-xs font-normal text-primary">{r.respuestas.opcion_label}{r.respuestas.mensaje ? <span className="block text-muted-foreground">{r.respuestas.mensaje}</span> : null}</p>}</td>
+                          <td className="py-2 px-2 font-medium">{r.nombre}{r.respuestas?.tipo === "consulta" && <p className="text-xs font-normal text-primary">{r.respuestas.opcion_label}{r.respuestas.mensaje ? <span className="block text-muted-foreground">{r.respuestas.mensaje}</span> : null}{isSanLuis && r.respuestas.kind === "preinscripcion" && (() => { const x = sanLuisPreRegistrationSummary(r.respuestas); return <span className="block text-foreground">{x.meals} · {x.extraNight}{x.comment ? <span className="block text-muted-foreground">Comentario: {x.comment}</span> : null}</span>; })()}</p>}</td>
                           <td className="py-2 px-2 text-muted-foreground">{r.email}</td>
                           {isMaratona && <td className="py-2 px-2 text-sm">{r.respuestas.package_name}<p className="text-muted-foreground">€{r.respuestas.price_eur} · {r.respuestas.bike_included ? "Bicicleta incluida" : "Bicicleta propia"}</p><p>{r.respuestas.eligibility}</p></td>}
                           <td className="py-2 px-2 text-muted-foreground">{r.telefono || "—"}</td>

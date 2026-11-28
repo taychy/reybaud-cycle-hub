@@ -49,3 +49,15 @@ export function buildPreRegistrationRequest(input: unknown) {
     p_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 300) : null,
   };
 }
+
+export const SAN_LUIS_PUBLIC_PATH = "/san-luis-2027#preinscripcion";
+export const isSanLuisEvent = (eventId: string | undefined) => !!eventId && Object.values(sanLuisCamps).some(c => c.id === eventId);
+/** Admin-facing summary of a stored pre-registration (reads only the saved row). */
+export function sanLuisPreRegistrationSummary(r: { package_id?: string; extra_night_interest?: boolean; comment?: string } | null | undefined) {
+  const pkg = Object.values(sanLuisPackages).flat().find(p => p.id === r?.package_id);
+  return {
+    meals: pkg ? (pkg.meals ? "Desayuno, almuerzo y cena" : "Solo desayuno · sin almuerzo ni cena") : "Sin dato",
+    extraNight: r?.extra_night_interest ? "Le interesa la noche extra del 17/01" : "Sin noche extra",
+    comment: r?.comment?.trim() || "",
+  };
+}

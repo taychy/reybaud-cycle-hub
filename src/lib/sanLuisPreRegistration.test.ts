@@ -69,3 +69,15 @@ describe("Recepción aislada sin datos reales", () => {
     await expect(submitSanLuisPreRegistration(input(), { enabled: true, transport: vi.fn().mockResolvedValue(result) })).rejects.toThrow();
   });
 });
+import { isSanLuisEvent, sanLuisPreRegistrationSummary } from "./sanLuisPreRegistration";
+describe("Panel admin San Luis", () => {
+  it("solo los dos eventos San Luis usan el link de preinscripción", () => {
+    expect(isSanLuisEvent(sanLuisCamps.full.id)).toBe(true);
+    expect(isSanLuisEvent(sanLuisCamps.mini.id)).toBe(true);
+    expect(isSanLuisEvent("78a739f4-9b06-47af-bc6d-d8a1705e2477")).toBe(false);
+  });
+  it("resume gastronomía, noche extra y comentario guardados", () => {
+    expect(sanLuisPreRegistrationSummary({ package_id: sanLuisPackages.mini[3].id, extra_night_interest: false, comment: " hola " })).toEqual({ meals: "Solo desayuno · sin almuerzo ni cena", extraNight: "Sin noche extra", comment: "hola" });
+    expect(sanLuisPreRegistrationSummary({ package_id: sanLuisPackages.full[0].id, extra_night_interest: true }).extraNight).toContain("17/01");
+  });
+});
