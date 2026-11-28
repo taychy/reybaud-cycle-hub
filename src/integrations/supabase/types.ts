@@ -4678,6 +4678,47 @@ export type Database = {
           },
         ]
       }
+      event_contract_drafts: {
+        Row: {
+          content: Json
+          created_at: string
+          created_by: string | null
+          event_id: string
+          id: string
+          note: string | null
+          status: string
+          version: number
+        }
+        Insert: {
+          content: Json
+          created_at?: string
+          created_by?: string | null
+          event_id: string
+          id?: string
+          note?: string | null
+          status?: string
+          version: number
+        }
+        Update: {
+          content?: Json
+          created_at?: string
+          created_by?: string | null
+          event_id?: string
+          id?: string
+          note?: string | null
+          status?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_contract_drafts_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_cost_actuals: {
         Row: {
           categoria: string

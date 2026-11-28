@@ -883,6 +883,13 @@
       "when": 1795826978481,
       "tag": "0125_event_preregistration_intake",
       "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1795829425540,
+      "tag": "0126_event_contract_drafts",
+      "breakpoints": true
     }
   ]
 }
