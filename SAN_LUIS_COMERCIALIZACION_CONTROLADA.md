@@ -1,5 +1,12 @@
 # San Luis enero 2027 — avance comercial controlado, 28/11/2026
 
+## Acuerdo comercial sobre reprogramación (Scarlett, 28/11/2026; pendiente de revisión legal)
+- Si el clima pone en riesgo la seguridad o existe imposibilidad sobrevenida ajena al organizador, Reybaud puede proponer una nueva fecha; la inscripción y los pagos se trasladan sin recargo, con aviso y opción de pedir reintegro.
+- Ante pedido de devolución por no poder asistir, **tope propuesto del 15% de lo efectivamente abonado**, exclusivamente para gastos razonables, individualizados, ya incurridos, documentados e irrecuperables (ej.: jersey personalizado ya producido, adelantos de proveedores que no restituyen). Debe detallarse cada concepto antes de resolver el reintegro. El trabajo administrativo estimado no se descuenta automáticamente.
+- Si la reprogramación es imputable a Reybaud, corresponde reintegro íntegro.
+- Esta es **propuesta comercial interna, no condición vigente ni garantía de validez jurídica**. Aplicar solo tras revisión legal y aprobación del contrato final, considerando el derecho de revocación en ventas online. **Nunca aplicar 15% automáticamente**, ni abrir cobros por esta nota.
+- Bajas voluntarias del participante y transferencias de cupo requieren política específica, todavía pendiente.
+
 ## Actualización 28/11 · preparación nativa implementada, cobro NO habilitado
 - Migraciones 0130 y 0131 aplicadas: enlaces `trip_capacity_reservation_links`, preparación administrativa atómica por participante y ocho planes **inactivos** en las tablas de planes existentes. Plan 30% inmediato + 35% al 15/12/2026 + 35% al 10/01/2027; el constructor nativo conserva la exigibilidad de vencidos al reservar.
 - Retenciones y reservas cuentan una sola vez en el mismo pool de 39. La conversión completa queda serializada por pool, idempotente y revierte grupo, enlaces y cuotas ante cualquier fallo. Cancelación administrativa libera capacidad sin tocar dinero; no reactivación ni liberación manual del hold convertido.
