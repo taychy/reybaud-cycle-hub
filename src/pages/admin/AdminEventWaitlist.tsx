@@ -26,6 +26,7 @@ import { isSanLuisEvent, SAN_LUIS_PUBLIC_PATH, sanLuisPreRegistrationSummary } f
 import { csvCell } from "@/lib/rescheduling";
 import BookingOpeningChecklist from "@/components/admin/BookingOpeningChecklist";
 import SanLuis2027ContractDraftPanel from "@/components/admin/SanLuis2027ContractDraftPanel";
+import SanLuisEnrollmentRequestsPanel from "@/components/admin/SanLuisEnrollmentRequestsPanel";
 
 interface EventRow {
   id: string;
@@ -267,10 +268,12 @@ export default function AdminEventWaitlist() {
         <TabsList className={isMaratona ? 'flex h-auto w-full flex-wrap justify-start gap-1' : undefined}>
           <TabsTrigger value="anotados">{isMaratona ? 'Solicitudes de reserva' : 'Anotados'} ({entries.length})</TabsTrigger>
           {isMaratona&&<TabsTrigger value="apertura">Apertura segura</TabsTrigger>}
+          {isSanLuis&&<TabsTrigger value="solicitudes">Solicitudes de inscripción</TabsTrigger>}
           {isSanLuis&&<TabsTrigger value="contrato">Borrador contractual</TabsTrigger>}
           <TabsTrigger value="config">Configuración</TabsTrigger>
         </TabsList>
 
+        {isSanLuis&&<TabsContent value="solicitudes"><SanLuisEnrollmentRequestsPanel /></TabsContent>}
         {isSanLuis&&id&&<TabsContent value="contrato"><SanLuis2027ContractDraftPanel eventId={id} /></TabsContent>}
 
         <TabsContent value="anotados" className="space-y-4">

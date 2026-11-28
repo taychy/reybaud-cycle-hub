@@ -6,12 +6,12 @@ import scenery from "@/assets/events/san-luis-sierras.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import SanLuisPreRegistrationForm from "@/components/event/SanLuisPreRegistrationForm";
+import SanLuisEnrollmentForm from "@/components/event/SanLuisEnrollmentForm";
 import { CampKey, SAN_LUIS_INTAKE_ENABLED, sanLuisCamps, sanLuisPackages } from "@/lib/sanLuisPreRegistration";
 import { formatPrice } from "@/lib/currency";
 
 const faqs = [
-  ["¿Preinscribirme confirma mi reserva?", "No. Es una expresión de interés, sin cobro ni bloqueo de cupo. Te contactaremos con disponibilidad y condiciones definitivas antes de avanzar. Las tarifas son estimadas y están pendientes de reconfirmación del hotel y del kit; todavía no hay condiciones de pago definitivas."],
+  ["¿Solicitar inscripción confirma mi reserva?", "No. La solicitud queda pendiente de revisión manual, sin cobro ni bloqueo de cupo. Administración verificará hotel, disponibilidad y tarifa; recién después recibirás el precio final y las condiciones para aceptarlas antes de cualquier pago."],
   ["¿Cuáles son las fechas y el checkout?", "El camp completo va del lunes 18 al domingo 24 de enero de 2027 (7 días, 6 noches). El Mini Camp va del jueves 21 al domingo 24 (4 días, 3 noches). En ambos, el checkout es el domingo. Los horarios y recorridos se comunicarán cuando estén confirmados."],
   ["¿Puedo ir con un acompañante?", "Podés indicarlo en el comentario. Las tarifas mostradas son por ciclista; la propuesta y disponibilidad para acompañantes se consultan por separado. No damos por confirmada su plaza."],
   ["¿Qué comidas contempla cada modalidad?", "Doble, individual y cabaña con pensión completa contemplan desayuno, almuerzo y cena. La cabaña sin pensión no contempla almuerzo ni cena. El desayuno de las cabañas está sujeto a validación del hotel. La oferta final de alojamiento y servicios debe reconfirmarse."],
@@ -41,12 +41,12 @@ export default function SanLuis2027() {
         <img src={scenery.url} alt="Sierras de Potrero de los Funes, San Luis" className="absolute inset-0 -z-20 h-full w-full object-cover" fetchPriority="high" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 to-background/10" />
         <div className="w-full max-w-6xl mx-auto px-5 py-10 md:px-8 md:py-14 space-y-6">
-          <p className="text-accent text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent shrink-0" /> {SAN_LUIS_INTAKE_ENABLED ? "Preinscripción abierta · tarifas estimadas, sujetas a confirmación" : "Vista previa · preinscripción próximamente"}</p>
+          <p className="text-accent text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent shrink-0" /> {SAN_LUIS_INTAKE_ENABLED ? "Solicitudes abiertas · aprobación manual antes de pagar" : "Vista previa · inscripción próximamente"}</p>
           <div><p className="font-heading text-lg uppercase text-foreground/90 mb-2">Reybaud · Enero 2027</p><h1 className="text-5xl md:text-7xl font-bold leading-[1.05] max-w-3xl">Training Camp<br /><span className="text-primary">San Luis</span></h1></div>
           <p className="max-w-xl text-lg leading-relaxed">Días de ruta, montaña y ciclismo compartido.<br className="hidden sm:block" /> Elegí una semana completa o una escapada de cuatro días.</p>
           <div className="flex flex-wrap gap-4 text-sm"><span className="flex gap-2 items-center"><MapPin className="h-4 w-4 text-accent" /> San Luis, Argentina</span><span className="flex gap-2 items-center"><Bike className="h-4 w-4 text-accent" /> Dirección técnica Reybaud</span></div>
-          <div className="flex flex-col sm:flex-row gap-3"><Button asChild className="min-h-12"><a href="#preinscripcion">Quiero preinscribirme <ArrowRight className="h-4 w-4" /></a></Button><Button asChild variant="outline" className="min-h-12"><a href="#propuestas">Ver las modalidades <ArrowDown className="h-4 w-4" /></a></Button></div>
-          <p className="text-xs text-muted-foreground">Tarifas estimadas, sujetas a confirmación. Preinscripción sin reserva ni pago.</p>
+          <div className="flex flex-col sm:flex-row gap-3"><Button asChild className="min-h-12"><a href="#inscripcion">Solicitar inscripción <ArrowRight className="h-4 w-4" /></a></Button><Button asChild variant="outline" className="min-h-12"><a href="#propuestas">Ver las modalidades <ArrowDown className="h-4 w-4" /></a></Button></div>
+          <p className="text-xs text-muted-foreground">Tarifas estimadas, sujetas a confirmación de administración antes de pagar. Solicitud sin reserva, cupo ni pago.</p>
         </div>
       </section>
 
@@ -64,11 +64,11 @@ export default function SanLuis2027() {
               <div><h4 className="text-xl leading-tight min-h-14">{p.label}</h4><p className="text-sm text-muted-foreground mt-1">{p.occupancy === 3 ? "Cabaña de 3 plazas" : `${p.occupancy} ${p.occupancy === 1 ? "persona" : "personas"} por habitación`}</p></div>
               <ul className="text-sm space-y-2 flex-1"><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-accent" />{sanLuisCamps[key].nights} noches de alojamiento</li><li className="flex gap-2"><Check className="h-4 w-4 shrink-0 text-accent" />{p.occupancy === 3 ? "Desayuno a validar con hotel" : "Desayuno en la propuesta"}</li><li className="flex gap-2"><Utensils className="h-4 w-4 shrink-0 text-accent" />{p.meals ? "Almuerzo y cena contemplados" : "Sin almuerzo ni cena"}</li></ul>
               <div><p className="text-2xl font-heading font-semibold">{formatPrice(p.price, "ARS")}</p><p className="text-xs text-muted-foreground">ARS estimados por ciclista · no por habitación</p></div>
-              <Button variant={packageId === p.id ? "default" : "outline"} className="min-h-11 w-full" aria-pressed={packageId === p.id} aria-label={`Elegir ${p.label}`} onClick={() => select(key, p.id)}>{packageId === p.id ? <><Check className="h-4 w-4" /> Elegido</> : "Elegir modalidad"}</Button>
+              <Button asChild variant={packageId === p.id ? "default" : "outline"} className="min-h-11 w-full"><a href="#inscripcion" aria-label={`Solicitar inscripción: ${p.label}`} onClick={() => select(key, p.id)}>{packageId === p.id ? <><Check className="h-4 w-4" /> Solicitar esta modalidad</> : "Solicitar inscripción"}</a></Button>
             </article>)}</div>
           </TabsContent>)}
         </Tabs>
-        <div className="mt-6 space-y-2 text-sm text-muted-foreground leading-relaxed"><p>Las cabañas con y sin comidas comparten inventario. No se ofrecen habitaciones triples convencionales.</p><p>Los límites de 30 y 15 son comerciales; la disponibilidad simultánea de hotel y vehículos para el 21–24/01 todavía debe confirmarse. Preinscribirte no bloquea una plaza.</p><p>Los servicios y detalles finales del kit se confirmarán antes de la reserva.</p></div>
+        <div className="mt-6 space-y-2 text-sm text-muted-foreground leading-relaxed"><p>Las cabañas con y sin comidas comparten inventario. No se ofrecen habitaciones triples convencionales.</p><p>Los límites de 30 y 15 son comerciales; la disponibilidad simultánea de hotel y vehículos para el 21–24/01 todavía debe confirmarse. Enviar una solicitud no bloquea una plaza.</p><p>Los servicios y detalles finales del kit se confirmarán antes de la reserva.</p></div>
       </section>
 
       <section className="bg-secondary/50 border-y border-border"><div className="max-w-6xl mx-auto px-5 py-10 md:px-8 grid md:grid-cols-3 gap-8">
@@ -77,9 +77,10 @@ export default function SanLuis2027() {
         <div><Users className="h-7 w-7 text-primary mb-3" /><h3 className="text-2xl mb-2">Sin apuro para decidir</h3><p className="text-sm text-muted-foreground leading-relaxed">Primero expresás tu interés. Después hablamos de disponibilidad, alojamiento y condiciones definitivas. No hay un cobro ahora.</p></div>
       </div></section>
 
-      <section id="preinscripcion" className="scroll-mt-6 max-w-6xl mx-auto px-5 py-12 md:px-8 md:py-16 grid lg:grid-cols-[1fr_1.5fr] gap-10">
-        <div><p className="text-accent text-sm uppercase font-semibold mb-2">El primer paso</p><h2 className="text-4xl mb-4">Quiero preinscribirme</h2><p className="text-muted-foreground leading-relaxed">Contanos qué propuesta te interesa. No necesitás ser alumno ni tener una cuenta en Reybaud.</p><div role="region" aria-label="Tu elección actual" className="mt-7 border-t border-border pt-5 space-y-2"><p className="font-semibold">Tu elección actual</p><p>{current.label} · {current.nights} noches</p><p className="text-sm text-muted-foreground">{current.dates} de 2027</p>{selected && <><p>{selected.label}</p><p className="text-sm text-muted-foreground">{formatPrice(selected.price, "ARS")} ARS estimados por ciclista</p></>}</div></div>
-        <SanLuisPreRegistrationForm camp={camp} packageId={packageId} onSelectionChange={select} />
+      <section id="inscripcion" className="relative scroll-mt-6 max-w-6xl mx-auto px-5 py-12 md:px-8 md:py-16 grid lg:grid-cols-[1fr_1.5fr] gap-10">
+        <span id="preinscripcion" className="absolute -top-6" aria-hidden="true" />
+        <div><p className="text-accent text-sm uppercase font-semibold mb-2">Solicitud con revisión manual</p><h2 className="text-4xl mb-4">Solicitar inscripción</h2><p className="text-muted-foreground leading-relaxed">Contanos quiénes vienen y qué propuesta eligen. No necesitás ser alumno ni tener una cuenta en Reybaud. Si ya dejaste una preinscripción con el mismo email, la vinculamos sin borrarla.</p><div role="region" aria-label="Tu elección actual" className="mt-7 border-t border-border pt-5 space-y-2"><p className="font-semibold">Tu elección actual</p><p>{current.label} · {current.nights} noches</p><p className="text-sm text-muted-foreground">{current.dates} de 2027</p>{selected && <><p>{selected.label}</p><p className="text-sm text-muted-foreground">{formatPrice(selected.price, "ARS")} ARS estimados por ciclista</p><p className="text-xs text-muted-foreground">Sujeto a confirmación de administración antes de pagar</p></>}</div></div>
+        <SanLuisEnrollmentForm camp={camp} packageId={packageId} onSelectionChange={select} />
       </section>
       <section className="max-w-6xl mx-auto px-5 pb-14 md:px-8"><h2 className="text-3xl mb-6">Antes de sumarte</h2><Accordion type="single" collapsible>{faqs.map(([q, a], i) => <AccordionItem key={q} value={`faq-${i}`}><AccordionTrigger className="text-left gap-4">{q}</AccordionTrigger><AccordionContent className="max-w-3xl text-muted-foreground leading-relaxed">{a}</AccordionContent></AccordionItem>)}</Accordion></section>
     </main>

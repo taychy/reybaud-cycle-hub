@@ -1,3 +1,10 @@
+## San Luis enero 2027 · Solicitudes de inscripción con aprobación manual (28/11/2026)
+- [x] Habilitar formulario público seguro para ambos camps, sin reserva, cobro ni cupo comprometido.
+- [x] Persistir solicitudes con referencia, deduplicación, auditoría y vínculo con preinscripciones existentes.
+- [x] Agregar bandeja admin buscable y revisión de precio/inventario; bloquear pago y confirmación mientras falten controles.
+- [x] Probar privacidad, doble clic, inventario compartido, ambos camps, regresiones y compilación; no publicar ni desplegar.
+- [ ] Conectar inventario físico atómico y pase a reservas/pagos: bloqueado por confirmación de hotel/cabañas, límite simultáneo, tarifas, noche extra y condiciones de seña/cuotas.
+
 ## Jornada Scott · Mailing aprobado (25/11/2026)
 - [x] Plantilla d5a83439-8e9a-4f2b-aaf6-2df721a891d2 guardada sin campaña, público ni envíos; edición/vista previa en Comunicaciones → Plantillas de mailing, disponible en preview. La pantalla nueva requiere publicación separada, no autorizada aquí.
 - [x] Sesión propia: guardar/releer plantilla; enlaces públicos HTTP 200/renderizados; 360/390/600 sin desborde; test de campos permitidos y build OK. Campañas/destinatarios con huellas idénticas, 33 campañas/11.490 destinatarios/10.575 enviados/5.399 logs intactos; cero invocaciones de envío.

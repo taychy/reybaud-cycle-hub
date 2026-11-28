@@ -5012,6 +5012,186 @@ export type Database = {
           },
         ]
       }
+      event_enrollment_request_history: {
+        Row: {
+          action: string
+          actor_user_id: string | null
+          created_at: string
+          details: Json
+          from_status: string | null
+          id: string
+          request_id: string
+          review_note: string
+          to_status: string | null
+        }
+        Insert: {
+          action: string
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          request_id: string
+          review_note?: string
+          to_status?: string | null
+        }
+        Update: {
+          action?: string
+          actor_user_id?: string | null
+          created_at?: string
+          details?: Json
+          from_status?: string | null
+          id?: string
+          request_id?: string
+          review_note?: string
+          to_status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_enrollment_request_history_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "event_enrollment_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_enrollment_requests: {
+        Row: {
+          admin_notes: string
+          approved_unit_price: number | null
+          attendees: Json
+          comment: string
+          consent_version: string
+          contact_consent: boolean
+          created_at: string
+          currency: string
+          email: string
+          estimated_total: number
+          estimated_unit_price: number
+          event_id: string
+          extra_night_interest: boolean
+          final_conditions_accepted: boolean
+          hotel_validated: boolean
+          id: string
+          package_id: string
+          people_count: number
+          phone: string
+          preregistration_id: string | null
+          reference: string
+          requester_alumno_id: string | null
+          requester_user_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          updated_at: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_notes?: string
+          approved_unit_price?: number | null
+          attendees: Json
+          comment?: string
+          consent_version: string
+          contact_consent: boolean
+          created_at?: string
+          currency?: string
+          email: string
+          estimated_total: number
+          estimated_unit_price: number
+          event_id: string
+          extra_night_interest?: boolean
+          final_conditions_accepted: boolean
+          hotel_validated?: boolean
+          id?: string
+          package_id: string
+          people_count: number
+          phone: string
+          preregistration_id?: string | null
+          reference: string
+          requester_alumno_id?: string | null
+          requester_user_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_notes?: string
+          approved_unit_price?: number | null
+          attendees?: Json
+          comment?: string
+          consent_version?: string
+          contact_consent?: boolean
+          created_at?: string
+          currency?: string
+          email?: string
+          estimated_total?: number
+          estimated_unit_price?: number
+          event_id?: string
+          extra_night_interest?: boolean
+          final_conditions_accepted?: boolean
+          hotel_validated?: boolean
+          id?: string
+          package_id?: string
+          people_count?: number
+          phone?: string
+          preregistration_id?: string | null
+          reference?: string
+          requester_alumno_id?: string | null
+          requester_user_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          updated_at?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_enrollment_requests_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_enrollment_requests_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: false
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_enrollment_requests_preregistration_id_fkey"
+            columns: ["preregistration_id"]
+            isOneToOne: false
+            referencedRelation: "event_waitlist_entries"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_enrollment_requests_requester_alumno_id_fkey"
+            columns: ["requester_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "alumnos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "event_enrollment_requests_requester_alumno_id_fkey"
+            columns: ["requester_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_identidad_sugerida"
+            referencedColumns: ["alumno_sugerido_id"]
+          },
+          {
+            foreignKeyName: "event_enrollment_requests_requester_alumno_id_fkey"
+            columns: ["requester_alumno_id"]
+            isOneToOne: false
+            referencedRelation: "vw_backfill_saldos_comparacion"
+            referencedColumns: ["alumno_id"]
+          },
+        ]
+      }
       event_external_participants: {
         Row: {
           access_token: string
@@ -20088,6 +20268,17 @@ export type Database = {
         Args: { p_note: string; p_reservation_id: string }
         Returns: undefined
       }
+      admin_review_event_enrollment_request: {
+        Args: {
+          p_admin_notes: string
+          p_approved_unit_price: number
+          p_hotel_validated: boolean
+          p_request_id: string
+          p_review_note: string
+          p_status: string
+        }
+        Returns: Json
+      }
       admin_review_event_photos: {
         Args: { p_note?: string; p_photo_ids: string[]; p_status: string }
         Returns: Json
@@ -22988,6 +23179,23 @@ export type Database = {
           p_nombre: string
           p_package_id: string
           p_telefono: string
+        }
+        Returns: Json
+      }
+      submit_event_enrollment_request: {
+        Args: {
+          p_attendees: Json
+          p_comment: string
+          p_contact_consent: boolean
+          p_email: string
+          p_event_id: string
+          p_extra_night: boolean
+          p_final_conditions_accepted: boolean
+          p_package_id: string
+          p_people_count: number
+          p_phone: string
+          p_user_agent?: string
+          p_website: string
         }
         Returns: Json
       }
