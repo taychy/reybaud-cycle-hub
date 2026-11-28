@@ -1,8 +1,9 @@
 import { z } from "zod";
 
-// Read-only catalog snapshot checked against the eight inactive packages on 27/11/2026.
-// Kept exclusively in the development-only route; never queried by anonymous visitors.
-export const SAN_LUIS_INTAKE_ENABLED = false;
+// Display snapshot checked against the eight inactive packages on 27/11/2026. The server
+// (submit_event_preregistration) re-reads package and price from the database; this file never decides price.
+// Maintenance switch: set to false to close the form; server gate is events.metadata.preregistration.enabled.
+export const SAN_LUIS_INTAKE_ENABLED = true;
 export type CampKey = "full" | "mini";
 export const sanLuisCamps = {
   full: { id: "408a8eb8-fb62-4a50-ad6d-040bd5716797", label: "Camp completo", dates: "Lunes 18 a domingo 24 de enero", days: 7, nights: 6, capacity: 30 },
@@ -41,15 +42,10 @@ export const PRE_REGISTRATION_CONFIRMATION = "Recibimos tu preinscripción. Esto
 
 export function buildPreRegistrationRequest(input: unknown) {
   const v = preRegistrationSchema.parse(input);
-  const camp = sanLuisCamps[v.camp];
-  const selected = sanLuisPackages[v.camp].find(p => p.id === v.packageId);
-  if (!selected) throw new Error("Alojamiento no disponible");
-  const message = `${camp.label} · ${selected.label} · ARS ${selected.price} estimados por ciclista. Noche extra 17/01: ${v.extraNight ? "interés, sin precio ni reserva" : "no solicitada"}. Contacto autorizado. ${v.comment}`;
   return {
-    p_event_id: camp.id, p_nombre: `${v.firstName} ${v.lastName}`, p_email: v.email.toLowerCase(), p_telefono: v.phone,
-    p_dni: null, p_alumno_id: null, p_user_agent: null,
-    p_respuestas: { tipo: "consulta", opcion: selected.id, opcion_label: selected.label, evento: camp.label, mensaje: message,
-      package_id: selected.id, camp: v.camp, lodging_group_key: selected.lodgingGroup, extra_night_interest: v.extraNight,
-      estimated_unit_price: selected.price, currency: "ARS", contact_consent: true, contact_consent_version: "san-luis-preinscripcion-v1" },
+    p_event_id: sanLuisCamps[v.camp].id, p_package_id: v.packageId,
+    p_first_name: v.firstName, p_last_name: v.lastName, p_email: v.email.toLowerCase(), p_phone: v.phone,
+    p_extra_night: v.camp === "full" && v.extraNight, p_comment: v.comment, p_consent: true as const,
+    p_user_agent: typeof navigator !== "undefined" ? navigator.userAgent.slice(0, 300) : null,
   };
 }

@@ -22950,6 +22950,21 @@ export type Database = {
         }
         Returns: Json
       }
+      submit_event_preregistration: {
+        Args: {
+          p_comment: string
+          p_consent: boolean
+          p_email: string
+          p_event_id: string
+          p_extra_night: boolean
+          p_first_name: string
+          p_last_name: string
+          p_package_id: string
+          p_phone: string
+          p_user_agent?: string
+        }
+        Returns: Json
+      }
       submit_liquidacion_by_token: {
         Args: { p_items: Json; p_observaciones?: string; p_token: string }
         Returns: Json

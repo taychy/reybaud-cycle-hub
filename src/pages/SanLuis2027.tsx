@@ -41,12 +41,12 @@ export default function SanLuis2027() {
         <img src={scenery.url} alt="Sierras de Potrero de los Funes, San Luis" className="absolute inset-0 -z-20 h-full w-full object-cover" fetchPriority="high" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-background via-background/70 to-background/10" />
         <div className="w-full max-w-6xl mx-auto px-5 py-10 md:px-8 md:py-14 space-y-6">
-          <p className="text-accent text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent shrink-0" /> {SAN_LUIS_INTAKE_ENABLED ? "Preinscripción abierta · tarifas estimadas hasta confirmación" : "Vista previa · preinscripción próximamente"}</p>
+          <p className="text-accent text-sm font-semibold flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-accent shrink-0" /> {SAN_LUIS_INTAKE_ENABLED ? "Preinscripción abierta · tarifas estimadas, sujetas a confirmación" : "Vista previa · preinscripción próximamente"}</p>
           <div><p className="font-heading text-lg uppercase text-foreground/90 mb-2">Reybaud · Enero 2027</p><h1 className="text-5xl md:text-7xl font-bold leading-[1.05] max-w-3xl">Training Camp<br /><span className="text-primary">San Luis</span></h1></div>
           <p className="max-w-xl text-lg leading-relaxed">Días de ruta, montaña y ciclismo compartido.<br className="hidden sm:block" /> Elegí una semana completa o una escapada de cuatro días.</p>
           <div className="flex flex-wrap gap-4 text-sm"><span className="flex gap-2 items-center"><MapPin className="h-4 w-4 text-accent" /> San Luis, Argentina</span><span className="flex gap-2 items-center"><Bike className="h-4 w-4 text-accent" /> Dirección técnica Reybaud</span></div>
           <div className="flex flex-col sm:flex-row gap-3"><Button asChild className="min-h-12"><a href="#preinscripcion">Quiero preinscribirme <ArrowRight className="h-4 w-4" /></a></Button><Button asChild variant="outline" className="min-h-12"><a href="#propuestas">Ver las modalidades <ArrowDown className="h-4 w-4" /></a></Button></div>
-          <p className="text-xs text-muted-foreground">Vista previa en borrador · sin reserva ni pago</p>
+          <p className="text-xs text-muted-foreground">Tarifas estimadas, sujetas a confirmación. Preinscripción sin reserva ni pago.</p>
         </div>
       </section>
 

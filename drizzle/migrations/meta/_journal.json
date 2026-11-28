@@ -876,6 +876,13 @@
       "when": 1795818424931,
       "tag": "0124_event_rsvp_lunch_receipt_integrity_guard",
       "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1795826978481,
+      "tag": "0125_event_preregistration_intake",
+      "breakpoints": true
     }
   ]
 }

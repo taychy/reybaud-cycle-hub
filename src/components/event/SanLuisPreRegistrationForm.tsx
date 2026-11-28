@@ -16,7 +16,7 @@ export default function SanLuisPreRegistrationForm({ camp, packageId, onSelectio
   const [extraNight, setExtraNight] = useState(false);
   const [consent, setConsent] = useState(false);
   const [sending, setSending] = useState(false);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<null | { duplicate: boolean }>(null);
   const [error, setError] = useState("");
   const selected = sanLuisPackages[camp].find(p => p.id === packageId);
   if (!selected) return null;
@@ -27,11 +27,11 @@ export default function SanLuisPreRegistrationForm({ camp, packageId, onSelectio
     const parsed = preRegistrationSchema.safeParse({ ...fields, camp, packageId, extraNight: extra, consent });
     if (!parsed.success) { setError(parsed.error.issues[0]?.message || "Revisá los datos"); return; }
     setSending(true); setError("");
-    try { await submit(parsed.data); setDone(true); }
+    try { const r = await submit(parsed.data); setDone({ duplicate: r?.duplicate === true }); }
     catch (e) { setError(e instanceof Error ? e.message : "No pudimos guardar tus datos."); }
     finally { setSending(false); }
   };
-  if (done) return <div role="status" className="py-12 space-y-5"><CheckCircle2 className="h-12 w-12 text-accent" /><h3 className="text-3xl">¡Gracias por sumarte!</h3><p className="max-w-xl leading-relaxed">{PRE_REGISTRATION_CONFIRMATION}</p></div>;
+  if (done) return <div role="status" className="py-12 space-y-5"><CheckCircle2 className="h-12 w-12 text-accent" /><h3 className="text-3xl">¡Gracias por sumarte!</h3><p className="max-w-xl leading-relaxed">{done.duplicate ? "Ya teníamos una preinscripción con este email para este camp. La conservamos tal como estaba; si querés cambiar algo, te lo ajustamos cuando te contactemos." : PRE_REGISTRATION_CONFIRMATION}</p></div>;
   return <form onSubmit={send} className="space-y-6" aria-label="Quiero preinscribirme">
     <fieldset disabled={sending} className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">{([
