@@ -1,9 +1,15 @@
+## San Luis enero 2027 · Reserva nativa desde retención (28/11/2026)
+- [x] Implementar conversión atómica e idempotente por participante, con compuerta de preparación cerrada y sin activar ventas ni aceptar en nombre del usuario.
+- [x] Reutilizar condiciones y cuotas nativas 30/35/35; ocho planes inactivos, cobro bloqueado sin condiciones finales y aceptación individual.
+- [x] Probar concurrencia, grupos, doble conversión, permisos y rollback en PostgreSQL aislado; 68 pruebas, pantallas y estado Cloud verificados.
+- [ ] Habilitar preparación/cobro y verificar seña/cuenta corriente end-to-end: faltan condiciones finales aprobadas, instrucciones de pago revisadas y recorrido financiero integrado. No hay reservas/cobros reales; publicación no autorizada.
+
 ## San Luis enero 2027 · Solicitudes de inscripción con aprobación manual (28/11/2026)
 - [x] Habilitar formulario público seguro para ambos camps, sin reserva, cobro ni cupo comprometido.
 - [x] Persistir solicitudes con referencia, deduplicación, auditoría y vínculo con preinscripciones existentes.
 - [x] Agregar bandeja admin buscable y revisión de precio/inventario; bloquear pago y confirmación mientras falten controles.
 - [x] Probar privacidad, doble clic, inventario compartido, ambos camps, regresiones y compilación; no publicar ni desplegar.
-- [ ] Conectar inventario físico atómico y pase a reservas/pagos: bloqueado por confirmación de hotel/cabañas, límite simultáneo, tarifas, noche extra y condiciones de seña/cuotas.
+- [x] Conectar inventario físico atómico y preparación de reservas; hotel39 y plan30/35/35 configurados. Habilitación financiera pendiente en la tarea de reserva nativa anterior, no por falta de cupo inventado.
 
 ## Jornada Scott · Mailing aprobado (25/11/2026)
 - [x] Plantilla d5a83439-8e9a-4f2b-aaf6-2df721a891d2 guardada sin campaña, público ni envíos; edición/vista previa en Comunicaciones → Plantillas de mailing, disponible en preview. La pantalla nueva requiere publicación separada, no autorizada aquí.
@@ -489,4 +495,5 @@
 - [x] Incorporar inventario compartido 39 (10 individuales, 20 dobles, 9 cabañas) con retención administrativa atómica y auditoría.
 - [x] Mostrar capacidad y plan 30/35/35 sin abrir cobros; conservar solicitudes/preinscripciones.
 - [x] Probar límites, concurrencia y accesos; auditar estados y verificar móvil/página pública. SQL aislado y 65 tests; sin datos reales de prueba.
-- [ ] Conectar retención a reserva nativa, aceptación y cobro validado: bloqueado hasta circuito transaccional completo y términos revisados.
+- [x] Conectar preparación de retención a reserva nativa con condiciones y cuotas existentes; permanece deshabilitada hasta aprobar términos finales.
+- [ ] Completar cobro validado y cuenta corriente end-to-end: pendiente de condiciones finales, instrucciones de pago revisadas y verificación financiera integrada, sin publicación autorizada.

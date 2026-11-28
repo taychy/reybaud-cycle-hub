@@ -14,6 +14,7 @@ import { AlertTriangle, Loader2, Search } from "lucide-react";
 import { sanLuisCamps, sanLuisPackages } from "@/lib/sanLuisPreRegistration";
 import { ENROLLMENT_PAYMENT_BLOCKER, ENROLLMENT_STATUS_LABELS, ENROLLMENT_STATUSES, EnrollmentStatus } from "@/lib/sanLuisEnrollment";
 import SanLuisCommercialStatus from "@/components/event/SanLuisCommercialStatus";
+import TripNativeHandoffPanel from "@/components/admin/TripNativeHandoffPanel";
 import { formatPrice } from "@/lib/currency";
 
 interface Attendee { firstName: string; lastName: string }
@@ -172,6 +173,7 @@ export default function SanLuisEnrollmentRequestsPanel() {
         <div className="space-y-2"><Label htmlFor="review-note">Nota de decisión {["aprobada_cotizacion", "rechazada"].includes(reviewStatus) ? "*" : "(opcional)"}</Label><Textarea id="review-note" value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder="Qué verificaste, con quién y qué queda pendiente…" /></div>
         <div className="space-y-2"><Label htmlFor="admin-notes">Notas internas</Label><Textarea id="admin-notes" value={adminNotes} onChange={e => setAdminNotes(e.target.value)} /></div>
         <SanLuisCommercialStatus eventId={selected.event_id} packageId={selected.package_id} price={selected.approved_unit_price ?? selected.estimated_unit_price} />
+        <TripNativeHandoffPanel key={selected.id} requestId={selected.id} attendees={selected.attendees} note={reviewNote} onPrepared={() => void load()} />
         <Button variant="outline" disabled={saving || reviewNote.trim().length < 3 || (!isHeld && (selected.status !== "aprobada_cotizacion" || !selected.hotel_validated))} onClick={() => void changeHold(isHeld)}>{isHeld ? "Liberar retención de inventario" : "Retener inventario validado · sin cobrar"}</Button>
         <Button onClick={() => void saveReview()} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Guardar revisión · sin cobrar</Button>
         <div className="border-t border-border pt-4"><p className="font-medium mb-2">Historial</p><div className="space-y-2">{history.map(h => <div key={h.id} className="text-xs border-l border-border pl-3"><p>{new Date(h.created_at).toLocaleString("es-AR")} · {h.action}{h.to_status ? ` → ${ENROLLMENT_STATUS_LABELS[h.to_status as EnrollmentStatus] ?? h.to_status}` : ""}</p>{h.review_note && <p className="text-muted-foreground">{h.review_note}</p>}</div>)}</div></div>

@@ -17428,20 +17428,30 @@ export type Database = {
       trip_capacity_packages: {
         Row: {
           group_key: string
+          native_payment_plan_id: string | null
           package_id: string
           pool_id: string
         }
         Insert: {
           group_key: string
+          native_payment_plan_id?: string | null
           package_id: string
           pool_id: string
         }
         Update: {
           group_key?: string
+          native_payment_plan_id?: string | null
           package_id?: string
           pool_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "trip_capacity_packages_native_payment_plan_id_fkey"
+            columns: ["native_payment_plan_id"]
+            isOneToOne: false
+            referencedRelation: "event_package_payment_plans"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "trip_capacity_packages_package_id_fkey"
             columns: ["package_id"]
@@ -17462,22 +17472,74 @@ export type Database = {
         Row: {
           id: string
           name: string
+          native_payment_schedule: Json | null
+          native_preparation_enabled: boolean
           payment_handoff_enabled: boolean
           total_capacity: number
         }
         Insert: {
           id?: string
           name: string
+          native_payment_schedule?: Json | null
+          native_preparation_enabled?: boolean
           payment_handoff_enabled?: boolean
           total_capacity: number
         }
         Update: {
           id?: string
           name?: string
+          native_payment_schedule?: Json | null
+          native_preparation_enabled?: boolean
           payment_handoff_enabled?: boolean
           total_capacity?: number
         }
         Relationships: []
+      }
+      trip_capacity_reservation_links: {
+        Row: {
+          attendee_index: number
+          created_at: string
+          created_by: string
+          request_id: string
+          reservation_id: string
+        }
+        Insert: {
+          attendee_index: number
+          created_at?: string
+          created_by: string
+          request_id: string
+          reservation_id: string
+        }
+        Update: {
+          attendee_index?: number
+          created_at?: string
+          created_by?: string
+          request_id?: string
+          reservation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_capacity_reservation_links_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "event_enrollment_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_capacity_reservation_links_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "event_reservations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_capacity_reservation_links_reservation_id_fkey"
+            columns: ["reservation_id"]
+            isOneToOne: true
+            referencedRelation: "v_reservation_account"
+            referencedColumns: ["reservation_id"]
+          },
+        ]
       }
       trip_food_survey_qa: {
         Row: {
@@ -20118,6 +20180,10 @@ export type Database = {
       }
       _trip_day_shared: { Args: { p_reservation_id: string }; Returns: boolean }
       _trip_food_stay: { Args: { p_reservation_id: string }; Returns: Json }
+      _trip_native_terms_ready: {
+        Args: { p_event_id: string }
+        Returns: boolean
+      }
       _turnera_calcular_movimiento: {
         Args: { p_servicio_id: string }
         Returns: Record<string, unknown>
@@ -20358,6 +20424,14 @@ export type Database = {
         Args: { p_event_id: string; p_source_reservation_id: string }
         Returns: Json
       }
+      admin_prepare_trip_native_reservations: {
+        Args: {
+          p_note: string
+          p_participant_emails: string[]
+          p_request_id: string
+        }
+        Returns: Json
+      }
       admin_public_jornada_report: { Args: { p_slug: string }; Returns: Json }
       admin_purge_test_reservation: {
         Args: { p_confirm: string; p_reason: string; p_reservation_id: string }
@@ -20562,6 +20636,10 @@ export type Database = {
       }
       admin_trip_additional_day_report: {
         Args: { p_event_id: string }
+        Returns: Json
+      }
+      admin_trip_native_preflight: {
+        Args: { p_request_id: string }
         Returns: Json
       }
       admin_update_turnera_reservation: {
