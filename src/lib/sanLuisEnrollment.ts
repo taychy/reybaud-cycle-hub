@@ -62,4 +62,4 @@ export function enrollmentEstimatedTotal(camp: CampKey, packageId: string, peopl
   return selected ? selected.price * peopleCount : 0;
 }
 
-export const ENROLLMENT_PAYMENT_BLOCKER = "Pago y confirmación siguen bloqueados hasta conectar la validación atómica del inventario compartido entre ambos camps y el circuito de reservas.";
+export const ENROLLMENT_PAYMENT_BLOCKER = "Inventario compartido y retención administrativa disponibles. Pago y confirmación siguen bloqueados hasta convertir la retención a reserva nativa con términos aceptados y plan de cuotas en una única transacción.";

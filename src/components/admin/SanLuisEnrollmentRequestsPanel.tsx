@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, Loader2, Search } from "lucide-react";
 import { sanLuisCamps, sanLuisPackages } from "@/lib/sanLuisPreRegistration";
 import { ENROLLMENT_PAYMENT_BLOCKER, ENROLLMENT_STATUS_LABELS, ENROLLMENT_STATUSES, EnrollmentStatus } from "@/lib/sanLuisEnrollment";
+import SanLuisCommercialStatus from "@/components/event/SanLuisCommercialStatus";
 import { formatPrice } from "@/lib/currency";
 
 interface Attendee { firstName: string; lastName: string }
@@ -59,12 +60,17 @@ export default function SanLuisEnrollmentRequestsPanel() {
   const [adminNotes, setAdminNotes] = useState("");
   const [reviewNote, setReviewNote] = useState("");
   const [saving, setSaving] = useState(false);
+  const [holds, setHolds] = useState<string[]>([]);
+  const isHeld = !!selected && holds.includes(selected.id);
 
   const load = async () => {
     setLoading(true);
     const { data, error } = await supabase.from("event_enrollment_requests").select("*").in("event_id", eventIds).order("created_at", { ascending: false });
     if (error) toast({ title: "No se pudieron leer las solicitudes", description: error.message, variant: "destructive" });
     setRows(((data ?? []) as unknown as RequestRow[]));
+    const { data: activeHolds, error: holdError } = await supabase.from("trip_capacity_holds").select("request_id").is("released_at", null);
+    if (holdError) toast({ title: "No se pudieron leer las retenciones", description: holdError.message, variant: "destructive" });
+    setHolds((activeHolds ?? []).map(h => h.request_id));
     setLoading(false);
   };
   useEffect(() => { void load(); }, []);
@@ -100,6 +106,21 @@ export default function SanLuisEnrollmentRequestsPanel() {
     } finally { setSaving(false); }
   };
 
+  const changeHold = async (release: boolean) => {
+    if (!selected || saving) return;
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.rpc("admin_hold_trip_request_capacity", { p_request_id: selected.id, p_release: release, p_note: reviewNote });
+      if (error) throw error;
+      if (!data || typeof data !== "object" || Array.isArray(data) || data.ok !== true) throw new Error("No se confirmó la retención.");
+      toast({ title: release ? "Retención liberada" : "Inventario retenido", description: "Sin reserva confirmada ni cobro. La decisión quedó registrada." });
+      setSelected(null);
+      await load();
+    } catch (e) {
+      toast({ title: "No se pudo actualizar el inventario", description: e instanceof Error ? e.message : "Revisá los datos", variant: "destructive" });
+    } finally { setSaving(false); }
+  };
+
   const filtered = useMemo(() => rows.filter(row => {
     if (status !== "todos" && row.status !== status) return false;
     if (camp !== "todos" && row.event_id !== sanLuisCamps[camp as "full" | "mini"].id) return false;
@@ -111,7 +132,7 @@ export default function SanLuisEnrollmentRequestsPanel() {
   return <div className="space-y-4">
     <Card className="border-primary/40"><CardHeader><CardTitle className="text-base flex items-center gap-2"><AlertTriangle className="h-4 w-4 text-primary" /> Aprobación manual obligatoria</CardTitle></CardHeader><CardContent className="text-sm space-y-2">
       <p>Las solicitudes no ocupan plazas ni generan cargos. Para aprobar una cotización, Naty debe validar hotel y precio y dejar una nota de revisión.</p>
-      <p className="text-muted-foreground">{ENROLLMENT_PAYMENT_BLOCKER}</p>
+      <p>Inventario compartido: 39 plazas · 10 individuales, 20 en dobles, 9 en cabañas. Techos por camp: 30 / 15. Cabaña staff excluida.</p><p className="text-muted-foreground">{ENROLLMENT_PAYMENT_BLOCKER}</p>
     </CardContent></Card>
     <Card><CardContent className="pt-4 grid gap-3 md:grid-cols-[1fr_180px_180px]">
       <div className="relative"><Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" /><Input className="pl-9" placeholder="Referencia, persona, email o WhatsApp…" value={search} onChange={e => setSearch(e.target.value)} /></div>
@@ -131,7 +152,7 @@ export default function SanLuisEnrollmentRequestsPanel() {
             <div><p className="text-xs text-muted-foreground">Camp y paquete</p><p>{campInfo?.label}</p><p>{pkg?.label}</p></div>
             <div><p className="text-xs text-muted-foreground">Personas y estimado</p><p>{row.people_count} · {formatPrice(row.estimated_total, row.currency)}</p><p className="text-xs text-muted-foreground">Precio final: {row.approved_unit_price ? `${formatPrice(row.approved_unit_price, row.currency)} c/u` : "pendiente"}</p></div>
             <div><p className="text-xs text-muted-foreground">Contacto</p><p>{row.email}</p><p>{row.phone}</p></div>
-            <div><p className="text-xs text-muted-foreground">Revisión</p><p>Hotel: {row.hotel_validated ? "validado" : "pendiente"}</p><p>Noche 17: {row.extra_night_interest ? "interés" : "no"}</p><p>Preinscripción: {row.preregistration_id ? "vinculada" : "sin previa"}</p></div>
+            <div><p className="text-xs text-muted-foreground">Revisión</p><p>Hotel: {row.hotel_validated ? "validado" : "pendiente"}</p><p>Inventario: {holds.includes(row.id) ? "retenido · sin cobro" : "sin retención"}</p><p>Noche 17: {row.extra_night_interest ? "interés" : "no"}</p><p>Preinscripción: {row.preregistration_id ? "vinculada" : "sin previa"}</p></div>
           </div>
           {row.comment && <p className="text-sm text-muted-foreground">Comentario: {row.comment}</p>}
           <Button variant="outline" size="sm" onClick={() => void openReview(row)}>Revisar solicitud</Button>
@@ -143,13 +164,15 @@ export default function SanLuisEnrollmentRequestsPanel() {
       {selected && <div className="space-y-5 text-sm">
         <div className="rounded-lg bg-secondary/40 p-4 space-y-2"><p className="font-medium">{selected.attendees.map(a => `${a.firstName} ${a.lastName}`).join(" · ")}</p><p>{campForEvent(selected.event_id)?.label} · {packageFor(selected.package_id)?.label}</p><p>{selected.people_count} personas · estimado {formatPrice(selected.estimated_total, selected.currency)}</p><p>{selected.email} · {selected.phone}</p>{selected.extra_night_interest && <p>Interés en noche extra 17/01: precio y disponibilidad a confirmar.</p>}{selected.comment && <p>Comentario: {selected.comment}</p>}</div>
         <div className="grid sm:grid-cols-2 gap-4">
-          <div className="space-y-2"><Label>Estado</Label><Select value={reviewStatus} onValueChange={v => setReviewStatus(v as EnrollmentStatus)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ENROLLMENT_STATUSES.map(s => <SelectItem key={s} value={s} disabled={s === "pendiente_pago" || s === "confirmada"}>{ENROLLMENT_STATUS_LABELS[s]}{s === "pendiente_pago" || s === "confirmada" ? " · bloqueado" : ""}</SelectItem>)}</SelectContent></Select></div>
-          <div className="space-y-2"><Label htmlFor="approved-price">Precio unitario revisado (ARS)</Label><Input id="approved-price" type="number" min="1" step="1" value={approvedPrice} onChange={e => setApprovedPrice(e.target.value)} /></div>
+          <div className="space-y-2"><Label>Estado</Label><Select disabled={isHeld} value={reviewStatus} onValueChange={v => setReviewStatus(v as EnrollmentStatus)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{ENROLLMENT_STATUSES.map(s => <SelectItem key={s} value={s} disabled={s === "pendiente_pago" || s === "confirmada"}>{ENROLLMENT_STATUS_LABELS[s]}{s === "pendiente_pago" || s === "confirmada" ? " · bloqueado" : ""}</SelectItem>)}</SelectContent></Select></div>
+          <div className="space-y-2"><Label htmlFor="approved-price">Precio unitario revisado (ARS)</Label><Input id="approved-price" disabled={isHeld} type="number" min="1" step="1" value={approvedPrice} onChange={e => setApprovedPrice(e.target.value)} /></div>
         </div>
-        <div className="flex items-start gap-3"><Checkbox id="hotel-validated" checked={hotelValidated} onCheckedChange={v => setHotelValidated(v === true)} /><Label htmlFor="hotel-validated">Validé manualmente con el hotel el alojamiento para esta solicitud.</Label></div>
-        <p className="text-xs text-muted-foreground">Esto no confirma plazas. La validación atómica entre ambos camps se exigirá antes de habilitar pagos.</p>
+        <div className="flex items-start gap-3"><Checkbox id="hotel-validated" disabled={isHeld} checked={hotelValidated} onCheckedChange={v => setHotelValidated(v === true)} /><Label htmlFor="hotel-validated">Validé manualmente con el hotel el alojamiento de todas las personas de esta solicitud.</Label></div>
+        <p className="text-xs text-muted-foreground">La retención exige cotización aprobada y hotel validado para todas las personas. Consume el stock compartido de forma atómica, sin crear una reserva ni un pago. No vence automáticamente; liberarla requiere motivo. Con retención activa, liberá antes de cambiar personas, paquete, precio o estado.</p>
         <div className="space-y-2"><Label htmlFor="review-note">Nota de decisión {["aprobada_cotizacion", "rechazada"].includes(reviewStatus) ? "*" : "(opcional)"}</Label><Textarea id="review-note" value={reviewNote} onChange={e => setReviewNote(e.target.value)} placeholder="Qué verificaste, con quién y qué queda pendiente…" /></div>
         <div className="space-y-2"><Label htmlFor="admin-notes">Notas internas</Label><Textarea id="admin-notes" value={adminNotes} onChange={e => setAdminNotes(e.target.value)} /></div>
+        <SanLuisCommercialStatus eventId={selected.event_id} packageId={selected.package_id} price={selected.approved_unit_price ?? selected.estimated_unit_price} />
+        <Button variant="outline" disabled={saving || reviewNote.trim().length < 3 || (!isHeld && (selected.status !== "aprobada_cotizacion" || !selected.hotel_validated))} onClick={() => void changeHold(isHeld)}>{isHeld ? "Liberar retención de inventario" : "Retener inventario validado · sin cobrar"}</Button>
         <Button onClick={() => void saveReview()} disabled={saving}>{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null} Guardar revisión · sin cobrar</Button>
         <div className="border-t border-border pt-4"><p className="font-medium mb-2">Historial</p><div className="space-y-2">{history.map(h => <div key={h.id} className="text-xs border-l border-border pl-3"><p>{new Date(h.created_at).toLocaleString("es-AR")} · {h.action}{h.to_status ? ` → ${ENROLLMENT_STATUS_LABELS[h.to_status as EnrollmentStatus] ?? h.to_status}` : ""}</p>{h.review_note && <p className="text-muted-foreground">{h.review_note}</p>}</div>)}</div></div>
       </div>}

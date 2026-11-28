@@ -25,7 +25,7 @@ export function buildContractSections(camp: Camp): ContractSection[] {
   const fechas = camp === 'full' ? 'del lunes 18 al domingo 24 de enero de 2027 (7 días, 6 noches, salida el domingo)' : 'del jueves 21 al domingo 24 de enero de 2027 (4 días, 3 noches, salida el domingo)';
   const extra = camp === 'full' ? ' La noche previa del domingo 17/01 puede solicitarse como opcional: su disponibilidad y precio se confirman aparte y no forman parte del paquete.' : '';
   return [
-    { key: 'reserva_pagos', title: '1. Reserva y pagos', status: P, body: `El ${s.label} se realiza ${fechas}. La preinscripción no reserva cupo ni requiere pago. La plaza queda reservada únicamente cuando Ciclismo Reybaud confirma por escrito la disponibilidad de alojamiento y se acredita la seña. El importe de la seña, el plan de cuotas y la fecha límite del saldo se informarán antes de abrir las reservas [PENDIENTE: condiciones de seña y cuotas].` },
+    { key: 'reserva_pagos', title: '1. Reserva y pagos', status: P, body: `El ${s.label} se realiza ${fechas}. La preinscripción no reserva cupo ni requiere pago. La plaza queda reservada únicamente cuando Ciclismo Reybaud confirma por escrito la disponibilidad de alojamiento y se acredita la seña. Plan acordado: seña del 30% del paquete; cuota del 35% con vencimiento 15/12/2026 y cuota del 35% con vencimiento 10/01/2027. Al reservar después de un vencimiento, esas cuotas son exigibles en ese momento. No se cobra mientras no estén validados hotel, precio y condiciones finales.` },
     { key: 'precio_inclusiones', title: '2. Precio e inclusiones del paquete', status: P, body: `Las tarifas son por ciclista y estimativas hasta la confirmación del hotel y del kit. Cada paquete incluye solo el tipo de alojamiento y la gastronomía indicados: habitación doble o individual con desayuno, almuerzo y cena; cabaña de 3 plazas con desayuno, almuerzo y cena; o cabaña de 3 plazas con desayuno y sin almuerzo ni cena. El desayuno en cabaña está sujeto a validación del hotel. Los servicios y detalles finales del kit se confirmarán antes de la reserva.${extra}` },
     { key: 'habitaciones', title: '3. Habitaciones y distribución', status: P, body: 'No se ofrecen habitaciones triples de hotel; las únicas plazas de a tres son cabañas. Las habitaciones y cabañas compartidas se asignan según disponibilidad, género y paquete contratado. Las solicitudes de compañero se consideran pero no se garantizan hasta la confirmación final del rooming.' },
     { key: 'cancelaciones', title: '4. Cancelaciones, cambios y transferencia de cupo', status: P, body: 'Las condiciones de cancelación, devolución y transferencia se informarán antes de abrir las reservas y se aceptarán junto con la reserva [PENDIENTE: texto validado]. Toda solicitud se realiza por escrito por los canales oficiales. Reprogramación: si condiciones meteorológicas adversas ponen en riesgo la seguridad, o si sobreviene una imposibilidad de realizar el camp, Ciclismo Reybaud podrá anunciar una nueva fecha. Las inscripciones se trasladarán a esa fecha sin pago adicional; cada participante recibirá aviso y podrá elegir mantener su lugar o solicitar el reintegro por el canal indicado.' },
@@ -81,7 +81,7 @@ export const RESERVATION_FLOW = [
 export const OPENING_BLOCKERS = [
   { key: 'inventario', label: 'Inventario confirmado por el hotel: dobles, individuales y cabañas de 3 plazas' },
   { key: 'simultaneo', label: 'Límite simultáneo de ciclistas 21–24/01 (camp completo + Mini) confirmado por hotel y vehículos' },
-  { key: 'sena_cuotas', label: 'Importe de seña, plan de cuotas y fecha límite del saldo' },
+  { key: 'sena_cuotas', label: 'Conexión transaccional del plan acordado 30% / 35% al 15/12/2026 / 35% al 10/01/2027 con reserva y aceptación'  },
   { key: 'noche_extra', label: 'Disponibilidad y precio de la noche extra del 17/01' },
   { key: 'reprogramacion', label: 'Política de reprogramación revisada legalmente' },
   { key: 'cancelacion', label: 'Texto de cancelación y transferencia validado' },
@@ -123,7 +123,7 @@ export function bookableSpots(input: CapacityInput, camp: Camp, group: PhysicalG
   let spots = commercial;
   for (const night of nightsOf(stay.checkIn, stay.checkOut)) {
     const present = input.occupants.filter(o => nightsOf(SAN_LUIS_2027_STAYS[o.camp].checkIn, SAN_LUIS_2027_STAYS[o.camp].checkOut).includes(night));
-    spots = Math.min(spots, inv! - present.filter(o => o.group === group).length, input.simultaneousCap! - present.length);
+    spots = Math.min(spots, (inv ?? 0) - present.filter(o => o.group === group).length, (input.simultaneousCap ?? 0) - present.length);
   }
   return { spots: Math.max(0, spots), blockers };
 }

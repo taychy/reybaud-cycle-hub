@@ -6,6 +6,7 @@ import scenery from "@/assets/events/san-luis-sierras.jpg.asset.json";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import SanLuisCommercialStatus from "@/components/event/SanLuisCommercialStatus";
 import SanLuisEnrollmentForm from "@/components/event/SanLuisEnrollmentForm";
 import { CampKey, SAN_LUIS_INTAKE_ENABLED, sanLuisCamps, sanLuisPackages } from "@/lib/sanLuisPreRegistration";
 import { formatPrice } from "@/lib/currency";
@@ -68,7 +69,7 @@ export default function SanLuis2027() {
             </article>)}</div>
           </TabsContent>)}
         </Tabs>
-        <div className="mt-6 space-y-2 text-sm text-muted-foreground leading-relaxed"><p>Las cabañas con y sin comidas comparten inventario. No se ofrecen habitaciones triples convencionales.</p><p>Los límites de 30 y 15 son comerciales; la disponibilidad simultánea de hotel y vehículos para el 21–24/01 todavía debe confirmarse. Enviar una solicitud no bloquea una plaza.</p><p>Los servicios y detalles finales del kit se confirmarán antes de la reserva.</p></div>
+        <div className="mt-6 space-y-2 text-sm text-muted-foreground leading-relaxed"><p>Las cabañas con y sin comidas comparten inventario. No se ofrecen habitaciones triples convencionales.</p><p>Máximo físico compartido: 39 personas entre ambos camps (10 individuales, 10 dobles y 3 cabañas de 3 plazas). Los techos de 30 y 15 no se suman: cada alojamiento requiere validación del hotel. La cabaña del staff no integra este cupo. Enviar una solicitud no bloquea una plaza.</p><p>Los servicios y detalles finales del kit se confirmarán antes de la reserva.</p></div>
       </section>
 
       <section className="bg-secondary/50 border-y border-border"><div className="max-w-6xl mx-auto px-5 py-10 md:px-8 grid md:grid-cols-3 gap-8">
@@ -79,7 +80,7 @@ export default function SanLuis2027() {
 
       <section id="inscripcion" className="relative scroll-mt-6 max-w-6xl mx-auto px-5 py-12 md:px-8 md:py-16 grid lg:grid-cols-[1fr_1.5fr] gap-10">
         <span id="preinscripcion" className="absolute -top-6" aria-hidden="true" />
-        <div><p className="text-accent text-sm uppercase font-semibold mb-2">Solicitud con revisión manual</p><h2 className="text-4xl mb-4">Solicitar inscripción</h2><p className="text-muted-foreground leading-relaxed">Contanos quiénes vienen y qué propuesta eligen. No necesitás ser alumno ni tener una cuenta en Reybaud. Si ya dejaste una preinscripción con el mismo email, la vinculamos sin borrarla.</p><div role="region" aria-label="Tu elección actual" className="mt-7 border-t border-border pt-5 space-y-2"><p className="font-semibold">Tu elección actual</p><p>{current.label} · {current.nights} noches</p><p className="text-sm text-muted-foreground">{current.dates} de 2027</p>{selected && <><p>{selected.label}</p><p className="text-sm text-muted-foreground">{formatPrice(selected.price, "ARS")} ARS estimados por ciclista</p><p className="text-xs text-muted-foreground">Sujeto a confirmación de administración antes de pagar</p></>}</div></div>
+        <div><p className="text-accent text-sm uppercase font-semibold mb-2">Solicitud con revisión manual</p><h2 className="text-4xl mb-4">Solicitar inscripción</h2><p className="text-muted-foreground leading-relaxed">Contanos quiénes vienen y qué propuesta eligen. No necesitás ser alumno ni tener una cuenta en Reybaud. Si ya dejaste una preinscripción con el mismo email, la vinculamos sin borrarla.</p><div role="region" aria-label="Tu elección actual" className="mt-7 border-t border-border pt-5 space-y-2"><p className="font-semibold">Tu elección actual</p><p>{current.label} · {current.nights} noches</p><p className="text-sm text-muted-foreground">{current.dates} de 2027</p>{selected && <><p>{selected.label}</p><p className="text-sm text-muted-foreground">{formatPrice(selected.price, "ARS")} ARS estimados por ciclista</p><p className="text-xs text-muted-foreground">Sujeto a confirmación de administración antes de pagar</p><SanLuisCommercialStatus eventId={current.id} packageId={selected.id} price={selected.price} /></>}</div></div>
         <SanLuisEnrollmentForm camp={camp} packageId={packageId} onSelectionChange={select} />
       </section>
       <section className="max-w-6xl mx-auto px-5 pb-14 md:px-8"><h2 className="text-3xl mb-6">Antes de sumarte</h2><Accordion type="single" collapsible>{faqs.map(([q, a], i) => <AccordionItem key={q} value={`faq-${i}`}><AccordionTrigger className="text-left gap-4">{q}</AccordionTrigger><AccordionContent className="max-w-3xl text-muted-foreground leading-relaxed">{a}</AccordionContent></AccordionItem>)}</Accordion></section>

@@ -484,3 +484,9 @@
 - [x] Landing /san-luis-2027 exclusiva de desarrollo con ocho tarifas cotejadas, imagen real con licencia, selector, resumen, FAQ y formulario preparado sobre submit_waitlist_entry; recepción bloqueada, sin abrir eventos ocultos.
 - [x] 23 tests aprobados; verificación navegador a 360/390/1280, ocho combinaciones, imagen cargada, sin desbordes/errores y cero llamadas de escritura; compilación/tipos automáticos OK, consulta final: cero entradas. Preview externo requiere acceso Lovable (HTTP 401 sin sesión de plataforma).
 - [ ] Deploy a producción: pendiente de verificación de integridad y autorización explícita.
+
+## San Luis enero 2027 · comercialización controlada (28/11)
+- [x] Incorporar inventario compartido 39 (10 individuales, 20 dobles, 9 cabañas) con retención administrativa atómica y auditoría.
+- [x] Mostrar capacidad y plan 30/35/35 sin abrir cobros; conservar solicitudes/preinscripciones.
+- [x] Probar límites, concurrencia y accesos; auditar estados y verificar móvil/página pública. SQL aislado y 65 tests; sin datos reales de prueba.
+- [ ] Conectar retención a reserva nativa, aceptación y cobro validado: bloqueado hasta circuito transaccional completo y términos revisados.

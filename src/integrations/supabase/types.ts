@@ -17300,6 +17300,185 @@ export type Database = {
           },
         ]
       }
+      trip_capacity_events: {
+        Row: {
+          check_in: string
+          check_out: string
+          commercial_cap: number
+          event_id: string
+          pool_id: string
+        }
+        Insert: {
+          check_in: string
+          check_out: string
+          commercial_cap: number
+          event_id: string
+          pool_id: string
+        }
+        Update: {
+          check_in?: string
+          check_out?: string
+          commercial_cap?: number
+          event_id?: string
+          pool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_capacity_events_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_capacity_events_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "trip_capacity_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_capacity_groups: {
+        Row: {
+          group_key: string
+          places_per_room: number
+          pool_id: string
+          room_count: number
+        }
+        Insert: {
+          group_key: string
+          places_per_room: number
+          pool_id: string
+          room_count: number
+        }
+        Update: {
+          group_key?: string
+          places_per_room?: number
+          pool_id?: string
+          room_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_capacity_groups_pool_id_fkey"
+            columns: ["pool_id"]
+            isOneToOne: false
+            referencedRelation: "trip_capacity_pools"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_capacity_holds: {
+        Row: {
+          approved_unit_price: number
+          group_key: string
+          held_at: string
+          held_by: string
+          hold_note: string
+          people_count: number
+          pool_id: string
+          release_note: string | null
+          released_at: string | null
+          released_by: string | null
+          request_id: string
+        }
+        Insert: {
+          approved_unit_price: number
+          group_key: string
+          held_at?: string
+          held_by: string
+          hold_note: string
+          people_count: number
+          pool_id: string
+          release_note?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          request_id: string
+        }
+        Update: {
+          approved_unit_price?: number
+          group_key?: string
+          held_at?: string
+          held_by?: string
+          hold_note?: string
+          people_count?: number
+          pool_id?: string
+          release_note?: string | null
+          released_at?: string | null
+          released_by?: string | null
+          request_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_capacity_holds_pool_id_group_key_fkey"
+            columns: ["pool_id", "group_key"]
+            isOneToOne: false
+            referencedRelation: "trip_capacity_groups"
+            referencedColumns: ["pool_id", "group_key"]
+          },
+          {
+            foreignKeyName: "trip_capacity_holds_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: true
+            referencedRelation: "event_enrollment_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      trip_capacity_packages: {
+        Row: {
+          group_key: string
+          package_id: string
+          pool_id: string
+        }
+        Insert: {
+          group_key: string
+          package_id: string
+          pool_id: string
+        }
+        Update: {
+          group_key?: string
+          package_id?: string
+          pool_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "trip_capacity_packages_package_id_fkey"
+            columns: ["package_id"]
+            isOneToOne: true
+            referencedRelation: "event_packages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "trip_capacity_packages_pool_id_group_key_fkey"
+            columns: ["pool_id", "group_key"]
+            isOneToOne: false
+            referencedRelation: "trip_capacity_groups"
+            referencedColumns: ["pool_id", "group_key"]
+          },
+        ]
+      }
+      trip_capacity_pools: {
+        Row: {
+          id: string
+          name: string
+          payment_handoff_enabled: boolean
+          total_capacity: number
+        }
+        Insert: {
+          id?: string
+          name: string
+          payment_handoff_enabled?: boolean
+          total_capacity: number
+        }
+        Update: {
+          id?: string
+          name?: string
+          payment_handoff_enabled?: boolean
+          total_capacity?: number
+        }
+        Relationships: []
+      }
       trip_food_survey_qa: {
         Row: {
           active: boolean
@@ -20171,6 +20350,10 @@ export type Database = {
           token: string
         }[]
       }
+      admin_hold_trip_request_capacity: {
+        Args: { p_note: string; p_release: boolean; p_request_id: string }
+        Returns: Json
+      }
       admin_issue_crosssell_link: {
         Args: { p_event_id: string; p_source_reservation_id: string }
         Returns: Json
@@ -21884,6 +22067,10 @@ export type Database = {
       }
       get_trip_food_stay: {
         Args: { p_reservation_id: string; p_token?: string }
+        Returns: Json
+      }
+      get_trip_request_capacity: {
+        Args: { p_event_id: string; p_package_id: string }
         Returns: Json
       }
       get_turnera_bank_config: {
