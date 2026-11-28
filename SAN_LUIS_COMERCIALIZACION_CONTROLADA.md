@@ -7,6 +7,13 @@
 - Esta es **propuesta comercial interna, no condición vigente ni garantía de validez jurídica**. Aplicar solo tras revisión legal y aprobación del contrato final, considerando el derecho de revocación en ventas online. **Nunca aplicar 15% automáticamente**, ni abrir cobros por esta nota.
 - Bajas voluntarias del participante y transferencias de cupo requieren política específica, todavía pendiente.
 
+## Propuesta de bajas voluntarias para enero 2027 (pendiente de aprobación contractual)
+- No reproducir automáticamente el corte histórico de 120 días: en enero 2027 toda venta nueva comienza dentro de ese período.
+- Ante desistimiento voluntario por escrito, administración relevará gastos ya comprometidos, efectivamente incurridos y no recuperables (alojamiento, gastronomía, servicios, jersey personalizado), informará un detalle comprobable y determinará qué parte de lo abonado puede devolverse. No prometer un porcentaje de devolución sin conocer condiciones de los proveedores.
+- Ofrecer transferencia a un reemplazante aprobado por Claudio/administración, siempre que haya cupo compatible y se formalice la reasignación sin duplicar reserva ni pagos. Si el reemplazante cubre el valor de la plaza, recalcular los gastos a descontar para evitar cobrar dos veces.
+- Si la baja afecta una habitación compartida, cualquier recategorización o diferencia económica debe comunicarse y ser aceptada antes de imputarla a otra persona.
+- Respetar derechos legales aplicables a ventas a distancia, incluidos plazos de revocación cuando correspondan. Esta propuesta no está vigente ni habilita cobro; revisión jurídica y aprobación de condiciones finales pendientes.
+
 ## Actualización 28/11 · preparación nativa implementada, cobro NO habilitado
 - Migraciones 0130 y 0131 aplicadas: enlaces `trip_capacity_reservation_links`, preparación administrativa atómica por participante y ocho planes **inactivos** en las tablas de planes existentes. Plan 30% inmediato + 35% al 15/12/2026 + 35% al 10/01/2027; el constructor nativo conserva la exigibilidad de vencidos al reservar.
 - Retenciones y reservas cuentan una sola vez en el mismo pool de 39. La conversión completa queda serializada por pool, idempotente y revierte grupo, enlaces y cuotas ante cualquier fallo. Cancelación administrativa libera capacidad sin tocar dinero; no reactivación ni liberación manual del hold convertido.
